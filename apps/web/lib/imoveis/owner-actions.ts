@@ -68,14 +68,20 @@ export async function searchClientsForOwnerAction(query: string): Promise<OwnerC
   }))
 }
 
-export async function addPropertyOwnerAction(propertyId: string, input: AddOwnerInput): Promise<ActionResult> {
+export async function addPropertyOwnerAction(
+  propertyId: string,
+  input: AddOwnerInput
+): Promise<ActionResult> {
   if (!isUuid(propertyId)) {
     return { ok: false, error: "Imóvel inválido." }
   }
 
   const parsed = addOwnerInputSchema.safeParse(input)
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Confira os dados do proprietário." }
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Confira os dados do proprietário.",
+    }
   }
 
   const loaded = await getPropertyActionContext(propertyId)
@@ -93,10 +99,16 @@ export async function addPropertyOwnerAction(propertyId: string, input: AddOwner
     .maybeSingle()
 
   if (clientError) {
-    return { ok: false, error: translateDbError(clientError, "adicionar o proprietário") }
+    return {
+      ok: false,
+      error: translateDbError(clientError, "adicionar o proprietário"),
+    }
   }
   if (!client) {
-    return { ok: false, error: "Cliente não encontrado ou fora do seu acesso nesta imobiliária." }
+    return {
+      ok: false,
+      error: "Cliente não encontrado ou fora do seu acesso nesta imobiliária.",
+    }
   }
 
   const { data, error } = await supabase
@@ -110,10 +122,16 @@ export async function addPropertyOwnerAction(propertyId: string, input: AddOwner
     .select("id")
 
   if (error) {
-    return { ok: false, error: translateDbError(error, "adicionar o proprietário") }
+    return {
+      ok: false,
+      error: translateDbError(error, "adicionar o proprietário"),
+    }
   }
   if (!data?.length) {
-    return { ok: false, error: "Você não tem permissão para adicionar proprietários a este imóvel." }
+    return {
+      ok: false,
+      error: "Você não tem permissão para adicionar proprietários a este imóvel.",
+    }
   }
 
   revalidateOwnerPaths(property.id, clientId)
@@ -132,7 +150,10 @@ export async function updatePropertyOwnerShareAction(
 
   const parsed = ownerShareFormSchema.safeParse({ sharePercent })
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Participação inválida." }
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Participação inválida.",
+    }
   }
 
   const loaded = await getPropertyActionContext(propertyId)
@@ -149,12 +170,18 @@ export async function updatePropertyOwnerShareAction(
     .select("id, client_id")
 
   if (error) {
-    return { ok: false, error: translateDbError(error, "alterar a participação") }
+    return {
+      ok: false,
+      error: translateDbError(error, "alterar a participação"),
+    }
   }
 
   const row = data?.[0]
   if (!row) {
-    return { ok: false, error: "Você não tem permissão para alterar este proprietário ou ele foi removido." }
+    return {
+      ok: false,
+      error: "Você não tem permissão para alterar este proprietário ou ele foi removido.",
+    }
   }
 
   revalidateOwnerPaths(property.id, row.client_id)
@@ -162,18 +189,26 @@ export async function updatePropertyOwnerShareAction(
   return { ok: true, message: "Participação atualizada." }
 }
 
-export async function removePropertyOwnerAction(propertyId: string, ownerId: string): Promise<ActionResult> {
+export async function removePropertyOwnerAction(
+  propertyId: string,
+  ownerId: string
+): Promise<ActionResult> {
   if (!isUuid(propertyId) || !isUuid(ownerId)) {
     return { ok: false, error: "Proprietário inválido." }
   }
 
-  const loaded = await getPropertyActionContext(propertyId, { requireEdit: false })
+  const loaded = await getPropertyActionContext(propertyId, {
+    requireEdit: false,
+  })
   if (!loaded.ok) return loaded
 
   const { supabase, organizationId, role, property } = loaded.context
 
   if (!canDeletePropertyRecords(role)) {
-    return { ok: false, error: "Somente o dono ou o gerente podem remover proprietários." }
+    return {
+      ok: false,
+      error: "Somente o dono ou o gerente podem remover proprietários.",
+    }
   }
 
   const { data, error } = await supabase
@@ -185,12 +220,18 @@ export async function removePropertyOwnerAction(propertyId: string, ownerId: str
     .select("id, client_id")
 
   if (error) {
-    return { ok: false, error: translateDbError(error, "remover o proprietário") }
+    return {
+      ok: false,
+      error: translateDbError(error, "remover o proprietário"),
+    }
   }
 
   const row = data?.[0]
   if (!row) {
-    return { ok: false, error: "Você não tem permissão para remover este proprietário ou ele já foi removido." }
+    return {
+      ok: false,
+      error: "Você não tem permissão para remover este proprietário ou ele já foi removido.",
+    }
   }
 
   revalidateOwnerPaths(property.id, row.client_id)

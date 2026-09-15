@@ -51,7 +51,9 @@ function money(label: string, { positive }: { positive: boolean }) {
     } else if (positive ? parsed <= 0 : parsed < 0) {
       ctx.addIssue({
         code: "custom",
-        message: positive ? `${label} precisa ser maior que zero.` : `${label} não pode ser negativo.`,
+        message: positive
+          ? `${label} precisa ser maior que zero.`
+          : `${label} não pode ser negativo.`,
       })
     } else if (parsed > MAX_MONEY) {
       ctx.addIssue({ code: "custom", message: `${label}: valor alto demais.` })
@@ -64,9 +66,15 @@ function area(label: string) {
     const parsed = parseDecimalInput(value)
     if (parsed === null) return
     if (Number.isNaN(parsed)) {
-      ctx.addIssue({ code: "custom", message: `${label}: use números, com até 2 casas decimais.` })
+      ctx.addIssue({
+        code: "custom",
+        message: `${label}: use números, com até 2 casas decimais.`,
+      })
     } else if (parsed <= 0) {
-      ctx.addIssue({ code: "custom", message: `${label} precisa ser maior que zero.` })
+      ctx.addIssue({
+        code: "custom",
+        message: `${label} precisa ser maior que zero.`,
+      })
     } else if (parsed > 999_999_999) {
       ctx.addIssue({ code: "custom", message: `${label}: valor alto demais.` })
     }
@@ -78,7 +86,10 @@ function integer(label: string, min: number, max: number) {
     const parsed = parseIntegerInput(value, min < 0)
     if (parsed === null) return
     if (Number.isNaN(parsed) || parsed < min || parsed > max) {
-      ctx.addIssue({ code: "custom", message: `${label}: informe um número inteiro entre ${min} e ${max}.` })
+      ctx.addIssue({
+        code: "custom",
+        message: `${label}: informe um número inteiro entre ${min} e ${max}.`,
+      })
     }
   })
 }
@@ -88,7 +99,10 @@ function coordinate(label: string, limit: number) {
     const parsed = parseCoordinateInput(value)
     if (parsed === null) return
     if (Number.isNaN(parsed) || parsed < -limit || parsed > limit) {
-      ctx.addIssue({ code: "custom", message: `${label}: informe um valor entre -${limit} e ${limit} (ex.: -22.9068).` })
+      ctx.addIssue({
+        code: "custom",
+        message: `${label}: informe um valor entre -${limit} e ${limit} (ex.: -22.9068).`,
+      })
     }
   })
 }
@@ -102,7 +116,10 @@ export const propertyFormSchema = z
       .max(TITLE_MAX_LENGTH, `O título pode ter no máximo ${TITLE_MAX_LENGTH} caracteres.`),
     description: z
       .string()
-      .max(DESCRIPTION_MAX_LENGTH, `A descrição pode ter no máximo ${DESCRIPTION_MAX_LENGTH} caracteres.`),
+      .max(
+        DESCRIPTION_MAX_LENGTH,
+        `A descrição pode ter no máximo ${DESCRIPTION_MAX_LENGTH} caracteres.`
+      ),
     purpose: z.enum(LISTING_PURPOSES, { error: "Selecione a finalidade." }),
     usage: z.enum(PROPERTY_USAGES, { error: "Selecione o uso." }),
     type: z.enum(PROPERTY_TYPES, { error: "Selecione o tipo de imóvel." }),
@@ -118,14 +135,19 @@ export const propertyFormSchema = z
     postalCode: z
       .string()
       .trim()
-      .refine((value) => value === "" || /^\d{5}-?\d{3}$/.test(value), "CEP inválido. Use o formato 00000-000."),
+      .refine(
+        (value) => value === "" || /^\d{5}-?\d{3}$/.test(value),
+        "CEP inválido. Use o formato 00000-000."
+      ),
     street: text(200, "A rua"),
     streetNumber: text(20, "O número"),
     complement: text(120, "O complemento"),
     neighborhood: text(120, "O bairro"),
     city: text(120, "A cidade"),
     // Retorno `boolean` explícito: sem isso o type guard de isStateCode estreita o tipo do campo.
-    state: z.string().refine((value): boolean => value === "" || isStateCode(value), "Selecione uma UF válida."),
+    state: z
+      .string()
+      .refine((value): boolean => value === "" || isStateCode(value), "Selecione uma UF válida."),
     latitude: coordinate("Latitude", 90),
     longitude: coordinate("Longitude", 180),
     addressDisplay: z.enum(ADDRESS_DISPLAYS),
@@ -150,12 +172,18 @@ export const propertyFormSchema = z
       .string()
       .trim()
       .max(2048, "Link longo demais.")
-      .refine((value) => value === "" || isYoutubeUrl(value), "Use um link do YouTube em https (youtube.com ou youtu.be)."),
+      .refine(
+        (value) => value === "" || isYoutubeUrl(value),
+        "Use um link do YouTube em https (youtube.com ou youtu.be)."
+      ),
     tourUrl: z
       .string()
       .trim()
       .max(2048, "Link longo demais.")
-      .refine((value) => value === "" || isHttpsUrl(value), "O tour virtual precisa de um link começando com https://."),
+      .refine(
+        (value) => value === "" || isHttpsUrl(value),
+        "O tour virtual precisa de um link começando com https://."
+      ),
 
     status: z.enum(PROPERTY_STATUSES),
     publishedToPortals: z.boolean(),
@@ -164,7 +192,11 @@ export const propertyFormSchema = z
     const bedrooms = parseIntegerInput(values.bedrooms)
     const suites = parseIntegerInput(values.suites)
     if (bedrooms != null && suites != null && !Number.isNaN(bedrooms) && suites > bedrooms) {
-      ctx.addIssue({ code: "custom", path: ["suites"], message: "Suítes não podem passar do número de quartos." })
+      ctx.addIssue({
+        code: "custom",
+        path: ["suites"],
+        message: "Suítes não podem passar do número de quartos.",
+      })
     }
 
     const hasLatitude = values.latitude.trim() !== ""
@@ -284,7 +316,9 @@ type StatusRequirementSource = Pick<
  * O que falta para sair do rascunho (CHECKs properties_price_required e
  * properties_area_required, que valem para todo status diferente de draft).
  */
-export function getStatusRequirementIssues(property: StatusRequirementSource): StatusRequirementIssue[] {
+export function getStatusRequirementIssues(
+  property: StatusRequirementSource
+): StatusRequirementIssue[] {
   const issues: StatusRequirementIssue[] = []
 
   for (const field of requiredPrices(property.purpose)) {
@@ -292,14 +326,18 @@ export function getStatusRequirementIssues(property: StatusRequirementSource): S
     if (value == null || value <= 0) {
       issues.push({
         field,
-        message: field === "salePrice" ? "Informe o preço de venda." : "Informe o preço de locação.",
+        message:
+          field === "salePrice" ? "Informe o preço de venda." : "Informe o preço de locação.",
       })
     }
   }
 
   if (requiresLotArea(property.type)) {
     if (property.lot_area == null || property.lot_area <= 0) {
-      issues.push({ field: "lotArea", message: "Informe a área total do terreno." })
+      issues.push({
+        field: "lotArea",
+        message: "Informe a área total do terreno.",
+      })
     }
   } else if (property.living_area == null || property.living_area <= 0) {
     issues.push({ field: "livingArea", message: "Informe a área útil." })

@@ -59,24 +59,24 @@ import {
   LGPD_LEGAL_BASIS_VALUES,
 } from "@/lib/clientes/constants"
 import { getMemberName, type ClientOption, type MemberOption } from "@/lib/clientes/options"
-import { formatDateTime } from "@/lib/format"
+import { formatDate, formatDateTime } from "@/lib/format"
 import {
   convertLeadToClient,
   findLeadClientCandidates,
   type ConvertLeadResult,
   type LeadClientCandidate,
 } from "@/lib/leads/convert-actions"
-import {
-  LEAD_SOURCE_TO_CLIENT_SOURCE,
-  LEAD_STAGE_LABELS,
-} from "@/lib/leads/constants"
+import { LEAD_SOURCE_TO_CLIENT_SOURCE, LEAD_STAGE_LABELS } from "@/lib/leads/constants"
 import type { LeadItem } from "@/lib/leads/types"
 
 const NEW_CLIENT = "novo"
 
 const LEGAL_BASIS_ITEMS = [
   { label: "Selecione a base legal", value: null },
-  ...LGPD_LEGAL_BASIS_VALUES.map((basis) => ({ label: LGPD_LEGAL_BASIS_LABELS[basis], value: basis })),
+  ...LGPD_LEGAL_BASIS_VALUES.map((basis) => ({
+    label: LGPD_LEGAL_BASIS_LABELS[basis],
+    value: basis,
+  })),
 ]
 
 const MATCH_LABELS: Record<"email" | "phone", string> = {
@@ -121,7 +121,9 @@ function mergeCandidates(state: CandidatesState, lead: LeadItem): LeadClientCand
 
 export function ConvertLeadDialog({ lead, showTrigger, ...props }: ConvertLeadDialogProps) {
   const [open, setOpen] = React.useState(false)
-  const [candidates, setCandidates] = React.useState<CandidatesState>({ status: "loading" })
+  const [candidates, setCandidates] = React.useState<CandidatesState>({
+    status: "loading",
+  })
   const [, startLoading] = React.useTransition()
   const requestRef = React.useRef(0)
 
@@ -169,7 +171,9 @@ function ConvertLeadForm({
   candidates,
   onConverted,
   onVisitScheduled,
-}: Omit<ConvertLeadDialogProps, "showTrigger"> & { candidates: CandidatesState }) {
+}: Omit<ConvertLeadDialogProps, "showTrigger"> & {
+  candidates: CandidatesState
+}) {
   const [choice, setChoice] = React.useState<string | null>(null)
   const [legalBasis, setLegalBasis] = React.useState("")
   const [consentDate, setConsentDate] = React.useState("")
@@ -233,7 +237,10 @@ function ConvertLeadForm({
         return
       }
 
-      toast.add({ title: response.message ?? "Lead convertido em cliente.", type: "success" })
+      toast.add({
+        title: response.message ?? "Lead convertido em cliente.",
+        type: "success",
+      })
       setResult(response.data)
       onConverted(response.data)
     })
@@ -319,7 +326,9 @@ function ConvertLeadForm({
             <Field>
               <FieldTitle>Base legal (LGPD)</FieldTitle>
               <FieldDescription>
-                Consentimento, registrado no formulário em {formatDateTime(lead.consentAt)}.
+                {lead.source === "landing_page"
+                  ? `Consentimento, registrado no formulário em ${formatDateTime(lead.consentAt)}.`
+                  : `Consentimento, informado pela equipe no cadastro do lead, dado em ${formatDate(lead.consentAt)}.`}
               </FieldDescription>
             </Field>
           ) : (
@@ -369,7 +378,9 @@ function ConvertLeadForm({
                     onChange={setConsentDate}
                     invalid={Boolean(fieldErrors.consentDate)}
                   />
-                  {fieldErrors.consentDate ? <FieldError>{fieldErrors.consentDate}</FieldError> : null}
+                  {fieldErrors.consentDate ? (
+                    <FieldError>{fieldErrors.consentDate}</FieldError>
+                  ) : null}
                 </Field>
               ) : null}
             </>
@@ -379,7 +390,11 @@ function ConvertLeadForm({
         <Field>
           <FieldTitle>O que acontece</FieldTitle>
           <ul className="flex list-disc flex-col gap-1 ps-5 text-sm text-muted-foreground">
-            <li>{creating ? "Cria o cliente com os dados de contato do lead." : "Vincula o lead ao cliente escolhido."}</li>
+            <li>
+              {creating
+                ? "Cria o cliente com os dados de contato do lead."
+                : "Vincula o lead ao cliente escolhido."}
+            </li>
             {lead.property ? (
               <li>
                 Cria um perfil de busca a partir do imóvel{" "}
@@ -424,13 +439,19 @@ function ConvertLeadSuccess({
     description: CLIENT_KIND_LABELS[result.clientKind],
   }
   const property = lead.property
-    ? { id: lead.property.id, label: `${lead.property.code} · ${lead.property.title}`, description: null }
+    ? {
+        id: lead.property.id,
+        label: `${lead.property.code} · ${lead.property.title}`,
+        description: null,
+      }
     : null
 
   return (
     <div className="flex flex-col gap-4">
       <DialogHeader>
-        <DialogTitle>{result.created ? "Lead convertido em cliente" : "Lead vinculado ao cliente"}</DialogTitle>
+        <DialogTitle>
+          {result.created ? "Lead convertido em cliente" : "Lead vinculado ao cliente"}
+        </DialogTitle>
         <DialogDescription>
           <Badge variant="secondary">{result.clientName}</Badge> Agora dá para agendar a visita,
           registrar o histórico e acompanhar as propostas na ficha do cliente.

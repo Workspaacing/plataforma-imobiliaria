@@ -12,7 +12,10 @@ import {
 import { isLeadStage, LEAD_STAGE_LABELS, LEAD_STAGES } from "@/lib/leads/constants"
 import type { LeadStage } from "@/lib/leads/db-types"
 
-const STAGE_ITEMS = LEAD_STAGES.map((stage) => ({ label: LEAD_STAGE_LABELS[stage], value: stage }))
+const STAGE_ITEMS = LEAD_STAGES.map((stage) => ({
+  label: LEAD_STAGE_LABELS[stage],
+  value: stage,
+}))
 
 type LeadStageSelectProps = {
   id?: string

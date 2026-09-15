@@ -89,7 +89,12 @@ function KeyForm({
           location: editingKey.location ?? "",
           notes: editingKey.notes ?? "",
         }
-      : { propertyId: defaultPropertyId ?? "", label: "", location: "", notes: "" },
+      : {
+          propertyId: defaultPropertyId ?? "",
+          label: "",
+          location: "",
+          notes: "",
+        },
   })
 
   const propertyOptions = React.useMemo(

@@ -175,8 +175,16 @@ export function ImageField({
           ) : null}
         </div>
       </div>
-      <HiddenFileInput inputRef={inputRef} label={`Arquivo para ${label.toLowerCase()}`} onFile={handleFile} />
-      {error ? <FieldError>{error}</FieldError> : <FieldDescription>{description}</FieldDescription>}
+      <HiddenFileInput
+        inputRef={inputRef}
+        label={`Arquivo para ${label.toLowerCase()}`}
+        onFile={handleFile}
+      />
+      {error ? (
+        <FieldError>{error}</FieldError>
+      ) : (
+        <FieldDescription>{description}</FieldDescription>
+      )}
     </Field>
   )
 }
@@ -250,7 +258,11 @@ export function ImageListField({
         <ul className="flex flex-col gap-2" aria-label={label}>
           {paths.map((path, index) => (
             <li key={path} className="flex items-center gap-3 rounded-lg border p-2">
-              <Thumbnail url={getLandingAssetPublicUrl(path)} alt={`${label} ${index + 1}`} aspect="wide" />
+              <Thumbnail
+                url={getLandingAssetPublicUrl(path)}
+                alt={`${label} ${index + 1}`}
+                aspect="wide"
+              />
               <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1">
                 <Button
                   type="button"
@@ -306,11 +318,19 @@ export function ImageListField({
           disabled={disabled || isUploading}
           onClick={() => pick(null)}
         >
-          {isUploading ? <Spinner data-icon="inline-start" /> : <ImagePlusIcon data-icon="inline-start" />}
+          {isUploading ? (
+            <Spinner data-icon="inline-start" />
+          ) : (
+            <ImagePlusIcon data-icon="inline-start" />
+          )}
           {isUploading ? "Enviando..." : "Adicionar imagem"}
         </Button>
       ) : null}
-      <HiddenFileInput inputRef={inputRef} label={`Arquivo para ${label.toLowerCase()}`} onFile={handleFile} />
+      <HiddenFileInput
+        inputRef={inputRef}
+        label={`Arquivo para ${label.toLowerCase()}`}
+        onFile={handleFile}
+      />
       <FieldDescription>{description}</FieldDescription>
     </Field>
   )

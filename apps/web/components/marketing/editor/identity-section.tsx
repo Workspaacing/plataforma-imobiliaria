@@ -59,9 +59,13 @@ export function IdentitySection({
   disabled: boolean
 }) {
   const identity = useWatch({ control, name: "identity" })
-  const resolved = resolveLandingTheme(identityValuesToTheme(identity, template), organizationBrand, {
-    storageBaseUrl: null,
-  })
+  const resolved = resolveLandingTheme(
+    identityValuesToTheme(identity, template),
+    organizationBrand,
+    {
+      storageBaseUrl: null,
+    }
+  )
   const { colors } = resolved
   const secondaryBase = isHexColor(identity.secondaryColor)
     ? (identity.secondaryColor.toUpperCase() as HexColor)
@@ -93,7 +97,13 @@ export function IdentitySection({
           <FieldLegend variant="label" className="mb-0">
             Cores da marca
           </FieldLegend>
-          <Button type="button" variant="outline" size="sm" disabled={disabled} onClick={applyOrganizationColors}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled}
+            onClick={applyOrganizationColors}
+          >
             <PaletteIcon data-icon="inline-start" />
             Usar cores da imobiliária
           </Button>
@@ -232,7 +242,11 @@ export function IdentitySection({
       {identity.logoPath ? (
         <FieldDescription>
           Prévia do logo enviado:{" "}
-          <a href={getLandingAssetPublicUrl(identity.logoPath) ?? "#"} target="_blank" rel="noopener noreferrer">
+          <a
+            href={getLandingAssetPublicUrl(identity.logoPath) ?? "#"}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             abrir imagem
           </a>
         </FieldDescription>

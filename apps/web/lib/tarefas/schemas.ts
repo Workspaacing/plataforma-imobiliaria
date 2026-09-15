@@ -7,7 +7,11 @@ import { isDateKey, isTimeKey } from "@/lib/agenda/datetime"
 export const TASK_TITLE_MAX_LENGTH = 200
 export const TASK_DESCRIPTION_MAX_LENGTH = 5000
 
-export const TASK_PRIORITIES = ["low", "medium", "high"] as const satisfies readonly Enums<"task_priority">[]
+export const TASK_PRIORITIES = [
+  "low",
+  "medium",
+  "high",
+] as const satisfies readonly Enums<"task_priority">[]
 
 export function isTaskPriority(value: unknown): value is Enums<"task_priority"> {
   return typeof value === "string" && (TASK_PRIORITIES as readonly string[]).includes(value)

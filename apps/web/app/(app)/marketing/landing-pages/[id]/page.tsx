@@ -4,7 +4,6 @@ import { notFound } from "next/navigation"
 import { LandingEditor } from "@/components/marketing/editor/landing-editor"
 import { ROLE_LABELS, isRole } from "@/lib/auth/roles"
 import { requireMembership } from "@/lib/auth/session"
-import { getSiteUrl } from "@/lib/auth/site-url"
 import { isUuid } from "@/lib/imoveis/ids"
 import { isLandingTemplateKey } from "@/lib/landing/types"
 import {
@@ -20,7 +19,11 @@ import {
   getLandingPageRow,
   getLandingPropertiesByIds,
 } from "@/lib/marketing/queries"
-import { contentToValues, themeToIdentityValues, toPublicationValues } from "@/lib/marketing/schemas"
+import {
+  contentToValues,
+  themeToIdentityValues,
+  toPublicationValues,
+} from "@/lib/marketing/schemas"
 import { createClient } from "@/lib/supabase/server"
 
 type LandingEditorPageProps = {
@@ -50,11 +53,10 @@ export default async function LandingEditorPage({ params }: LandingEditorPagePro
   // Página de outra imobiliária (ou removida) cai aqui: o RLS não devolve a linha.
   if (!row || !isLandingTemplateKey(row.template)) notFound()
 
-  const [organization, members, properties, siteUrl] = await Promise.all([
+  const [organization, members, properties] = await Promise.all([
     getLandingOrganization(supabase, organizationId),
     getLandingMembers(supabase, organizationId),
     getLandingPropertiesByIds(supabase, organizationId, row.property_ids),
-    getSiteUrl(),
   ])
 
   const memberOptions: LandingMemberOption[] = members.map((member) => ({
@@ -85,7 +87,6 @@ export default async function LandingEditorPage({ params }: LandingEditorPagePro
       members={memberOptions}
       organization={toLandingOrganization(organization)}
       organizationSlug={organization.slug}
-      siteUrl={siteUrl}
       canEdit={canEditLandingPages(membership.role)}
     />
   )

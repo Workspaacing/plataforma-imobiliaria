@@ -13,7 +13,10 @@ import {
 import { LEAD_RESPONSE_TARGET_MINUTES } from "@/lib/leads/constants"
 import type { LeadSummaryCounts } from "@/lib/leads/types"
 
-const percent = new Intl.NumberFormat("pt-BR", { style: "percent", maximumFractionDigits: 1 })
+const percent = new Intl.NumberFormat("pt-BR", {
+  style: "percent",
+  maximumFractionDigits: 1,
+})
 const integer = new Intl.NumberFormat("pt-BR")
 
 type LeadsSummaryProps = {
@@ -41,11 +44,16 @@ function SummaryCard({
       <CardHeader>
         <CardDescription>{label}</CardDescription>
         <CardAction>
-          <Icon aria-hidden className={cn("size-4 text-muted-foreground", highlight && "text-destructive")} />
+          <Icon
+            aria-hidden
+            className={cn("size-4 text-muted-foreground", highlight && "text-destructive")}
+          />
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-1">
-        <p className={cn("text-2xl font-semibold tabular-nums", highlight && "text-destructive")}>{value}</p>
+        <p className={cn("text-2xl font-semibold tabular-nums", highlight && "text-destructive")}>
+          {value}
+        </p>
         <p className="text-xs text-muted-foreground">{hint}</p>
       </CardContent>
     </Card>

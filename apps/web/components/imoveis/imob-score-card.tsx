@@ -2,7 +2,14 @@ import { CircleCheckIcon, CircleDashedIcon } from "lucide-react"
 
 import type { ImobScoreResult } from "@workspace/core/properties/imob-score"
 import { Badge } from "@workspace/ui/components/badge"
-import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card"
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@workspace/ui/components/card"
 import {
   Item,
   ItemActions,

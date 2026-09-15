@@ -89,7 +89,13 @@ function FieldLabelText({ field }: { field: LandingTemplateField }) {
 }
 
 /** Prévia da mensagem do WhatsApp com as variáveis substituídas. */
-function WhatsappMessagePreview({ value, variables }: { value: string; variables: WhatsappVariables }) {
+function WhatsappMessagePreview({
+  value,
+  variables,
+}: {
+  value: string
+  variables: WhatsappVariables
+}) {
   const usesCode = /\{codigo\}/i.test(value)
 
   return (
@@ -101,7 +107,9 @@ function WhatsappMessagePreview({ value, variables }: { value: string; variables
       {value.trim() ? (
         <p className="whitespace-pre-line">{fillWhatsappMessage(value, variables)}</p>
       ) : (
-        <p className="text-muted-foreground">Sem mensagem própria: a página usa uma mensagem padrão do modelo.</p>
+        <p className="text-muted-foreground">
+          Sem mensagem própria: a página usa uma mensagem padrão do modelo.
+        </p>
       )}
       {usesCode && !variables.codigo ? (
         <p className="text-xs text-muted-foreground">
@@ -165,13 +173,26 @@ function TextContentField({
                   value={value}
                   onChange={(event) => input.onChange(event.target.value)}
                 />
-                <InputGroupAddon align="block-end" className={isWhatsappMessage ? "justify-between" : "justify-end"}>
+                <InputGroupAddon
+                  align="block-end"
+                  className={isWhatsappMessage ? "justify-between" : "justify-end"}
+                >
                   {isWhatsappMessage ? (
                     <span className="flex gap-1">
-                      <InputGroupButton size="xs" variant="outline" disabled={disabled} onClick={() => insertVariable("{codigo}")}>
+                      <InputGroupButton
+                        size="xs"
+                        variant="outline"
+                        disabled={disabled}
+                        onClick={() => insertVariable("{codigo}")}
+                      >
                         + {"{codigo}"}
                       </InputGroupButton>
-                      <InputGroupButton size="xs" variant="outline" disabled={disabled} onClick={() => insertVariable("{pagina}")}>
+                      <InputGroupButton
+                        size="xs"
+                        variant="outline"
+                        disabled={disabled}
+                        onClick={() => insertVariable("{pagina}")}
+                      >
                         + {"{pagina}"}
                       </InputGroupButton>
                     </span>
@@ -211,7 +232,12 @@ function TextContentField({
                 className="w-20"
                 value={value}
                 onChange={(event) =>
-                  input.onChange(event.target.value.replace(/[^a-zA-Z]/g, "").toUpperCase().slice(0, 2))
+                  input.onChange(
+                    event.target.value
+                      .replace(/[^a-zA-Z]/g, "")
+                      .toUpperCase()
+                      .slice(0, 2)
+                  )
                 }
               />
             )
@@ -260,7 +286,9 @@ function TextContentField({
             ) : field.help && !fieldState.error ? (
               <FieldDescription id={describedBy}>{field.help}</FieldDescription>
             ) : null}
-            {isWhatsappMessage ? <WhatsappMessagePreview value={value} variables={whatsappVariables} /> : null}
+            {isWhatsappMessage ? (
+              <WhatsappMessagePreview value={value} variables={whatsappVariables} />
+            ) : null}
           </Field>
         )
       }}
@@ -281,7 +309,10 @@ function HighlightsField({
   control: FormControl
   disabled: boolean
 }) {
-  const { fields, append, remove } = useFieldArray({ control, name: "content.highlights" })
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "content.highlights",
+  })
   const { errors } = useFormState({ control, name: "content.highlights" })
   const max = field.maxItems ?? LANDING_CONTENT_LIMITS.highlights.items
   const maxLength = field.maxLength ?? LANDING_CONTENT_LIMITS.highlights.length
@@ -320,7 +351,11 @@ function HighlightsField({
                     />
                     <InputGroupAddon align="inline-end">
                       <Counter count={countChars(input.value ?? "")} max={maxLength} />
-                      <InputGroupButton size="icon-xs" disabled={disabled} onClick={() => remove(index)}>
+                      <InputGroupButton
+                        size="icon-xs"
+                        disabled={disabled}
+                        onClick={() => remove(index)}
+                      >
                         <Trash2Icon />
                         <span className="sr-only">
                           Remover item {index + 1} de {field.label.toLowerCase()}
@@ -360,7 +395,10 @@ function StatsField({
   control: FormControl
   disabled: boolean
 }) {
-  const { fields, append, remove } = useFieldArray({ control, name: "content.social_proof" })
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "content.social_proof",
+  })
   const { errors } = useFormState({ control, name: "content.social_proof" })
   const max = field.maxItems ?? LANDING_CONTENT_LIMITS.social_proof.items
   const labelMax = field.maxLength ?? LANDING_CONTENT_LIMITS.social_proof.label
@@ -404,7 +442,10 @@ function StatsField({
             control={control}
             render={({ field: input, fieldState }) => (
               <Field data-invalid={fieldState.invalid} className="min-w-0 flex-1">
-                <FieldLabel htmlFor={`${id}-${index}-rotulo`} className={cn(index > 0 && "sr-only")}>
+                <FieldLabel
+                  htmlFor={`${id}-${index}-rotulo`}
+                  className={cn(index > 0 && "sr-only")}
+                >
                   O que significa
                 </FieldLabel>
                 <InputGroup>
@@ -422,7 +463,11 @@ function StatsField({
                   />
                   <InputGroupAddon align="inline-end">
                     <Counter count={countChars(input.value ?? "")} max={labelMax} />
-                    <InputGroupButton size="icon-xs" disabled={disabled} onClick={() => remove(index)}>
+                    <InputGroupButton
+                      size="icon-xs"
+                      disabled={disabled}
+                      onClick={() => remove(index)}
+                    >
                       <Trash2Icon />
                       <span className="sr-only">Remover número {index + 1}</span>
                     </InputGroupButton>
@@ -459,7 +504,10 @@ function TestimonialsField({
   control: FormControl
   disabled: boolean
 }) {
-  const { fields, append, remove } = useFieldArray({ control, name: "content.testimonials" })
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "content.testimonials",
+  })
   const { errors } = useFormState({ control, name: "content.testimonials" })
   const max = field.maxItems ?? LANDING_CONTENT_LIMITS.testimonials.items
   const textMax = field.maxLength ?? LANDING_CONTENT_LIMITS.testimonials.text
@@ -476,7 +524,13 @@ function TestimonialsField({
         <div key={item.id} className="flex flex-col gap-3 rounded-lg border p-3">
           <div className="flex items-center justify-between gap-2">
             <span className="text-sm font-medium">Depoimento {index + 1}</span>
-            <Button type="button" variant="ghost" size="icon-sm" disabled={disabled} onClick={() => remove(index)}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              disabled={disabled}
+              onClick={() => remove(index)}
+            >
               <Trash2Icon />
               <span className="sr-only">Remover depoimento {index + 1}</span>
             </Button>
@@ -563,8 +617,14 @@ function TypologiesField({
   control: FormControl
   disabled: boolean
 }) {
-  const { fields, append, remove } = useFieldArray({ control, name: "content.launch.typologies" })
-  const { errors } = useFormState({ control, name: "content.launch.typologies" })
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: "content.launch.typologies",
+  })
+  const { errors } = useFormState({
+    control,
+    name: "content.launch.typologies",
+  })
   const max = field.maxItems ?? LANDING_CONTENT_LIMITS.launch.typologies.items
   const nameMax = field.maxLength ?? LANDING_CONTENT_LIMITS.launch.typologies.name
   const id = fieldId(field.key)
@@ -579,7 +639,13 @@ function TypologiesField({
         <div key={item.id} className="flex flex-col gap-3 rounded-lg border p-3">
           <div className="flex items-center justify-between gap-2">
             <span className="text-sm font-medium">Tipologia {index + 1}</span>
-            <Button type="button" variant="ghost" size="icon-sm" disabled={disabled} onClick={() => remove(index)}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              disabled={disabled}
+              onClick={() => remove(index)}
+            >
               <Trash2Icon />
               <span className="sr-only">Remover tipologia {index + 1}</span>
             </Button>
@@ -614,7 +680,9 @@ function TypologiesField({
                 control={control}
                 render={({ field: input, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor={`${id}-${index}-${numberField.key}`}>{numberField.label}</FieldLabel>
+                    <FieldLabel htmlFor={`${id}-${index}-${numberField.key}`}>
+                      {numberField.label}
+                    </FieldLabel>
                     <Input
                       id={`${id}-${index}-${numberField.key}`}
                       ref={input.ref}
@@ -625,7 +693,9 @@ function TypologiesField({
                       disabled={disabled}
                       aria-invalid={fieldState.invalid || undefined}
                       onBlur={input.onBlur}
-                      onChange={(event) => input.onChange(event.target.value.replace(/[^\d.,]/g, ""))}
+                      onChange={(event) =>
+                        input.onChange(event.target.value.replace(/[^\d.,]/g, ""))
+                      }
                     />
                     {fieldState.error ? <FieldError errors={[fieldState.error]} /> : null}
                   </Field>
@@ -710,7 +780,10 @@ export function ContentSection({
       </FieldDescription>
       {template.fields.map((field, index) => (
         <div key={field.key} className="flex flex-col gap-5">
-          {index > 0 && (field.kind === "typologies" || field.kind === "testimonials" || field.kind === "stats") ? (
+          {index > 0 &&
+          (field.kind === "typologies" ||
+            field.kind === "testimonials" ||
+            field.kind === "stats") ? (
             <Separator />
           ) : null}
           <ContentField

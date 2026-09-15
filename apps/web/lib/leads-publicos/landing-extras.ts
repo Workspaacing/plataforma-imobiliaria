@@ -8,7 +8,8 @@ import { safeGtmContainerId } from "@/lib/leads-publicos/tracking-ids"
 const WHATSAPP_MESSAGE_MAX_LENGTH = 500
 const WHATSAPP_TEXT_MAX_LENGTH = 1000
 
-const DEFAULT_MESSAGE_WITH_CODE = 'Olá! Vim pela página "{pagina}" e tenho interesse no imóvel {codigo}.'
+const DEFAULT_MESSAGE_WITH_CODE =
+  'Olá! Vim pela página "{pagina}" e tenho interesse no imóvel {codigo}.'
 const DEFAULT_MESSAGE_WITHOUT_CODE = 'Olá! Vim pela página "{pagina}" e gostaria de atendimento.'
 
 export function readGtmContainerId(payload: LandingPublicPayload): string | null {

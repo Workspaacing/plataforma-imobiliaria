@@ -30,7 +30,14 @@ type LeadsWorkspaceProps = {
 }
 
 /** Quadro ou lista, painel de detalhe e diálogo de perda, sobre o mesmo estado otimista. */
-export function LeadsWorkspace({ leads, members, currentUserId, role, nowMs, view }: LeadsWorkspaceProps) {
+export function LeadsWorkspace({
+  leads,
+  members,
+  currentUserId,
+  role,
+  nowMs,
+  view,
+}: LeadsWorkspaceProps) {
   const now = useNow(nowMs)
   const mutations = useLeadMutations(leads, { managePositions: true })
   const [selectedId, setSelectedId] = React.useState<string | null>(null)

@@ -91,9 +91,7 @@ export async function listProposals(
   }
 
   if (countsResult.error) {
-    throw new Error(
-      `Não foi possível contar as propostas (${countsResult.error.code ?? "erro"}).`
-    )
+    throw new Error(`Não foi possível contar as propostas (${countsResult.error.code ?? "erro"}).`)
   }
 
   const counts: ProposalCounts = {

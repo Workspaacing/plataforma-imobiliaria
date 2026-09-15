@@ -45,7 +45,10 @@ import {
 import { Spinner } from "@workspace/ui/components/spinner"
 import { toast } from "@workspace/ui/components/toast"
 
-import { AuthorizationDialog, type OwnerSelectOption } from "@/components/imoveis/detail/authorization-dialog"
+import {
+  AuthorizationDialog,
+  type OwnerSelectOption,
+} from "@/components/imoveis/detail/authorization-dialog"
 import { formatDate } from "@/lib/format"
 import { formatDateOnly, formatPercent } from "@/components/imoveis/detail/format"
 import { propertyTabHref } from "@/components/imoveis/detail/tabs"
@@ -91,7 +94,8 @@ export function AuthorizationsPanel({
           <TriangleAlertIcon />
           <AlertTitle>Nenhuma autorização vigente</AlertTitle>
           <AlertDescription>
-            Uma autorização de venda ou locação vigente dá segurança para anunciar e vale 10 pontos na Nota do Anúncio.
+            Uma autorização de venda ou locação vigente dá segurança para anunciar e vale 10 pontos
+            na Nota do Anúncio.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -99,10 +103,16 @@ export function AuthorizationsPanel({
       <Card>
         <CardHeader>
           <CardTitle>Autorizações</CardTitle>
-          <CardDescription>Autorizações do proprietário para anunciar e negociar o imóvel.</CardDescription>
+          <CardDescription>
+            Autorizações do proprietário para anunciar e negociar o imóvel.
+          </CardDescription>
           {canEdit && hasOwners ? (
             <CardAction>
-              <AuthorizationDialog propertyId={propertyId} ownerOptions={ownerOptions} today={today} />
+              <AuthorizationDialog
+                propertyId={propertyId}
+                ownerOptions={ownerOptions}
+                today={today}
+              />
             </CardAction>
           ) : null}
         </CardHeader>
@@ -121,7 +131,11 @@ export function AuthorizationsPanel({
                 </EmptyHeader>
                 {canEdit ? (
                   <EmptyContent>
-                    <AuthorizationDialog propertyId={propertyId} ownerOptions={ownerOptions} today={today} />
+                    <AuthorizationDialog
+                      propertyId={propertyId}
+                      ownerOptions={ownerOptions}
+                      today={today}
+                    />
                   </EmptyContent>
                 ) : null}
               </Empty>
@@ -133,14 +147,16 @@ export function AuthorizationsPanel({
                   </EmptyMedia>
                   <EmptyTitle>Cadastre os proprietários primeiro</EmptyTitle>
                   <EmptyDescription>
-                    A autorização é assinada por um proprietário do imóvel. Vincule os proprietários na aba
-                    Proprietários.
+                    A autorização é assinada por um proprietário do imóvel. Vincule os proprietários
+                    na aba Proprietários.
                   </EmptyDescription>
                 </EmptyHeader>
                 <EmptyContent>
                   <Button
                     variant="outline"
-                    render={<Link href={propertyTabHref(propertyId, "proprietarios")} scroll={false} />}
+                    render={
+                      <Link href={propertyTabHref(propertyId, "proprietarios")} scroll={false} />
+                    }
                     nativeButton={false}
                   >
                     <UsersIcon data-icon="inline-start" />
@@ -161,7 +177,10 @@ export function AuthorizationsPanel({
                     <ItemContent className="min-w-0">
                       <ItemTitle className="flex-wrap">
                         {item.ownerName ? (
-                          <Link href={`/clientes/${item.ownerClientId}`} className="hover:underline">
+                          <Link
+                            href={`/clientes/${item.ownerClientId}`}
+                            className="hover:underline"
+                          >
                             {item.ownerName}
                           </Link>
                         ) : (
@@ -175,8 +194,11 @@ export function AuthorizationsPanel({
                         </Badge>
                       </ItemTitle>
                       <ItemDescription className="line-clamp-none">
-                        Vigência: {formatValidity(item)} · Comissão: {formatPercent(item.commissionPercent)} ·{" "}
-                        {item.signedAt ? `Assinada em ${formatDate(item.signedAt)}` : "Assinatura não registrada"}
+                        Vigência: {formatValidity(item)} · Comissão:{" "}
+                        {formatPercent(item.commissionPercent)} ·{" "}
+                        {item.signedAt
+                          ? `Assinada em ${formatDate(item.signedAt)}`
+                          : "Assinatura não registrada"}
                         {item.hasDocument ? " · Documento anexado" : ""}
                       </ItemDescription>
                     </ItemContent>
@@ -190,7 +212,9 @@ export function AuthorizationsPanel({
                             authorization={item}
                           />
                         ) : null}
-                        {canDelete ? <RemoveAuthorizationButton propertyId={propertyId} authorization={item} /> : null}
+                        {canDelete ? (
+                          <RemoveAuthorizationButton propertyId={propertyId} authorization={item} />
+                        ) : null}
                       </ItemActions>
                     ) : null}
                   </Item>
@@ -220,9 +244,16 @@ function RemoveAuthorizationButton({
 
       if (result.ok) {
         setOpen(false)
-        toast.add({ title: result.message ?? "Autorização removida.", type: "success" })
+        toast.add({
+          title: result.message ?? "Autorização removida.",
+          type: "success",
+        })
       } else {
-        toast.add({ title: "Não foi possível remover a autorização", description: result.error, type: "error" })
+        toast.add({
+          title: "Não foi possível remover a autorização",
+          description: result.error,
+          type: "error",
+        })
       }
     })
   }
@@ -237,8 +268,8 @@ function RemoveAuthorizationButton({
         <AlertDialogHeader>
           <AlertDialogTitle>Remover autorização?</AlertDialogTitle>
           <AlertDialogDescription>
-            A autorização de {authorization.ownerName ?? "proprietário sem acesso"} ({formatValidity(authorization)})
-            será apagada e a Nota do Anúncio será recalculada.
+            A autorização de {authorization.ownerName ?? "proprietário sem acesso"} (
+            {formatValidity(authorization)}) será apagada e a Nota do Anúncio será recalculada.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

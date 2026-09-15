@@ -4,7 +4,9 @@ import { todayInSaoPaulo } from "@/lib/imoveis/mappers"
 /** Brasília é sempre UTC-3 (sem horário de verão desde 2019). */
 const BRASILIA_UTC_OFFSET = "-03:00"
 
-const percentFormat = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 2 })
+const percentFormat = new Intl.NumberFormat("pt-BR", {
+  maximumFractionDigits: 2,
+})
 
 /**
  * Colunas `date` (AAAA-MM-DD). `new Date("2026-09-15")` é meia-noite UTC e
@@ -40,8 +42,10 @@ export function formatPhone(value: string | null | undefined) {
   if (!value) return "—"
   let digits = value.replace(/\D/g, "")
   if (digits.length > 11 && digits.startsWith("55")) digits = digits.slice(2)
-  if (digits.length === 11) return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`
-  if (digits.length === 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`
+  if (digits.length === 11)
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`
+  if (digits.length === 10)
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`
   return value
 }
 

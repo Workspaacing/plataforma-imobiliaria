@@ -52,7 +52,11 @@ import { useCopyToClipboard } from "@/components/configuracoes/copy-field"
 import { LandingStatusBadge } from "@/components/marketing/landing-status-badge"
 import { formatDate, formatNumber } from "@/lib/format"
 import { duplicateLandingPageAction, setLandingStatusAction } from "@/lib/marketing/actions"
-import { landingEditorPath, landingPreviewPath, type LandingStatus } from "@/lib/marketing/constants"
+import {
+  landingEditorPath,
+  landingPreviewPath,
+  type LandingStatus,
+} from "@/lib/marketing/constants"
 import { displayUrl } from "@/lib/marketing/urls"
 
 export type LandingTableRow = {
@@ -60,7 +64,8 @@ export type LandingTableRow = {
   name: string
   templateName: string
   status: LandingStatus
-  publicUrl: string
+  /** Endereço no subdomínio da imobiliária; null se indisponível. */
+  publicUrl: string | null
   leadCount: number | null
   publishedAt: string | null
 }
@@ -70,25 +75,26 @@ type PendingConfirm = {
   to: LandingStatus
 }
 
-const CONFIRM_COPY: Record<LandingStatus, { title: string; description: string; confirm: string }> = {
-  published: {
-    title: "Publicar a landing page?",
-    description: "A página fica acessível no endereço público e passa a receber leads no funil.",
-    confirm: "Publicar",
-  },
-  draft: {
-    title: "Despublicar a landing page?",
-    description:
-      "O endereço público deixa de funcionar e a página volta a ser rascunho. Os leads já recebidos continuam no funil.",
-    confirm: "Despublicar",
-  },
-  archived: {
-    title: "Arquivar a landing page?",
-    description:
-      "A página sai do ar e vai para a lista de arquivadas. Você pode restaurá-la como rascunho depois.",
-    confirm: "Arquivar",
-  },
-}
+const CONFIRM_COPY: Record<LandingStatus, { title: string; description: string; confirm: string }> =
+  {
+    published: {
+      title: "Publicar a landing page?",
+      description: "A página fica acessível no endereço público e passa a receber leads no funil.",
+      confirm: "Publicar",
+    },
+    draft: {
+      title: "Despublicar a landing page?",
+      description:
+        "O endereço público deixa de funcionar e a página volta a ser rascunho. Os leads já recebidos continuam no funil.",
+      confirm: "Despublicar",
+    },
+    archived: {
+      title: "Arquivar a landing page?",
+      description:
+        "A página sai do ar e vai para a lista de arquivadas. Você pode restaurá-la como rascunho depois.",
+      confirm: "Arquivar",
+    },
+  }
 
 function CopyUrlButton({ url }: { url: string }) {
   const { copied, copy } = useCopyToClipboard()
@@ -113,7 +119,13 @@ function CopyUrlButton({ url }: { url: string }) {
   )
 }
 
-export function LandingPagesTable({ rows, canEdit }: { rows: LandingTableRow[]; canEdit: boolean }) {
+export function LandingPagesTable({
+  rows,
+  canEdit,
+}: {
+  rows: LandingTableRow[]
+  canEdit: boolean
+}) {
   const router = useRouter()
   const [pending, setPending] = React.useState<PendingConfirm | null>(null)
   const [confirmOpen, setConfirmOpen] = React.useState(false)
@@ -133,11 +145,15 @@ export function LandingPagesTable({ rows, canEdit }: { rows: LandingTableRow[]; 
       const result = await setLandingStatusAction(row.id, to)
 
       if (!result.ok) {
-        toast.add({ type: "error", title: "Não foi possível alterar", description: result.error })
+        toast.add({
+          type: "error",
+          title: "Não foi possível alterar",
+          description: result.error,
+        })
         return
       }
 
-      toast.add({ type: "success", title: result.message ?? "Landing page atualizada." })
+      toast.add({ type: "success", title: result.message })
       setConfirmOpen(false)
     })
   }
@@ -150,7 +166,11 @@ export function LandingPagesTable({ rows, canEdit }: { rows: LandingTableRow[]; 
       setDuplicatingId(null)
 
       if (!result.ok) {
-        toast.add({ type: "error", title: "Não foi possível duplicar", description: result.error })
+        toast.add({
+          type: "error",
+          title: "Não foi possível duplicar",
+          description: result.error,
+        })
         return
       }
 
@@ -159,6 +179,7 @@ export function LandingPagesTable({ rows, canEdit }: { rows: LandingTableRow[]; 
     })
   }
 
+  const isRestore = pending?.row.status === "archived" && pending.to === "draft"
   const copy = pending ? CONFIRM_COPY[pending.to] : null
 
   return (
@@ -187,30 +208,38 @@ export function LandingPagesTable({ rows, canEdit }: { rows: LandingTableRow[]; 
                   >
                     {row.name}
                   </Link>
-                  <span className="max-w-64 truncate text-muted-foreground">{row.templateName}</span>
+                  <span className="max-w-64 truncate text-muted-foreground">
+                    {row.templateName}
+                  </span>
                 </div>
               </TableCell>
               <TableCell>
                 <LandingStatusBadge status={row.status} />
               </TableCell>
               <TableCell>
-                <div className="flex max-w-80 min-w-0 items-center gap-1">
-                  <span className="truncate text-muted-foreground" title={row.publicUrl}>
-                    {displayUrl(row.publicUrl)}
-                  </span>
-                  <CopyUrlButton url={row.publicUrl} />
-                  {row.status === "published" ? (
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      render={<a href={row.publicUrl} target="_blank" rel="noopener noreferrer" />}
-                      nativeButton={false}
-                    >
-                      <ExternalLinkIcon />
-                      <span className="sr-only">Abrir página publicada</span>
-                    </Button>
-                  ) : null}
-                </div>
+                {row.publicUrl ? (
+                  <div className="flex max-w-80 min-w-0 items-center gap-1">
+                    <span className="truncate text-muted-foreground" title={row.publicUrl}>
+                      {displayUrl(row.publicUrl)}
+                    </span>
+                    <CopyUrlButton url={row.publicUrl} />
+                    {row.status === "published" ? (
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        render={
+                          <a href={row.publicUrl} target="_blank" rel="noopener noreferrer" />
+                        }
+                        nativeButton={false}
+                      >
+                        <ExternalLinkIcon />
+                        <span className="sr-only">Abrir página publicada</span>
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : (
+                  <span className="text-muted-foreground">Endereço indisponível</span>
+                )}
               </TableCell>
               <TableCell className="text-end tabular-nums">
                 {row.leadCount == null ? (
@@ -229,7 +258,9 @@ export function LandingPagesTable({ rows, canEdit }: { rows: LandingTableRow[]; 
               <TableCell className="text-end">
                 <DropdownMenu>
                   <DropdownMenuTrigger
-                    render={<Button variant="ghost" size="icon-sm" disabled={duplicatingId === row.id} />}
+                    render={
+                      <Button variant="ghost" size="icon-sm" disabled={duplicatingId === row.id} />
+                    }
                   >
                     {duplicatingId === row.id ? <Spinner /> : <MoreHorizontalIcon />}
                     <span className="sr-only">Ações de {row.name}</span>
@@ -241,7 +272,13 @@ export function LandingPagesTable({ rows, canEdit }: { rows: LandingTableRow[]; 
                         {canEdit ? "Editar" : "Ver configuração"}
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        render={<a href={landingPreviewPath(row.id)} target="_blank" rel="noopener noreferrer" />}
+                        render={
+                          <a
+                            href={landingPreviewPath(row.id)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          />
+                        }
                       >
                         <EyeIcon />
                         Pré-visualizar
@@ -273,7 +310,10 @@ export function LandingPagesTable({ rows, canEdit }: { rows: LandingTableRow[]; 
                               Restaurar como rascunho
                             </DropdownMenuItem>
                           ) : (
-                            <DropdownMenuItem variant="destructive" onClick={() => askStatus(row, "archived")}>
+                            <DropdownMenuItem
+                              variant="destructive"
+                              onClick={() => askStatus(row, "archived")}
+                            >
                               <ArchiveIcon />
                               Arquivar
                             </DropdownMenuItem>
@@ -293,13 +333,11 @@ export function LandingPagesTable({ rows, canEdit }: { rows: LandingTableRow[]; 
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {pending?.row.status === "archived" && pending.to === "draft"
-                ? "Restaurar a landing page?"
-                : copy?.title}
+              {isRestore ? "Restaurar a landing page?" : copy?.title}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {pending ? `${pending.row.name}. ` : ""}
-              {pending?.row.status === "archived" && pending.to === "draft"
+              {isRestore
                 ? "A página volta para a lista como rascunho. Publique quando quiser colocá-la no ar."
                 : copy?.description}
             </AlertDialogDescription>
@@ -312,7 +350,7 @@ export function LandingPagesTable({ rows, canEdit }: { rows: LandingTableRow[]; 
               onClick={runStatusChange}
             >
               {isChanging ? <Spinner data-icon="inline-start" /> : null}
-              {pending?.row.status === "archived" && pending.to === "draft" ? "Restaurar" : copy?.confirm}
+              {isRestore ? "Restaurar" : copy?.confirm}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -73,7 +73,7 @@ export function PropertyCard({
               <span
                 className={cn(
                   lpDisplayFont,
-                  "text-[1.625rem] leading-none font-bold tabular-nums font-stretch-semi-condensed"
+                  "text-[1.625rem] leading-none font-bold font-stretch-semi-condensed tabular-nums"
                 )}
               >
                 {mainPrice.amount}
@@ -116,7 +116,12 @@ export function PropertyCard({
 
         <InterestLink
           href={formHref}
-          interest={{ kind: "property", id: property.id, code: property.code, title: property.title }}
+          interest={{
+            kind: "property",
+            id: property.id,
+            code: property.code,
+            title: property.title,
+          }}
           aria-label={`Tenho interesse: ${property.title}`}
           className={lpButtonClass({
             tone: "outline",

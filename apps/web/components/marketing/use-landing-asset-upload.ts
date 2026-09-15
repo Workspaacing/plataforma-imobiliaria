@@ -49,10 +49,16 @@ export function useLandingAssetUpload({
       const type = resolveImageType(file)
 
       if (!type) {
-        return { ok: false, error: "Formato não aceito. Envie JPG, PNG ou WebP." }
+        return {
+          ok: false,
+          error: "Formato não aceito. Envie JPG, PNG ou WebP.",
+        }
       }
       if (file.size > LANDING_MAX_IMAGE_BYTES) {
-        return { ok: false, error: `O arquivo tem ${formatMegabytes(file.size)}; o limite é 5 MB.` }
+        return {
+          ok: false,
+          error: `O arquivo tem ${formatMegabytes(file.size)}; o limite é 5 MB.`,
+        }
       }
 
       const extension = LANDING_ACCEPTED_IMAGE_TYPES[type]
@@ -69,12 +75,18 @@ export function useLandingAssetUpload({
         })
 
         if (error) {
-          return { ok: false, error: translateLandingStorageError(error, "enviar imagens para esta landing page") }
+          return {
+            ok: false,
+            error: translateLandingStorageError(error, "enviar imagens para esta landing page"),
+          }
         }
 
         return { ok: true, path }
       } catch {
-        return { ok: false, error: "Não foi possível enviar a imagem agora. Tente novamente." }
+        return {
+          ok: false,
+          error: "Não foi possível enviar a imagem agora. Tente novamente.",
+        }
       } finally {
         setPendingCount((count) => Math.max(0, count - 1))
       }

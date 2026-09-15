@@ -15,7 +15,12 @@ export type AgendaAppointment = {
   createdBy: string | null
   propertyId: string | null
   clientId: string | null
-  property: { id: string; code: string; title: string; neighborhood: string | null } | null
+  property: {
+    id: string
+    code: string
+    title: string
+    neighborhood: string | null
+  } | null
   /** null quando não há cliente ou quando o RLS esconde o cliente (ver clientId). */
   client: { id: string; name: string } | null
   /** Agendada/confirmada com início no passado: falta registrar o retorno. */

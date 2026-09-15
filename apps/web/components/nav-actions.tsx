@@ -20,11 +20,7 @@ import {
 } from "lucide-react"
 
 import { Button } from "@workspace/ui/components/button"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@workspace/ui/components/popover"
+import { Popover, PopoverContent, PopoverTrigger } from "@workspace/ui/components/popover"
 import {
   Sidebar,
   SidebarContent,
@@ -105,28 +101,17 @@ export function NavActions() {
   }, [])
   return (
     <div className="flex items-center gap-2 text-sm">
-      <div className="hidden font-medium text-muted-foreground md:inline-block">
-        Edit Oct 08
-      </div>
+      <div className="hidden font-medium text-muted-foreground md:inline-block">Edit Oct 08</div>
       <Button variant="ghost" size="icon-sm">
         <StarIcon />
       </Button>
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="data-popup-open:bg-accent"
-            />
-          }
+          render={<Button variant="ghost" size="icon-sm" className="data-popup-open:bg-accent" />}
         >
           <MoreHorizontalIcon />
         </PopoverTrigger>
-        <PopoverContent
-          className="w-56 overflow-hidden rounded-lg p-0"
-          align="end"
-        >
+        <PopoverContent className="w-56 overflow-hidden rounded-lg p-0" align="end">
           <Sidebar collapsible="none" className="bg-transparent">
             <SidebarContent>
               {data.map((group, index) => (

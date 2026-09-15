@@ -51,7 +51,9 @@ export function TagsInput({
 }: TagsInputProps) {
   const [draft, setDraft] = React.useState("")
   const listId = React.useId()
-  const available = suggestions.filter((suggestion) => !value.some((item) => sameValue(item, suggestion)))
+  const available = suggestions.filter(
+    (suggestion) => !value.some((item) => sameValue(item, suggestion))
+  )
   const isFull = value.length >= maxItems
 
   function addValues(raw: string) {

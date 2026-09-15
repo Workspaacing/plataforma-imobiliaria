@@ -1,17 +1,10 @@
 // Fluxo de status das propostas (regra pura, usada na interface e nas actions).
-import {
-  PROPOSAL_STATUS_LABELS,
-  type ProposalStatus,
-} from "@workspace/core/properties/enums"
+import { PROPOSAL_STATUS_LABELS, type ProposalStatus } from "@workspace/core/properties/enums"
 
 export { PROPOSAL_STATUS_LABELS, type ProposalStatus }
 
 /** Propostas ainda em negociação (podem ser editadas e vencer). */
-export const OPEN_PROPOSAL_STATUSES: readonly ProposalStatus[] = [
-  "draft",
-  "sent",
-  "countered",
-]
+export const OPEN_PROPOSAL_STATUSES: readonly ProposalStatus[] = ["draft", "sent", "countered"]
 
 /**
  * rascunho → enviada → (contraproposta ⇄ enviada) → aceita | recusada.
@@ -51,9 +44,7 @@ export function isProposalExpired(
   today: string
 ) {
   return (
-    isOpenProposal(proposal.status) &&
-    proposal.validUntil !== null &&
-    proposal.validUntil < today
+    isOpenProposal(proposal.status) && proposal.validUntil !== null && proposal.validUntil < today
   )
 }
 
@@ -123,8 +114,7 @@ export function getTransitionCopy(from: ProposalStatus, to: ProposalStatus): Tra
       ...copy,
       action: "Reenviar proposta",
       title: "Reenviar a proposta?",
-      description:
-        "Confirme que o valor e as condições já foram ajustados após a contraproposta.",
+      description: "Confirme que o valor e as condições já foram ajustados após a contraproposta.",
       confirm: "Reenviar",
       success: "Proposta reenviada.",
     }

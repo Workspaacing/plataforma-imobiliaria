@@ -55,31 +55,29 @@ export function SupabaseSetupNotice() {
           <BrandLogo className="mb-2" />
           <CardTitle>Configure o Supabase</CardTitle>
           <CardDescription>
-            O CRM precisa das credenciais do seu projeto Supabase para entrar,
-            criar contas e guardar os dados das imobiliárias.
+            O CRM precisa das credenciais do seu projeto Supabase para entrar, criar contas e
+            guardar os dados das imobiliárias.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-5">
           <ol className="flex list-decimal flex-col gap-3 ps-5 text-sm">
             <li>
-              Crie o arquivo <code className="font-mono text-xs">apps/web/.env.local</code>{" "}
-              (use <code className="font-mono text-xs">apps/web/.env.example</code> como
-              modelo).
+              Crie o arquivo <code className="font-mono text-xs">apps/web/.env.local</code> (use{" "}
+              <code className="font-mono text-xs">apps/web/.env.example</code> como modelo).
             </li>
             <li>
               Preencha as variáveis com os dados de{" "}
-              <span className="font-medium">
-                Project Settings &gt; API Keys
-              </span>{" "}
-              no painel do Supabase:
+              <span className="font-medium">Project Settings &gt; API Keys</span> no painel do
+              Supabase:
               <pre className="mt-2 overflow-x-auto rounded-lg bg-muted p-3 font-mono text-xs">
-                {"NEXT_PUBLIC_SUPABASE_URL=https://seu-projeto.supabase.co\nNEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_..."}
+                {
+                  "NEXT_PUBLIC_SUPABASE_URL=https://seu-projeto.supabase.co\nNEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_..."
+                }
               </pre>
             </li>
             <li>
-              Reinicie o servidor de desenvolvimento (ou gere o build de novo).
-              Variáveis <code className="font-mono text-xs">NEXT_PUBLIC_</code> são
-              lidas na inicialização.
+              Reinicie o servidor de desenvolvimento (ou gere o build de novo). Variáveis{" "}
+              <code className="font-mono text-xs">NEXT_PUBLIC_</code> são lidas na inicialização.
             </li>
           </ol>
           <Separator />
@@ -102,8 +100,8 @@ export function SupabaseSetupNotice() {
             <AlertTitle>Projetos antigos</AlertTitle>
             <AlertDescription>
               Se o projeto ainda usa a chave anon, defina{" "}
-              <code className="font-mono text-xs">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> no
-              lugar da chave publicável.
+              <code className="font-mono text-xs">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> no lugar da
+              chave publicável.
             </AlertDescription>
           </Alert>
         </CardFooter>

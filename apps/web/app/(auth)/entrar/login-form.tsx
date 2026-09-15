@@ -88,11 +88,7 @@ export function LoginForm({
   }
 
   return (
-    <form
-      className="flex flex-col gap-6"
-      onSubmit={form.handleSubmit(onSubmit)}
-      noValidate
-    >
+    <form className="flex flex-col gap-6" onSubmit={form.handleSubmit(onSubmit)} noValidate>
       <FieldGroup>
         <AuthHeading
           title="Entre na sua conta"
@@ -150,12 +146,7 @@ export function LoginForm({
         </Field>
         <FieldSeparator>ou</FieldSeparator>
         <Field>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onMagicLink}
-            disabled={isPending}
-          >
+          <Button type="button" variant="outline" onClick={onMagicLink} disabled={isPending}>
             {pendingAction === "magic-link" ? (
               <Spinner data-icon="inline-start" />
             ) : (
@@ -164,8 +155,7 @@ export function LoginForm({
             Receber link de acesso
           </Button>
           <FieldDescription className="text-center">
-            Ainda não tem conta?{" "}
-            <Link href={appendNextParam(SIGN_UP_PATH, next)}>Criar conta</Link>
+            Ainda não tem conta? <Link href={appendNextParam(SIGN_UP_PATH, next)}>Criar conta</Link>
           </FieldDescription>
         </Field>
       </FieldGroup>

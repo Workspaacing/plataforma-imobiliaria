@@ -21,7 +21,9 @@ export function CreciSeal({
   className?: string
 }) {
   const preferBroker = vm.key === "portfolio_broker"
-  const broker = vm.broker?.creciLabel ? { holder: vm.broker.name, label: vm.broker.creciLabel } : null
+  const broker = vm.broker?.creciLabel
+    ? { holder: vm.broker.name, label: vm.broker.creciLabel }
+    : null
   const agency = vm.organization.creciLabel
     ? { holder: vm.organization.name, label: vm.organization.creciLabel }
     : null

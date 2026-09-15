@@ -52,16 +52,18 @@ export function CampaignSpotlightTemplate({
 
   const facts: HeroFact[] =
     vm.highlights.length > 0
-      ? vm.highlights.slice(0, 3).map((label, index) => ({ key: `destaque-${index}`, label, icon: null }))
+      ? vm.highlights.slice(0, 3).map((label, index) => ({
+          key: `destaque-${index}`,
+          label,
+          icon: null,
+        }))
       : (property?.specs ?? []).slice(0, 4).map((spec) => ({
           key: spec.key,
           label: spec.value,
           icon: PROPERTY_SPEC_ICONS[spec.key],
         }))
 
-  const photos = (property?.mediaUrls ?? [])
-    .filter((url) => url !== heroImage)
-    .slice(0, 6)
+  const photos = (property?.mediaUrls ?? []).filter((url) => url !== heroImage).slice(0, 6)
   const galleryImages = photos.map((url, index) => ({
     url,
     alt: `Foto ${index + 1} de ${photos.length}: ${property?.title ?? "imóvel"}`,
@@ -70,9 +72,17 @@ export function CampaignSpotlightTemplate({
   const details = property
     ? [
         ...(property.code ? [{ label: "Código", value: property.code }] : []),
-        ...property.specs.map((spec) => ({ label: SPEC_LABELS[spec.key], value: spec.value })),
+        ...property.specs.map((spec) => ({
+          label: SPEC_LABELS[spec.key],
+          value: spec.value,
+        })),
         ...(property.condoFee
-          ? [{ label: "Condomínio", value: `${formatCurrency(property.condoFee)}/mês` }]
+          ? [
+              {
+                label: "Condomínio",
+                value: `${formatCurrency(property.condoFee)}/mês`,
+              },
+            ]
           : []),
       ]
     : []
@@ -127,7 +137,7 @@ export function CampaignSpotlightTemplate({
                   <p
                     className={cn(
                       lpDisplayFont,
-                      "text-[2.75rem] leading-none font-extrabold tabular-nums font-stretch-condensed @xl:text-[3.75rem]"
+                      "text-[2.75rem] leading-none font-extrabold font-stretch-condensed tabular-nums @xl:text-[3.75rem]"
                     )}
                   >
                     {price.amount}
@@ -162,7 +172,10 @@ export function CampaignSpotlightTemplate({
                         {Icon ? (
                           <Icon aria-hidden="true" className="size-5 shrink-0" />
                         ) : (
-                          <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-current" />
+                          <span
+                            aria-hidden="true"
+                            className="size-1.5 shrink-0 rounded-full bg-current"
+                          />
                         )}
                         {fact.label}
                       </li>

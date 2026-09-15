@@ -3,7 +3,15 @@
 import * as React from "react"
 import Link from "next/link"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { InboxIcon, PencilIcon, PercentIcon, Trash2Icon, TriangleAlertIcon, UserPlusIcon, UsersIcon } from "lucide-react"
+import {
+  InboxIcon,
+  PencilIcon,
+  PercentIcon,
+  Trash2Icon,
+  TriangleAlertIcon,
+  UserPlusIcon,
+  UsersIcon,
+} from "lucide-react"
 import { Controller, useForm } from "react-hook-form"
 
 import { CLIENT_KIND_LABELS } from "@workspace/core/properties/enums"
@@ -47,7 +55,13 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@workspace/ui/components/empty"
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@workspace/ui/components/field"
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@workspace/ui/components/field"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@workspace/ui/components/input-group"
 import {
   Item,
@@ -90,7 +104,9 @@ export function OwnersPanel({
   canEdit: boolean
   canDelete: boolean
 }) {
-  const shares = owners.map((owner) => owner.sharePercent).filter((value): value is number => value != null)
+  const shares = owners
+    .map((owner) => owner.sharePercent)
+    .filter((value): value is number => value != null)
   const total = Math.round(shares.reduce((sum, value) => sum + value, 0) * 100) / 100
   const hasShares = shares.length > 0
   const missingShares = hasShares && shares.length < owners.length
@@ -104,13 +120,14 @@ export function OwnersPanel({
           <AlertTitle>Imóvel originado de uma captação</AlertTitle>
           <AlertDescription>
             <p>
-              Proprietário informado em {formatDateTime(capture.createdAt)}: <strong>{capture.ownerName}</strong>
+              Proprietário informado em {formatDateTime(capture.createdAt)}:{" "}
+              <strong>{capture.ownerName}</strong>
               {capture.ownerEmail ? ` · ${capture.ownerEmail}` : ""}
               {capture.ownerPhone ? ` · ${formatPhone(capture.ownerPhone)}` : ""}.
             </p>
             <p>
-              Se ele ainda não é cliente, <Link href="/clientes/novo">cadastre-o como cliente</Link> e adicione-o
-              aqui como proprietário.
+              Se ele ainda não é cliente, <Link href="/clientes/novo">cadastre-o como cliente</Link>{" "}
+              e adicione-o aqui como proprietário.
             </p>
           </AlertDescription>
         </Alert>
@@ -121,11 +138,19 @@ export function OwnersPanel({
           <CardTitle>Proprietários</CardTitle>
           <CardDescription>Clientes donos do imóvel e a participação de cada um.</CardDescription>
           <CardAction className="flex flex-wrap justify-end gap-2">
-            <Button variant="outline" size="sm" render={<Link href="/clientes/novo" />} nativeButton={false}>
+            <Button
+              variant="outline"
+              size="sm"
+              render={<Link href="/clientes/novo" />}
+              nativeButton={false}
+            >
               Cadastrar cliente
             </Button>
             {canEdit ? (
-              <AddOwnerDialog propertyId={propertyId} existingClientIds={owners.map((owner) => owner.clientId)} />
+              <AddOwnerDialog
+                propertyId={propertyId}
+                existingClientIds={owners.map((owner) => owner.clientId)}
+              />
             ) : null}
           </CardAction>
         </CardHeader>
@@ -138,8 +163,8 @@ export function OwnersPanel({
                 </EmptyMedia>
                 <EmptyTitle>Nenhum proprietário cadastrado</EmptyTitle>
                 <EmptyDescription>
-                  Vincule os clientes donos do imóvel. Eles são necessários para registrar a autorização de venda ou
-                  locação.
+                  Vincule os clientes donos do imóvel. Eles são necessários para registrar a
+                  autorização de venda ou locação.
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>
@@ -157,11 +182,18 @@ export function OwnersPanel({
                         <span className="text-muted-foreground">Cliente sem acesso</span>
                       )}
                     </ItemTitle>
-                    {owner.clientKind ? <ItemDescription>{CLIENT_KIND_LABELS[owner.clientKind]}</ItemDescription> : null}
+                    {owner.clientKind ? (
+                      <ItemDescription>{CLIENT_KIND_LABELS[owner.clientKind]}</ItemDescription>
+                    ) : null}
                   </ItemContent>
                   <ItemActions>
-                    <Badge variant={owner.sharePercent == null ? "outline" : "secondary"} className="tabular-nums">
-                      {owner.sharePercent == null ? "Sem percentual" : formatPercent(owner.sharePercent)}
+                    <Badge
+                      variant={owner.sharePercent == null ? "outline" : "secondary"}
+                      className="tabular-nums"
+                    >
+                      {owner.sharePercent == null
+                        ? "Sem percentual"
+                        : formatPercent(owner.sharePercent)}
                     </Badge>
                     {canEdit ? <OwnerShareDialog propertyId={propertyId} owner={owner} /> : null}
                     {canDelete ? <RemoveOwnerButton propertyId={propertyId} owner={owner} /> : null}
@@ -176,7 +208,9 @@ export function OwnersPanel({
               <TriangleAlertIcon />
               <AlertTitle>Confira as participações</AlertTitle>
               <AlertDescription>
-                {sumIsOff ? `As participações somam ${formatPercent(total)}; o esperado é 100%.` : null}
+                {sumIsOff
+                  ? `As participações somam ${formatPercent(total)}; o esperado é 100%.`
+                  : null}
                 {sumIsOff && missingShares ? " " : null}
                 {missingShares ? "Há proprietários sem percentual informado." : null}
               </AlertDescription>
@@ -194,9 +228,18 @@ export function OwnersPanel({
   )
 }
 
-const ADD_OWNER_DEFAULTS: AddOwnerFormValues = { client: null, sharePercent: "" }
+const ADD_OWNER_DEFAULTS: AddOwnerFormValues = {
+  client: null,
+  sharePercent: "",
+}
 
-function AddOwnerDialog({ propertyId, existingClientIds }: { propertyId: string; existingClientIds: string[] }) {
+function AddOwnerDialog({
+  propertyId,
+  existingClientIds,
+}: {
+  propertyId: string
+  existingClientIds: string[]
+}) {
   const [open, setOpen] = React.useState(false)
   const [isPending, startTransition] = React.useTransition()
   const form = useForm<AddOwnerFormValues>({
@@ -214,7 +257,10 @@ function AddOwnerDialog({ propertyId, existingClientIds }: { propertyId: string;
     if (!client) return
 
     if (existingClientIds.includes(client.id)) {
-      form.setError("client", { type: "manual", message: "Este cliente já é proprietário deste imóvel." })
+      form.setError("client", {
+        type: "manual",
+        message: "Este cliente já é proprietário deste imóvel.",
+      })
       return
     }
 
@@ -226,9 +272,16 @@ function AddOwnerDialog({ propertyId, existingClientIds }: { propertyId: string;
 
       if (result.ok) {
         setOpen(false)
-        toast.add({ title: result.message ?? "Proprietário adicionado.", type: "success" })
+        toast.add({
+          title: result.message ?? "Proprietário adicionado.",
+          type: "success",
+        })
       } else {
-        toast.add({ title: "Não foi possível adicionar o proprietário", description: result.error, type: "error" })
+        toast.add({
+          title: "Não foi possível adicionar o proprietário",
+          description: result.error,
+          type: "error",
+        })
       }
     })
   }
@@ -244,8 +297,8 @@ function AddOwnerDialog({ propertyId, existingClientIds }: { propertyId: string;
           <DialogHeader>
             <DialogTitle>Adicionar proprietário</DialogTitle>
             <DialogDescription>
-              Busque um cliente já cadastrado. Se ele não aparecer, <Link href="/clientes/novo">cadastre o cliente</Link>{" "}
-              primeiro.
+              Busque um cliente já cadastrado. Se ele não aparecer,{" "}
+              <Link href="/clientes/novo">cadastre o cliente</Link> primeiro.
             </DialogDescription>
           </DialogHeader>
           <FieldGroup>
@@ -354,9 +407,16 @@ function OwnerShareDialog({ propertyId, owner }: { propertyId: string; owner: Ow
 
       if (result.ok) {
         setOpen(false)
-        toast.add({ title: result.message ?? "Participação atualizada.", type: "success" })
+        toast.add({
+          title: result.message ?? "Participação atualizada.",
+          type: "success",
+        })
       } else {
-        toast.add({ title: "Não foi possível alterar a participação", description: result.error, type: "error" })
+        toast.add({
+          title: "Não foi possível alterar a participação",
+          description: result.error,
+          type: "error",
+        })
       }
     })
   }
@@ -373,7 +433,9 @@ function OwnerShareDialog({ propertyId, owner }: { propertyId: string; owner: Ow
         <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
           <DialogHeader>
             <DialogTitle>Editar participação</DialogTitle>
-            <DialogDescription>Percentual de {ownerName} no imóvel. Deixe em branco para não informar.</DialogDescription>
+            <DialogDescription>
+              Percentual de {ownerName} no imóvel. Deixe em branco para não informar.
+            </DialogDescription>
           </DialogHeader>
           <FieldGroup>
             <Controller
@@ -413,9 +475,16 @@ function RemoveOwnerButton({ propertyId, owner }: { propertyId: string; owner: O
 
       if (result.ok) {
         setOpen(false)
-        toast.add({ title: result.message ?? "Proprietário removido.", type: "success" })
+        toast.add({
+          title: result.message ?? "Proprietário removido.",
+          type: "success",
+        })
       } else {
-        toast.add({ title: "Não foi possível remover o proprietário", description: result.error, type: "error" })
+        toast.add({
+          title: "Não foi possível remover o proprietário",
+          description: result.error,
+          type: "error",
+        })
       }
     })
   }
@@ -430,8 +499,8 @@ function RemoveOwnerButton({ propertyId, owner }: { propertyId: string; owner: O
         <AlertDialogHeader>
           <AlertDialogTitle>Remover proprietário?</AlertDialogTitle>
           <AlertDialogDescription>
-            {ownerName} deixa de constar como proprietário deste imóvel. O cadastro do cliente e as autorizações já
-            registradas continuam existindo.
+            {ownerName} deixa de constar como proprietário deste imóvel. O cadastro do cliente e as
+            autorizações já registradas continuam existindo.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

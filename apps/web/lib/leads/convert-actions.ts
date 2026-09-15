@@ -103,7 +103,10 @@ export async function findLeadClientCandidates(
   }
 
   if (!lead) {
-    return { ok: false, error: "Lead não encontrado. Ele pode ter sido removido." }
+    return {
+      ok: false,
+      error: "Lead não encontrado. Ele pode ter sido removido.",
+    }
   }
 
   const email = validEmail(lead.email)
@@ -153,7 +156,10 @@ export async function findLeadClientCandidates(
     }
   }
 
-  return { ok: true, data: { candidates: [...candidates.values()].slice(0, CANDIDATE_LIMIT) } }
+  return {
+    ok: true,
+    data: { candidates: [...candidates.values()].slice(0, CANDIDATE_LIMIT) },
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -228,7 +234,9 @@ function buildInterestValues(lead: LeadRow, property: PropertyForInterest): Inte
     minPrice: hasPrice ? String(Math.round(price * (1 - PRICE_RANGE_FACTOR))) : "",
     maxPrice: hasPrice ? String(Math.round(price * (1 + PRICE_RANGE_FACTOR))) : "",
     minBedrooms:
-      property.bedrooms !== null && property.bedrooms > 0 ? String(Math.min(property.bedrooms, 50)) : "",
+      property.bedrooms !== null && property.bedrooms > 0
+        ? String(Math.min(property.bedrooms, 50))
+        : "",
     notes: `Criado na conversão do lead: interesse no imóvel ${property.code} · ${property.title}.`,
     active: true,
   }
@@ -240,7 +248,10 @@ export async function convertLeadToClient(
   const parsed = convertLeadSchema.safeParse(input)
 
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Conversão inválida." }
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Conversão inválida.",
+    }
   }
 
   const { user, membership } = await requireMembership()
@@ -249,14 +260,21 @@ export async function convertLeadToClient(
   const action = "converter este lead"
   const supabase = await createLeadsClient()
 
-  const { data: lead, error: leadError } = await loadLead(supabase, organizationId, parsed.data.leadId)
+  const { data: lead, error: leadError } = await loadLead(
+    supabase,
+    organizationId,
+    parsed.data.leadId
+  )
 
   if (leadError) {
     return { ok: false, error: translateDatabaseError(leadError, action) }
   }
 
   if (!lead) {
-    return { ok: false, error: "Lead não encontrado. Ele pode ter sido removido." }
+    return {
+      ok: false,
+      error: "Lead não encontrado. Ele pode ter sido removido.",
+    }
   }
 
   if (!canConvertLead(role, { assignedTo: lead.assigned_to }, user.id)) {
@@ -273,7 +291,9 @@ export async function convertLeadToClient(
   if (lead.property_id) {
     const { data } = await supabase
       .from("properties")
-      .select("id, code, title, purpose, type, sale_price, rent_price, bedrooms, neighborhood, city")
+      .select(
+        "id, code, title, purpose, type, sale_price, rent_price, bedrooms, neighborhood, city"
+      )
       .eq("id", lead.property_id)
       .eq("organization_id", organizationId)
       .maybeSingle()
@@ -300,7 +320,10 @@ export async function convertLeadToClient(
     }
 
     if (!existing) {
-      return { ok: false, error: "Cliente não encontrado ou sem acesso para você." }
+      return {
+        ok: false,
+        error: "Cliente não encontrado ou sem acesso para você.",
+      }
     }
 
     clientId = existing.id
@@ -367,7 +390,9 @@ export async function convertLeadToClient(
       }
     }
 
-    const row = toClientRow(clientParsed.data, { previousConsentAt: lead.consent_at })
+    const row = toClientRow(clientParsed.data, {
+      previousConsentAt: lead.consent_at,
+    })
 
     // Corretor só enxerga clientes atribuídos a ele (mesma regra do cadastro de clientes).
     if (role === "broker") {
@@ -381,7 +406,10 @@ export async function convertLeadToClient(
       .single()
 
     if (error) {
-      return { ok: false, error: translateDatabaseError(error, "cadastrar clientes") }
+      return {
+        ok: false,
+        error: translateDatabaseError(error, "cadastrar clientes"),
+      }
     }
 
     clientId = inserted.id

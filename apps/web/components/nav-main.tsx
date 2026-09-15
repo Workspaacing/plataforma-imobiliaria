@@ -2,11 +2,7 @@
 
 import type { LucideIcon } from "lucide-react"
 
-import {
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-} from "@workspace/ui/components/sidebar"
+import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@workspace/ui/components/sidebar"
 
 export function NavMain({
   items,
@@ -22,10 +18,7 @@ export function NavMain({
     <SidebarMenu>
       {items.map((item) => (
         <SidebarMenuItem key={item.title}>
-          <SidebarMenuButton
-            isActive={item.isActive}
-            render={<a href={item.url} />}
-          >
+          <SidebarMenuButton isActive={item.isActive} render={<a href={item.url} />}>
             <item.icon />
             <span>{item.title}</span>
           </SidebarMenuButton>

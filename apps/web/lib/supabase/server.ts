@@ -1,10 +1,11 @@
 import "server-only"
 
 import { createServerClient } from "@supabase/ssr"
-import { cookies } from "next/headers"
+import { cookies, headers } from "next/headers"
 
 import type { Database } from "@workspace/database/types"
 
+import { getSessionCookieOptions } from "@/lib/supabase/cookie-options"
 import { getSupabaseEnv, SupabaseNotConfiguredError } from "@/lib/supabase/env"
 
 /**
@@ -18,9 +19,11 @@ export async function createClient() {
     throw new SupabaseNotConfiguredError()
   }
 
-  const cookieStore = await cookies()
+  const [cookieStore, headerList] = await Promise.all([cookies(), headers()])
 
   return createServerClient<Database>(env.url, env.publishableKey, {
+    // Domain=.raiz em produção (sessão entre subdomínios); host-only em localhost.
+    cookieOptions: getSessionCookieOptions(headerList.get("host")),
     cookies: {
       getAll() {
         return cookieStore.getAll()

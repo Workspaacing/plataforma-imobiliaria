@@ -1,0 +1,94 @@
+version: 2
+
+updates:
+  # Dependências npm de todo o monorepo (workspaces na raiz).
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Sao_Paulo
+    open-pull-requests-limit: 15
+    labels:
+      - dependencias
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+      include: scope
+    groups:
+      # Atualizações menores e correções agrupadas em um PR por família.
+      next-react:
+        patterns:
+          - "next"
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+          - "eslint-config-next"
+          - "@next/*"
+        update-types: [minor, patch]
+      supabase:
+        patterns:
+          - "@supabase/*"
+        update-types: [minor, patch]
+      shadcn-ui:
+        patterns:
+          - "shadcn"
+          - "@shadcn/*"
+          - "@base-ui/*"
+          - "lucide-react"
+          - "class-variance-authority"
+          - "tw-animate-css"
+        update-types: [minor, patch]
+      tailwind:
+        patterns:
+          - "tailwindcss"
+          - "@tailwindcss/*"
+          - "prettier-plugin-tailwindcss"
+        update-types: [minor, patch]
+      lint-format-types:
+        patterns:
+          - "eslint"
+          - "eslint-*"
+          - "@eslint/*"
+          - "typescript-eslint"
+          - "@typescript-eslint/*"
+          - "prettier"
+          - "typescript"
+          - "@types/*"
+        update-types: [minor, patch]
+      testes:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
+        update-types: [minor, patch]
+      demais-menores:
+        patterns:
+          - "*"
+        update-types: [minor, patch]
+    # Versões principais (major) chegam em PRs separados, um por pacote,
+    # para cada quebra ser revisada com typecheck, lint, testes e build.
+    ignore:
+      # TypeScript 7 (compilador nativo) ainda quebra o typescript-eslint
+      # (peer typescript < 6.1). Remover quando o typescript-eslint suportar o TS 7.
+      - dependency-name: typescript
+        versions: [">=7.0.0"]
+
+  # Versões das GitHub Actions usadas nos workflows.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Sao_Paulo
+    labels:
+      - dependencias
+      - ci
+    commit-message:
+      prefix: "chore(ci)"
+    groups:
+      actions:
+        patterns:
+          - "*"

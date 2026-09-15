@@ -11,11 +11,7 @@ import { Kbd } from "@workspace/ui/components/kbd"
 import { LeadCard } from "@/components/leads/lead-card"
 import type { Role } from "@/lib/auth/roles"
 import type { MemberOption } from "@/lib/clientes/options"
-import {
-  COLLAPSED_BY_DEFAULT_STAGES,
-  LEAD_STAGE_LABELS,
-  LEAD_STAGES,
-} from "@/lib/leads/constants"
+import { COLLAPSED_BY_DEFAULT_STAGES, LEAD_STAGE_LABELS, LEAD_STAGES } from "@/lib/leads/constants"
 import type { LeadStage } from "@/lib/leads/db-types"
 import { canEditLead } from "@/lib/leads/permissions"
 import { compareLeadOrder } from "@/lib/leads/position"
@@ -125,8 +121,8 @@ export function KanbanBoard({
   return (
     <div className="flex flex-col gap-2">
       <p id={HINT_ID} className="sr-only">
-        Enter abre os detalhes. Alt com seta para a esquerda ou para a direita muda a etapa; Alt
-        com seta para cima ou para baixo muda a ordem na coluna.
+        Enter abre os detalhes. Alt com seta para a esquerda ou para a direita muda a etapa; Alt com
+        seta para cima ou para baixo muda a ordem na coluna.
       </p>
 
       <div className="flex gap-3 overflow-x-auto pb-3">
@@ -226,7 +222,9 @@ function KanbanColumn({
 
     event.preventDefault()
     event.dataTransfer.dropEffect = "move"
-    onDragOverIndex(collapsed ? 0 : computeDropIndex(event.currentTarget, event.clientY, draggingId))
+    onDragOverIndex(
+      collapsed ? 0 : computeDropIndex(event.currentTarget, event.clientY, draggingId)
+    )
   }
 
   function handleDragLeave(event: React.DragEvent<HTMLElement>) {
@@ -325,7 +323,11 @@ function KanbanColumn({
           <h2 id={headingId} className="truncate text-sm font-medium">
             {label}
           </h2>
-          <Badge variant="secondary" className="tabular-nums" aria-label={`${leads.length} lead(s)`}>
+          <Badge
+            variant="secondary"
+            className="tabular-nums"
+            aria-label={`${leads.length} lead(s)`}
+          >
             {leads.length}
           </Badge>
         </div>

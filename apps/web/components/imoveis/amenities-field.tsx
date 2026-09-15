@@ -14,7 +14,12 @@ import {
   FieldLegend,
   FieldSet,
 } from "@workspace/ui/components/field"
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@workspace/ui/components/input-group"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@workspace/ui/components/input-group"
 
 import { isCatalogAmenity, normalizeAmenities, type AmenityOption } from "@/lib/imoveis/amenities"
 
@@ -29,13 +34,23 @@ type AmenitiesFieldProps = {
 }
 
 /** Lista de comodidades comuns (checkboxes) + comodidades livres digitadas. */
-export function AmenitiesField({ id, legend, description, options, value, onChange, disabled }: AmenitiesFieldProps) {
+export function AmenitiesField({
+  id,
+  legend,
+  description,
+  options,
+  value,
+  onChange,
+  disabled,
+}: AmenitiesFieldProps) {
   const [custom, setCustom] = React.useState("")
   const selected = new Set(value)
   const customValues = value.filter((item) => !isCatalogAmenity(item))
 
   function toggle(option: string, checked: boolean) {
-    onChange(checked ? normalizeAmenities([...value, option]) : value.filter((item) => item !== option))
+    onChange(
+      checked ? normalizeAmenities([...value, option]) : value.filter((item) => item !== option)
+    )
   }
 
   function addCustom() {
@@ -53,7 +68,11 @@ export function AmenitiesField({ id, legend, description, options, value, onChan
         {options.map((option) => {
           const checkboxId = `${id}-${option.value}`
           return (
-            <Field key={option.value} orientation="horizontal" data-disabled={disabled || undefined}>
+            <Field
+              key={option.value}
+              orientation="horizontal"
+              data-disabled={disabled || undefined}
+            >
               <Checkbox
                 id={checkboxId}
                 checked={selected.has(option.value)}

@@ -18,8 +18,8 @@ export default function LandingPageNotFound() {
           </EmptyMedia>
           <EmptyTitle>Página não encontrada</EmptyTitle>
           <EmptyDescription>
-            Esta oferta não está mais no ar ou o endereço mudou. Confira o link com a imobiliária
-            ou fale com ela pelos canais de atendimento.
+            Esta oferta não está mais no ar ou o endereço mudou. Confira o link com a imobiliária ou
+            fale com ela pelos canais de atendimento.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>

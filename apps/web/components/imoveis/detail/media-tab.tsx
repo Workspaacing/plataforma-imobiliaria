@@ -4,7 +4,13 @@ import { ExternalLinkIcon, ImageIcon, ImagesIcon, Rotate3dIcon, VideoIcon } from
 import { AspectRatio } from "@workspace/ui/components/aspect-ratio"
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@workspace/ui/components/card"
 import {
   Empty,
   EmptyContent,
@@ -39,8 +45,22 @@ export function MediaTab({
 }) {
   const manageHref = `/imoveis/${propertyId}/editar?etapa=midia`
   const links = [
-    media.videoUrl ? { key: "video", title: "Vídeo (YouTube)", url: media.videoUrl, icon: VideoIcon } : null,
-    media.tourUrl ? { key: "tour", title: "Tour virtual", url: media.tourUrl, icon: Rotate3dIcon } : null,
+    media.videoUrl
+      ? {
+          key: "video",
+          title: "Vídeo (YouTube)",
+          url: media.videoUrl,
+          icon: VideoIcon,
+        }
+      : null,
+    media.tourUrl
+      ? {
+          key: "tour",
+          title: "Tour virtual",
+          url: media.tourUrl,
+          icon: Rotate3dIcon,
+        }
+      : null,
   ].filter((item) => item !== null)
 
   return (
@@ -56,7 +76,12 @@ export function MediaTab({
             </CardDescription>
           </div>
           {canEdit ? (
-            <Button variant="outline" size="sm" render={<Link href={manageHref} />} nativeButton={false}>
+            <Button
+              variant="outline"
+              size="sm"
+              render={<Link href={manageHref} />}
+              nativeButton={false}
+            >
               <ImagesIcon data-icon="inline-start" />
               Gerenciar mídia
             </Button>
@@ -94,10 +119,14 @@ export function MediaTab({
                         alt={image.caption || `Foto ${index + 1} do imóvel ${propertyCode}`}
                         className="size-full"
                       />
-                      {image.is_cover ? <Badge className="absolute start-2 top-2">Capa</Badge> : null}
+                      {image.is_cover ? (
+                        <Badge className="absolute start-2 top-2">Capa</Badge>
+                      ) : null}
                     </AspectRatio>
                     {image.caption ? (
-                      <figcaption className="line-clamp-2 text-xs text-muted-foreground">{image.caption}</figcaption>
+                      <figcaption className="line-clamp-2 text-xs text-muted-foreground">
+                        {image.caption}
+                      </figcaption>
                     ) : null}
                   </figure>
                 </li>
@@ -114,7 +143,9 @@ export function MediaTab({
         </CardHeader>
         <CardContent>
           {links.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhum vídeo ou tour virtual cadastrado.</p>
+            <p className="text-sm text-muted-foreground">
+              Nenhum vídeo ou tour virtual cadastrado.
+            </p>
           ) : (
             <ItemGroup className="gap-2">
               {links.map((link) => (

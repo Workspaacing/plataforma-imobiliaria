@@ -23,11 +23,16 @@ export default function LandingPageNotFound() {
           </EmptyMedia>
           <EmptyTitle>Landing page não encontrada</EmptyTitle>
           <EmptyDescription>
-            Ela pode ter sido removida ou pertence a outra imobiliária. Confira a imobiliária selecionada no menu.
+            Ela pode ter sido removida ou pertence a outra imobiliária. Confira a imobiliária
+            selecionada no menu.
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
-          <Button variant="outline" render={<Link href={LANDING_PAGES_PATH} />} nativeButton={false}>
+          <Button
+            variant="outline"
+            render={<Link href={LANDING_PAGES_PATH} />}
+            nativeButton={false}
+          >
             Ver landing pages
           </Button>
         </EmptyContent>

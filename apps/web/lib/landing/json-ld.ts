@@ -9,10 +9,9 @@
  * - Nos lançamentos com nome, um `RealEstateListing` do empreendimento com
  *   `AggregateOffer` a partir dos preços iniciais das tipologias.
  *
- * O L3 injeta cada item com:
- *   <script type="application/ld+json"
- *     dangerouslySetInnerHTML={{ __html: serializeJsonLd(item) }} />
- * (`serializeJsonLd` escapa `<`, `>` e `&` para não fechar a tag script).
+ * O L3 injeta cada item num <script type="application/ld+json"> usando
+ * `serializeJsonLd(item)` como conteúdo (escapa `<`, `>`, `&` e os
+ * separadores de linha Unicode para não fechar a tag script).
  */
 import { requiresLotArea, type PropertyType } from "@workspace/core/properties/enums"
 
@@ -30,7 +29,7 @@ import {
 export type JsonLdObject = Record<string, unknown>
 
 export type BuildLandingJsonLdOptions = {
-  /** URL canônica da página pública (https). Sem ela, os itens saem sem `url`/`@id`. */
+  /** URL canônica da página pública (http/https). Sem ela, os itens saem sem `url`/`@id`. */
   pageUrl?: string | null
   /** Base do Supabase; padrão `NEXT_PUBLIC_SUPABASE_URL`. */
   storageBaseUrl?: string | null
@@ -116,22 +115,30 @@ function propertyEntity(property: LandingProperty) {
   })
 }
 
+function safePageUrl(value: string | null | undefined) {
+  if (!value) return undefined
+  try {
+    const url = new URL(value)
+    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : undefined
+  } catch {
+    return undefined
+  }
+}
+
 export function buildLandingJsonLd(
   payload: LandingPublicPayload,
   options: BuildLandingJsonLdOptions = {}
 ): JsonLdObject[] {
   const { page, organization, broker } = payload
   const template = getLandingTemplate(page.template)
-  const baseUrl = options.storageBaseUrl === undefined ? getStorageBaseUrl() : options.storageBaseUrl
-  const pageUrl =
-    options.pageUrl && (isHttpsUrl(options.pageUrl) || options.pageUrl.startsWith("http://"))
-      ? options.pageUrl
-      : undefined
+  const baseUrl =
+    options.storageBaseUrl === undefined ? getStorageBaseUrl() : options.storageBaseUrl
+  const pageUrl = safePageUrl(options.pageUrl)
   const agencyId = pageUrl ? `${pageUrl}#imobiliaria` : undefined
 
   const logo =
     buildPublicStorageUrl(baseUrl, LANDING_ASSETS_BUCKET, page.theme.logo_path) ??
-    organization.brand.logo_url
+    (isHttpsUrl(organization.brand.logo_url) ? organization.brand.logo_url : undefined)
 
   const agent = compact({
     "@context": "https://schema.org",
@@ -145,7 +152,11 @@ export function buildLandingJsonLd(
     email: organization.email,
     address: postalAddress(organization.city, organization.state),
     identifier: organization.creci
-      ? { "@type": "PropertyValue", propertyID: "CRECI", value: organization.creci }
+      ? {
+          "@type": "PropertyValue",
+          propertyID: "CRECI",
+          value: organization.creci,
+        }
       : undefined,
     employee: broker
       ? compact({
@@ -165,7 +176,9 @@ export function buildLandingJsonLd(
       : undefined,
   })
 
-  const seller = agencyId ? { "@id": agencyId } : { "@type": "RealEstateAgent", name: organization.name }
+  const seller = agencyId
+    ? { "@id": agencyId }
+    : { "@type": "RealEstateAgent", name: organization.name }
   const items: JsonLdObject[] = [agent]
 
   if (template.usesProperties !== "none") {
@@ -226,14 +239,10 @@ export function buildLandingJsonLd(
     const prices = (launch.typologies ?? [])
       .map((typology) => typology.price_from)
       .filter((price): price is number => price != null && price > 0)
-    const banners = (page.theme.banner_image_paths ?? [])
+    const images = [page.theme.background_image_path, ...(page.theme.banner_image_paths ?? [])]
       .map((path) => buildPublicStorageUrl(baseUrl, LANDING_ASSETS_BUCKET, path))
       .filter((url): url is string => url !== null)
-    const background = buildPublicStorageUrl(
-      baseUrl,
-      LANDING_ASSETS_BUCKET,
-      page.theme.background_image_path
-    )
+      .slice(0, 10)
 
     items.push(
       compact({
@@ -243,7 +252,7 @@ export function buildLandingJsonLd(
         description: page.content.subheadline ?? page.content.description,
         url: pageUrl,
         datePosted: page.published_at,
-        image: [background, ...banners].filter((url): url is string => Boolean(url)).slice(0, 10),
+        image: images,
         mainEntity: compact({
           "@type": "ApartmentComplex",
           name: launch.name,
@@ -271,12 +280,16 @@ export function buildLandingJsonLd(
   return items
 }
 
-/** JSON seguro para `<script type="application/ld+json">`. */
+// Separadores de linha Unicode montados por código (sem caractere literal no fonte).
+const LINE_SEPARATOR = new RegExp(String.fromCharCode(0x2028), "g")
+const PARAGRAPH_SEPARATOR = new RegExp(String.fromCharCode(0x2029), "g")
+
+/** JSON seguro para o conteúdo de `<script type="application/ld+json">`. */
 export function serializeJsonLd(data: unknown) {
   return JSON.stringify(data)
     .replace(/</g, "\\u003c")
     .replace(/>/g, "\\u003e")
     .replace(/&/g, "\\u0026")
-    .replace(/ /g, "\\u2028")
-    .replace(/ /g, "\\u2029")
+    .replace(LINE_SEPARATOR, "\\u2028")
+    .replace(PARAGRAPH_SEPARATOR, "\\u2029")
 }

@@ -1,7 +1,9 @@
 /**
- * Cookie com a imobiliária selecionada. É só uma preferência: o servidor
+ * Cookie com a imobiliária escolhida no modo de host único
+ * (NEXT_PUBLIC_TENANCY_MODE=single-host). É só uma preferência: o servidor
  * sempre valida o valor contra as memberships ativas do usuário, e o RLS do
- * banco continua sendo a barreira final.
+ * banco continua sendo a barreira final. No modo subdomain não é usado: a
+ * imobiliária vem do subdomínio.
  */
 export const ORGANIZATION_COOKIE_NAME = "crm_org"
 

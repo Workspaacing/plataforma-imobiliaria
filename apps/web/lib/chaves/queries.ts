@@ -160,9 +160,7 @@ export async function listKeys(
     openMovement: key.status === "checked_out" ? (openByKey.get(key.id) ?? null) : null,
   }))
 
-  const filtered = filters.overdue
-    ? rows.filter((row) => row.openMovement?.isOverdue)
-    : rows
+  const filtered = filters.overdue ? rows.filter((row) => row.openMovement?.isOverdue) : rows
 
   // Vencidas primeiro, depois as retiradas; o restante mantém a ordem de cadastro.
   const rank = (row: KeyRow) =>

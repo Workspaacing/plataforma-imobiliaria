@@ -35,9 +35,7 @@ function getSigningKey() {
 }
 
 function sign(slug: string, issuedAt: string) {
-  return createHmac("sha256", getSigningKey())
-    .update(`${slug}.${issuedAt}`)
-    .digest("base64url")
+  return createHmac("sha256", getSigningKey()).update(`${slug}.${issuedAt}`).digest("base64url")
 }
 
 export function issueFormToken(slug: string, now: number = Date.now()) {

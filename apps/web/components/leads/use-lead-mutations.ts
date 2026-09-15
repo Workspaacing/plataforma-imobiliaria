@@ -65,7 +65,11 @@ export function useLeadMutations(leads: LeadItem[], { managePositions }: UseLead
       const result = await perform()
 
       if (!result.ok) {
-        toast.add({ title: errorTitle, description: result.error, type: "error" })
+        toast.add({
+          title: errorTitle,
+          description: result.error,
+          type: "error",
+        })
         setAnnouncement(`${errorTitle}. ${result.error}`)
         return
       }
@@ -76,7 +80,12 @@ export function useLeadMutations(leads: LeadItem[], { managePositions }: UseLead
     })
   }
 
-  function moveLead(leadId: string, stage: LeadStage, index: number | null = null, lostReason?: string) {
+  function moveLead(
+    leadId: string,
+    stage: LeadStage,
+    index: number | null = null,
+    lostReason?: string
+  ) {
     const lead = optimisticLeads.find((item) => item.id === leadId)
 
     if (!lead) return
@@ -145,10 +154,20 @@ export function useLeadMutations(leads: LeadItem[], { managePositions }: UseLead
       {
         patches: [
           { id: leadId, patch },
-          ...renumber.map((item) => ({ id: item.id, patch: { position: item.position } })),
+          ...renumber.map((item) => ({
+            id: item.id,
+            patch: { position: item.position },
+          })),
         ],
       },
-      () => moveLeadAction({ leadId, stage, position, lostReason: reason, renumber }),
+      () =>
+        moveLeadAction({
+          leadId,
+          stage,
+          position,
+          lostReason: reason,
+          renumber,
+        }),
       "Não foi possível mover o lead"
     )
   }

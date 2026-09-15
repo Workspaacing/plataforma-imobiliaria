@@ -43,7 +43,7 @@ import {
 } from "@/lib/marketing/constants"
 import { countChars } from "@/lib/marketing/schemas"
 import { slugify } from "@/lib/marketing/slug"
-import { buildLandingPublicPath, buildLandingPublicUrl } from "@/lib/marketing/urls"
+import { getLandingPublicUrl, getLandingPublicUrlPrefix } from "@/lib/marketing/urls"
 
 function Counter({ count, max }: { count: number; max: number }) {
   return (
@@ -71,7 +71,6 @@ export function PublicationSection({
   setValue,
   organizationName,
   organizationSlug,
-  siteUrl,
   status,
   fallbackShareImagePath,
   uploadTarget,
@@ -82,7 +81,6 @@ export function PublicationSection({
   setValue: UseFormSetValue<LandingEditorFormValues>
   organizationName: string
   organizationSlug: string
-  siteUrl: string
   status: LandingStatus
   /** Imagem usada no compartilhamento quando não há uma específica. */
   fallbackShareImagePath: string | null
@@ -90,9 +88,12 @@ export function PublicationSection({
   disabled: boolean
 }) {
   const publication = useWatch({ control, name: "publication" })
-  const publicUrl = buildLandingPublicUrl(siteUrl, organizationSlug, publication.slug || "endereco")
+  // Endereço no subdomínio da imobiliária: {slug}.{raiz}/lp/{página}.
+  const publicUrl = getLandingPublicUrl(organizationSlug, publication.slug || "endereco")
+  const urlPrefix = getLandingPublicUrlPrefix(organizationSlug) ?? "/lp/"
   const shareImageUrl =
-    getLandingAssetPublicUrl(publication.ogImagePath) ?? getLandingAssetPublicUrl(fallbackShareImagePath)
+    getLandingAssetPublicUrl(publication.ogImagePath) ??
+    getLandingAssetPublicUrl(fallbackShareImagePath)
   const hasGtm = Boolean(publication.gtmContainerId.trim())
   const hasDirectTags = Boolean(publication.metaPixelId.trim() || publication.googleTagId.trim())
 
@@ -123,7 +124,9 @@ export function PublicationSection({
             {fieldState.error ? (
               <FieldError errors={[fieldState.error]} />
             ) : (
-              <FieldDescription>Só a equipe vê este nome (lista e relatórios de leads).</FieldDescription>
+              <FieldDescription>
+                Só a equipe vê este nome (lista e relatórios de leads).
+              </FieldDescription>
             )}
           </Field>
         )}
@@ -137,8 +140,8 @@ export function PublicationSection({
             <FieldLabel htmlFor="lp-slug">Endereço da página</FieldLabel>
             <InputGroup>
               <InputGroupAddon align="inline-start">
-                <InputGroupText className="max-w-40 truncate">
-                  {buildLandingPublicPath(organizationSlug, "")}
+                <InputGroupText className="max-w-48 truncate" title={urlPrefix}>
+                  {urlPrefix}
                 </InputGroupText>
               </InputGroupAddon>
               <InputGroupInput
@@ -174,8 +177,8 @@ export function PublicationSection({
               <FieldError errors={[fieldState.error]} />
             ) : (
               <FieldDescription>
-                Letras minúsculas, números e hífens (3 a 60). Trocar o endereço de uma página publicada quebra os
-                links já divulgados.
+                Letras minúsculas, números e hífens (3 a 60). Trocar o endereço de uma página
+                publicada quebra os links já divulgados.
               </FieldDescription>
             )}
           </Field>
@@ -184,9 +187,23 @@ export function PublicationSection({
 
       <Field>
         <FieldLabel htmlFor="lp-url-publica">URL pública</FieldLabel>
-        <CopyField id="lp-url-publica" value={publicUrl} successMessage="Endereço da landing page copiado." />
+        {publicUrl ? (
+          <CopyField
+            id="lp-url-publica"
+            value={publicUrl}
+            successMessage="Endereço da landing page copiado."
+          />
+        ) : (
+          <Alert>
+            <TriangleAlertIcon />
+            <AlertDescription>
+              O endereço desta imobiliária não pode ser usado como subdomínio. Fale com o suporte
+              para ajustar.
+            </AlertDescription>
+          </Alert>
+        )}
         <div className="flex flex-wrap gap-2">
-          {status === "published" ? (
+          {status === "published" && publicUrl ? (
             <Button
               variant="outline"
               size="sm"
@@ -200,7 +217,9 @@ export function PublicationSection({
           <Button
             variant="outline"
             size="sm"
-            render={<a href={landingPreviewPath(pageId)} target="_blank" rel="noopener noreferrer" />}
+            render={
+              <a href={landingPreviewPath(pageId)} target="_blank" rel="noopener noreferrer" />
+            }
             nativeButton={false}
           >
             <EyeIcon data-icon="inline-start" />
@@ -208,7 +227,9 @@ export function PublicationSection({
           </Button>
         </div>
         {status !== "published" ? (
-          <FieldDescription>O endereço só abre para o público depois de publicar a página.</FieldDescription>
+          <FieldDescription>
+            O endereço só abre para o público depois de publicar a página.
+          </FieldDescription>
         ) : null}
       </Field>
 
@@ -223,7 +244,7 @@ export function PublicationSection({
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid} data-disabled={disabled || undefined}>
                 <FieldLabel htmlFor="lp-seo-titulo">
-                  Título da página <span className="text-muted-foreground">(obrigatório para publicar)</span>
+                  Título da página <span className="text-muted-foreground">(recomendado)</span>
                 </FieldLabel>
                 <InputGroup>
                   <InputGroupInput
@@ -244,7 +265,9 @@ export function PublicationSection({
                 {fieldState.error ? (
                   <FieldError errors={[fieldState.error]} />
                 ) : (
-                  <FieldDescription>Aparece na aba do navegador, no Google e no link compartilhado.</FieldDescription>
+                  <FieldDescription>
+                    Aparece na aba do navegador, no Google e no link compartilhado.
+                  </FieldDescription>
                 )}
               </Field>
             )}
@@ -279,7 +302,7 @@ export function PublicationSection({
 
           <SearchResultPreview
             siteName={organizationName}
-            url={publicUrl}
+            url={publicUrl ?? urlPrefix}
             title={publication.seoTitle}
             description={publication.seoDescription}
           />
@@ -308,7 +331,7 @@ export function PublicationSection({
           />
 
           <SharePreview
-            url={publicUrl}
+            url={publicUrl ?? urlPrefix}
             title={publication.seoTitle}
             description={publication.seoDescription}
             imageUrl={shareImageUrl}
@@ -347,7 +370,9 @@ export function PublicationSection({
                 {fieldState.error ? (
                   <FieldError errors={[fieldState.error]} />
                 ) : (
-                  <FieldDescription>Só os números, no Gerenciador de Eventos da Meta.</FieldDescription>
+                  <FieldDescription>
+                    Só os números, no Gerenciador de Eventos da Meta.
+                  </FieldDescription>
                 )}
               </Field>
             )}
@@ -370,12 +395,16 @@ export function PublicationSection({
                   disabled={disabled}
                   aria-invalid={fieldState.invalid || undefined}
                   onBlur={field.onBlur}
-                  onChange={(event) => field.onChange(event.target.value.replace(/\s/g, "").toUpperCase())}
+                  onChange={(event) =>
+                    field.onChange(event.target.value.replace(/\s/g, "").toUpperCase())
+                  }
                 />
                 {fieldState.error ? (
                   <FieldError errors={[fieldState.error]} />
                 ) : (
-                  <FieldDescription>Google Analytics 4 (G-), Google tag (GT-) ou Google Ads (AW-).</FieldDescription>
+                  <FieldDescription>
+                    Google Analytics 4 (G-), Google tag (GT-) ou Google Ads (AW-).
+                  </FieldDescription>
                 )}
               </Field>
             )}
@@ -398,7 +427,9 @@ export function PublicationSection({
                   disabled={disabled}
                   aria-invalid={fieldState.invalid || undefined}
                   onBlur={field.onBlur}
-                  onChange={(event) => field.onChange(event.target.value.replace(/\s/g, "").toUpperCase())}
+                  onChange={(event) =>
+                    field.onChange(event.target.value.replace(/\s/g, "").toUpperCase())
+                  }
                 />
                 {fieldState.error ? (
                   <FieldError errors={[fieldState.error]} />
@@ -414,7 +445,8 @@ export function PublicationSection({
               <TriangleAlertIcon />
               <AlertTitle>Evite eventos duplicados</AlertTitle>
               <AlertDescription>
-                Com GTM configurado, evite repetir o Pixel e a Google Tag dentro do GTM para não duplicar eventos.
+                Com GTM configurado, evite repetir o Pixel e a Google Tag dentro do GTM para não
+                duplicar eventos.
                 {hasDirectTags
                   ? " Esta página já envia o Pixel e/ou a Google Tag preenchidos acima."
                   : ""}
@@ -424,12 +456,20 @@ export function PublicationSection({
 
           <Field data-disabled>
             <div className="flex items-center gap-2">
-              <FieldLabel htmlFor="lp-meta-capi">Token da API de Conversões da Meta (CAPI)</FieldLabel>
+              <FieldLabel htmlFor="lp-meta-capi">
+                Token da API de Conversões da Meta (CAPI)
+              </FieldLabel>
               <Badge variant="secondary">em breve</Badge>
             </div>
-            <Input id="lp-meta-capi" disabled placeholder="Disponível em breve" autoComplete="off" />
+            <Input
+              id="lp-meta-capi"
+              disabled
+              placeholder="Disponível em breve"
+              autoComplete="off"
+            />
             <FieldDescription>
-              Envio de conversões direto do servidor para a Meta, mais preciso com bloqueadores de anúncio.
+              Envio de conversões direto do servidor para a Meta, mais preciso com bloqueadores de
+              anúncio.
             </FieldDescription>
           </Field>
         </FieldGroup>

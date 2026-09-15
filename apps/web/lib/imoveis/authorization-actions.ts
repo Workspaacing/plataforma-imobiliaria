@@ -32,7 +32,10 @@ export async function saveAuthorizationAction(
 
   const parsed = authorizationFormSchema.safeParse(values)
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Confira os dados da autorização." }
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Confira os dados da autorização.",
+    }
   }
 
   const loaded = await getPropertyActionContext(propertyId)
@@ -41,7 +44,11 @@ export async function saveAuthorizationAction(
   const { supabase, organizationId, property } = loaded.context
   const data = parsed.data
 
-  let existing: { id: string; owner_client_id: string; signed_at: string | null } | null = null
+  let existing: {
+    id: string
+    owner_client_id: string
+    signed_at: string | null
+  } | null = null
 
   if (authorizationId) {
     const { data: row, error } = await supabase
@@ -53,10 +60,16 @@ export async function saveAuthorizationAction(
       .maybeSingle()
 
     if (error) {
-      return { ok: false, error: translateDbError(error, "editar a autorização") }
+      return {
+        ok: false,
+        error: translateDbError(error, "editar a autorização"),
+      }
     }
     if (!row) {
-      return { ok: false, error: "Autorização não encontrada. Ela pode ter sido removida." }
+      return {
+        ok: false,
+        error: "Autorização não encontrada. Ela pode ter sido removida.",
+      }
     }
     existing = row
   }
@@ -73,10 +86,16 @@ export async function saveAuthorizationAction(
       .maybeSingle()
 
     if (ownerError) {
-      return { ok: false, error: translateDbError(ownerError, "salvar a autorização") }
+      return {
+        ok: false,
+        error: translateDbError(ownerError, "salvar a autorização"),
+      }
     }
     if (!owner) {
-      return { ok: false, error: "Selecione um dos proprietários cadastrados na aba Proprietários." }
+      return {
+        ok: false,
+        error: "Selecione um dos proprietários cadastrados na aba Proprietários.",
+      }
     }
   }
 
@@ -105,29 +124,48 @@ export async function saveAuthorizationAction(
       .select("id")
 
     if (error) {
-      return { ok: false, error: translateDbError(error, "editar a autorização") }
+      return {
+        ok: false,
+        error: translateDbError(error, "editar a autorização"),
+      }
     }
     if (!rows?.length) {
-      return { ok: false, error: "Você não tem permissão para editar esta autorização." }
+      return {
+        ok: false,
+        error: "Você não tem permissão para editar esta autorização.",
+      }
     }
   } else {
     const { data: rows, error } = await supabase
       .from("listing_authorizations")
-      .insert({ ...columns, organization_id: organizationId, property_id: property.id })
+      .insert({
+        ...columns,
+        organization_id: organizationId,
+        property_id: property.id,
+      })
       .select("id")
 
     if (error) {
-      return { ok: false, error: translateDbError(error, "cadastrar a autorização") }
+      return {
+        ok: false,
+        error: translateDbError(error, "cadastrar a autorização"),
+      }
     }
     if (!rows?.length) {
-      return { ok: false, error: "Você não tem permissão para cadastrar autorizações neste imóvel." }
+      return {
+        ok: false,
+        error: "Você não tem permissão para cadastrar autorizações neste imóvel.",
+      }
     }
   }
 
   await refreshImobScore(supabase, organizationId, property.id)
   revalidatePropertyPaths(property.id)
 
-  return { ok: true, message: existing ? "Autorização atualizada." : "Autorização cadastrada." }
+  return {
+    ok: true,
+    message: existing ? "Autorização atualizada." : "Autorização cadastrada.",
+  }
 }
 
 export async function removeAuthorizationAction(
@@ -138,13 +176,18 @@ export async function removeAuthorizationAction(
     return { ok: false, error: "Autorização inválida." }
   }
 
-  const loaded = await getPropertyActionContext(propertyId, { requireEdit: false })
+  const loaded = await getPropertyActionContext(propertyId, {
+    requireEdit: false,
+  })
   if (!loaded.ok) return loaded
 
   const { supabase, organizationId, role, property } = loaded.context
 
   if (!canDeletePropertyRecords(role)) {
-    return { ok: false, error: "Somente o dono ou o gerente podem remover autorizações." }
+    return {
+      ok: false,
+      error: "Somente o dono ou o gerente podem remover autorizações.",
+    }
   }
 
   const { data, error } = await supabase
@@ -156,10 +199,16 @@ export async function removeAuthorizationAction(
     .select("id")
 
   if (error) {
-    return { ok: false, error: translateDbError(error, "remover a autorização") }
+    return {
+      ok: false,
+      error: translateDbError(error, "remover a autorização"),
+    }
   }
   if (!data?.length) {
-    return { ok: false, error: "Você não tem permissão para remover esta autorização ou ela já foi removida." }
+    return {
+      ok: false,
+      error: "Você não tem permissão para remover esta autorização ou ela já foi removida.",
+    }
   }
 
   await refreshImobScore(supabase, organizationId, property.id)

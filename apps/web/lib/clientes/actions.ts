@@ -29,7 +29,11 @@ export async function createClientRecord(
   const parsed = clientFormSchema.safeParse(values)
 
   if (!parsed.success) {
-    return { ok: false, error: INVALID_FIELDS_MESSAGE, fieldErrors: toFieldErrors(parsed.error) }
+    return {
+      ok: false,
+      error: INVALID_FIELDS_MESSAGE,
+      fieldErrors: toFieldErrors(parsed.error),
+    }
   }
 
   const { user, membership } = await requireMembership()
@@ -54,7 +58,11 @@ export async function createClientRecord(
 
   if (error) {
     const message = translateDatabaseError(error, "cadastrar clientes")
-    return { ok: false, error: message, fieldErrors: duplicateDocumentFieldErrors(error.code, message) }
+    return {
+      ok: false,
+      error: message,
+      fieldErrors: duplicateDocumentFieldErrors(error.code, message),
+    }
   }
 
   revalidatePath(CLIENTS_PATH)
@@ -74,7 +82,11 @@ export async function updateClientRecord(
   const parsed = clientFormSchema.safeParse(values)
 
   if (!parsed.success) {
-    return { ok: false, error: INVALID_FIELDS_MESSAGE, fieldErrors: toFieldErrors(parsed.error) }
+    return {
+      ok: false,
+      error: INVALID_FIELDS_MESSAGE,
+      fieldErrors: toFieldErrors(parsed.error),
+    }
   }
 
   const { membership } = await requireMembership()
@@ -97,10 +109,15 @@ export async function updateClientRecord(
   }
 
   if (!existing) {
-    return { ok: false, error: "Cliente não encontrado. Ele pode ter sido removido." }
+    return {
+      ok: false,
+      error: "Cliente não encontrado. Ele pode ter sido removido.",
+    }
   }
 
-  const row = toClientRow(parsed.data, { previousConsentAt: existing.lgpd_consent_at })
+  const row = toClientRow(parsed.data, {
+    previousConsentAt: existing.lgpd_consent_at,
+  })
 
   if (membership.role === "broker") {
     row.assigned_to = existing.assigned_to
@@ -115,7 +132,11 @@ export async function updateClientRecord(
 
   if (error) {
     const message = translateDatabaseError(error, action)
-    return { ok: false, error: message, fieldErrors: duplicateDocumentFieldErrors(error.code, message) }
+    return {
+      ok: false,
+      error: message,
+      fieldErrors: duplicateDocumentFieldErrors(error.code, message),
+    }
   }
 
   if (data.length === 0) {
@@ -169,7 +190,10 @@ export async function deleteClientRecord(clientId: string): Promise<ActionResult
       .remove(documents.map((document) => document.storage_path))
 
     if (storageError) {
-      console.error("[clientes] arquivos do cliente excluído não saíram do Storage:", storageError.name)
+      console.error(
+        "[clientes] arquivos do cliente excluído não saíram do Storage:",
+        storageError.name
+      )
     }
   }
 
@@ -194,7 +218,10 @@ export async function lookupClientAddress(
   const address = await lookupCep(digits)
 
   if (!address) {
-    return { ok: false, error: "CEP não encontrado. Preencha o endereço manualmente." }
+    return {
+      ok: false,
+      error: "CEP não encontrado. Preencha o endereço manualmente.",
+    }
   }
 
   return { ok: true, data: address }

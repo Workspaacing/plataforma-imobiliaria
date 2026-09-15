@@ -135,7 +135,9 @@ export function mapPropertyTypeToVrsync(usage: PropertyUsage, type: PropertyType
     case "flat":
       return "Residential / Flat"
     case "land":
-      return usage === "commercial" || usage === "industrial" ? "Commercial / Land Lot" : "Residential / Land Lot"
+      return usage === "commercial" || usage === "industrial"
+        ? "Commercial / Land Lot"
+        : "Residential / Land Lot"
     case "commercial_room":
       return "Commercial / Office"
     case "office":
@@ -151,7 +153,9 @@ export function mapPropertyTypeToVrsync(usage: PropertyUsage, type: PropertyType
     case "ranch":
       return "Residential / Farm Ranch"
     case "other":
-      return usage === "commercial" || usage === "industrial" ? "Commercial / Business" : "Residential / Home"
+      return usage === "commercial" || usage === "industrial"
+        ? "Commercial / Business"
+        : "Residential / Home"
   }
 }
 
@@ -208,7 +212,11 @@ export function validateVrsyncListing(input: VrsyncListingInput): VrsyncValidati
   }
 
   if (input.title.length < 10 || input.title.length > 100) {
-    issues.push({ field: "title", message: "O título deve ter entre 10 e 100 caracteres.", severity: "error" })
+    issues.push({
+      field: "title",
+      message: "O título deve ter entre 10 e 100 caracteres.",
+      severity: "error",
+    })
   }
 
   if (input.description.length < 50 || input.description.length > 3000) {
@@ -245,7 +253,11 @@ export function validateVrsyncListing(input: VrsyncListingInput): VrsyncValidati
   }
   input.images.forEach((image, index) => {
     if (!image.url.startsWith("https://")) {
-      issues.push({ field: `images[${index}].url`, message: "As imagens devem usar URL https.", severity: "error" })
+      issues.push({
+        field: `images[${index}].url`,
+        message: "As imagens devem usar URL https.",
+        severity: "error",
+      })
     }
   })
 
@@ -258,7 +270,11 @@ export function validateVrsyncListing(input: VrsyncListingInput): VrsyncValidati
   }
 
   if (input.tourUrl && !input.tourUrl.startsWith("https://")) {
-    issues.push({ field: "tourUrl", message: "O tour virtual deve usar uma URL https.", severity: "error" })
+    issues.push({
+      field: "tourUrl",
+      message: "O tour virtual deve usar uma URL https.",
+      severity: "error",
+    })
   }
 
   const needsLotArea = requiresLotArea(input.type)
@@ -272,19 +288,35 @@ export function validateVrsyncListing(input: VrsyncListingInput): VrsyncValidati
   }
 
   if (!isValidPostalCode(input.address.postalCode)) {
-    issues.push({ field: "address.postalCode", message: "Informe um CEP válido.", severity: "error" })
+    issues.push({
+      field: "address.postalCode",
+      message: "Informe um CEP válido.",
+      severity: "error",
+    })
   }
 
   if (!isStateCode(input.address.state)) {
-    issues.push({ field: "address.state", message: "Informe uma UF válida.", severity: "error" })
+    issues.push({
+      field: "address.state",
+      message: "Informe uma UF válida.",
+      severity: "error",
+    })
   }
 
   if (!input.address.neighborhood.trim()) {
-    issues.push({ field: "address.neighborhood", message: "O bairro é obrigatório.", severity: "error" })
+    issues.push({
+      field: "address.neighborhood",
+      message: "O bairro é obrigatório.",
+      severity: "error",
+    })
   }
 
   if (!input.address.city.trim()) {
-    issues.push({ field: "address.city", message: "A cidade é obrigatória.", severity: "error" })
+    issues.push({
+      field: "address.city",
+      message: "A cidade é obrigatória.",
+      severity: "error",
+    })
   }
 
   if (!input.detailUrl) {
@@ -367,14 +399,18 @@ function buildListingXml(listing: VrsyncListingInput, header: VrsyncFeedHeader):
   lines.push(`      <ListingID>${escapeXml(listing.code)}</ListingID>`)
   lines.push(`      <Title>${toCData(listing.title)}</Title>`)
   lines.push(`      <Description>${toCData(listing.description)}</Description>`)
-  lines.push(`      <TransactionType>${escapeXml(mapPurposeToTransactionType(listing.purpose))}</TransactionType>`)
+  lines.push(
+    `      <TransactionType>${escapeXml(mapPurposeToTransactionType(listing.purpose))}</TransactionType>`
+  )
 
   // Preços, taxas, áreas, cômodos, garagem e comodidades ficam diretamente
   // dentro de <Details>, na ordem do exemplo oficial (não há wrapper
   // <Prices>, e <Features> envolve somente a lista de comodidades).
   // Fonte: https://developers.grupozap.com/feeds/vrsync/elements/details.html
   // e https://developers.grupozap.com/feeds/vrsync/examples.html
-  const [usageType, propertyType] = mapPropertyTypeToVrsync(listing.usage, listing.type).split(" / ")
+  const [usageType, propertyType] = mapPropertyTypeToVrsync(listing.usage, listing.type).split(
+    " / "
+  )
   lines.push("      <Details>")
   lines.push(`        <UsageType>${escapeXml(usageType ?? "")}</UsageType>`)
   lines.push(`        <PropertyType>${escapeXml(propertyType ?? "")}</PropertyType>`)
@@ -383,14 +419,16 @@ function buildListingXml(listing: VrsyncListingInput, header: VrsyncFeedHeader):
     (listing.purpose === "sale" || listing.purpose === "sale_rent") &&
     typeof listing.prices.salePrice === "number"
   ) {
-    lines.push(`        <ListPrice currency="BRL">${formatMoney(listing.prices.salePrice)}</ListPrice>`)
+    lines.push(
+      `        <ListPrice currency="BRL">${formatMoney(listing.prices.salePrice)}</ListPrice>`
+    )
   }
   if (
     (listing.purpose === "rent" || listing.purpose === "sale_rent") &&
     typeof listing.prices.rentPrice === "number"
   ) {
     lines.push(
-      `        <RentalPrice currency="BRL" period="Monthly">${formatMoney(listing.prices.rentPrice)}</RentalPrice>`,
+      `        <RentalPrice currency="BRL" period="Monthly">${formatMoney(listing.prices.rentPrice)}</RentalPrice>`
     )
   }
 
@@ -404,11 +442,13 @@ function buildListingXml(listing: VrsyncListingInput, header: VrsyncFeedHeader):
 
   if (typeof listing.condoFee === "number") {
     lines.push(
-      `        <PropertyAdministrationFee currency="BRL">${formatMoney(listing.condoFee)}</PropertyAdministrationFee>`,
+      `        <PropertyAdministrationFee currency="BRL">${formatMoney(listing.condoFee)}</PropertyAdministrationFee>`
     )
   }
   if (typeof listing.iptuYearly === "number") {
-    lines.push(`        <Iptu currency="BRL" period="Yearly">${formatMoney(listing.iptuYearly)}</Iptu>`)
+    lines.push(
+      `        <Iptu currency="BRL" period="Yearly">${formatMoney(listing.iptuYearly)}</Iptu>`
+    )
   }
 
   if (typeof listing.bedrooms === "number") {
@@ -477,7 +517,9 @@ function buildListingXml(listing: VrsyncListingInput, header: VrsyncFeedHeader):
   orderedImages.forEach((image, index) => {
     const primaryAttr = index === 0 ? ' primary="true"' : ""
     const captionAttr = image.caption ? ` caption="${escapeXml(image.caption)}"` : ""
-    lines.push(`        <Item medium="image"${primaryAttr}${captionAttr}>${escapeXml(image.url)}</Item>`)
+    lines.push(
+      `        <Item medium="image"${primaryAttr}${captionAttr}>${escapeXml(image.url)}</Item>`
+    )
   })
   if (listing.videoUrl) {
     lines.push(`        <Item medium="video">${escapeXml(listing.videoUrl)}</Item>`)
@@ -504,7 +546,10 @@ function buildListingXml(listing: VrsyncListingInput, header: VrsyncFeedHeader):
   return lines.join("\n")
 }
 
-export function buildVrsyncFeed(header: VrsyncFeedHeader, listings: VrsyncListingInput[]): VrsyncBuildResult {
+export function buildVrsyncFeed(
+  header: VrsyncFeedHeader,
+  listings: VrsyncListingInput[]
+): VrsyncBuildResult {
   const included: string[] = []
   const skipped: { code: string; issues: VrsyncValidationIssue[] }[] = []
   const listingBlocks: string[] = []

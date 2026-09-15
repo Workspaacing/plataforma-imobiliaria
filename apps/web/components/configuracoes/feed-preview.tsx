@@ -1,19 +1,9 @@
 import Link from "next/link"
-import {
-  CircleAlertIcon,
-  CircleCheckIcon,
-  HouseIcon,
-  TriangleAlertIcon,
-} from "lucide-react"
+import { CircleAlertIcon, CircleCheckIcon, HouseIcon, TriangleAlertIcon } from "lucide-react"
 
 import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert"
 import { Button } from "@workspace/ui/components/button"
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@workspace/ui/components/card"
+import { Card, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card"
 import {
   Empty,
   EmptyContent,
@@ -22,13 +12,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@workspace/ui/components/empty"
-import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemGroup,
-  ItemTitle,
-} from "@workspace/ui/components/item"
+import { Item, ItemActions, ItemContent, ItemGroup, ItemTitle } from "@workspace/ui/components/item"
 
 import type { FeedPreviewState } from "@/lib/portais/feed-preview"
 import type { PortalFeedSkippedListing } from "@/lib/portais/vrsync-mapper"
@@ -39,9 +23,7 @@ const numberFormat = new Intl.NumberFormat("pt-BR")
 function getBlockingMessages(listing: PortalFeedSkippedListing) {
   return [
     ...new Set(
-      listing.issues
-        .filter((issue) => issue.severity === "error")
-        .map((issue) => issue.message)
+      listing.issues.filter((issue) => issue.severity === "error").map((issue) => issue.message)
     ),
   ]
 }
@@ -101,8 +83,8 @@ export function FeedPreview({ preview }: { preview: FeedPreviewState }) {
             </EmptyMedia>
             <EmptyTitle>Nenhum imóvel para publicar</EmptyTitle>
             <EmptyDescription>
-              Entram no feed os imóveis com status Ativo e a opção de publicar nos
-              portais marcada no cadastro.
+              Entram no feed os imóveis com status Ativo e a opção de publicar nos portais marcada
+              no cadastro.
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
@@ -115,9 +97,7 @@ export function FeedPreview({ preview }: { preview: FeedPreviewState }) {
         <Alert>
           <CircleCheckIcon />
           <AlertTitle>Todos os imóveis entram no feed</AlertTitle>
-          <AlertDescription>
-            Nenhum problema encontrado nos imóveis publicados.
-          </AlertDescription>
+          <AlertDescription>Nenhum problema encontrado nos imóveis publicados.</AlertDescription>
         </Alert>
       ) : (
         <div className="flex flex-col gap-2">

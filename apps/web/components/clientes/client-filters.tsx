@@ -36,7 +36,10 @@ const KIND_ITEMS = [
 
 const SOURCE_ITEMS = [
   { label: "Todas as origens", value: null },
-  ...CLIENT_SOURCE_VALUES.map((source) => ({ label: CLIENT_SOURCE_LABELS[source], value: source })),
+  ...CLIENT_SOURCE_VALUES.map((source) => ({
+    label: CLIENT_SOURCE_LABELS[source],
+    value: source,
+  })),
 ]
 
 type ClientFiltersProps = {
@@ -103,9 +106,7 @@ export function ClientFilters({ filters, members, tags, showAssigneeFilter }: Cl
   return (
     <div className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center">
       <InputGroup className="md:max-w-sm">
-        <InputGroupAddon>
-          {isPending ? <Spinner /> : <SearchIcon />}
-        </InputGroupAddon>
+        <InputGroupAddon>{isPending ? <Spinner /> : <SearchIcon />}</InputGroupAddon>
         <InputGroupInput
           type="search"
           value={search}

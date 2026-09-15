@@ -49,25 +49,45 @@ type AppointmentShape = z.infer<typeof appointmentShape>
 
 function refineAppointment<T extends AppointmentShape>(values: T, ctx: z.RefinementCtx<T>) {
   if (!values.property) {
-    ctx.addIssue({ code: "custom", path: ["property"], message: "Selecione o imóvel da visita." })
+    ctx.addIssue({
+      code: "custom",
+      path: ["property"],
+      message: "Selecione o imóvel da visita.",
+    })
   }
 
   if (!z.guid().safeParse(values.brokerId).success) {
-    ctx.addIssue({ code: "custom", path: ["brokerId"], message: "Selecione o corretor." })
+    ctx.addIssue({
+      code: "custom",
+      path: ["brokerId"],
+      message: "Selecione o corretor.",
+    })
   }
 
   if (!isDateKey(values.date)) {
-    ctx.addIssue({ code: "custom", path: ["date"], message: "Informe a data da visita." })
+    ctx.addIssue({
+      code: "custom",
+      path: ["date"],
+      message: "Informe a data da visita.",
+    })
   }
 
   const validStart = isTimeKey(values.startTime)
 
   if (!validStart) {
-    ctx.addIssue({ code: "custom", path: ["startTime"], message: "Informe o horário de início." })
+    ctx.addIssue({
+      code: "custom",
+      path: ["startTime"],
+      message: "Informe o horário de início.",
+    })
   }
 
   if (!isTimeKey(values.endTime)) {
-    ctx.addIssue({ code: "custom", path: ["endTime"], message: "Informe o horário de término." })
+    ctx.addIssue({
+      code: "custom",
+      path: ["endTime"],
+      message: "Informe o horário de término.",
+    })
   } else if (validStart && values.endTime <= values.startTime) {
     ctx.addIssue({
       code: "custom",

@@ -23,7 +23,11 @@ export const AMENITY_OPTIONS: readonly AmenityOption[] = [
   { value: "gourmet_balcony", label: "Varanda gourmet", scope: "property" },
   { value: "air_conditioning", label: "Ar-condicionado", scope: "property" },
   { value: "service_area", label: "Área de serviço", scope: "property" },
-  { value: "built_in_closets", label: "Armários planejados", scope: "property" },
+  {
+    value: "built_in_closets",
+    label: "Armários planejados",
+    scope: "property",
+  },
   { value: "backyard", label: "Quintal", scope: "property" },
   { value: "garden", label: "Jardim", scope: "both" },
   { value: "office_room", label: "Escritório", scope: "property" },
@@ -40,7 +44,11 @@ export const AMENITY_OPTIONS: readonly AmenityOption[] = [
   { value: "bike_rack", label: "Bicicletário", scope: "condominium" },
   { value: "generator", label: "Gerador", scope: "condominium" },
   { value: "laundry", label: "Lavanderia coletiva", scope: "condominium" },
-  { value: "visitor_parking", label: "Vagas para visitantes", scope: "condominium" },
+  {
+    value: "visitor_parking",
+    label: "Vagas para visitantes",
+    scope: "condominium",
+  },
   { value: "security_cameras", label: "Câmeras de segurança", scope: "both" },
 ]
 

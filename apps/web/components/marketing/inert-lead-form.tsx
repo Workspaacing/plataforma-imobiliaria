@@ -1,3 +1,5 @@
+"use client"
+
 import { Button } from "@workspace/ui/components/button"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@workspace/ui/components/field"
 import { Input } from "@workspace/ui/components/input"
@@ -52,7 +54,9 @@ export function InertLeadForm({ idPrefix = "previa-lead" }: { idPrefix?: string 
           <Button type="submit" disabled>
             Quero ser contatado
           </Button>
-          <FieldDescription>Pré-visualização: o envio funciona só na página publicada.</FieldDescription>
+          <FieldDescription>
+            Pré-visualização: o envio funciona só na página publicada.
+          </FieldDescription>
         </Field>
       </FieldGroup>
     </form>

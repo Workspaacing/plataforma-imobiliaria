@@ -32,7 +32,10 @@ export async function confirmEmailLink(formData: FormData): Promise<void> {
   )
 
   const supabase = await createClient()
-  const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash })
+  const { error } = await supabase.auth.verifyOtp({
+    type,
+    token_hash: tokenHash,
+  })
 
   if (error) {
     // Só o código do erro: nada de e-mail ou token no log.

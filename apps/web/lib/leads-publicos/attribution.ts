@@ -21,11 +21,7 @@ import {
   type LeadClickIds,
   type LeadUtm,
 } from "@/lib/leads-publicos/constants"
-import {
-  readBrowserCookie,
-  readJsonCookie,
-  writeBrowserCookie,
-} from "@/lib/leads-publicos/cookies"
+import { readBrowserCookie, readJsonCookie, writeBrowserCookie } from "@/lib/leads-publicos/cookies"
 
 /** gclid, gbraid, wbraid, fbclid e os cookies _fbc/_fbp só usam estes caracteres. */
 const CLICK_ID_PATTERN = /^[A-Za-z0-9._~-]+$/

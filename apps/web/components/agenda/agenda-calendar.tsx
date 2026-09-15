@@ -62,7 +62,10 @@ export function AgendaCalendar({
         selected={dateKeyToLocalDate(view.day)}
         month={dateKeyToLocalDate(`${view.month}-01`)}
         onMonthChange={(date) => {
-          navigate({ day: view.day, month: localDateToDateKey(date).slice(0, 7) })
+          navigate({
+            day: view.day,
+            month: localDateToDateKey(date).slice(0, 7),
+          })
         }}
         onSelect={(date) => {
           const dateKey = localDateToDateKey(date)

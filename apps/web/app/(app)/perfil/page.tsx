@@ -62,9 +62,7 @@ export default async function PerfilPage() {
         <Card>
           <CardHeader>
             <CardTitle>Senha</CardTitle>
-            <CardDescription>
-              Confirme a senha atual para definir uma nova.
-            </CardDescription>
+            <CardDescription>Confirme a senha atual para definir uma nova.</CardDescription>
           </CardHeader>
           <CardContent>
             <PasswordForm />

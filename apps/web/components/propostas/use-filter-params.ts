@@ -25,7 +25,9 @@ export function useFilterParams() {
       const query = params.toString()
 
       startTransition(() => {
-        router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+        router.replace(query ? `${pathname}?${query}` : pathname, {
+          scroll: false,
+        })
       })
     },
     [pathname, router, searchParams]

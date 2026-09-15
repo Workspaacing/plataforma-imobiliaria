@@ -41,11 +41,7 @@ import { setMemberActive, updateMemberRole } from "@/app/(app)/configuracoes/equ
 import { CreciStatusBadge } from "@/components/configuracoes/creci-status-badge"
 import { getInitials } from "@/components/crm/utils"
 import { formatDateOnly } from "@/lib/configuracoes/dates"
-import {
-  canManageRole,
-  getAssignableRoles,
-  getRoleSelectItems,
-} from "@/lib/configuracoes/roles"
+import { canManageRole, getAssignableRoles, getRoleSelectItems } from "@/lib/configuracoes/roles"
 
 export type TeamMember = {
   membershipId: string
@@ -126,7 +122,10 @@ function MemberRow({
       const result = await updateMemberRole(member.membershipId, next)
 
       if (result.ok) {
-        toast.add({ title: result.message ?? "Papel atualizado.", type: "success" })
+        toast.add({
+          title: result.message ?? "Papel atualizado.",
+          type: "success",
+        })
         return
       }
 
@@ -145,7 +144,10 @@ function MemberRow({
 
       if (result.ok) {
         setConfirmOpen(false)
-        toast.add({ title: result.message ?? "Acesso atualizado.", type: "success" })
+        toast.add({
+          title: result.message ?? "Acesso atualizado.",
+          type: "success",
+        })
         return
       }
 
@@ -235,8 +237,8 @@ function MemberRow({
               <AlertDialogHeader>
                 <AlertDialogTitle>Desativar o acesso de {displayName}?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  A pessoa deixa de acessar esta imobiliária na hora. Imóveis, clientes e
-                  histórico ligados a ela continuam salvos, e você pode reativar depois.
+                  A pessoa deixa de acessar esta imobiliária na hora. Imóveis, clientes e histórico
+                  ligados a ela continuam salvos, e você pode reativar depois.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -253,12 +255,7 @@ function MemberRow({
             </AlertDialogContent>
           </AlertDialog>
         ) : (
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={isPending}
-            onClick={() => onSetActive(true)}
-          >
+          <Button variant="ghost" size="sm" disabled={isPending} onClick={() => onSetActive(true)}>
             {isPending ? (
               <Spinner data-icon="inline-start" />
             ) : (

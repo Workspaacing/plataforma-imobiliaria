@@ -49,7 +49,12 @@ export function LandingFooter({
 
           <address className="flex flex-col gap-2.5 text-sm not-italic">
             {vm.whatsappHref ? (
-              <a href={vm.whatsappHref} target="_blank" rel="noopener noreferrer" className={linkClass}>
+              <a
+                href={vm.whatsappHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={linkClass}
+              >
                 <MessageCircleIcon aria-hidden="true" className="size-4" />
                 WhatsApp
                 <span className="sr-only">(abre em nova aba)</span>

@@ -182,10 +182,10 @@ export function LeadCard({
       </CardHeader>
 
       <CardContent className="flex flex-col gap-2 text-xs">
-        {lead.duplicates.length > 0 || lead.stage === "new" ? (
+        {lead.hasDuplicate || lead.stage === "new" ? (
           <div className="flex flex-wrap gap-1 empty:hidden">
             <LeadContactTimerBadge lead={lead} nowMs={nowMs} />
-            <LeadDuplicateBadge count={lead.duplicates.length} />
+            <LeadDuplicateBadge hasDuplicate={lead.hasDuplicate} />
           </div>
         ) : null}
 

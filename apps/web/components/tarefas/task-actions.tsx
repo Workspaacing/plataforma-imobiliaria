@@ -62,7 +62,10 @@ export function TaskActions({ task, canEdit, canDelete }: TaskActionsProps) {
         return
       }
 
-      toast.add({ title: result.message ?? "Tarefa excluída.", type: "success" })
+      toast.add({
+        title: result.message ?? "Tarefa excluída.",
+        type: "success",
+      })
       setDeleteOpen(false)
     })
   }
@@ -117,7 +120,11 @@ export function TaskActions({ task, canEdit, canDelete }: TaskActionsProps) {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
-              <AlertDialogAction variant="destructive" disabled={isDeleting} onClick={confirmDelete}>
+              <AlertDialogAction
+                variant="destructive"
+                disabled={isDeleting}
+                onClick={confirmDelete}
+              >
                 {isDeleting ? <Spinner data-icon="inline-start" /> : null}
                 Excluir tarefa
               </AlertDialogAction>

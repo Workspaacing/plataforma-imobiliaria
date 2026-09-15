@@ -61,13 +61,17 @@ export function StepMidia({
               </EmptyMedia>
               <EmptyTitle>Salve o rascunho para enviar fotos</EmptyTitle>
               <EmptyDescription>
-                As fotos ficam na pasta do imóvel, criada no primeiro salvamento. Salve agora como rascunho (só o
-                título é obrigatório) e continue daqui.
+                As fotos ficam na pasta do imóvel, criada no primeiro salvamento. Salve agora como
+                rascunho (só o título é obrigatório) e continue daqui.
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
               <Button type="button" onClick={onSaveDraft} disabled={isSaving}>
-                {isSaving ? <Spinner data-icon="inline-start" /> : <SaveIcon data-icon="inline-start" />}
+                {isSaving ? (
+                  <Spinner data-icon="inline-start" />
+                ) : (
+                  <SaveIcon data-icon="inline-start" />
+                )}
                 Salvar rascunho e enviar fotos
               </Button>
             </EmptyContent>
@@ -79,7 +83,9 @@ export function StepMidia({
 
       <FieldSet>
         <FieldLegend>Vídeo e tour virtual</FieldLegend>
-        <FieldDescription>Um vídeo ou um tour vale 10 pontos na Nota do Anúncio. São salvos junto com o imóvel.</FieldDescription>
+        <FieldDescription>
+          Um vídeo ou um tour vale 10 pontos na Nota do Anúncio. São salvos junto com o imóvel.
+        </FieldDescription>
         <TextField
           control={control}
           name="videoUrl"

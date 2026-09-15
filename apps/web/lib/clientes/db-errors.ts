@@ -11,8 +11,7 @@ export type DatabaseErrorLike = {
   hint?: string | null
 }
 
-export const GENERIC_ERROR_MESSAGE =
-  "Não foi possível concluir agora. Tente novamente."
+export const GENERIC_ERROR_MESSAGE = "Não foi possível concluir agora. Tente novamente."
 
 /** Mensagem padrão quando o RLS bloqueia (42501 ou UPDATE/DELETE sem linhas). */
 export function permissionDeniedMessage(action: string) {
@@ -40,7 +39,9 @@ export function translateDatabaseError(error: DatabaseErrorLike, action: string)
     case "42501":
       return permissionDeniedMessage(action)
     case "23505":
-      if (includesAny(context, ["clients_organization_document_key", "(organization_id, document)"])) {
+      if (
+        includesAny(context, ["clients_organization_document_key", "(organization_id, document)"])
+      ) {
         return "Já existe um cliente com este CPF/CNPJ."
       }
       if (context.includes("client_shares_client_user_key")) {

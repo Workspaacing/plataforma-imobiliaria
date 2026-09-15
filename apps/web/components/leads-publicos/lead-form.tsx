@@ -49,6 +49,7 @@ import { Spinner } from "@workspace/ui/components/spinner"
 import { Textarea } from "@workspace/ui/components/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@workspace/ui/components/toggle-group"
 
+import { useLandingLeadInterest } from "@/components/landing/lead-interest"
 import { trackLeadConversion } from "@/components/leads-publicos/tracking"
 import { maskPhoneInput, whatsappUrl } from "@/lib/captacao/masks"
 import {
@@ -65,11 +66,13 @@ import {
   LEAD_INTERESTS,
   LEAD_MESSAGE_MAX_LENGTH,
   LEAD_NAME_MAX_LENGTH,
+  LEAD_TYPOLOGY_MAX_LENGTH,
   type LeadInterest,
 } from "@/lib/leads-publicos/constants"
 import { createEventId } from "@/lib/leads-publicos/event-id"
 import { fillWhatsappMessage } from "@/lib/leads-publicos/landing-extras"
 import {
+  isUuid,
   LEAD_CONTACT_STEP_FIELDS,
   landingLeadSchema,
   type LandingLeadValues,
@@ -89,7 +92,7 @@ export type LeadFormProps = {
   /** Título da página ({pagina} na mensagem do WhatsApp). */
   pageLabel: string
   privacyHref: string
-  /** content.cta_label da página; sem ele, "Quero atendimento". */
+  /** Texto do botão principal (CTA da página); sem ele, "Quero atendimento". */
   ctaLabel?: string | null
   /** Imóveis exibidos na página. O seletor só aparece com mais de um. */
   properties?: readonly LeadFormProperty[]
@@ -132,6 +135,8 @@ function stepForFields(fields: string[]): Step | null {
  * referência do lead para complementar depois):
  * 1. nome + telefone/WhatsApp + consentimento, com o botão de envio principal;
  * 2. opcional, antes de enviar: e-mail, interesse, imóvel/tipologia e mensagem.
+ * O imóvel ou a tipologia escolhidos nos CTAs da página (useLandingLeadInterest)
+ * entram no envio quando o visitante não escolheu outro na etapa 2.
  */
 export function LeadForm({
   orgSlug,
@@ -150,6 +155,7 @@ export function LeadForm({
 }: LeadFormProps) {
   const containerRef = React.useRef<HTMLDivElement>(null)
   const tokenRef = React.useRef<TokenState>(null)
+  const { interest: pageInterest, setInterest: setPageInterest } = useLandingLeadInterest()
   const [isSubmitting, startSubmit] = React.useTransition()
   const [step, setStep] = React.useState<Step>("contact")
   const [formError, setFormError] = React.useState<FormError>(null)
@@ -167,8 +173,7 @@ export function LeadForm({
       name: "",
       phone: "",
       email: "",
-      interest:
-        defaultInterest && interestOptions.includes(defaultInterest) ? defaultInterest : "",
+      interest: defaultInterest && interestOptions.includes(defaultInterest) ? defaultInterest : "",
       propertyId: singlePropertyId,
       typology: "",
       message: "",
@@ -180,7 +185,10 @@ export function LeadForm({
   const propertyItems = React.useMemo(
     () => [
       { label: "Nenhum em especial", value: null as string | null },
-      ...properties.map((property) => ({ label: property.title, value: property.id })),
+      ...properties.map((property) => ({
+        label: property.title,
+        value: property.id,
+      })),
     ],
     [properties]
   )
@@ -247,6 +255,22 @@ export function LeadForm({
     return result.token
   }
 
+  /** Completa imóvel/tipologia com o interesse escolhido na página, se a etapa 2 ficou vazia. */
+  function withPageInterest(values: LandingLeadValues): LandingLeadValues {
+    if (pageInterest?.kind === "property" && !values.propertyId && isUuid(pageInterest.id)) {
+      return { ...values, propertyId: pageInterest.id }
+    }
+
+    if (pageInterest?.kind === "typology" && !values.typology) {
+      return {
+        ...values,
+        typology: Array.from(pageInterest.name).slice(0, LEAD_TYPOLOGY_MAX_LENGTH).join("").trim(),
+      }
+    }
+
+    return values
+  }
+
   function buildWhatsappHref(values: LandingLeadValues) {
     const base = whatsappUrl(whatsappPhone)
 
@@ -255,8 +279,12 @@ export function LeadForm({
     const selected =
       properties.find((property) => property.id === values.propertyId) ??
       (properties.length === 1 ? properties[0] : undefined)
+    const interestCode =
+      pageInterest?.kind === "property" && pageInterest.id === values.propertyId
+        ? pageInterest.code
+        : null
     const text = fillWhatsappMessage(whatsappMessageTemplate, {
-      codigo: selected?.code ?? null,
+      codigo: selected?.code ?? interestCode,
       pagina: pageLabel,
     })
 
@@ -277,14 +305,25 @@ export function LeadForm({
   function applyResult(
     result: SubmitLandingLeadResult,
     values: LandingLeadValues,
-    eventId: string
+    eventId: string,
+    honeypotFilled: boolean
   ) {
     if (result.ok) {
       setSuccess({ whatsappHref: buildWhatsappHref(values) })
       form.reset(defaultValues)
       setStep("contact")
-      trackLeadConversion({ eventId, interest: values.interest || null })
-      containerRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" })
+      setPageInterest(null)
+
+      // O servidor responde sucesso ao robô de propósito; aqui o navegador já
+      // sabe que o honeypot foi preenchido e não polui as conversões dos anúncios.
+      if (!honeypotFilled) {
+        trackLeadConversion({ eventId, interest: values.interest || null })
+      }
+
+      containerRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      })
       return
     }
 
@@ -292,7 +331,10 @@ export function LeadForm({
 
     for (const [field, message] of fieldErrors) {
       if (message) {
-        form.setError(field as keyof LandingLeadValues, { type: "server", message })
+        form.setError(field as keyof LandingLeadValues, {
+          type: "server",
+          message,
+        })
       }
     }
 
@@ -310,9 +352,10 @@ export function LeadForm({
     setFormError({ message: result.error, expired: Boolean(result.expired) })
   }
 
-  function submitValues(values: LandingLeadValues, website: string) {
+  function submitValues(formValues: LandingLeadValues, website: string) {
     setFormError(null)
     const eventId = createEventId()
+    const values = withPageInterest(formValues)
 
     startSubmit(async () => {
       try {
@@ -335,7 +378,7 @@ export function LeadForm({
           eventId,
         })
 
-        applyResult(result, values, eventId)
+        applyResult(result, values, eventId, website.trim() !== "")
       } catch {
         setFormError({
           message: "Sem conexão com o servidor. Verifique sua internet e tente de novo.",
@@ -373,18 +416,18 @@ export function LeadForm({
             </EmptyMedia>
             <EmptyTitle>Recebemos seu contato!</EmptyTitle>
             <EmptyDescription>
-              Obrigado. A equipe de {organizationName} já recebeu seus dados e vai falar com você
-              em breve.
-              {success.whatsappHref ? " Se preferir, adiante a conversa pelo WhatsApp agora." : null}
+              Obrigado. A equipe de {organizationName} já recebeu seus dados e vai falar com você em
+              breve.
+              {success.whatsappHref
+                ? " Se preferir, adiante a conversa pelo WhatsApp agora."
+                : null}
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
             {success.whatsappHref ? (
               <Button
                 size="lg"
-                render={
-                  <a href={success.whatsappHref} target="_blank" rel="noopener noreferrer" />
-                }
+                render={<a href={success.whatsappHref} target="_blank" rel="noopener noreferrer" />}
                 nativeButton={false}
               >
                 <MessageCircleIcon data-icon="inline-start" />
@@ -582,7 +625,10 @@ export function LeadForm({
                           <SelectContent>
                             <SelectGroup>
                               {typologyItems.map((item) => (
-                                <SelectItem key={item.value ?? "sem-preferencia"} value={item.value}>
+                                <SelectItem
+                                  key={item.value ?? "sem-preferencia"}
+                                  value={item.value}
+                                >
                                   {item.label}
                                 </SelectItem>
                               ))}

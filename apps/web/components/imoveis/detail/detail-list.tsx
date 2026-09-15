@@ -3,10 +3,7 @@ import { cn } from "@workspace/ui/lib/utils"
 /** Lista de pares rótulo/valor da ficha (somente leitura). */
 export function DetailList({ className, ...props }: React.ComponentProps<"dl">) {
   return (
-    <dl
-      className={cn("grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3", className)}
-      {...props}
-    />
+    <dl className={cn("grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3", className)} {...props} />
   )
 }
 

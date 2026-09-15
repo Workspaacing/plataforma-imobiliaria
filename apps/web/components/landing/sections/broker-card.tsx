@@ -57,10 +57,7 @@ export function BrokerCard({
           </a>
         ) : null}
         {broker.phoneHref && broker.phoneDisplay ? (
-          <a
-            href={broker.phoneHref}
-            className={cn(lpButtonClass({ tone: "outline" }), lpFocus)}
-          >
+          <a href={broker.phoneHref} className={cn(lpButtonClass({ tone: "outline" }), lpFocus)}>
             <PhoneIcon aria-hidden="true" />
             {broker.phoneDisplay}
           </a>

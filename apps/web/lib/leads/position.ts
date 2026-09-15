@@ -54,7 +54,10 @@ export function planLeadPosition(
 
     return {
       kind: "renumber",
-      positions: ordered.map((id, order) => ({ id, position: (order + 1) * LEAD_POSITION_STEP })),
+      positions: ordered.map((id, order) => ({
+        id,
+        position: (order + 1) * LEAD_POSITION_STEP,
+      })),
     }
   }
 

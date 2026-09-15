@@ -47,7 +47,9 @@ export function translateLandingError(error: DbErrorLike, action: string) {
     case "42501":
       return LANDING_PERMISSION_MESSAGE
     case "23505":
-      return mentionsSlug(error) || !message ? LANDING_SLUG_TAKEN_MESSAGE : "Este registro já existe."
+      return mentionsSlug(error) || !message
+        ? LANDING_SLUG_TAKEN_MESSAGE
+        : "Este registro já existe."
     case "23514":
       if (mentionsSlug(error)) {
         return "Endereço inválido: use de 3 a 60 caracteres entre letras minúsculas, números e hífens."

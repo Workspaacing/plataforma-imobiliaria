@@ -94,8 +94,7 @@ export function AuthCover() {
 
       <figure className="absolute inset-x-10 top-10 flex max-w-md flex-col gap-3 rounded-xl bg-background/80 p-6 ring-1 ring-foreground/10 backdrop-blur">
         <blockquote className="text-lg leading-snug font-medium text-balance">
-          Do cadastro do imóvel ao contrato assinado, a imobiliária inteira num
-          só lugar.
+          Do cadastro do imóvel ao contrato assinado, a imobiliária inteira num só lugar.
         </blockquote>
         <figcaption className="text-sm text-muted-foreground">
           Imóveis, clientes, agenda e portais conectados para toda a equipe.

@@ -6,16 +6,9 @@ import type { AppRole } from "@workspace/core/properties/enums"
 
 import type { ActionResult } from "@/lib/auth/action-result"
 import { TEAM_MANAGER_ROLES } from "@/lib/auth/roles"
-import { getSiteUrl } from "@/lib/auth/site-url"
 import { getActionMembership } from "@/lib/configuracoes/action-context"
-import {
-  PERMISSION_DENIED_MESSAGE,
-  translateDatabaseError,
-} from "@/lib/configuracoes/errors"
-import {
-  buildInvitationUrl,
-  getInvitationExpiry,
-} from "@/lib/configuracoes/invitations"
+import { PERMISSION_DENIED_MESSAGE, translateDatabaseError } from "@/lib/configuracoes/errors"
+import { getInvitationExpiry } from "@/lib/configuracoes/invitations"
 import { canManageRole } from "@/lib/configuracoes/roles"
 import {
   getFieldErrors,
@@ -26,6 +19,7 @@ import {
   type InvitationValues,
 } from "@/lib/configuracoes/schemas"
 import { createClient } from "@/lib/supabase/server"
+import { buildInvitationUrl } from "@/lib/tenant/urls"
 
 const PAGE_PATH = "/configuracoes/equipe"
 
@@ -45,9 +39,7 @@ export type CreateInvitationResult =
       fieldErrors?: Partial<Record<keyof InvitationValues, string>>
     }
 
-export async function createInvitation(
-  values: InvitationValues
-): Promise<CreateInvitationResult> {
+export async function createInvitation(values: InvitationValues): Promise<CreateInvitationResult> {
   const parsed = invitationSchema.safeParse(values)
 
   if (!parsed.success) {
@@ -131,7 +123,8 @@ export async function createInvitation(
       email: invitation.email,
       role: invitation.role,
       expiresAt: invitation.expires_at,
-      url: buildInvitationUrl(await getSiteUrl(), invitation.token),
+      // Link no endereço da imobiliária que convida (lib/tenant/urls).
+      url: buildInvitationUrl(membership.organization.slug, invitation.token),
     },
   }
 }
@@ -164,7 +157,10 @@ async function loadManageableMembership(membershipId: string) {
   }
 
   if (!target) {
-    return { ok: false as const, error: "Este membro não foi encontrado na imobiliária." }
+    return {
+      ok: false as const,
+      error: "Este membro não foi encontrado na imobiliária.",
+    }
   }
 
   if (target.user_id === auth.context.user.id) {
@@ -178,13 +174,15 @@ async function loadManageableMembership(membershipId: string) {
     return { ok: false as const, error: PERMISSION_DENIED_MESSAGE }
   }
 
-  return { ok: true as const, supabase, target, actorRole: auth.context.membership.role }
+  return {
+    ok: true as const,
+    supabase,
+    target,
+    actorRole: auth.context.membership.role,
+  }
 }
 
-export async function updateMemberRole(
-  membershipId: string,
-  role: AppRole
-): Promise<ActionResult> {
+export async function updateMemberRole(membershipId: string, role: AppRole): Promise<ActionResult> {
   const parsedRole = roleSchema.safeParse(role)
 
   if (!parsedRole.success) {
@@ -260,7 +258,11 @@ export async function setMemberActive(
   }
 }
 
-type TargetInvitation = { id: string; role: AppRole; accepted_at: string | null }
+type TargetInvitation = {
+  id: string
+  role: AppRole
+  accepted_at: string | null
+}
 
 async function loadManageableInvitation(invitationId: string) {
   const parsedId = invitationIdSchema.safeParse(invitationId)
@@ -327,7 +329,10 @@ export async function renewInvitation(invitationId: string): Promise<ActionResul
 
   revalidatePath(PAGE_PATH)
 
-  return { ok: true, message: "Convite renovado por mais 7 dias. O link continua o mesmo." }
+  return {
+    ok: true,
+    message: "Convite renovado por mais 7 dias. O link continua o mesmo.",
+  }
 }
 
 export async function revokeInvitation(invitationId: string): Promise<ActionResult> {

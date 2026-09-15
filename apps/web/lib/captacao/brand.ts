@@ -7,7 +7,13 @@ function channelToLinear(channel: number) {
 
 function relativeLuminance(hex: string) {
   const raw = hex.slice(1)
-  const full = raw.length === 3 ? raw.split("").map((char) => char + char).join("") : raw
+  const full =
+    raw.length === 3
+      ? raw
+          .split("")
+          .map((char) => char + char)
+          .join("")
+      : raw
   const [r, g, b] = [0, 2, 4].map((index) =>
     channelToLinear(Number.parseInt(full.slice(index, index + 2), 16))
   )

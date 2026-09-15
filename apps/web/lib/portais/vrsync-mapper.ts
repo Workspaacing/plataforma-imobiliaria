@@ -303,7 +303,9 @@ export function getFeedHeaderIssues(
   const issues: string[] = []
 
   if (!organization.email?.trim()) {
-    issues.push("Informe o e-mail da imobiliária: ele vai no cabeçalho e no contato de cada anúncio.")
+    issues.push(
+      "Informe o e-mail da imobiliária: ele vai no cabeçalho e no contato de cada anúncio."
+    )
   }
 
   if (!organization.phone?.trim()) {
@@ -357,9 +359,7 @@ export function buildPortalFeed(
     return null
   }
 
-  const listings = feed.properties.map((property) =>
-    mapPropertyToVrsyncListing(property, options)
-  )
+  const listings = feed.properties.map((property) => mapPropertyToVrsyncListing(property, options))
   const header = buildVrsyncHeader(feed.organization, {
     provider: options.provider,
     publishDate: feed.generatedAt ?? options.now ?? new Date(),
@@ -378,7 +378,10 @@ export function buildPortalFeed(
     total: feed.properties.length + feed.malformed.length,
     included: result.included.map(summarize),
     skipped: [
-      ...result.skipped.map((item) => ({ ...summarize(item.code), issues: item.issues })),
+      ...result.skipped.map((item) => ({
+        ...summarize(item.code),
+        issues: item.issues,
+      })),
       ...feed.malformed.map((item) => ({
         id: item.id,
         code: item.code ?? "—",

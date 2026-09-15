@@ -7,6 +7,12 @@ export const RESET_PASSWORD_PATH = "/redefinir-senha"
 export const ONBOARDING_PATH = "/onboarding"
 export const HOME_PATH = "/painel"
 
+/** Escolha de imobiliária no domínio raiz (links para cada subdomínio). */
+export const TENANT_PICKER_PATH = "/imobiliarias"
+
+/** Tela "Você não tem acesso a esta imobiliária" no subdomínio. */
+export const ACCESS_DENIED_PATH = "/sem-acesso"
+
 /**
  * Página intermediária dos links com `token_hash` (/auth/confirm): o token só
  * é consumido depois do clique em "Continuar". Pública pelo prefixo "/auth".
@@ -16,18 +22,55 @@ export const CONFIRM_LINK_PATH = "/auth/confirmar"
 /** Prefixo das páginas públicas de convite (ver lib/configuracoes/invitations.ts). */
 export const INVITATION_PATH_PREFIX = "/convite/"
 
-const PUBLIC_PATHS = new Set([
-  LOGIN_PATH,
-  SIGN_UP_PATH,
-  RECOVER_PASSWORD_PATH,
-  RESET_PASSWORD_PATH,
-])
+const PUBLIC_PATHS = new Set([LOGIN_PATH, SIGN_UP_PATH, RECOVER_PASSWORD_PATH, RESET_PASSWORD_PATH])
 
 /** `/lp` são as landing pages públicas das imobiliárias (tráfego pago e redes sociais). */
 const PUBLIC_PREFIXES = ["/auth", "/captar", "/api/feeds", "/convite", "/lp"]
 
 /** Rotas que só fazem sentido para quem ainda não entrou. */
 const GUEST_ONLY_PATHS = new Set([LOGIN_PATH, SIGN_UP_PATH, RECOVER_PASSWORD_PATH])
+
+/** Rotas atendidas só no domínio raiz: no subdomínio, redirecionam para a raiz. */
+const ROOT_ONLY_PREFIXES = [ONBOARDING_PATH, TENANT_PICKER_PATH]
+
+/**
+ * Rotas que o domínio raiz atende. As demais (CRM) levam à escolha de
+ * imobiliária. /convite e o feed antigo continuam válidos na raiz por
+ * compatibilidade com links já compartilhados.
+ */
+const ROOT_HOST_PREFIXES = [
+  ...PUBLIC_PATHS,
+  "/auth",
+  "/convite",
+  "/api/feeds",
+  ...ROOT_ONLY_PREFIXES,
+]
+
+/**
+ * Primeiro segmento aceito em `next` (allowlist): seções do CRM e fluxos de
+ * conta. Ao criar uma seção nova no topo do app, inclua-a aqui; fora da lista,
+ * o login leva ao destino padrão.
+ */
+const REDIRECT_ALLOWED_SECTIONS = new Set([
+  "agenda",
+  "captacao",
+  "chaves",
+  "clientes",
+  "condominios",
+  "configuracoes",
+  "imoveis",
+  "leads",
+  "marketing",
+  "painel",
+  "perfil",
+  "propostas",
+  "tarefas",
+  "onboarding",
+  "imobiliarias",
+  "convite",
+  "redefinir-senha",
+  "sem-acesso",
+])
 
 function normalizePathname(pathname: string) {
   if (pathname.length > 1 && pathname.endsWith("/")) {
@@ -44,19 +87,27 @@ function matchesPrefix(pathname: string, prefix: string) {
 export function isPublicPath(pathname: string) {
   const path = normalizePathname(pathname)
 
-  return (
-    PUBLIC_PATHS.has(path) ||
-    PUBLIC_PREFIXES.some((prefix) => matchesPrefix(path, prefix))
-  )
+  return PUBLIC_PATHS.has(path) || PUBLIC_PREFIXES.some((prefix) => matchesPrefix(path, prefix))
 }
 
 export function isGuestOnlyPath(pathname: string) {
   return GUEST_ONLY_PATHS.has(normalizePathname(pathname))
 }
 
+export function isRootOnlyPath(pathname: string) {
+  const path = normalizePathname(pathname)
+  return ROOT_ONLY_PREFIXES.some((prefix) => matchesPrefix(path, prefix))
+}
+
+export function isRootHostPath(pathname: string) {
+  const path = normalizePathname(pathname)
+  return ROOT_HOST_PREFIXES.some((prefix) => matchesPrefix(path, prefix))
+}
+
 /**
- * Aceita apenas caminhos relativos do próprio app (evita open redirect) e
- * nunca devolve rotas que levariam a um loop (login, cadastro, /auth/*).
+ * Aceita apenas caminhos relativos do próprio app (evita open redirect), cujo
+ * primeiro segmento está na allowlist, e nunca devolve rotas que levariam a um
+ * loop (login, cadastro, /auth/*).
  */
 export function sanitizeRedirectPath(
   value: string | null | undefined,
@@ -79,6 +130,12 @@ export function sanitizeRedirectPath(
     }
 
     if (isGuestOnlyPath(url.pathname) || matchesPrefix(url.pathname, "/auth")) {
+      return fallback
+    }
+
+    const section = url.pathname.split("/")[1] ?? ""
+
+    if (!REDIRECT_ALLOWED_SECTIONS.has(section)) {
       return fallback
     }
 

@@ -12,9 +12,24 @@ import { issueFormToken } from "@/lib/captacao/anti-bot"
 import { brandCssVariables } from "@/lib/captacao/brand"
 import { formatPhoneDisplay, telUrl } from "@/lib/captacao/masks"
 import { getPublicOrganization, type PublicOrganization } from "@/lib/captacao/public-organization"
+import { buildCaptureUrl, isValidTenantSlug } from "@/lib/tenant/urls"
 
 type CaptarPageProps = {
   params: Promise<{ slug: string }>
+}
+
+/** Canônica: {slug}.raiz/captar (subdomain) ou site/captar/{slug} (host único). */
+function captureCanonicalUrl(slug: string) {
+  if (!isValidTenantSlug(slug)) {
+    return undefined
+  }
+
+  try {
+    return buildCaptureUrl(slug)
+  } catch {
+    // Host único sem NEXT_PUBLIC_SITE_URL: sem canonical.
+    return undefined
+  }
 }
 
 function formatPlace(organization: PublicOrganization) {
@@ -35,12 +50,20 @@ export async function generateMetadata({ params }: CaptarPageProps): Promise<Met
   const place = formatPlace(organization)
   const title = `Anuncie seu imóvel com ${organization.name}`
   const description = `Quer vender ou alugar seu imóvel${place ? ` em ${place}` : ""}? Envie os dados para ${organization.name} e receba o contato de um corretor.`
+  const canonical = captureCanonicalUrl(organization.slug)
 
   return {
     title,
     description,
+    alternates: canonical ? { canonical } : undefined,
     robots: { index: true, follow: true },
-    openGraph: { title, description, type: "website", locale: "pt_BR" },
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      locale: "pt_BR",
+      url: canonical,
+    },
   }
 }
 
@@ -153,8 +176,8 @@ export default async function CaptarPage({ params }: CaptarPageProps) {
             ) : null}
           </p>
           <p>
-            Os dados enviados são usados somente para o contato sobre o imóvel informado, conforme
-            a Lei Geral de Proteção de Dados (LGPD).
+            Os dados enviados são usados somente para o contato sobre o imóvel informado, conforme a
+            Lei Geral de Proteção de Dados (LGPD).
           </p>
         </div>
       </footer>

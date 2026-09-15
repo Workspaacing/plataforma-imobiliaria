@@ -1,5 +1,7 @@
 import { z } from "zod"
 
+import { getTenantSlugIssue } from "@workspace/core/tenant/slug"
+
 export const BRAZILIAN_STATES = [
   { code: "AC", name: "Acre" },
   { code: "AL", name: "Alagoas" },
@@ -33,29 +35,14 @@ export const BRAZILIAN_STATES = [
 export type BrazilianStateCode = (typeof BRAZILIAN_STATES)[number]["code"]
 
 export function isBrazilianState(value: unknown): value is BrazilianStateCode {
-  return (
-    typeof value === "string" &&
-    BRAZILIAN_STATES.some((state) => state.code === value)
-  )
+  return typeof value === "string" && BRAZILIAN_STATES.some((state) => state.code === value)
 }
 
-/** Endereços que colidiriam com rotas do app ou subdomínios reservados. */
-const RESERVED_SLUGS = new Set([
-  "admin",
-  "ajuda",
-  "api",
-  "app",
-  "auth",
-  "blog",
-  "cadastro",
-  "captar",
-  "entrar",
-  "onboarding",
-  "painel",
-  "static",
-  "suporte",
-  "www",
-])
+/** Tamanho máximo do endereço no cadastro (o subdomínio aceita até 60). */
+export const SLUG_MAX_LENGTH = 48
+
+const SLUG_HYPHENS_MESSAGE =
+  "Use apenas letras minúsculas, números e hífens simples, sem hífen no início ou no fim."
 
 export function slugify(value: string) {
   return value
@@ -65,7 +52,7 @@ export function slugify(value: string) {
     .replace(/&/g, " e ")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
-    .slice(0, 48)
+    .slice(0, SLUG_MAX_LENGTH)
     .replace(/-+$/g, "")
 }
 
@@ -74,7 +61,10 @@ export function slugify(value: string) {
  * (vigente desde julho de 2026) além do numérico tradicional.
  */
 export function normalizeCnpj(value: string) {
-  return value.toUpperCase().replace(/[^0-9A-Z]/g, "").slice(0, 14)
+  return value
+    .toUpperCase()
+    .replace(/[^0-9A-Z]/g, "")
+    .slice(0, 14)
 }
 
 export function formatCnpj(value: string) {
@@ -142,13 +132,15 @@ export const organizationSchema = z.object({
     .string()
     .trim()
     .min(3, "O endereço precisa ter pelo menos 3 caracteres.")
-    .max(48, "O endereço pode ter no máximo 48 caracteres.")
-    .regex(/^[a-z0-9-]+$/, "Use apenas letras minúsculas, números e hífen.")
+    .max(SLUG_MAX_LENGTH, `O endereço pode ter no máximo ${SLUG_MAX_LENGTH} caracteres.`)
+    // Mesma regra do subdomínio (@workspace/core/tenant/slug): sem hífen nas
+    // pontas, sem "--" (inclui o prefixo IDN "xn--") e fora da lista reservada.
+    .refine((slug) => getTenantSlugIssue(slug) !== "characters", SLUG_HYPHENS_MESSAGE)
+    .refine((slug) => getTenantSlugIssue(slug) !== "hyphens", SLUG_HYPHENS_MESSAGE)
     .refine(
-      (slug) => !slug.startsWith("-") && !slug.endsWith("-") && !slug.includes("--"),
-      "Não comece nem termine com hífen e não use hífens seguidos."
-    )
-    .refine((slug) => !RESERVED_SLUGS.has(slug), "Este endereço é reservado. Escolha outro."),
+      (slug) => getTenantSlugIssue(slug) !== "reserved",
+      "Este endereço é reservado. Escolha outro."
+    ),
   legalName: z
     .string()
     .trim()
@@ -170,9 +162,7 @@ export const organizationSchema = z.object({
     .max(120, "A cidade pode ter no máximo 120 caracteres."),
   // Retorno `boolean` explícito: evita que o TS infira um type predicate e
   // mantém entrada e saída como string no react-hook-form.
-  state: z
-    .string()
-    .refine((state): boolean => isBrazilianState(state), "Selecione a UF."),
+  state: z.string().refine((state): boolean => isBrazilianState(state), "Selecione a UF."),
 })
 
 export type OrganizationValues = z.infer<typeof organizationSchema>

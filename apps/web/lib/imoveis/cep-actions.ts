@@ -24,7 +24,10 @@ export async function lookupCepAction(value: string): Promise<CepLookupResult> {
   const address = await lookupCep(postalCode)
 
   if (!address) {
-    return { ok: false, error: "CEP não encontrado. Preencha o endereço manualmente." }
+    return {
+      ok: false,
+      error: "CEP não encontrado. Preencha o endereço manualmente.",
+    }
   }
 
   const state = address.state.toUpperCase()

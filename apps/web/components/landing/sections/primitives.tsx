@@ -49,12 +49,7 @@ export const lpFocusTwoTone =
   "outline-none focus-visible:outline-3 focus-visible:outline-offset-0 focus-visible:outline-(--lp-ink) focus-visible:shadow-[0_0_0_6px_var(--lp-surface)]"
 
 export type LpButtonTone =
-  | "primary"
-  | "accent"
-  | "secondary"
-  | "light"
-  | "outline"
-  | "outline-inverse"
+  "primary" | "accent" | "secondary" | "light" | "outline" | "outline-inverse"
 
 const toneClasses: Record<LpButtonTone, string> = {
   primary: cn("bg-(--lp-primary) text-(--lp-on-primary) hover:bg-(--lp-primary-hover)", lpFocus),
@@ -64,7 +59,7 @@ const toneClasses: Record<LpButtonTone, string> = {
     lpFocus
   ),
   // Sobre foto/faixa da marca (fundo claro ou escuro): anel em dois tons.
-  light: cn("bg-(--lp-surface) text-(--lp-ink) hover:bg-(--lp-primary-soft)", "lp-focus-two-tone"),
+  light: cn("bg-(--lp-surface) text-(--lp-ink) hover:bg-(--lp-primary-soft)", lpFocusTwoTone),
   outline: cn(
     "border border-(--lp-primary-border) bg-transparent text-(--lp-primary-text) hover:bg-(--lp-primary-soft)",
     lpFocus
@@ -130,11 +125,7 @@ export function Section({
     <section
       id={id}
       aria-labelledby={labelledBy}
-      className={cn(
-        "scroll-mt-4 px-4 py-14 @3xl:px-8 @3xl:py-20",
-        sectionTones[tone],
-        className
-      )}
+      className={cn("scroll-mt-4 px-4 py-14 @3xl:px-8 @3xl:py-20", sectionTones[tone], className)}
     >
       <div
         className={cn(
@@ -205,7 +196,7 @@ export function Paragraphs({ text, className }: { text: string; className?: stri
   return (
     <div className={cn("flex max-w-[68ch] flex-col gap-4 leading-relaxed", className)}>
       {blocks.map((block, index) => (
-        <p key={index} className="whitespace-pre-line text-pretty">
+        <p key={index} className="text-pretty whitespace-pre-line">
           {block}
         </p>
       ))}

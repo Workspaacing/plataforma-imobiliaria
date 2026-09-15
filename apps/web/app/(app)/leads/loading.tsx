@@ -28,7 +28,10 @@ export default function LeadsLoading() {
 
       <div className="flex gap-3 overflow-hidden">
         {COLUMN_CARDS.map((cards, column) => (
-          <div key={column} className="flex w-72 shrink-0 flex-col gap-2 rounded-xl bg-muted/50 p-2">
+          <div
+            key={column}
+            className="flex w-72 shrink-0 flex-col gap-2 rounded-xl bg-muted/50 p-2"
+          >
             <Skeleton className="h-7 w-32" />
             {Array.from({ length: cards }, (_, index) => (
               <Skeleton key={index} className="h-32 w-full rounded-xl" />

@@ -41,11 +41,7 @@ function revalidateLeads(leadId?: string) {
   }
 }
 
-async function isActiveMember(
-  supabase: LeadsServerClient,
-  organizationId: string,
-  userId: string
-) {
+async function isActiveMember(supabase: LeadsServerClient, organizationId: string, userId: string) {
   const { data } = await supabase
     .from("memberships")
     .select("user_id")
@@ -86,7 +82,11 @@ export async function createLead(
   const parsed = newLeadFormSchema.safeParse(values)
 
   if (!parsed.success) {
-    return { ok: false, error: INVALID_FIELDS_MESSAGE, fieldErrors: toFieldErrors(parsed.error) }
+    return {
+      ok: false,
+      error: INVALID_FIELDS_MESSAGE,
+      fieldErrors: toFieldErrors(parsed.error),
+    }
   }
 
   const { user, membership } = await requireMembership()
@@ -120,6 +120,15 @@ export async function createLead(
     .single()
 
   if (error) {
+    // CHECK `leads_consent_at_not_future`: mensagem do banco já em pt-BR.
+    if (error.code === "23514" && error.message.toLowerCase().includes("consentimento")) {
+      return {
+        ok: false,
+        error: error.message,
+        fieldErrors: { consentDate: error.message },
+      }
+    }
+
     return { ok: false, error: translateDatabaseError(error, action) }
   }
 
@@ -136,7 +145,10 @@ export async function moveLead(input: MoveLeadInput): Promise<ActionResult> {
   const parsed = moveLeadSchema.safeParse(input)
 
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Movimentação inválida." }
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Movimentação inválida.",
+    }
   }
 
   const { membership } = await requireMembership()
@@ -161,7 +173,10 @@ export async function moveLead(input: MoveLeadInput): Promise<ActionResult> {
   }
 
   if (!current) {
-    return { ok: false, error: "Lead não encontrado. Ele pode ter sido removido." }
+    return {
+      ok: false,
+      error: "Lead não encontrado. Ele pode ter sido removido.",
+    }
   }
 
   const patch: LeadUpdate = { stage }
@@ -204,14 +219,16 @@ export async function moveLead(input: MoveLeadInput): Promise<ActionResult> {
 
   for (let index = 0; index < others.length; index += RENUMBER_BATCH_SIZE) {
     const results = await Promise.all(
-      others.slice(index, index + RENUMBER_BATCH_SIZE).map((item) =>
-        supabase
-          .from("leads")
-          .update({ position: item.position })
-          .eq("id", item.id)
-          .eq("organization_id", membership.organizationId)
-          .select("id")
-      )
+      others
+        .slice(index, index + RENUMBER_BATCH_SIZE)
+        .map((item) =>
+          supabase
+            .from("leads")
+            .update({ position: item.position })
+            .eq("id", item.id)
+            .eq("organization_id", membership.organizationId)
+            .select("id")
+        )
     )
 
     renumberFailures += results.filter((result) => result.error || result.data?.length === 0).length
@@ -247,7 +264,10 @@ export async function moveLead(input: MoveLeadInput): Promise<ActionResult> {
 
 /** Gestão atribui a qualquer membro (ou remove); corretor só assume lead sem responsável. */
 export async function assignLead(leadId: string, assigneeId: string | null): Promise<ActionResult> {
-  if (!leadIdSchema.safeParse(leadId).success || (assigneeId && !z.guid().safeParse(assigneeId).success)) {
+  if (
+    !leadIdSchema.safeParse(leadId).success ||
+    (assigneeId && !z.guid().safeParse(assigneeId).success)
+  ) {
     return { ok: false, error: "Responsável inválido." }
   }
 
@@ -262,13 +282,19 @@ export async function assignLead(leadId: string, assigneeId: string | null): Pro
   const isClaim = !canChooseLeadAssignee(role)
 
   if (isClaim && assigneeId !== user.id) {
-    return { ok: false, error: "Corretores só podem assumir leads sem responsável." }
+    return {
+      ok: false,
+      error: "Corretores só podem assumir leads sem responsável.",
+    }
   }
 
   const supabase = await createLeadsClient()
 
   if (assigneeId && !(await isActiveMember(supabase, membership.organizationId, assigneeId))) {
-    return { ok: false, error: "O responsável precisa ser um membro ativo da imobiliária." }
+    return {
+      ok: false,
+      error: "O responsável precisa ser um membro ativo da imobiliária.",
+    }
   }
 
   let query = supabase
@@ -300,7 +326,11 @@ export async function assignLead(leadId: string, assigneeId: string | null): Pro
 
   return {
     ok: true,
-    message: isClaim ? "Lead assumido." : assigneeId ? "Responsável atualizado." : "Lead sem responsável.",
+    message: isClaim
+      ? "Lead assumido."
+      : assigneeId
+        ? "Responsável atualizado."
+        : "Lead sem responsável.",
   }
 }
 
@@ -334,7 +364,10 @@ export async function markLeadContacted(leadId: string): Promise<ActionResult> {
   }
 
   if (!current) {
-    return { ok: false, error: "Lead não encontrado. Ele pode ter sido removido." }
+    return {
+      ok: false,
+      error: "Lead não encontrado. Ele pode ter sido removido.",
+    }
   }
 
   const patch: LeadUpdate = { last_contact_at: new Date().toISOString() }
@@ -362,7 +395,9 @@ export async function markLeadContacted(leadId: string): Promise<ActionResult> {
 
   return {
     ok: true,
-    message: patch.stage ? "Contato registrado. Lead movido para Em contato." : "Contato registrado.",
+    message: patch.stage
+      ? "Contato registrado. Lead movido para Em contato."
+      : "Contato registrado.",
   }
 }
 
@@ -430,11 +465,46 @@ export async function loadLeadDetailExtras(
   }
 
   if (!lead) {
-    return { ok: false, error: "Lead não encontrado. Ele pode ter sido removido." }
+    return {
+      ok: false,
+      error: "Lead não encontrado. Ele pode ter sido removido.",
+    }
   }
 
   return {
     ok: true,
     data: await getLeadDetailExtras(supabase, membership.organizationId, lead.client_id),
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Registro de acesso (LGPD: quem viu o quê)
+// -----------------------------------------------------------------------------
+
+/**
+ * Registra a abertura do detalhe do lead (LGPD). Falha não bloqueia a tela.
+ *
+ * `public.log_access_event` aceita `p_entity` em ('lead', 'leads') desde a
+ * migração `landing_pages_and_leads_followup`; grava sempre como `leads`
+ * (mesmo nome usado pelo trigger de auditoria) e exige que o usuário possa
+ * ver o lead (senão `P0002`). Segue o padrão de `logClientView`
+ * (lib/clientes/actions.ts).
+ */
+export async function logLeadView(leadId: string): Promise<void> {
+  if (!leadIdSchema.safeParse(leadId).success) {
+    return
+  }
+
+  await requireMembership()
+
+  const supabase = await createLeadsClient()
+  const { error } = await supabase.rpc("log_access_event", {
+    p_entity: "leads",
+    p_entity_id: leadId,
+    p_action: "view",
+  })
+
+  if (error) {
+    console.error("[leads] falha ao registrar acesso ao lead:", error.code ?? "erro")
   }
 }

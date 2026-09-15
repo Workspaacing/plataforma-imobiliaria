@@ -201,9 +201,14 @@ function CondominiumForm({
       try {
         result = await saveCondominiumAction(values, condominium?.id)
       } catch {
-        const message = "Não foi possível falar com o servidor. Verifique sua conexão e tente de novo."
+        const message =
+          "Não foi possível falar com o servidor. Verifique sua conexão e tente de novo."
         setFormError(message)
-        toast.add({ title: "Não foi possível salvar o condomínio", description: message, type: "error" })
+        toast.add({
+          title: "Não foi possível salvar o condomínio",
+          description: message,
+          type: "error",
+        })
         return
       }
 
@@ -212,7 +217,10 @@ function CondominiumForm({
       if (!result.ok) {
         for (const [field, message] of Object.entries(result.fieldErrors ?? {})) {
           if (message) {
-            form.setError(field as keyof CondominiumFormValues, { type: "server", message })
+            form.setError(field as keyof CondominiumFormValues, {
+              type: "server",
+              message,
+            })
           }
         }
         setFormError(result.error)

@@ -2,7 +2,8 @@ import "server-only"
 
 import { createClient } from "@supabase/supabase-js"
 
-import type { LandingRpcDatabase } from "@/lib/leads-publicos/rpc-types"
+import type { Database } from "@workspace/database/types"
+
 import { getSupabaseEnv, SupabaseNotConfiguredError } from "@/lib/supabase/env"
 
 /**
@@ -16,7 +17,11 @@ export function createLandingAnonClient() {
     throw new SupabaseNotConfiguredError()
   }
 
-  return createClient<LandingRpcDatabase>(env.url, env.publishableKey, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  return createClient<Database>(env.url, env.publishableKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
   })
 }

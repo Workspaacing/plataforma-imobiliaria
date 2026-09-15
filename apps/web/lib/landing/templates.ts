@@ -246,7 +246,12 @@ const financingNote = (o?: FieldOverrides) =>
   )
 
 const launchName = (o?: FieldOverrides) =>
-  field("launch.name", "text", { label: "Nome do empreendimento", required: true, maxLength: 60 }, o)
+  field(
+    "launch.name",
+    "text",
+    { label: "Nome do empreendimento", required: true, maxLength: 60 },
+    o
+  )
 
 const launchDeveloper = (o?: FieldOverrides) =>
   field(
@@ -321,7 +326,9 @@ const DEFINITIONS: Record<LandingTemplateKey, LandingTemplateDefinition> = {
       testimonials(),
       ctaLabel({ placeholder: "Quero visitar" }),
       whatsapp(),
-      whatsappMessage({ placeholder: "Olá! Quero agendar uma visita ao imóvel {codigo}." }),
+      whatsappMessage({
+        placeholder: "Olá! Quero agendar uma visita ao imóvel {codigo}.",
+      }),
     ],
     imageSlots: { background: true, banners: 0 },
     leadFormSize: "full",
@@ -351,14 +358,21 @@ const DEFINITIONS: Record<LandingTemplateKey, LandingTemplateDefinition> = {
         placeholder: "Entrada facilitada em até 60 vezes",
       }),
       subheadline(),
-      highlights({ label: "Benefícios da condição", maxItems: 5, maxLength: 80 }),
+      highlights({
+        label: "Benefícios da condição",
+        maxItems: 5,
+        maxLength: 80,
+      }),
       financingNote(),
       description({
         label: "Regras da condição",
         maxLength: 400,
         help: "Validade, unidades participantes e demais condições. Aparece em letra menor.",
       }),
-      countdown({ label: "Oferta válida até", help: "Opcional. Mostra quanto tempo falta." }),
+      countdown({
+        label: "Oferta válida até",
+        help: "Opcional. Mostra quanto tempo falta.",
+      }),
       socialProof(),
       testimonials(),
       ctaLabel({ placeholder: "Quero a simulação" }),
@@ -433,7 +447,9 @@ const DEFINITIONS: Record<LandingTemplateKey, LandingTemplateDefinition> = {
       typologies(),
       ctaLabel({ placeholder: "Quero receber o book" }),
       whatsapp(),
-      whatsappMessage({ placeholder: "Olá! Quero receber o book do lançamento." }),
+      whatsappMessage({
+        placeholder: "Olá! Quero receber o book do lançamento.",
+      }),
     ],
     imageSlots: { background: true, banners: 6 },
     leadFormSize: "full",
@@ -465,7 +481,11 @@ const DEFINITIONS: Record<LandingTemplateKey, LandingTemplateDefinition> = {
         help: "Data e hora em que a contagem termina.",
       }),
       unitsLeft({ label: "Unidades no pré-lançamento" }),
-      highlights({ label: "Vantagens de quem entra primeiro", maxItems: 4, maxLength: 70 }),
+      highlights({
+        label: "Vantagens de quem entra primeiro",
+        maxItems: 4,
+        maxLength: 70,
+      }),
       launchNeighborhood(),
       launchCity(),
       launchState(),
@@ -510,7 +530,9 @@ const DEFINITIONS: Record<LandingTemplateKey, LandingTemplateDefinition> = {
       description({ label: "Observações da tabela", maxLength: 300 }),
       ctaLabel({ placeholder: "Quero a tabela completa" }),
       whatsapp(),
-      whatsappMessage({ placeholder: "Olá! Quero a tabela completa do lançamento." }),
+      whatsappMessage({
+        placeholder: "Olá! Quero a tabela completa do lançamento.",
+      }),
     ],
     imageSlots: { background: false, banners: 1 },
     leadFormSize: "full",
@@ -531,7 +553,8 @@ const DEFINITIONS: Record<LandingTemplateKey, LandingTemplateDefinition> = {
       "Uma seleção de imóveis em grade, com foto, preço e características, e formulário para quem não achou o ideal.",
     bestFor: "Anúncios com vários imóveis de um mesmo perfil",
     usesProperties: "multiple",
-    maxProperties: 24,
+    // Mesmo limite do banco (landing_pages.property_ids aceita até 12 imóveis).
+    maxProperties: 12,
     fields: [
       headline({ placeholder: "Apartamentos de 2 quartos perto do metrô" }),
       subheadline(),
@@ -563,7 +586,9 @@ const DEFINITIONS: Record<LandingTemplateKey, LandingTemplateDefinition> = {
     usesProperties: "multiple",
     maxProperties: 9,
     fields: [
-      headline({ placeholder: "Imóveis e atendimento de quem conhece Campinas" }),
+      headline({
+        placeholder: "Imóveis e atendimento de quem conhece Campinas",
+      }),
       subheadline(),
       description({ label: "Sobre a imobiliária", maxLength: 900 }),
       highlights({
@@ -586,7 +611,8 @@ const DEFINITIONS: Record<LandingTemplateKey, LandingTemplateDefinition> = {
         "Compra, venda e locação com acompanhamento do primeiro contato à entrega das chaves.",
       cta_label: "Fale com a gente",
       formTitle: "Como podemos ajudar?",
-      formDescription: "Conte se você quer comprar, vender ou alugar. Um corretor entra em contato.",
+      formDescription:
+        "Conte se você quer comprar, vender ou alugar. Um corretor entra em contato.",
     },
   },
 
@@ -600,14 +626,18 @@ const DEFINITIONS: Record<LandingTemplateKey, LandingTemplateDefinition> = {
     usesProperties: "multiple",
     maxProperties: 9,
     fields: [
-      headline({ placeholder: "Apartamentos na zona sul com atendimento de perto" }),
+      headline({
+        placeholder: "Apartamentos na zona sul com atendimento de perto",
+      }),
       subheadline(),
       description({ label: "Apresentação", maxLength: 700 }),
       highlights({ label: "Especialidades", maxItems: 5, maxLength: 60 }),
       socialProof(),
       testimonials({ maxItems: 4 }),
       ctaLabel({ placeholder: "Quero atendimento" }),
-      whatsapp({ help: "Sem número, a página usa o telefone do corretor, se for celular." }),
+      whatsapp({
+        help: "Sem número, a página usa o telefone do corretor, se for celular.",
+      }),
       whatsappMessage(),
     ],
     imageSlots: { background: false, banners: 0 },

@@ -1,8 +1,10 @@
-import type { Json } from "@workspace/database/types"
-
 import type { LeadClickIds, LeadInterest, LeadUtm } from "@/lib/leads-publicos/constants"
 
-/** Corpo de p_payload em submit_landing_lead (chaves opcionais vazias são omitidas). */
+/**
+ * Corpo de p_payload em submit_landing_lead (chaves opcionais vazias são
+ * omitidas). Nos tipos gerados (@workspace/database/types) o parâmetro é `Json`;
+ * este tipo documenta e confere o formato montado em schemas.ts.
+ */
 export type LandingLeadPayload = {
   name: string
   email?: string
@@ -21,40 +23,4 @@ export type LandingLeadPayload = {
   /** UUID compartilhado com os eventos do Meta Pixel/Google (deduplicação). */
   event_id: string
   consent: true
-}
-
-/**
- * Tipagem local das RPCs públicas das landing pages.
- *
- * TODO: trocar pelos tipos gerados (@workspace/database/types) assim que as
- * migrações de get_public_landing_page e submit_landing_lead forem aplicadas
- * e os tipos regenerados; depois, apagar este arquivo.
- */
-export type LandingRpcDatabase = {
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
-  public: {
-    Tables: { [_ in never]: never }
-    Views: { [_ in never]: never }
-    Functions: {
-      get_public_landing_page: {
-        Args: { p_org_slug: string; p_page_slug: string }
-        Returns: Json
-      }
-      submit_landing_lead: {
-        Args: {
-          p_org_slug: string
-          p_page_slug: string
-          p_payload: LandingLeadPayload
-          p_server_key: string
-          p_nonce: string
-          p_client_key: string
-        }
-        Returns: undefined
-      }
-    }
-    Enums: { [_ in never]: never }
-    CompositeTypes: { [_ in never]: never }
-  }
 }

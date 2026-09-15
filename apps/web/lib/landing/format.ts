@@ -41,10 +41,22 @@ export function propertyPrices(property: LandingProperty): PropertyPrice[] {
   const rents = property.purpose === "rent" || property.purpose === "sale_rent"
 
   if (sells && property.sale_price != null && property.sale_price > 0) {
-    prices.push({ label: "Venda", amount: formatCurrency(property.sale_price), suffix: null })
+    prices.push({
+      label: "Venda",
+      amount: formatCurrency(property.sale_price),
+      suffix: null,
+    })
   }
-  if ((rents || property.purpose == null) && property.rent_price != null && property.rent_price > 0) {
-    prices.push({ label: "Aluguel", amount: formatCurrency(property.rent_price), suffix: "/mês" })
+  if (
+    (rents || property.purpose == null) &&
+    property.rent_price != null &&
+    property.rent_price > 0
+  ) {
+    prices.push({
+      label: "Aluguel",
+      amount: formatCurrency(property.rent_price),
+      suffix: "/mês",
+    })
   }
   return prices
 }
@@ -82,16 +94,28 @@ export function propertySpecs(property: LandingProperty): PropertySpec[] {
   const area = propertyArea(property)
   if (area) specs.push({ key: "area", value: area })
   if (property.bedrooms != null && property.bedrooms > 0) {
-    specs.push({ key: "bedrooms", value: pluralize(property.bedrooms, "quarto", "quartos") })
+    specs.push({
+      key: "bedrooms",
+      value: pluralize(property.bedrooms, "quarto", "quartos"),
+    })
   }
   if (property.suites != null && property.suites > 0) {
-    specs.push({ key: "suites", value: pluralize(property.suites, "suíte", "suítes") })
+    specs.push({
+      key: "suites",
+      value: pluralize(property.suites, "suíte", "suítes"),
+    })
   }
   if (property.bathrooms != null && property.bathrooms > 0) {
-    specs.push({ key: "bathrooms", value: pluralize(property.bathrooms, "banheiro", "banheiros") })
+    specs.push({
+      key: "bathrooms",
+      value: pluralize(property.bathrooms, "banheiro", "banheiros"),
+    })
   }
   if (property.parking_spaces != null && property.parking_spaces > 0) {
-    specs.push({ key: "parking", value: pluralize(property.parking_spaces, "vaga", "vagas") })
+    specs.push({
+      key: "parking",
+      value: pluralize(property.parking_spaces, "vaga", "vagas"),
+    })
   }
   return specs
 }

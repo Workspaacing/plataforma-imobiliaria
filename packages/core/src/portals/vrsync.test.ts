@@ -110,26 +110,32 @@ describe("validateVrsyncListing", () => {
   it("rejeita ListingID fora do intervalo 1-50", () => {
     const result = validateVrsyncListing(minimalValidListing({ code: "A".repeat(51) }))
     expect(result.valid).toBe(false)
-    expect(result.issues).toContainEqual(expect.objectContaining({ field: "code", severity: "error" }))
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({ field: "code", severity: "error" })
+    )
   })
 
   it("rejeita título fora do intervalo 10-100", () => {
     const result = validateVrsyncListing(minimalValidListing({ title: "curto" }))
     expect(result.valid).toBe(false)
-    expect(result.issues).toContainEqual(expect.objectContaining({ field: "title", severity: "error" }))
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({ field: "title", severity: "error" })
+    )
   })
 
   it("rejeita descrição fora do intervalo 50-3000", () => {
     const result = validateVrsyncListing(minimalValidListing({ description: "muito curta" }))
     expect(result.valid).toBe(false)
-    expect(result.issues).toContainEqual(expect.objectContaining({ field: "description", severity: "error" }))
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({ field: "description", severity: "error" })
+    )
   })
 
   it("rejeita quando falta o preço exigido pela finalidade", () => {
     const result = validateVrsyncListing(minimalValidListing({ prices: {} }))
     expect(result.valid).toBe(false)
     expect(result.issues).toContainEqual(
-      expect.objectContaining({ field: "prices.salePrice", severity: "error" }),
+      expect.objectContaining({ field: "prices.salePrice", severity: "error" })
     )
   })
 
@@ -137,16 +143,18 @@ describe("validateVrsyncListing", () => {
     const result = validateVrsyncListing(minimalValidListing({ prices: { salePrice: 500_000.5 } }))
     expect(result.valid).toBe(false)
     expect(result.issues).toContainEqual(
-      expect.objectContaining({ field: "prices.salePrice", severity: "error" }),
+      expect.objectContaining({ field: "prices.salePrice", severity: "error" })
     )
   })
 
   it("rejeita menos de 5 imagens", () => {
     const result = validateVrsyncListing(
-      minimalValidListing({ images: [{ url: "https://example.com/1.jpg" }] }),
+      minimalValidListing({ images: [{ url: "https://example.com/1.jpg" }] })
     )
     expect(result.valid).toBe(false)
-    expect(result.issues).toContainEqual(expect.objectContaining({ field: "images", severity: "error" }))
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({ field: "images", severity: "error" })
+    )
   })
 
   it("rejeita imagem sem https", () => {
@@ -159,89 +167,125 @@ describe("validateVrsyncListing", () => {
           { url: "https://example.com/4.jpg" },
           { url: "https://example.com/5.jpg" },
         ],
-      }),
+      })
     )
     expect(result.valid).toBe(false)
     expect(result.issues).toContainEqual(
-      expect.objectContaining({ field: "images[0].url", severity: "error" }),
+      expect.objectContaining({ field: "images[0].url", severity: "error" })
     )
   })
 
   it("rejeita vídeo que não seja do YouTube", () => {
-    const result = validateVrsyncListing(minimalValidListing({ videoUrl: "https://vimeo.com/12345" }))
+    const result = validateVrsyncListing(
+      minimalValidListing({ videoUrl: "https://vimeo.com/12345" })
+    )
     expect(result.valid).toBe(false)
-    expect(result.issues).toContainEqual(expect.objectContaining({ field: "videoUrl", severity: "error" }))
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({ field: "videoUrl", severity: "error" })
+    )
   })
 
   it("aceita vídeo do YouTube em https", () => {
     const result = validateVrsyncListing(
-      minimalValidListing({ videoUrl: "https://www.youtube.com/watch?v=abc123" }),
+      minimalValidListing({
+        videoUrl: "https://www.youtube.com/watch?v=abc123",
+      })
     )
     expect(result.valid).toBe(true)
   })
 
   it("rejeita tour virtual sem https", () => {
-    const result = validateVrsyncListing(minimalValidListing({ tourUrl: "http://tour.example.com/1" }))
+    const result = validateVrsyncListing(
+      minimalValidListing({ tourUrl: "http://tour.example.com/1" })
+    )
     expect(result.valid).toBe(false)
-    expect(result.issues).toContainEqual(expect.objectContaining({ field: "tourUrl", severity: "error" }))
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({ field: "tourUrl", severity: "error" })
+    )
   })
 
   it("rejeita quando falta a área exigida pelo tipo (imóvel de área construída)", () => {
     const result = validateVrsyncListing(minimalValidListing({ livingArea: undefined }))
     expect(result.valid).toBe(false)
-    expect(result.issues).toContainEqual(expect.objectContaining({ field: "livingArea", severity: "error" }))
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({ field: "livingArea", severity: "error" })
+    )
   })
 
   it("rejeita quando falta a área exigida pelo tipo (terreno)", () => {
     const result = validateVrsyncListing(
-      minimalValidListing({ type: "land", livingArea: undefined, lotArea: undefined }),
+      minimalValidListing({
+        type: "land",
+        livingArea: undefined,
+        lotArea: undefined,
+      })
     )
     expect(result.valid).toBe(false)
-    expect(result.issues).toContainEqual(expect.objectContaining({ field: "lotArea", severity: "error" }))
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({ field: "lotArea", severity: "error" })
+    )
   })
 
   it("rejeita CEP inválido", () => {
     const result = validateVrsyncListing(
-      minimalValidListing({ address: { ...minimalValidListing().address, postalCode: "123" } }),
+      minimalValidListing({
+        address: { ...minimalValidListing().address, postalCode: "123" },
+      })
     )
     expect(result.valid).toBe(false)
     expect(result.issues).toContainEqual(
-      expect.objectContaining({ field: "address.postalCode", severity: "error" }),
+      expect.objectContaining({
+        field: "address.postalCode",
+        severity: "error",
+      })
     )
   })
 
   it("rejeita UF inválida", () => {
     const result = validateVrsyncListing(
-      minimalValidListing({ address: { ...minimalValidListing().address, state: "XX" } }),
+      minimalValidListing({
+        address: { ...minimalValidListing().address, state: "XX" },
+      })
     )
     expect(result.valid).toBe(false)
     expect(result.issues).toContainEqual(
-      expect.objectContaining({ field: "address.state", severity: "error" }),
+      expect.objectContaining({ field: "address.state", severity: "error" })
     )
   })
 
   it("rejeita bairro vazio", () => {
     const result = validateVrsyncListing(
-      minimalValidListing({ address: { ...minimalValidListing().address, neighborhood: "  " } }),
+      minimalValidListing({
+        address: { ...minimalValidListing().address, neighborhood: "  " },
+      })
     )
     expect(result.valid).toBe(false)
     expect(result.issues).toContainEqual(
-      expect.objectContaining({ field: "address.neighborhood", severity: "error" }),
+      expect.objectContaining({
+        field: "address.neighborhood",
+        severity: "error",
+      })
     )
   })
 
   it("rejeita cidade vazia", () => {
     const result = validateVrsyncListing(
-      minimalValidListing({ address: { ...minimalValidListing().address, city: "" } }),
+      minimalValidListing({
+        address: { ...minimalValidListing().address, city: "" },
+      })
     )
     expect(result.valid).toBe(false)
-    expect(result.issues).toContainEqual(expect.objectContaining({ field: "address.city", severity: "error" }))
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({ field: "address.city", severity: "error" })
+    )
   })
 
   it("emite apenas um aviso (warning) quando falta a URL de detalhes, sem invalidar o anúncio", () => {
     const result = validateVrsyncListing(minimalValidListing({ detailUrl: undefined }))
     expect(result.valid).toBe(true)
-    expect(result.issues).toContainEqual(expect.objectContaining({ field: "detailUrl", severity: "warning" }))
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({ field: "detailUrl", severity: "warning" })
+    )
   })
 
   it("não exige rua, número ou coordenadas quando o modo de exibição os omite (privacidade)", () => {
@@ -256,7 +300,7 @@ describe("validateVrsyncListing", () => {
           latitude: undefined,
           longitude: undefined,
         },
-      }),
+      })
     )
     expect(result.valid).toBe(true)
     expect(result.issues.filter((issue) => issue.severity === "error")).toHaveLength(0)
@@ -322,38 +366,38 @@ describe("buildVrsyncFeed", () => {
   })
 
   it("escapa & e < em campos de texto simples", () => {
-    const result = buildVrsyncFeed(
-      header,
-      [minimalValidListing({ address: { ...minimalValidListing().address, neighborhood: "Jardim A&B < C" } })],
-    )
+    const result = buildVrsyncFeed(header, [
+      minimalValidListing({
+        address: {
+          ...minimalValidListing().address,
+          neighborhood: "Jardim A&B < C",
+        },
+      }),
+    ])
     expect(result.xml).toContain("<Neighborhood>Jardim A&amp;B &lt; C</Neighborhood>")
     expect(result.xml).not.toContain("Jardim A&B < C")
   })
 
   it("escapa a sequência de fechamento ]]> dentro de blocos CDATA", () => {
-    const result = buildVrsyncFeed(
-      header,
-      [minimalValidListing({ description: `${"x".repeat(50)} fim]]>continua` })],
-    )
+    const result = buildVrsyncFeed(header, [
+      minimalValidListing({ description: `${"x".repeat(50)} fim]]>continua` }),
+    ])
     expect(result.xml).toContain("]]]]><![CDATA[>")
     expect(result.xml).not.toContain("fim]]>continua")
   })
 
   it("mantém a foto marcada como capa em primeiro lugar, com primary=true", () => {
-    const result = buildVrsyncFeed(
-      header,
-      [
-        minimalValidListing({
-          images: [
-            { url: "https://example.com/1.jpg" },
-            { url: "https://example.com/2.jpg", isCover: true },
-            { url: "https://example.com/3.jpg" },
-            { url: "https://example.com/4.jpg" },
-            { url: "https://example.com/5.jpg" },
-          ],
-        }),
-      ],
-    )
+    const result = buildVrsyncFeed(header, [
+      minimalValidListing({
+        images: [
+          { url: "https://example.com/1.jpg" },
+          { url: "https://example.com/2.jpg", isCover: true },
+          { url: "https://example.com/3.jpg" },
+          { url: "https://example.com/4.jpg" },
+          { url: "https://example.com/5.jpg" },
+        ],
+      }),
+    ])
     const mediaSection = result.xml.split("<Media>")[1]?.split("</Media>")[0] ?? ""
     const firstItemLine = mediaSection.trim().split("\n")[0] ?? ""
     expect(firstItemLine).toContain("https://example.com/2.jpg")
@@ -361,55 +405,59 @@ describe("buildVrsyncFeed", () => {
   })
 
   it("emite preços e taxas diretamente em Details, sem wrapper <Prices> e sem CondominiumFee", () => {
-    const result = buildVrsyncFeed(
-      header,
-      [
-        minimalValidListing({
-          purpose: "sale_rent",
-          prices: { salePrice: 860_000, rentPrice: 3_500 },
-          condoFee: 980,
-          iptuYearly: 1200,
-        }),
-      ],
-    )
+    const result = buildVrsyncFeed(header, [
+      minimalValidListing({
+        purpose: "sale_rent",
+        prices: { salePrice: 860_000, rentPrice: 3_500 },
+        condoFee: 980,
+        iptuYearly: 1200,
+      }),
+    ])
 
     expect(result.xml).not.toContain("<Prices>")
     expect(result.xml).not.toContain("CondominiumFee")
     expect(result.xml).toContain('<ListPrice currency="BRL">860000</ListPrice>')
     expect(result.xml).toContain('<RentalPrice currency="BRL" period="Monthly">3500</RentalPrice>')
-    expect(result.xml).toContain('<PropertyAdministrationFee currency="BRL">980</PropertyAdministrationFee>')
+    expect(result.xml).toContain(
+      '<PropertyAdministrationFee currency="BRL">980</PropertyAdministrationFee>'
+    )
     expect(result.xml).toContain('<Iptu currency="BRL" period="Yearly">1200</Iptu>')
   })
 
   it("finalidade venda (sale) emite apenas ListPrice, nunca RentalPrice", () => {
-    const result = buildVrsyncFeed(
-      header,
-      [minimalValidListing({ purpose: "sale", prices: { salePrice: 500_000, rentPrice: 3_500 } })],
-    )
+    const result = buildVrsyncFeed(header, [
+      minimalValidListing({
+        purpose: "sale",
+        prices: { salePrice: 500_000, rentPrice: 3_500 },
+      }),
+    ])
 
     expect(result.xml).toContain('<ListPrice currency="BRL">500000</ListPrice>')
     expect(result.xml).not.toContain("<RentalPrice")
   })
 
   it("finalidade locação (rent) emite apenas RentalPrice, nunca ListPrice", () => {
-    const result = buildVrsyncFeed(
-      header,
-      [minimalValidListing({ purpose: "rent", prices: { salePrice: 500_000, rentPrice: 3_500 } })],
-    )
+    const result = buildVrsyncFeed(header, [
+      minimalValidListing({
+        purpose: "rent",
+        prices: { salePrice: 500_000, rentPrice: 3_500 },
+      }),
+    ])
 
     expect(result.xml).toContain('<RentalPrice currency="BRL" period="Monthly">3500</RentalPrice>')
     expect(result.xml).not.toContain("<ListPrice")
   })
 
   it("modo 'full' mantém rua, número, complemento e coordenadas na Location (comportamento atual)", () => {
-    const result = buildVrsyncFeed(
-      header,
-      [
-        minimalValidListing({
-          address: { ...minimalValidListing().address, display: "full", complement: "Bloco B" },
-        }),
-      ],
-    )
+    const result = buildVrsyncFeed(header, [
+      minimalValidListing({
+        address: {
+          ...minimalValidListing().address,
+          display: "full",
+          complement: "Bloco B",
+        },
+      }),
+    ])
     const locationSection = result.xml.split("<Location")[1]?.split("</Location>")[0] ?? ""
 
     expect(result.xml).toContain('<Location displayAddress="All">')
@@ -421,14 +469,15 @@ describe("buildVrsyncFeed", () => {
   })
 
   it("modo 'street' emite a rua, mas não StreetNumber, Complement, Latitude nem Longitude (LGPD)", () => {
-    const result = buildVrsyncFeed(
-      header,
-      [
-        minimalValidListing({
-          address: { ...minimalValidListing().address, display: "street", complement: "Bloco B" },
-        }),
-      ],
-    )
+    const result = buildVrsyncFeed(header, [
+      minimalValidListing({
+        address: {
+          ...minimalValidListing().address,
+          display: "street",
+          complement: "Bloco B",
+        },
+      }),
+    ])
     const locationSection = result.xml.split("<Location")[1]?.split("</Location>")[0] ?? ""
 
     expect(result.xml).toContain('<Location displayAddress="Street">')
@@ -443,14 +492,15 @@ describe("buildVrsyncFeed", () => {
   })
 
   it("modo 'neighborhood' não emite Address, StreetNumber, Complement, Latitude nem Longitude (LGPD)", () => {
-    const result = buildVrsyncFeed(
-      header,
-      [
-        minimalValidListing({
-          address: { ...minimalValidListing().address, display: "neighborhood", complement: "Bloco B" },
-        }),
-      ],
-    )
+    const result = buildVrsyncFeed(header, [
+      minimalValidListing({
+        address: {
+          ...minimalValidListing().address,
+          display: "neighborhood",
+          complement: "Bloco B",
+        },
+      }),
+    ])
     const locationSection = result.xml.split("<Location")[1]?.split("</Location>")[0] ?? ""
 
     expect(result.xml).toContain('<Location displayAddress="Neighborhood">')

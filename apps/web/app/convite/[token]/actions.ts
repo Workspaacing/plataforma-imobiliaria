@@ -8,7 +8,7 @@ import {
   ORGANIZATION_COOKIE_NAME,
   ORGANIZATION_COOKIE_OPTIONS,
 } from "@/lib/auth/organization-cookie"
-import { HOME_PATH, LOGIN_PATH } from "@/lib/auth/routes"
+import { HOME_PATH, LOGIN_PATH, TENANT_PICKER_PATH } from "@/lib/auth/routes"
 import { getCurrentUser } from "@/lib/auth/session"
 import { translateDatabaseError } from "@/lib/configuracoes/errors"
 import {
@@ -17,6 +17,12 @@ import {
   isInvitationToken,
 } from "@/lib/configuracoes/invitations"
 import { createClient } from "@/lib/supabase/server"
+import {
+  buildAppUrl,
+  buildTenantUrl,
+  isSubdomainTenancy,
+  isValidTenantSlug,
+} from "@/lib/tenant/urls"
 
 const INVALID_INVITATION =
   "Este convite não é válido ou já foi usado. Peça um novo link a quem convidou você."
@@ -95,7 +101,10 @@ export async function acceptInvitation(token: string): Promise<AcceptInvitationR
       default:
         return {
           ok: false,
-          error: translateDatabaseError(error, "Não foi possível aceitar o convite agora. Tente novamente."),
+          error: translateDatabaseError(
+            error,
+            "Não foi possível aceitar o convite agora. Tente novamente."
+          ),
         }
     }
   }
@@ -107,11 +116,29 @@ export async function acceptInvitation(token: string): Promise<AcceptInvitationR
     }
   }
 
-  const cookieStore = await cookies()
-  cookieStore.set(ORGANIZATION_COOKIE_NAME, organizationId, ORGANIZATION_COOKIE_OPTIONS)
+  // Host único: a imobiliária do convite vira a escolha do cookie.
+  if (!isSubdomainTenancy()) {
+    const cookieStore = await cookies()
+    cookieStore.set(ORGANIZATION_COOKIE_NAME, organizationId, ORGANIZATION_COOKIE_OPTIONS)
+
+    revalidatePath("/", "layout")
+    redirect(HOME_PATH)
+  }
+
+  // Agora membro, o RLS libera ler o slug: o painel fica no subdomínio dela.
+  const { data: organization } = await supabase
+    .from("organizations")
+    .select("slug")
+    .eq("id", organizationId)
+    .maybeSingle()
 
   revalidatePath("/", "layout")
-  redirect(HOME_PATH)
+
+  if (organization && isValidTenantSlug(organization.slug)) {
+    redirect(buildTenantUrl(organization.slug, HOME_PATH))
+  }
+
+  redirect(buildAppUrl(TENANT_PICKER_PATH))
 }
 
 /** Sai da conta atual e volta ao login já apontando para o convite. */

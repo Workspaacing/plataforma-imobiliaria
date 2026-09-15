@@ -9,7 +9,13 @@ import {
 import type { ImobScoreResult } from "@workspace/core/properties/imob-score"
 import type { Tables } from "@workspace/database/types"
 import { Badge } from "@workspace/ui/components/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@workspace/ui/components/card"
 
 import { DetailItem, DetailList } from "@/components/imoveis/detail/detail-list"
 import { formatFloor, formatPostalCode, formatYesNo } from "@/components/imoveis/detail/format"
@@ -53,7 +59,10 @@ export function OverviewTab({
               <DetailItem label="Tipo">{PROPERTY_TYPE_LABELS[property.type]}</DetailItem>
               <DetailItem label="Condomínio">
                 {condominium ? (
-                  <Link href={`/condominios/${condominium.id}`} className="underline underline-offset-4 hover:text-primary">
+                  <Link
+                    href={`/condominios/${condominium.id}`}
+                    className="underline underline-offset-4 hover:text-primary"
+                  >
                     {condominium.name}
                   </Link>
                 ) : (
@@ -83,7 +92,9 @@ export function OverviewTab({
               <DetailItem label="Ano de construção">{formatCount(property.year_built)}</DetailItem>
               <DetailItem label="Mobiliado">{formatYesNo(property.furnished)}</DetailItem>
               <DetailItem label="Aceita pet">{formatYesNo(property.accepts_pets)}</DetailItem>
-              <DetailItem label="Aceita permuta">{formatYesNo(property.accepts_exchange)}</DetailItem>
+              <DetailItem label="Aceita permuta">
+                {formatYesNo(property.accepts_exchange)}
+              </DetailItem>
             </DetailList>
             <div className="flex flex-col gap-2">
               <span className="text-xs text-muted-foreground">Comodidades</span>
@@ -154,7 +165,9 @@ export function OverviewTab({
           </CardHeader>
           <CardContent>
             {property.description?.trim() ? (
-              <p className="text-sm leading-relaxed whitespace-pre-line break-words">{property.description}</p>
+              <p className="text-sm leading-relaxed break-words whitespace-pre-line">
+                {property.description}
+              </p>
             ) : (
               <p className="text-sm text-muted-foreground">Sem descrição.</p>
             )}

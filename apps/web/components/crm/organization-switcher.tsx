@@ -1,9 +1,8 @@
 "use client"
 
 import * as React from "react"
-import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { ChevronsUpDownIcon, PlusIcon } from "lucide-react"
+import { ChevronsUpDownIcon, LayoutGridIcon, PlusIcon } from "lucide-react"
 
 import {
   DropdownMenu,
@@ -28,24 +27,44 @@ import { toast } from "@workspace/ui/components/toast"
 import { findNavMatch } from "@/components/crm/nav-config"
 import { getInitials } from "@/components/crm/utils"
 import { switchOrganization } from "@/lib/auth/actions"
+import { HOME_PATH, ONBOARDING_PATH, TENANT_PICKER_PATH } from "@/lib/auth/routes"
+import type { TenancyMode } from "@/lib/tenant/urls"
 
 export type OrganizationOption = {
   id: string
   name: string
   roleLabel: string
+  /**
+   * Origem do subdomínio da imobiliária (modo subdomain, montada no servidor).
+   * null no modo single-host ou quando o slug não serve como subdomínio.
+   */
+  origin: string | null
 }
 
+/**
+ * Troca de imobiliária:
+ * - subdomain: navega para o subdomínio (nada é gravado; o servidor confere a membership);
+ * - single-host: grava a escolha num cookie validado no servidor e recarrega.
+ */
 export function OrganizationSwitcher({
   organizations,
   currentOrganizationId,
+  appOrigin,
+  tenancyMode,
 }: {
   organizations: OrganizationOption[]
   currentOrganizationId: string
+  /** Origem do domínio raiz; "" no host único (links relativos). */
+  appOrigin: string
+  tenancyMode: TenancyMode
 }) {
   const { isMobile } = useSidebar()
   const router = useRouter()
   const pathname = usePathname()
   const [isPending, startTransition] = React.useTransition()
+  const [navigatingId, setNavigatingId] = React.useState<string | null>(null)
+  const isSubdomain = tenancyMode === "subdomain"
+  const isBusy = isPending || navigatingId !== null
 
   const current =
     organizations.find((organization) => organization.id === currentOrganizationId) ??
@@ -57,6 +76,26 @@ export function OrganizationSwitcher({
 
   function handleSelect(organizationId: string) {
     if (organizationId === current?.id) {
+      return
+    }
+
+    // Telas de detalhe pertencem à imobiliária anterior: abre a mesma seção na outra.
+    const section = findNavMatch(pathname)?.item.url ?? HOME_PATH
+
+    if (isSubdomain) {
+      const target = organizations.find((organization) => organization.id === organizationId)
+
+      if (!target?.origin) {
+        toast.add({
+          title: "Não foi possível abrir esta imobiliária",
+          description: "O endereço dela não é válido. Fale com o suporte.",
+          type: "error",
+        })
+        return
+      }
+
+      setNavigatingId(organizationId)
+      window.location.assign(`${target.origin}${section}`)
       return
     }
 
@@ -72,10 +111,7 @@ export function OrganizationSwitcher({
         return
       }
 
-      // Telas de detalhe pertencem à imobiliária anterior: volta para a seção.
-      const section = findNavMatch(pathname)?.item.url
-
-      if (section && section !== pathname) {
+      if (section !== pathname) {
         router.push(section)
       } else {
         router.refresh()
@@ -102,11 +138,7 @@ export function OrganizationSwitcher({
               <span className="truncate font-medium">{current.name}</span>
               <span className="truncate text-xs">{current.roleLabel}</span>
             </div>
-            {isPending ? (
-              <Spinner className="ms-auto" />
-            ) : (
-              <ChevronsUpDownIcon className="ms-auto" />
-            )}
+            {isBusy ? <Spinner className="ms-auto" /> : <ChevronsUpDownIcon className="ms-auto" />}
           </DropdownMenuTrigger>
           <DropdownMenuContent
             className="min-w-60"
@@ -124,7 +156,7 @@ export function OrganizationSwitcher({
                   <DropdownMenuRadioItem
                     key={organization.id}
                     value={organization.id}
-                    disabled={isPending}
+                    disabled={isBusy || (isSubdomain && !organization.origin)}
                     className="gap-2 p-2"
                   >
                     <div className="flex size-6 shrink-0 items-center justify-center rounded-md border text-xs">
@@ -142,7 +174,21 @@ export function OrganizationSwitcher({
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem render={<Link href="/onboarding" />} className="gap-2 p-2">
+              {organizations.length > 1 ? (
+                <DropdownMenuItem
+                  render={<a href={`${appOrigin}${TENANT_PICKER_PATH}`} />}
+                  className="gap-2 p-2"
+                >
+                  <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
+                    <LayoutGridIcon />
+                  </div>
+                  <span className="font-medium text-muted-foreground">Todas as imobiliárias</span>
+                </DropdownMenuItem>
+              ) : null}
+              <DropdownMenuItem
+                render={<a href={`${appOrigin}${ONBOARDING_PATH}`} />}
+                className="gap-2 p-2"
+              >
                 <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
                   <PlusIcon />
                 </div>

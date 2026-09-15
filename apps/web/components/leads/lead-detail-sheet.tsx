@@ -15,6 +15,7 @@ import {
   LeadStageBadge,
 } from "@/components/leads/lead-badges"
 import { LeadDetail, type LeadDetailProps } from "@/components/leads/lead-detail"
+import { LeadViewLogger } from "@/components/leads/lead-view-logger"
 import type { LeadItem } from "@/lib/leads/types"
 
 type LeadDetailSheetProps = Omit<LeadDetailProps, "lead" | "showOpenPageLink"> & {
@@ -30,13 +31,14 @@ export function LeadDetailSheet({ lead, open, onOpenChange, ...detail }: LeadDet
       <SheetContent className="w-full data-[side=right]:sm:max-w-xl">
         {lead ? (
           <>
+            <LeadViewLogger leadId={lead.id} />
             <SheetHeader className="pe-12">
               <SheetTitle className="break-words">{lead.name}</SheetTitle>
               <SheetDescription className="flex flex-wrap items-center gap-1.5">
                 <LeadStageBadge stage={lead.stage} />
                 <LeadSourceBadge lead={lead} />
                 <LeadContactTimerBadge lead={lead} nowMs={detail.nowMs} />
-                <LeadDuplicateBadge count={lead.duplicates.length} />
+                <LeadDuplicateBadge hasDuplicate={lead.hasDuplicate} />
               </SheetDescription>
             </SheetHeader>
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pb-6">

@@ -78,7 +78,12 @@ function joinParts(parts: (string | null | undefined)[]) {
  */
 async function insertVisitActivity(
   supabase: ServerClient,
-  activity: { organizationId: string; clientId: string; propertyId: string | null; body: string }
+  activity: {
+    organizationId: string
+    clientId: string
+    propertyId: string | null
+    body: string
+  }
 ) {
   const { error } = await supabase.from("activities").insert({
     organization_id: activity.organizationId,
@@ -113,7 +118,11 @@ export async function saveAppointment(
   const parsed = saveAppointmentSchema.safeParse(values)
 
   if (!parsed.success) {
-    return { ok: false, error: INVALID_FIELDS_MESSAGE, fieldErrors: toFieldErrors(parsed.error) }
+    return {
+      ok: false,
+      error: INVALID_FIELDS_MESSAGE,
+      fieldErrors: toFieldErrors(parsed.error),
+    }
   }
 
   const input = parsed.data
@@ -187,7 +196,10 @@ export async function saveAppointment(
       .single()
 
     if (error) {
-      return { ok: false, error: translateDatabaseError(error, "agendar esta visita") }
+      return {
+        ok: false,
+        error: translateDatabaseError(error, "agendar esta visita"),
+      }
     }
 
     let historyUpdated = true
@@ -296,7 +308,10 @@ export async function updateAppointmentStatus(
   const parsed = appointmentStatusUpdateSchema.safeParse(values)
 
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? INVALID_FIELDS_MESSAGE }
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? INVALID_FIELDS_MESSAGE,
+    }
   }
 
   const { id, status, rating, feedback } = parsed.data
@@ -380,11 +395,17 @@ export async function updateAppointmentStatus(
     }
   }
 
-  revalidateAgenda({ clientIds: [existing.client_id], propertyIds: [existing.property_id] })
+  revalidateAgenda({
+    clientIds: [existing.client_id],
+    propertyIds: [existing.property_id],
+  })
 
   const message = STATUS_SUCCESS_MESSAGES[status]
 
-  return { ok: true, message: historyUpdated ? message : `${message} ${HISTORY_NOT_UPDATED}` }
+  return {
+    ok: true,
+    message: historyUpdated ? message : `${message} ${HISTORY_NOT_UPDATED}`,
+  }
 }
 
 export async function deleteAppointment(id: string): Promise<ActionResult> {
@@ -434,7 +455,10 @@ export async function deleteAppointment(id: string): Promise<ActionResult> {
     return { ok: false, error: permissionDeniedMessage(action) }
   }
 
-  revalidateAgenda({ clientIds: [existing.client_id], propertyIds: [existing.property_id] })
+  revalidateAgenda({
+    clientIds: [existing.client_id],
+    propertyIds: [existing.property_id],
+  })
 
   return { ok: true, message: "Visita excluída." }
 }

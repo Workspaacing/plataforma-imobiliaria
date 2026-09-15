@@ -36,7 +36,11 @@ export function DeleteLeadButton({ leadId, leadName, onDeleted }: DeleteLeadButt
       const result = await deleteLead(leadId)
 
       if (!result.ok) {
-        toast.add({ title: "Não foi possível excluir", description: result.error, type: "error" })
+        toast.add({
+          title: "Não foi possível excluir",
+          description: result.error,
+          type: "error",
+        })
         return
       }
 

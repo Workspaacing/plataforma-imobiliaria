@@ -39,7 +39,11 @@ export function RotateFeedTokenButton() {
         return
       }
 
-      toast.add({ title: "Não foi possível gerar", description: result.error, type: "error" })
+      toast.add({
+        title: "Não foi possível gerar",
+        description: result.error,
+        type: "error",
+      })
     })
   }
 
@@ -56,9 +60,9 @@ export function RotateFeedTokenButton() {
           </AlertDialogMedia>
           <AlertDialogTitle>Gerar um novo endereço do feed?</AlertDialogTitle>
           <AlertDialogDescription>
-            A URL atual para de funcionar na hora. Até você cadastrar a nova URL no Canal
-            Pro, ZAP, Viva Real e OLX não conseguem atualizar seus anúncios. Faça isso só
-            se o endereço tiver sido compartilhado com quem não devia.
+            A URL atual para de funcionar na hora. Até você cadastrar a nova URL no Canal Pro, ZAP,
+            Viva Real e OLX não conseguem atualizar seus anúncios. Faça isso só se o endereço tiver
+            sido compartilhado com quem não devia.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

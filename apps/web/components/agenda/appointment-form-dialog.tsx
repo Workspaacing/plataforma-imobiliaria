@@ -64,7 +64,11 @@ export type AppointmentFormDialogProps = {
     meetingPoint: string | null
   }
   /** Valores iniciais de nova visita (ex.: ficha do cliente com imóvel compatível). */
-  defaults?: { client?: ClientOption | null; property?: PropertyOption | null; dateKey?: string }
+  defaults?: {
+    client?: ClientOption | null
+    property?: PropertyOption | null
+    dateKey?: string
+  }
   /** Elemento do gatilho, ex.: <Button variant="outline" size="sm" />. Use <DialogTrigger render={trigger}>{children}</DialogTrigger>. */
   trigger: React.ReactElement
   children: React.ReactNode
@@ -155,7 +159,10 @@ export function ControlledAppointmentFormDialog({
   open,
   onOpenChange,
   ...props
-}: AppointmentFormBaseProps & { open: boolean; onOpenChange: (open: boolean) => void }) {
+}: AppointmentFormBaseProps & {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <AppointmentFormDialogContent {...props} todayKey="" onClose={() => onOpenChange(false)} />
@@ -281,7 +288,10 @@ function AppointmentForm({
           render={({ field, fieldState }) => {
             const items = [
               { label: "Selecione o corretor", value: null as string | null },
-              ...brokers.map((member) => ({ label: member.name, value: member.id as string | null })),
+              ...brokers.map((member) => ({
+                label: member.name,
+                value: member.id as string | null,
+              })),
             ]
 
             // Corretor atual fora da lista (ex-membro ou papel sem visita): mantém o rótulo.
@@ -326,7 +336,9 @@ function AppointmentForm({
                 {fieldState.invalid ? (
                   <FieldError errors={[fieldState.error]} />
                 ) : !canChooseBroker ? (
-                  <FieldDescription>Corretores e captadores agendam visitas só para si.</FieldDescription>
+                  <FieldDescription>
+                    Corretores e captadores agendam visitas só para si.
+                  </FieldDescription>
                 ) : null}
               </Field>
             )
@@ -411,7 +423,9 @@ function AppointmentForm({
           control={form.control}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
-              <FieldLabel htmlFor="appointment-meeting-point">Ponto de encontro (opcional)</FieldLabel>
+              <FieldLabel htmlFor="appointment-meeting-point">
+                Ponto de encontro (opcional)
+              </FieldLabel>
               <Input
                 {...field}
                 id="appointment-meeting-point"

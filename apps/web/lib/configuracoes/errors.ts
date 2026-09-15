@@ -4,8 +4,7 @@ type DatabaseErrorLike = {
   details?: string | null
 }
 
-export const PERMISSION_DENIED_MESSAGE =
-  "Seu papel nesta imobiliária não permite esta ação."
+export const PERMISSION_DENIED_MESSAGE = "Seu papel nesta imobiliária não permite esta ação."
 
 export const SESSION_EXPIRED_MESSAGE = "Sua sessão expirou. Entre novamente."
 

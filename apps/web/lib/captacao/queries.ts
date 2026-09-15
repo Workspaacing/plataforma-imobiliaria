@@ -61,12 +61,16 @@ export async function listCaptureRequests(
   }
 
   if (countsResult.error) {
-    throw new Error(
-      `Não foi possível contar as captações (${countsResult.error.code ?? "erro"}).`
-    )
+    throw new Error(`Não foi possível contar as captações (${countsResult.error.code ?? "erro"}).`)
   }
 
-  const counts: CaptureCounts = { all: 0, new: 0, contacted: 0, converted: 0, discarded: 0 }
+  const counts: CaptureCounts = {
+    all: 0,
+    new: 0,
+    contacted: 0,
+    converted: 0,
+    discarded: 0,
+  }
 
   for (const row of countsResult.data) {
     counts.all += 1

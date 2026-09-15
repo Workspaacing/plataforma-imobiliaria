@@ -29,12 +29,7 @@ import {
   landingPreviewPath,
   type LandingStatus,
 } from "@/lib/marketing/constants"
-import {
-  asMarketingClient,
-  type LandingPageRow,
-  type LandingPageUpdate,
-  type MarketingSupabaseClient,
-} from "@/lib/marketing/db-types"
+import type { LandingPageRecord, LandingPageUpdate } from "@/lib/marketing/db-types"
 import {
   LANDING_PERMISSION_MESSAGE,
   LANDING_SLUG_TAKEN_MESSAGE,
@@ -68,14 +63,26 @@ import { uniqueSlug } from "@/lib/marketing/slug"
 import { buildLandingPublicPath } from "@/lib/marketing/urls"
 import { createClient } from "@/lib/supabase/server"
 
+// Regras de gravação em landing_pages:
+// - organization_id vem sempre da sessão (imobiliária atual), nunca do cliente;
+// - created_by NÃO é enviado: um trigger grava auth.uid() e o grant por coluna
+//   bloqueia a coluna para o app;
+// - leituras usam colunas explícitas (nunca `*`).
+
 export type LandingActionResult =
   | { ok: true; message?: string }
   | { ok: false; error: string; fieldErrors?: Record<string, string> }
 
-export type LandingCreateResult = { ok: true; id: string; message?: string } | { ok: false; error: string }
+export type LandingCreateResult =
+  { ok: true; id: string; message?: string } | { ok: false; error: string }
 
 export type LandingStatusResult =
-  | { ok: true; message: string; status: LandingStatus; publishedAt: string | null }
+  | {
+      ok: true
+      message: string
+      status: LandingStatus
+      publishedAt: string | null
+    }
   | { ok: false; error: string; issues?: string[] }
 
 const INVALID_DATA_MESSAGE = "Confira os campos destacados."
@@ -83,11 +90,9 @@ const LOAD_ERROR_MESSAGE = "Não foi possível carregar a landing page agora. Te
 
 type EditContext = {
   supabase: Awaited<ReturnType<typeof createClient>>
-  db: MarketingSupabaseClient
   organizationId: string
   organizationSlug: string
-  userId: string
-  row: LandingPageRow
+  row: LandingPageRecord
   templateKey: LandingTemplateKey
   template: LandingTemplateDefinition
 }
@@ -99,7 +104,7 @@ type EditContext = {
 async function getEditContext(
   pageId: string
 ): Promise<{ ok: true; context: EditContext } | { ok: false; error: string }> {
-  const { user, membership } = await requireMembership()
+  const { membership } = await requireMembership()
 
   if (!canEditLandingPages(membership.role)) {
     return { ok: false, error: LANDING_PERMISSION_MESSAGE }
@@ -109,7 +114,7 @@ async function getEditContext(
   }
 
   const supabase = await createClient()
-  let row: LandingPageRow | null
+  let row: LandingPageRecord | null
 
   try {
     row = await getLandingPageRow(supabase, membership.organizationId, pageId)
@@ -118,20 +123,24 @@ async function getEditContext(
   }
 
   if (!row) {
-    return { ok: false, error: "Landing page não encontrada nesta imobiliária." }
+    return {
+      ok: false,
+      error: "Landing page não encontrada nesta imobiliária.",
+    }
   }
   if (!isLandingTemplateKey(row.template)) {
-    return { ok: false, error: "O modelo desta landing page não é reconhecido." }
+    return {
+      ok: false,
+      error: "O modelo desta landing page não é reconhecido.",
+    }
   }
 
   return {
     ok: true,
     context: {
       supabase,
-      db: asMarketingClient(supabase),
       organizationId: membership.organizationId,
       organizationSlug: membership.organization.slug,
-      userId: user.id,
       row,
       templateKey: row.template,
       template: getLandingTemplate(row.template),
@@ -144,7 +153,7 @@ async function updateRow(
   patch: LandingPageUpdate,
   action: string
 ): Promise<{ ok: true } | { ok: false; error: string; code: string | null }> {
-  const { data, error } = await context.db
+  const { data, error } = await context.supabase
     .from("landing_pages")
     .update(patch)
     .eq("organization_id", context.organizationId)
@@ -152,7 +161,11 @@ async function updateRow(
     .select("id")
 
   if (error) {
-    return { ok: false, error: translateLandingError(error, action), code: error.code ?? null }
+    return {
+      ok: false,
+      error: translateLandingError(error, action),
+      code: error.code ?? null,
+    }
   }
   // Com RLS, um UPDATE sem permissão não dá erro: só não altera nenhuma linha.
   if (!data?.length) {
@@ -198,10 +211,13 @@ async function removeUnusedAssets(context: EditContext, before: Set<string>, aft
 
 export async function createLandingPageAction(templateKey: string): Promise<LandingCreateResult> {
   if (!isLandingTemplateKey(templateKey)) {
-    return { ok: false, error: "Modelo inválido. Escolha um dos modelos da galeria." }
+    return {
+      ok: false,
+      error: "Modelo inválido. Escolha um dos modelos da galeria.",
+    }
   }
 
-  const { user, membership } = await requireMembership()
+  const { membership } = await requireMembership()
 
   if (!canEditLandingPages(membership.role)) {
     return { ok: false, error: LANDING_PERMISSION_MESSAGE }
@@ -209,7 +225,6 @@ export async function createLandingPageAction(templateKey: string): Promise<Land
 
   const organizationId = membership.organizationId
   const supabase = await createClient()
-  const db = asMarketingClient(supabase)
   const template = getLandingTemplate(templateKey)
 
   const [{ data: organization }, taken] = await Promise.all([
@@ -231,7 +246,9 @@ export async function createLandingPageAction(templateKey: string): Promise<Land
   const titleWithBrand = `${template.defaults.headline} | ${organizationName}`
   const seo: LandingSeo = {
     title: clipText(
-      Array.from(titleWithBrand).length <= SEO_TITLE_MAX_LENGTH ? titleWithBrand : template.defaults.headline,
+      Array.from(titleWithBrand).length <= SEO_TITLE_MAX_LENGTH
+        ? titleWithBrand
+        : template.defaults.headline,
       SEO_TITLE_MAX_LENGTH
     ),
     description: clipText(template.defaults.subheadline, SEO_DESCRIPTION_MAX_LENGTH),
@@ -242,7 +259,7 @@ export async function createLandingPageAction(templateKey: string): Promise<Land
   let slug = uniqueSlug(template.name, taken)
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const { data, error } = await db
+    const { data, error } = await supabase
       .from("landing_pages")
       .insert({
         organization_id: organizationId,
@@ -256,7 +273,6 @@ export async function createLandingPageAction(templateKey: string): Promise<Land
         tracking: {},
         property_ids: [],
         lead_assignee_id: null,
-        created_by: user.id,
       })
       .select("id")
       .single()
@@ -272,10 +288,16 @@ export async function createLandingPageAction(templateKey: string): Promise<Land
       continue
     }
 
-    return { ok: false, error: translateLandingError(error ?? {}, "criar a landing page") }
+    return {
+      ok: false,
+      error: translateLandingError(error ?? {}, "criar a landing page"),
+    }
   }
 
-  return { ok: false, error: "Não foi possível criar a landing page agora. Tente novamente." }
+  return {
+    ok: false,
+    error: "Não foi possível criar a landing page agora. Tente novamente.",
+  }
 }
 
 export async function duplicateLandingPageAction(pageId: string): Promise<LandingCreateResult> {
@@ -283,36 +305,44 @@ export async function duplicateLandingPageAction(pageId: string): Promise<Landin
   if (!loaded.ok) return loaded
 
   const context = loaded.context
-  const { row, db, supabase, organizationId } = context
+  const { row, supabase, organizationId } = context
   const taken = await getTakenLandingSlugs(supabase, organizationId)
   const name = clipText(`Cópia de ${row.name}`, LANDING_NAME_MAX_LENGTH)
   const slug = uniqueSlug(`${row.slug}-copia`, taken)
   const seo = readLandingSeo(row.seo)
   const theme = parseLandingTheme(row.theme)
+  const seoWithoutImage: LandingSeo = { ...seo }
+  delete seoWithoutImage.og_image_path
 
   // 1) Cria a cópia sem imagens (o Storage pode exigir a página existente).
-  const { data: created, error } = await db
+  const { data: created, error } = await supabase
     .from("landing_pages")
     .insert({
       organization_id: organizationId,
-      template: row.template,
+      template: context.templateKey,
       name,
       slug,
       status: "draft",
-      published_at: null,
-      theme: { ...theme, logo_path: null, background_image_path: null, banner_image_paths: [] } as Json,
+      theme: {
+        ...theme,
+        logo_path: null,
+        background_image_path: null,
+        banner_image_paths: [],
+      } as Json,
       content: row.content,
       property_ids: row.property_ids,
       tracking: row.tracking,
-      seo: { ...seo, og_image_path: undefined } as Json,
+      seo: seoWithoutImage as Json,
       lead_assignee_id: row.lead_assignee_id,
-      created_by: context.userId,
     })
     .select("id")
     .single()
 
   if (error || !created) {
-    return { ok: false, error: translateLandingError(error ?? {}, "duplicar a landing page") }
+    return {
+      ok: false,
+      error: translateLandingError(error ?? {}, "duplicar a landing page"),
+    }
   }
 
   // 2) Copia as imagens para a pasta da nova página e grava os novos caminhos.
@@ -336,11 +366,10 @@ export async function duplicateLandingPageAction(pageId: string): Promise<Landin
   const copied = [logoPath, backgroundPath, ogImagePath, ...bannerPaths].filter(Boolean)
 
   if (copied.length > 0) {
-    const nextSeo: LandingSeo = { ...seo }
+    const nextSeo: LandingSeo = { ...seoWithoutImage }
     if (ogImagePath) nextSeo.og_image_path = ogImagePath
-    else delete nextSeo.og_image_path
 
-    await db
+    await supabase
       .from("landing_pages")
       .update({
         theme: parseLandingTheme({
@@ -403,7 +432,12 @@ export async function setLandingStatusAction(
   const { row } = context
 
   if (row.status === status) {
-    return { ok: true, message: "Nada a alterar.", status, publishedAt: row.published_at }
+    return {
+      ok: true,
+      message: "Nada a alterar.",
+      status,
+      publishedAt: row.published_at,
+    }
   }
 
   if (status === "published") {
@@ -415,14 +449,34 @@ export async function setLandingStatusAction(
     })
 
     if (issues.length > 0) {
-      return { ok: false, error: `Antes de publicar: ${issues.join(" ")}`, issues }
+      return {
+        ok: false,
+        error: `Antes de publicar: ${issues.join(" ")}`,
+        issues,
+      }
     }
   }
 
-  const publishedAt = status === "published" ? new Date().toISOString() : null
-  const result = await updateRow(context, { status, published_at: publishedAt }, "alterar o status da landing page")
+  // published_at é gravado pelo banco (trigger) ao publicar: o app só muda o status.
+  const { data: updated, error } = await context.supabase
+    .from("landing_pages")
+    .update({ status })
+    .eq("organization_id", context.organizationId)
+    .eq("id", row.id)
+    .select("id, status, published_at")
 
-  if (!result.ok) return { ok: false, error: result.error }
+  if (error) {
+    return {
+      ok: false,
+      error: translateLandingError(error, "alterar o status da landing page"),
+    }
+  }
+
+  const saved = updated?.[0]
+  // Com RLS, um UPDATE sem permissão não dá erro: só não altera nenhuma linha.
+  if (!saved) {
+    return { ok: false, error: LANDING_PERMISSION_MESSAGE }
+  }
 
   revalidateLanding(context)
 
@@ -435,7 +489,7 @@ export async function setLandingStatusAction(
           ? STATUS_MESSAGES.restored
           : STATUS_MESSAGES.unpublished
 
-  return { ok: true, message, status, publishedAt }
+  return { ok: true, message, status, publishedAt: saved.published_at }
 }
 
 // ---------------------------------------------------------------------------
@@ -448,7 +502,11 @@ export async function saveLandingIdentityAction(
 ): Promise<LandingActionResult> {
   const parsed = identitySchema.safeParse(values)
   if (!parsed.success) {
-    return { ok: false, error: INVALID_DATA_MESSAGE, fieldErrors: collectFieldErrors(parsed.error) }
+    return {
+      ok: false,
+      error: INVALID_DATA_MESSAGE,
+      fieldErrors: collectFieldErrors(parsed.error),
+    }
   }
 
   const loaded = await getEditContext(pageId)
@@ -461,7 +519,10 @@ export async function saveLandingIdentityAction(
   )
 
   if (!paths.every((path) => isLandingAssetPath(path, context.organizationId, context.row.id))) {
-    return { ok: false, error: "Uma imagem foi enviada para uma pasta inválida. Envie-a de novo." }
+    return {
+      ok: false,
+      error: "Uma imagem foi enviada para uma pasta inválida. Envie-a de novo.",
+    }
   }
   if (data.bannerPaths.length > context.template.imageSlots.banners) {
     return {
@@ -496,7 +557,11 @@ export async function saveLandingContentAction(
   const parsed = buildContentSchema(context.template).safeParse(values)
 
   if (!parsed.success) {
-    return { ok: false, error: INVALID_DATA_MESSAGE, fieldErrors: collectFieldErrors(parsed.error) }
+    return {
+      ok: false,
+      error: INVALID_DATA_MESSAGE,
+      fieldErrors: collectFieldErrors(parsed.error),
+    }
   }
 
   const content = contentValuesToContent(parsed.data, context.template)
@@ -519,7 +584,10 @@ export async function saveLandingPropertiesAction(
   const parsed = buildPropertyIdsSchema(context.template).safeParse(propertyIds)
 
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? INVALID_DATA_MESSAGE }
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? INVALID_DATA_MESSAGE,
+    }
   }
 
   const ids = context.template.usesProperties === "none" ? [] : parsed.data
@@ -532,13 +600,19 @@ export async function saveLandingPropertiesAction(
       .in("id", ids)
 
     if (error) {
-      return { ok: false, error: "Não foi possível conferir os imóveis agora. Tente novamente." }
+      return {
+        ok: false,
+        error: "Não foi possível conferir os imóveis agora. Tente novamente.",
+      }
     }
 
     const found = new Map((properties ?? []).map((property) => [property.id, property]))
 
     if (ids.some((id) => !found.has(id))) {
-      return { ok: false, error: "Algum imóvel selecionado não existe mais nesta imobiliária. Remova-o da lista." }
+      return {
+        ok: false,
+        error: "Algum imóvel selecionado não existe mais nesta imobiliária. Remova-o da lista.",
+      }
     }
 
     const inactive = (properties ?? []).filter((property) => property.status !== "active")
@@ -565,7 +639,11 @@ export async function saveLandingLeadsAction(
 ): Promise<LandingActionResult> {
   const parsed = leadAssigneeSchema.safeParse(assigneeId)
   if (!parsed.success) {
-    return { ok: false, error: "Selecione um membro da equipe.", fieldErrors: { leadAssigneeId: "Membro inválido." } }
+    return {
+      ok: false,
+      error: "Selecione um membro da equipe.",
+      fieldErrors: { leadAssigneeId: "Membro inválido." },
+    }
   }
 
   const loaded = await getEditContext(pageId)
@@ -586,12 +664,18 @@ export async function saveLandingLeadsAction(
       return {
         ok: false,
         error: "Escolha um membro ativo da equipe.",
-        fieldErrors: { leadAssigneeId: "Este membro não está ativo nesta imobiliária." },
+        fieldErrors: {
+          leadAssigneeId: "Este membro não está ativo nesta imobiliária.",
+        },
       }
     }
   }
 
-  const result = await updateRow(context, { lead_assignee_id: parsed.data }, "salvar o responsável pelos leads")
+  const result = await updateRow(
+    context,
+    { lead_assignee_id: parsed.data },
+    "salvar o responsável pelos leads"
+  )
   if (!result.ok) return { ok: false, error: result.error }
 
   revalidateLanding(context)
@@ -604,7 +688,11 @@ export async function saveLandingPublicationAction(
 ): Promise<LandingActionResult> {
   const parsed = publicationSchema.safeParse(values)
   if (!parsed.success) {
-    return { ok: false, error: INVALID_DATA_MESSAGE, fieldErrors: collectFieldErrors(parsed.error) }
+    return {
+      ok: false,
+      error: INVALID_DATA_MESSAGE,
+      fieldErrors: collectFieldErrors(parsed.error),
+    }
   }
 
   const loaded = await getEditContext(pageId)
@@ -613,12 +701,18 @@ export async function saveLandingPublicationAction(
   const context = loaded.context
   const columns = publicationValuesToColumns(parsed.data)
 
-  if (columns.seo.og_image_path && !isLandingAssetPath(columns.seo.og_image_path, context.organizationId, context.row.id)) {
-    return { ok: false, error: "A imagem de compartilhamento foi enviada para uma pasta inválida. Envie-a de novo." }
+  if (
+    columns.seo.og_image_path &&
+    !isLandingAssetPath(columns.seo.og_image_path, context.organizationId, context.row.id)
+  ) {
+    return {
+      ok: false,
+      error: "A imagem de compartilhamento foi enviada para uma pasta inválida. Envie-a de novo.",
+    }
   }
 
   if (columns.slug !== context.row.slug) {
-    const { data: clash } = await context.db
+    const { data: clash } = await context.supabase
       .from("landing_pages")
       .select("id")
       .eq("organization_id", context.organizationId)
@@ -630,7 +724,9 @@ export async function saveLandingPublicationAction(
       return {
         ok: false,
         error: LANDING_SLUG_TAKEN_MESSAGE,
-        fieldErrors: { slug: "Este endereço já está em uso em outra landing page." },
+        fieldErrors: {
+          slug: "Este endereço já está em uso em outra landing page.",
+        },
       }
     }
   }
@@ -652,7 +748,9 @@ export async function saveLandingPublicationAction(
       return {
         ok: false,
         error: LANDING_SLUG_TAKEN_MESSAGE,
-        fieldErrors: { slug: "Este endereço já está em uso em outra landing page." },
+        fieldErrors: {
+          slug: "Este endereço já está em uso em outra landing page.",
+        },
       }
     }
     return { ok: false, error: result.error }
@@ -672,7 +770,9 @@ const PROPERTY_SEARCH_LIMIT = 20
 const PROPERTY_MEDIA_PER_RESULT = 20
 
 /** Imóveis ATIVOS da imobiliária por código, título ou bairro. */
-export async function searchLandingPropertiesAction(query: string): Promise<LandingPropertyOption[]> {
+export async function searchLandingPropertiesAction(
+  query: string
+): Promise<LandingPropertyOption[]> {
   const { membership } = await requireMembership()
   const term = sanitizeSearchTerm(query)
   const supabase = await createClient()

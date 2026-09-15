@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { buildPublicStorageUrl, getStorageBaseUrl } from "@/lib/landing/theme"
 import { LANDING_ASSETS_BUCKET, LANDING_PROPERTY_MEDIA_BUCKET } from "@/lib/landing/types"
 import type { PublicLandingPage } from "@/lib/leads-publicos/queries"
+import { buildLandingPageUrl, isValidTenantSlug } from "@/lib/tenant/urls"
 
 const DESCRIPTION_MAX_LENGTH = 200
 
@@ -13,31 +14,30 @@ export const LANDING_NOT_FOUND_METADATA: Metadata = {
 
 function clip(value: string, max: number) {
   const chars = Array.from(value.replace(/\s+/g, " ").trim())
-  return chars.length > max ? `${chars.slice(0, max - 1).join("").trimEnd()}…` : chars.join("")
+  return chars.length > max
+    ? `${chars
+        .slice(0, max - 1)
+        .join("")
+        .trimEnd()}…`
+    : chars.join("")
 }
 
-function readSiteUrl() {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim()
-
-  if (!configured) return null
-
-  try {
-    const url = new URL(configured)
-    return url.protocol === "https:" || url.protocol === "http:"
-      ? `${url.origin}${url.pathname}`.replace(/\/+$/, "")
-      : null
-  } catch {
+/**
+ * URL canônica da landing, usada no canonical, no og:url e no JSON-LD:
+ * {slug}.raiz/lp/{pagina} (modo subdomain) ou site/lp/{slug}/{pagina} (host
+ * único). null quando o slug não é válido ou falta a origem do host único.
+ */
+export function buildLandingCanonicalUrl(orgSlug: string, pageSlug: string) {
+  if (!isValidTenantSlug(orgSlug)) {
     return null
   }
-}
 
-/** URL canônica da landing com NEXT_PUBLIC_SITE_URL; null sem a variável. */
-export function buildLandingCanonicalUrl(orgSlug: string, pageSlug: string) {
-  const siteUrl = readSiteUrl()
-
-  return siteUrl
-    ? `${siteUrl}/lp/${encodeURIComponent(orgSlug)}/${encodeURIComponent(pageSlug)}`
-    : null
+  try {
+    return buildLandingPageUrl(orgSlug, pageSlug)
+  } catch {
+    // Host único sem NEXT_PUBLIC_SITE_URL: a página sai sem canonical.
+    return null
+  }
 }
 
 /** og_image_path → primeiro banner → fundo (landing-assets) → capa do primeiro imóvel. */

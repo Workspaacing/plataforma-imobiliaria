@@ -5,7 +5,13 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, useForm } from "react-hook-form"
 
 import { Button } from "@workspace/ui/components/button"
-import { Field, FieldError, FieldGroup, FieldLabel, FieldTitle } from "@workspace/ui/components/field"
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+  FieldTitle,
+} from "@workspace/ui/components/field"
 import { Spinner } from "@workspace/ui/components/spinner"
 import { Textarea } from "@workspace/ui/components/textarea"
 import { toast } from "@workspace/ui/components/toast"
@@ -35,11 +41,18 @@ export function LeadActivityForm({ clientId, onSaved }: LeadActivityFormProps) {
       const result = await createClientActivity(clientId, values)
 
       if (!result.ok) {
-        toast.add({ title: "Não foi possível registrar", description: result.error, type: "error" })
+        toast.add({
+          title: "Não foi possível registrar",
+          description: result.error,
+          type: "error",
+        })
         return
       }
 
-      toast.add({ title: result.message ?? "Atividade registrada.", type: "success" })
+      toast.add({
+        title: result.message ?? "Atividade registrada.",
+        type: "success",
+      })
       form.reset({ type: values.type, body: "" })
       onSaved()
     })

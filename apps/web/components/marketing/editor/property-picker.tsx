@@ -167,7 +167,9 @@ export function PropertyPicker({
                 <Item size="xs" className="p-0">
                   <ItemContent>
                     <ItemTitle className="whitespace-nowrap">{option.label}</ItemTitle>
-                    {option.description ? <ItemDescription>{option.description}</ItemDescription> : null}
+                    {option.description ? (
+                      <ItemDescription>{option.description}</ItemDescription>
+                    ) : null}
                   </ItemContent>
                 </Item>
               </ComboboxItem>
@@ -197,7 +199,10 @@ export function PropertyPicker({
                       </Badge>
                     ) : (
                       <span className="truncate">
-                        {[price ? `${price.amount}${price.suffix ?? ""}` : null, property.neighborhood]
+                        {[
+                          price ? `${price.amount}${price.suffix ?? ""}` : null,
+                          property.neighborhood,
+                        ]
                           .filter(Boolean)
                           .join(" · ") || "Sem preço informado"}
                       </span>

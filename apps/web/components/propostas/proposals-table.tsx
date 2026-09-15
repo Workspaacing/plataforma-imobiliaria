@@ -137,7 +137,11 @@ export function ProposalsTable({ rows, properties, clients, brokers }: Proposals
       const result = await changeProposalStatus(row.id, to)
 
       if (!result.ok) {
-        toast.add({ title: "Não foi possível alterar", description: result.error, type: "error" })
+        toast.add({
+          title: "Não foi possível alterar",
+          description: result.error,
+          type: "error",
+        })
         return
       }
 
@@ -160,11 +164,18 @@ export function ProposalsTable({ rows, properties, clients, brokers }: Proposals
       const result = await reserveProperty(propertyId)
 
       if (!result.ok) {
-        toast.add({ title: "Não foi possível reservar", description: result.error, type: "error" })
+        toast.add({
+          title: "Não foi possível reservar",
+          description: result.error,
+          type: "error",
+        })
         return
       }
 
-      toast.add({ title: result.message ?? "Imóvel reservado.", type: "success" })
+      toast.add({
+        title: result.message ?? "Imóvel reservado.",
+        type: "success",
+      })
       setReserveOpen(false)
     })
   }

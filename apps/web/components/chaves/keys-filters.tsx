@@ -21,7 +21,10 @@ import { useFilterParams } from "@/components/propostas/use-filter-params"
 
 const STATUS_ITEMS: { label: string; value: string | null }[] = [
   { label: "Todos os status", value: null },
-  ...KEY_STATUS_VALUES.map((status) => ({ label: KEY_STATUS_LABELS[status], value: status })),
+  ...KEY_STATUS_VALUES.map((status) => ({
+    label: KEY_STATUS_LABELS[status],
+    value: status,
+  })),
 ]
 
 export function KeysFilters({ properties }: { properties: ComboboxOption[] }) {

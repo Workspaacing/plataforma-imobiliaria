@@ -1,5 +1,4 @@
 import type { Metadata } from "next"
-import Link from "next/link"
 import { CircleAlertIcon, LockIcon } from "lucide-react"
 
 import type { Enums } from "@workspace/database/types"
@@ -23,13 +22,12 @@ import { RotateFeedTokenButton } from "@/components/configuracoes/rotate-feed-to
 import { PageHeading } from "@/components/crm/page-placeholder"
 import { ORGANIZATION_VIEWER_ROLES } from "@/lib/auth/roles"
 import { requireRole } from "@/lib/auth/session"
-import { getSiteUrl } from "@/lib/auth/site-url"
 import { readOrganizationBrand } from "@/lib/configuracoes/brand"
 import { maskCnpj, maskPhoneBr } from "@/lib/configuracoes/masks"
 import { loadFeedPreview } from "@/lib/portais/feed-preview"
 import { loadFeedSettings } from "@/lib/portais/feed-settings"
-import { buildFeedUrl } from "@/lib/portais/feed-url"
 import { createClient } from "@/lib/supabase/server"
+import { buildCaptureUrl, buildPortalFeedUrl } from "@/lib/tenant/urls"
 
 export const metadata: Metadata = {
   title: "Imobiliária",
@@ -54,28 +52,25 @@ export default async function ImobiliariaPage() {
     .maybeSingle()
 
   if (error || !organization) {
-    throw new Error(
-      `Não foi possível carregar a imobiliária (${error?.code ?? "sem-registro"}).`
-    )
+    throw new Error(`Não foi possível carregar a imobiliária (${error?.code ?? "sem-registro"}).`)
   }
 
   const feedSettings = await loadFeedSettings(supabase, organization.id, membership.role)
-  const [siteUrl, feedPreview] = await Promise.all([
-    getSiteUrl(),
+  const feedPreview =
     feedSettings.status === "ok"
-      ? loadFeedPreview(supabase, feedSettings.slug, feedSettings.feedToken)
-      : null,
-  ])
+      ? await loadFeedPreview(supabase, feedSettings.slug, feedSettings.feedToken)
+      : null
 
+  // URLs no subdomínio da imobiliária (env + slug validado pelo banco).
   const feed =
     feedSettings.status === "ok" && feedPreview
       ? {
-          url: buildFeedUrl(siteUrl, feedSettings.slug, feedSettings.feedToken),
+          url: buildPortalFeedUrl(feedSettings.slug, feedSettings.feedToken),
           preview: feedPreview,
         }
       : null
   const brand = readOrganizationBrand(organization.brand)
-  const capturePath = `/captar/${organization.slug}`
+  const captureUrl = buildCaptureUrl(organization.slug)
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
@@ -117,9 +112,14 @@ export default async function ImobiliariaPage() {
             <CardTitle>Marca</CardTitle>
             <CardDescription>
               Cor e logo usados no formulário público de captação (
-              <Link href={capturePath} className="underline underline-offset-4">
-                {capturePath}
-              </Link>
+              <a
+                href={captureUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline underline-offset-4"
+              >
+                {captureUrl.replace(/^https?:\/\//, "")}
+              </a>
               ).
             </CardDescription>
           </CardHeader>
@@ -162,8 +162,7 @@ export default async function ImobiliariaPage() {
                 <ol className="flex list-decimal flex-col gap-1 ps-5 text-sm text-muted-foreground">
                   <li>Copie a URL acima.</li>
                   <li>
-                    No Canal Pro do Grupo OLX, cadastre-a como integração por feed (formato
-                    VRSync).
+                    No Canal Pro do Grupo OLX, cadastre-a como integração por feed (formato VRSync).
                   </li>
                   <li>
                     O portal lê o arquivo duas vezes ao dia: mudanças nos imóveis aparecem na
@@ -177,9 +176,8 @@ export default async function ImobiliariaPage() {
                   <div className="flex flex-col gap-1">
                     <h2 className="font-medium">Prévia do feed</h2>
                     <p className="text-sm text-muted-foreground">
-                      Imóveis ativos com a publicação nos portais marcada. Os que não cumprem
-                      as regras do VRSync ficam de fora até serem corrigidos, sem afetar os
-                      demais.
+                      Imóveis ativos com a publicação nos portais marcada. Os que não cumprem as
+                      regras do VRSync ficam de fora até serem corrigidos, sem afetar os demais.
                     </p>
                   </div>
                   <FeedPreview preview={feed.preview} />
@@ -196,9 +194,9 @@ export default async function ImobiliariaPage() {
                 <LockIcon />
                 <AlertTitle>Só o dono e o gerente veem a URL do feed</AlertTitle>
                 <AlertDescription>
-                  A URL dá acesso aos anúncios enviados aos portais, por isso fica restrita ao
-                  dono e ao gerente da imobiliária. Se precisar dela ou da prévia do feed, peça
-                  a um deles.
+                  A URL dá acesso aos anúncios enviados aos portais, por isso fica restrita ao dono
+                  e ao gerente da imobiliária. Se precisar dela ou da prévia do feed, peça a um
+                  deles.
                 </AlertDescription>
               </Alert>
             )}

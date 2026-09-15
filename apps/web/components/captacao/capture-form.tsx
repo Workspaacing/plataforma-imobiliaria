@@ -67,12 +67,18 @@ const HONEYPOT_FIELD = "website"
 
 const TYPE_ITEMS: { label: string; value: string | null }[] = [
   { label: "Selecione", value: null },
-  ...PROPERTY_TYPE_VALUES.map((type) => ({ label: PROPERTY_TYPE_LABELS[type], value: type })),
+  ...PROPERTY_TYPE_VALUES.map((type) => ({
+    label: PROPERTY_TYPE_LABELS[type],
+    value: type,
+  })),
 ]
 
 const STATE_ITEMS: { label: string; value: string | null }[] = [
   { label: "UF", value: null },
-  ...BRAZILIAN_STATES.map((state) => ({ label: state.code, value: state.code })),
+  ...BRAZILIAN_STATES.map((state) => ({
+    label: state.code,
+    value: state.code,
+  })),
 ]
 
 const PURPOSE_LABELS: Record<(typeof CAPTURE_PURPOSES)[number], string> = {
@@ -151,7 +157,10 @@ export function CaptureForm({ slug, organizationName, token, brandStyle }: Captu
     setFormError(null)
 
     startSubmit(async () => {
-      const result = await submitCaptureRequest(slug, values, { token, website })
+      const result = await submitCaptureRequest(slug, values, {
+        token,
+        website,
+      })
 
       if (result.ok) {
         form.reset(DEFAULT_VALUES)
@@ -164,7 +173,10 @@ export function CaptureForm({ slug, organizationName, token, brandStyle }: Captu
 
       for (const [field, message] of Object.entries(result.fieldErrors ?? {})) {
         if (message) {
-          form.setError(field as keyof PublicCaptureValues, { type: "server", message })
+          form.setError(field as keyof PublicCaptureValues, {
+            type: "server",
+            message,
+          })
         }
       }
 
@@ -190,8 +202,8 @@ export function CaptureForm({ slug, organizationName, token, brandStyle }: Captu
           </EmptyMedia>
           <EmptyTitle>Recebemos os dados do seu imóvel</EmptyTitle>
           <EmptyDescription>
-            Obrigado! A equipe de {organizationName} vai entrar em contato em breve pelo telefone
-            ou e-mail informado.
+            Obrigado! A equipe de {organizationName} vai entrar em contato em breve pelo telefone ou
+            e-mail informado.
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>

@@ -23,16 +23,20 @@ const CONSTRAINT_MESSAGES: Record<string, string> = {
   condominiums_state_format: "UF inválida: use a sigla com 2 letras.",
   property_media_source:
     "Fotos precisam do arquivo enviado; vídeo e tour virtual precisam de um link https.",
-  property_media_storage_path_format: "O arquivo foi enviado para uma pasta que não pertence a este imóvel.",
+  property_media_storage_path_format:
+    "O arquivo foi enviado para uma pasta que não pertence a este imóvel.",
   property_media_cover_is_image: "Somente fotos podem ser capa do anúncio.",
-  listing_authorizations_period: "A data final da autorização não pode ser anterior à data de início.",
-  property_owners_property_client_key: "Este cliente já está cadastrado como proprietário deste imóvel.",
+  listing_authorizations_period:
+    "A data final da autorização não pode ser anterior à data de início.",
+  property_owners_property_client_key:
+    "Este cliente já está cadastrado como proprietário deste imóvel.",
   property_media_one_cover_per_property: "O imóvel já tem uma foto de capa. Tente novamente.",
   property_media_storage_path_key: "Este arquivo já foi registrado.",
   properties_organization_code_key: "Já existe um imóvel com este código.",
   properties_condominium_fkey: "O condomínio selecionado não existe mais nesta imobiliária.",
   property_owners_client_fkey: "O cliente selecionado não existe mais nesta imobiliária.",
-  listing_authorizations_owner_client_fkey: "O proprietário selecionado não existe mais nesta imobiliária.",
+  listing_authorizations_owner_client_fkey:
+    "O proprietário selecionado não existe mais nesta imobiliária.",
 }
 
 /** CHECKs inline ganham o nome "<tabela>_<coluna>_check". */
@@ -102,8 +106,10 @@ function messageForConstraint(constraint: string) {
 
 /** Mensagens levantadas pelos próprios triggers/funções já vêm em pt-BR. */
 function isPortugueseAppMessage(message: string) {
-  return /[áàâãéêíóôõúç]|imóvel|imobiliária|precisa|não pode/i.test(message) &&
+  return (
+    /[áàâãéêíóôõúç]|imóvel|imobiliária|precisa|não pode/i.test(message) &&
     !/row-level security|permission denied|violates/i.test(message)
+  )
 }
 
 /**
@@ -151,7 +157,10 @@ export function translateDbError(error: DbErrorLike, action: string) {
 }
 
 /** Erro de Storage (upload/remoção) em pt-BR. */
-export function translateStorageError(error: { message?: string; statusCode?: string | number } | null, action: string) {
+export function translateStorageError(
+  error: { message?: string; statusCode?: string | number } | null,
+  action: string
+) {
   const text = `${error?.message ?? ""}`.toLowerCase()
   const status = String(error?.statusCode ?? "")
 

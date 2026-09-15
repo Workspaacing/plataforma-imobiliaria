@@ -55,7 +55,10 @@ export function BrandForm({
       const result = await updateOrganizationBrand(values)
 
       if (result.ok) {
-        toast.add({ title: result.message ?? "Marca atualizada.", type: "success" })
+        toast.add({
+          title: result.message ?? "Marca atualizada.",
+          type: "success",
+        })
         form.reset(values)
         return
       }
@@ -92,9 +95,7 @@ export function BrandForm({
                   type="color"
                   aria-label="Escolher a cor principal"
                   className="w-12 shrink-0 p-1"
-                  value={
-                    HEX_COLOR_PATTERN.test(field.value) ? field.value : COLOR_PICKER_FALLBACK
-                  }
+                  value={HEX_COLOR_PATTERN.test(field.value) ? field.value : COLOR_PICKER_FALLBACK}
                   onChange={(event) => field.onChange(event.target.value.toUpperCase())}
                   onBlur={field.onBlur}
                   disabled={!canEdit}
@@ -118,8 +119,8 @@ export function BrandForm({
                 <FieldError errors={[fieldState.error]} />
               ) : (
                 <FieldDescription>
-                  Hexadecimal, como #0C6B63. Em branco, o formulário público usa a cor
-                  padrão do CRM.
+                  Hexadecimal, como #0C6B63. Em branco, o formulário público usa a cor padrão do
+                  CRM.
                 </FieldDescription>
               )}
             </Field>

@@ -65,7 +65,10 @@ export function KeyHistorySheet({ open, onOpenChange, keyId, keyTitle }: KeyHist
       })
       .catch(() => {
         if (request !== requestRef.current) return
-        setState({ status: "error", message: "Não foi possível carregar o histórico agora." })
+        setState({
+          status: "error",
+          message: "Não foi possível carregar o histórico agora.",
+        })
       })
 
     return () => {
@@ -116,9 +119,13 @@ export function KeyHistorySheet({ open, onOpenChange, keyId, keyTitle }: KeyHist
                       {movement.takerLabel}
                       {movement.takerKind === "client" ? " (cliente)" : ""}
                     </ItemTitle>
-                    <ItemDescription>Retirada em {formatDateTime(movement.takenAt)}</ItemDescription>
+                    <ItemDescription>
+                      Retirada em {formatDateTime(movement.takenAt)}
+                    </ItemDescription>
                     {movement.dueAt ? (
-                      <ItemDescription className={movement.isOverdue ? "text-destructive" : undefined}>
+                      <ItemDescription
+                        className={movement.isOverdue ? "text-destructive" : undefined}
+                      >
                         Devolução prevista para {formatDateTime(movement.dueAt)}
                       </ItemDescription>
                     ) : null}

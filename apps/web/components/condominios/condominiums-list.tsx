@@ -77,7 +77,10 @@ export function CondominiumsTable({ rows }: { rows: CondominiumListItem[] }) {
           {rows.map((row) => (
             <TableRow key={row.id}>
               <TableCell className="max-w-72 ps-4">
-                <Link href={condominiumHref(row.id)} className="block truncate font-medium hover:underline">
+                <Link
+                  href={condominiumHref(row.id)}
+                  className="block truncate font-medium hover:underline"
+                >
                   {row.name}
                 </Link>
               </TableCell>

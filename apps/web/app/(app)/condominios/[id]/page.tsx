@@ -96,7 +96,10 @@ export default async function CondominioPage({ params }: CondominioPageProps) {
           Condomínios
         </Button>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <PageHeading title={condominium.name} description={location ?? "Endereço não informado"} />
+          <PageHeading
+            title={condominium.name}
+            description={location ?? "Endereço não informado"}
+          />
           <CondominiumDetailActions
             condominium={formSource}
             canEdit={canEditCondominium(role, user.id, condominium.created_by)}
@@ -142,7 +145,9 @@ export default async function CondominioPage({ params }: CondominioPageProps) {
               <div className="flex flex-col gap-0.5">
                 <dt className="text-xs text-muted-foreground">Cadastrado em</dt>
                 <dd>
-                  <time dateTime={condominium.created_at}>{formatDate(condominium.created_at)}</time>
+                  <time dateTime={condominium.created_at}>
+                    {formatDate(condominium.created_at)}
+                  </time>
                 </dd>
               </div>
               <div className="col-span-2 flex flex-col gap-0.5">

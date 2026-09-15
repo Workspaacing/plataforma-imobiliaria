@@ -10,8 +10,9 @@ export type CepAddress = {
 
 const TIMEOUT_MS = 5000
 const ONE_MONTH_SECONDS = 60 * 60 * 24 * 30
+const POSTAL_CODE_PATTERN = /^\d{8}$/
 
-async function fetchJson(url: string): Promise<Record<string, unknown> | null> {
+async function fetchJson(url: URL): Promise<Record<string, unknown> | null> {
   try {
     const response = await fetch(url, {
       signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -31,9 +32,10 @@ function text(value: unknown) {
 /** Consulta o CEP no ViaCEP e, se falhar, na BrasilAPI. Retorna null se não encontrar. */
 export async function lookupCep(value: string): Promise<CepAddress | null> {
   const postalCode = value.replace(/\D/g, "")
-  if (postalCode.length !== 8) return null
+  // Só 8 dígitos chegam à URL; host e caminho são fixos (sem risco de SSRF).
+  if (!POSTAL_CODE_PATTERN.test(postalCode)) return null
 
-  const viaCep = await fetchJson(`https://viacep.com.br/ws/${postalCode}/json/`)
+  const viaCep = await fetchJson(new URL(`/ws/${postalCode}/json/`, "https://viacep.com.br"))
   if (viaCep && !viaCep.erro && text(viaCep.localidade)) {
     return {
       postalCode,
@@ -44,7 +46,9 @@ export async function lookupCep(value: string): Promise<CepAddress | null> {
     }
   }
 
-  const brasilApi = await fetchJson(`https://brasilapi.com.br/api/cep/v2/${postalCode}`)
+  const brasilApi = await fetchJson(
+    new URL(`/api/cep/v2/${postalCode}`, "https://brasilapi.com.br")
+  )
   if (brasilApi && text(brasilApi.city)) {
     return {
       postalCode,

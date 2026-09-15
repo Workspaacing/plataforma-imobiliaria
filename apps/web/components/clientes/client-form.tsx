@@ -44,11 +44,7 @@ import { ToggleGroup, ToggleGroupItem } from "@workspace/ui/components/toggle-gr
 
 import { TagsInput } from "@/components/clientes/tags-input"
 import { ROLE_LABELS, type Role } from "@/lib/auth/roles"
-import {
-  createClientRecord,
-  lookupClientAddress,
-  updateClientRecord,
-} from "@/lib/clientes/actions"
+import { createClientRecord, lookupClientAddress, updateClientRecord } from "@/lib/clientes/actions"
 import {
   CLIENT_SOURCE_LABELS,
   CLIENT_SOURCE_VALUES,
@@ -68,17 +64,26 @@ import { clientFormSchema, type ClientFormValues } from "@/lib/clientes/schemas"
 
 const STATE_ITEMS = [
   { label: "UF", value: null },
-  ...BRAZILIAN_STATES.map((state) => ({ label: state.code, value: state.code })),
+  ...BRAZILIAN_STATES.map((state) => ({
+    label: state.code,
+    value: state.code,
+  })),
 ]
 
 const SOURCE_ITEMS = [
   { label: "Não informada", value: null },
-  ...CLIENT_SOURCE_VALUES.map((source) => ({ label: CLIENT_SOURCE_LABELS[source], value: source })),
+  ...CLIENT_SOURCE_VALUES.map((source) => ({
+    label: CLIENT_SOURCE_LABELS[source],
+    value: source,
+  })),
 ]
 
 const LEGAL_BASIS_ITEMS = [
   { label: "Selecione a base legal", value: null },
-  ...LGPD_LEGAL_BASIS_VALUES.map((basis) => ({ label: LGPD_LEGAL_BASIS_LABELS[basis], value: basis })),
+  ...LGPD_LEGAL_BASIS_VALUES.map((basis) => ({
+    label: LGPD_LEGAL_BASIS_LABELS[basis],
+    value: basis,
+  })),
 ]
 
 const LEGAL_BASIS_HINTS: Record<string, string> = {
@@ -244,7 +249,9 @@ export function ClientForm({
           <Alert variant="destructive">
             <CircleAlertIcon />
             <AlertTitle>
-              {mode === "edit" ? "Não foi possível salvar o cliente" : "Não foi possível cadastrar o cliente"}
+              {mode === "edit"
+                ? "Não foi possível salvar o cliente"
+                : "Não foi possível cadastrar o cliente"}
             </AlertTitle>
             <AlertDescription>{formError}</AlertDescription>
           </Alert>
@@ -552,7 +559,10 @@ export function ClientForm({
                 control={form.control}
                 name="assignedTo"
                 render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid} data-disabled={!canChooseAssignee || undefined}>
+                  <Field
+                    data-invalid={fieldState.invalid}
+                    data-disabled={!canChooseAssignee || undefined}
+                  >
                     <FieldLabel htmlFor="cliente-assignedTo">Responsável</FieldLabel>
                     <Select
                       items={assigneeItems}
@@ -697,11 +707,7 @@ export function ClientForm({
         </FieldSet>
 
         <Field orientation="horizontal" className="justify-end">
-          <Button
-            variant="outline"
-            render={<Link href={cancelHref} />}
-            nativeButton={false}
-          >
+          <Button variant="outline" render={<Link href={cancelHref} />} nativeButton={false}>
             Cancelar
           </Button>
           <Button type="submit" disabled={isSubmitting}>

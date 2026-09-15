@@ -20,12 +20,23 @@ export function formatPercentInput(value: number | null | undefined) {
   return value == null ? "" : String(value).replace(".", ",")
 }
 
-function percentField({ min, minInclusive, label }: { min: number; minInclusive: boolean; label: string }) {
+function percentField({
+  min,
+  minInclusive,
+  label,
+}: {
+  min: number
+  minInclusive: boolean
+  label: string
+}) {
   return z.string().superRefine((value, ctx) => {
     const parsed = parsePercentInput(value)
     if (parsed === null) return
     if (Number.isNaN(parsed)) {
-      ctx.addIssue({ code: "custom", message: "Use um número com até 2 casas decimais (ex.: 50 ou 33,33)." })
+      ctx.addIssue({
+        code: "custom",
+        message: "Use um número com até 2 casas decimais (ex.: 50 ou 33,33).",
+      })
     } else if ((minInclusive ? parsed < min : parsed <= min) || parsed > 100) {
       ctx.addIssue({ code: "custom", message: label })
     }
@@ -56,7 +67,9 @@ const ownerClientOptionSchema = z.object({
 
 export const addOwnerFormSchema = z.object({
   // Retorno `boolean` explícito: sem isso o type guard estreitaria o tipo do campo.
-  client: ownerClientOptionSchema.nullable().refine((value): boolean => value !== null, "Selecione o cliente."),
+  client: ownerClientOptionSchema
+    .nullable()
+    .refine((value): boolean => value !== null, "Selecione o cliente."),
   sharePercent: sharePercentField,
 })
 
@@ -92,17 +105,31 @@ export function isDateInput(value: string) {
 
 export const authorizationFormSchema = z
   .object({
-    ownerClientId: z.string().refine((value): boolean => isUuid(value), "Selecione o proprietário."),
+    ownerClientId: z
+      .string()
+      .refine((value): boolean => isUuid(value), "Selecione o proprietário."),
     exclusive: z.boolean(),
-    startsOn: z.string().refine((value): boolean => isDateInput(value), "Informe a data de início."),
-    endsOn: z.string().refine((value): boolean => value === "" || isDateInput(value), "Data final inválida."),
+    startsOn: z
+      .string()
+      .refine((value): boolean => isDateInput(value), "Informe a data de início."),
+    endsOn: z
+      .string()
+      .refine((value): boolean => value === "" || isDateInput(value), "Data final inválida."),
     commissionPercent: commissionPercentField,
     signedOn: z
       .string()
-      .refine((value): boolean => value === "" || isDateInput(value), "Data de assinatura inválida."),
+      .refine(
+        (value): boolean => value === "" || isDateInput(value),
+        "Data de assinatura inválida."
+      ),
   })
   .superRefine((values, ctx) => {
-    if (values.endsOn && isDateInput(values.endsOn) && isDateInput(values.startsOn) && values.endsOn < values.startsOn) {
+    if (
+      values.endsOn &&
+      isDateInput(values.endsOn) &&
+      isDateInput(values.startsOn) &&
+      values.endsOn < values.startsOn
+    ) {
       ctx.addIssue({
         code: "custom",
         path: ["endsOn"],

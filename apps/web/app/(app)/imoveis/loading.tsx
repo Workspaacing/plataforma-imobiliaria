@@ -3,7 +3,11 @@ import { Skeleton } from "@workspace/ui/components/skeleton"
 
 export default function ImoveisLoading() {
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6" aria-busy="true" aria-label="Carregando imóveis">
+    <div
+      className="flex flex-1 flex-col gap-6 p-4 lg:p-6"
+      aria-busy="true"
+      aria-label="Carregando imóveis"
+    >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-col gap-2">
           <Skeleton className="h-7 w-32" />
@@ -28,7 +32,10 @@ export default function ImoveisLoading() {
       <Skeleton className="h-4 w-40" />
       <div className="flex flex-col gap-2">
         {Array.from({ length: 6 }, (_, index) => (
-          <div key={index} className="flex items-center gap-4 rounded-xl p-2 ring-1 ring-foreground/10">
+          <div
+            key={index}
+            className="flex items-center gap-4 rounded-xl p-2 ring-1 ring-foreground/10"
+          >
             <Skeleton className="h-14 w-20 shrink-0" />
             <div className="flex flex-1 flex-col gap-2">
               <Skeleton className="h-3 w-24" />

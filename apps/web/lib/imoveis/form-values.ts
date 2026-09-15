@@ -74,7 +74,10 @@ export function emptyPropertyFormValues(role: Role, userId: string): PropertyFor
 }
 
 /** Pré-preenchimento a partir de uma captação (formulário público). */
-export function captureToFormValues(base: PropertyFormValues, capture: CaptureRequestPrefill): PropertyFormValues {
+export function captureToFormValues(
+  base: PropertyFormValues,
+  capture: CaptureRequestPrefill
+): PropertyFormValues {
   const price = formatBrlInputValue(capture.expected_price)
   const type = capture.type ?? base.type
 
@@ -93,7 +96,10 @@ export function captureToFormValues(base: PropertyFormValues, capture: CaptureRe
   }
 }
 
-export function propertyRowToFormValues(property: Tables<"properties">, media: MediaSummary): PropertyFormValues {
+export function propertyRowToFormValues(
+  property: Tables<"properties">,
+  media: MediaSummary
+): PropertyFormValues {
   return {
     title: property.title,
     description: property.description ?? "",

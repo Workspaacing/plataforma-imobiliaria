@@ -16,13 +16,7 @@
  * grava o interesse e rola até o formulário. O painel do formulário mostra o
  * interesse escolhido com opção de remover (<LeadInterestNotice>).
  */
-import {
-  createContext,
-  useContext,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react"
+import { createContext, useContext, useMemo, useState, type ReactNode } from "react"
 
 import { cn } from "@workspace/ui/lib/utils"
 

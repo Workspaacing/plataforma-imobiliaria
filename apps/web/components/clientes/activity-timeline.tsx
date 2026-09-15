@@ -32,7 +32,12 @@ type ActivityTimelineProps = {
   canDelete: boolean
 }
 
-export function ActivityTimeline({ clientId, activities, members, canDelete }: ActivityTimelineProps) {
+export function ActivityTimeline({
+  clientId,
+  activities,
+  members,
+  canDelete,
+}: ActivityTimelineProps) {
   if (activities.length === 0) {
     return (
       <Empty className="border">
@@ -68,7 +73,7 @@ export function ActivityTimeline({ clientId, activities, members, canDelete }: A
                 </span>
               </ItemTitle>
               {activity.body ? (
-                <p className="text-sm whitespace-pre-wrap break-words">{activity.body}</p>
+                <p className="text-sm break-words whitespace-pre-wrap">{activity.body}</p>
               ) : null}
               {activity.property ? (
                 <Link

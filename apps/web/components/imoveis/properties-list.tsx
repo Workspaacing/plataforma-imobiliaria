@@ -48,7 +48,13 @@ function Prices({ item }: { item: PropertyListItem }) {
   )
 }
 
-function People({ item, memberNames }: { item: PropertyListItem; memberNames: Record<string, string> }) {
+function People({
+  item,
+  memberNames,
+}: {
+  item: PropertyListItem
+  memberNames: Record<string, string>
+}) {
   const capturer = item.captured_by ? (memberNames[item.captured_by] ?? "Ex-membro") : "—"
   const broker = item.broker_id ? (memberNames[item.broker_id] ?? "Ex-membro") : "—"
 
@@ -93,14 +99,21 @@ export function PropertiesList({
             {items.map((item) => (
               <TableRow key={item.id}>
                 <TableCell className="ps-4">
-                  <PropertyCover storagePath={item.coverPath} alt={`Capa de ${item.title}`} className="h-14 w-20" />
+                  <PropertyCover
+                    storagePath={item.coverPath}
+                    alt={`Capa de ${item.title}`}
+                    className="h-14 w-20"
+                  />
                 </TableCell>
                 <TableCell className="max-w-80 whitespace-normal">
                   <div className="flex min-w-0 flex-col gap-0.5">
                     <span className="font-mono text-xs text-muted-foreground">
                       {item.code} · {PROPERTY_TYPE_LABELS[item.type]}
                     </span>
-                    <Link href={`/imoveis/${item.id}`} className="line-clamp-2 font-medium hover:underline">
+                    <Link
+                      href={`/imoveis/${item.id}`}
+                      className="line-clamp-2 font-medium hover:underline"
+                    >
                       {item.title}
                     </Link>
                     <span className="truncate text-xs text-muted-foreground">{location(item)}</span>
@@ -112,7 +125,9 @@ export function PropertiesList({
                 <TableCell>
                   <div className="flex flex-col items-start gap-1">
                     <PropertyStatusBadge status={item.status} />
-                    {item.published_to_portals ? <Badge variant="outline">Nos portais</Badge> : null}
+                    {item.published_to_portals ? (
+                      <Badge variant="outline">Nos portais</Badge>
+                    ) : null}
                   </div>
                 </TableCell>
                 <TableCell>
@@ -131,7 +146,11 @@ export function PropertiesList({
         {items.map((item) => (
           <Item key={item.id} variant="outline" render={<Link href={`/imoveis/${item.id}`} />}>
             <ItemMedia variant="image" className="size-20">
-              <PropertyCover storagePath={item.coverPath} alt={`Capa de ${item.title}`} className="size-20" />
+              <PropertyCover
+                storagePath={item.coverPath}
+                alt={`Capa de ${item.title}`}
+                className="size-20"
+              />
             </ItemMedia>
             <ItemContent className="min-w-0">
               <span className="font-mono text-xs text-muted-foreground">

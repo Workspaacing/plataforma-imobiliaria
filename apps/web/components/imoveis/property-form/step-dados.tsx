@@ -52,8 +52,14 @@ import {
 import { mustStayAssigned } from "@/lib/imoveis/permissions"
 import type { CondominiumOption } from "@/lib/imoveis/queries"
 
-const USAGE_ITEMS: SelectOption[] = PROPERTY_USAGES.map((value) => ({ label: PROPERTY_USAGE_LABELS[value], value }))
-const TYPE_ITEMS: SelectOption[] = PROPERTY_TYPES.map((value) => ({ label: PROPERTY_TYPE_LABELS[value], value }))
+const USAGE_ITEMS: SelectOption[] = PROPERTY_USAGES.map((value) => ({
+  label: PROPERTY_USAGE_LABELS[value],
+  value,
+}))
+const TYPE_ITEMS: SelectOption[] = PROPERTY_TYPES.map((value) => ({
+  label: PROPERTY_TYPE_LABELS[value],
+  value,
+}))
 
 type CondominiumItem = { value: string; label: string; hint: string }
 
@@ -96,7 +102,9 @@ function CondominiumField({
               items={items}
               value={selected}
               onValueChange={(item: CondominiumItem | null) => field.onChange(item?.value ?? "")}
-              isItemEqualToValue={(item: CondominiumItem, value: CondominiumItem) => item.value === value.value}
+              isItemEqualToValue={(item: CondominiumItem, value: CondominiumItem) =>
+                item.value === value.value
+              }
             >
               <ComboboxInput
                 id={fieldId("condominiumId")}
@@ -113,7 +121,11 @@ function CondominiumField({
                     <ComboboxItem key={item.value} value={item}>
                       <span className="flex min-w-0 flex-col">
                         <span className="truncate">{item.label}</span>
-                        {item.hint ? <span className="truncate text-xs text-muted-foreground">{item.hint}</span> : null}
+                        {item.hint ? (
+                          <span className="truncate text-xs text-muted-foreground">
+                            {item.hint}
+                          </span>
+                        ) : null}
                       </span>
                     </ComboboxItem>
                   )}
@@ -173,7 +185,8 @@ export function StepDados({
             </p>
             <p>
               Ao salvar, a captação é marcada como convertida. Cadastre o proprietário em{" "}
-              <Link href="/clientes/novo">Clientes</Link> e vincule-o na aba Proprietários da ficha do imóvel.
+              <Link href="/clientes/novo">Clientes</Link> e vincule-o na aba Proprietários da ficha
+              do imóvel.
             </p>
           </AlertDescription>
         </Alert>
@@ -255,12 +268,17 @@ export function StepDados({
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <SelectField control={control} name="capturedBy" label="Captador" items={memberItems} />
-        <SelectField control={control} name="brokerId" label="Corretor responsável" items={memberItems} />
+        <SelectField
+          control={control}
+          name="brokerId"
+          label="Corretor responsável"
+          items={memberItems}
+        />
       </div>
       {mustStayAssigned(role) ? (
         <FieldDescription>
-          Como {ROLE_LABELS[role].toLowerCase()}, mantenha-se como captador ou corretor para continuar editando este
-          imóvel.
+          Como {ROLE_LABELS[role].toLowerCase()}, mantenha-se como captador ou corretor para
+          continuar editando este imóvel.
         </FieldDescription>
       ) : null}
     </FieldGroup>

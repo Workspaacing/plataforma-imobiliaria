@@ -62,7 +62,9 @@ export function parseLeadListFilters(params: RawSearchParams): LeadListFilters {
     origem: isLeadSource(origem) ? origem : "",
     pagina: isGuid(pagina) ? pagina : "",
     campanha: first(params.campanha).trim().slice(0, CAMPAIGN_MAX_LENGTH),
-    periodo: (LEAD_PERIODS as readonly string[]).includes(periodo) ? (periodo as LeadPeriod) : "todos",
+    periodo: (LEAD_PERIODS as readonly string[]).includes(periodo)
+      ? (periodo as LeadPeriod)
+      : "todos",
     visao: visao === "lista" ? "lista" : "quadro",
   }
 }
@@ -70,10 +72,10 @@ export function parseLeadListFilters(params: RawSearchParams): LeadListFilters {
 export function hasActiveLeadFilters(filters: LeadListFilters) {
   return Boolean(
     filters.responsavel ||
-      filters.origem ||
-      filters.pagina ||
-      filters.campanha ||
-      filters.periodo !== "todos"
+    filters.origem ||
+    filters.pagina ||
+    filters.campanha ||
+    filters.periodo !== "todos"
   )
 }
 

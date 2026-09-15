@@ -52,11 +52,17 @@ export type LaunchFact = { label: string; value: string }
 export function launchFacts(vm: LandingViewModel): LaunchFact[] {
   const facts: LaunchFact[] = []
   if (vm.launch.deliveryLabel) {
-    facts.push({ label: "Previsão de entrega", value: capitalizeFirst(vm.launch.deliveryLabel) })
+    facts.push({
+      label: "Previsão de entrega",
+      value: capitalizeFirst(vm.launch.deliveryLabel),
+    })
   }
   if (vm.launch.developer) facts.push({ label: "Construtora", value: vm.launch.developer })
   if (vm.launch.place) {
-    facts.push({ label: "Localização", value: vm.launch.neighborhood ?? vm.launch.place })
+    facts.push({
+      label: "Localização",
+      value: vm.launch.neighborhood ?? vm.launch.place,
+    })
   }
   const plans = typologySummary(vm.launch.typologies)
   if (plans) facts.push({ label: "Plantas", value: plans })

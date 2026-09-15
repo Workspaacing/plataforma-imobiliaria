@@ -22,7 +22,13 @@ import { DISCLAIMERS, type LandingTemplateRenderProps } from "./shared"
  * separadas por fio; imóveis; depoimentos; e o contato final reúne números,
  * canais e formulário na mesma dobra.
  */
-export function PortfolioAgencyTemplate({ vm, mode, leadForm, id, formHref }: LandingTemplateRenderProps) {
+export function PortfolioAgencyTemplate({
+  vm,
+  mode,
+  leadForm,
+  id,
+  formHref,
+}: LandingTemplateRenderProps) {
   const { organization } = vm
   const propertiesId = id("imoveis")
   const team = vm.theme.images.banners.map((url, index) => ({
@@ -76,7 +82,13 @@ export function PortfolioAgencyTemplate({ vm, mode, leadForm, id, formHref }: La
               <a href={formHref} className={lpButtonClass({ tone: "light", size: "lg" })}>
                 {vm.copy.ctaLabel}
               </a>
-              <a href={`#${propertiesId}`} className={lpButtonClass({ tone: "outline-inverse", size: "lg" })}>
+              <a
+                href={`#${propertiesId}`}
+                className={lpButtonClass({
+                  tone: "outline-inverse",
+                  size: "lg",
+                })}
+              >
                 Ver imóveis
               </a>
             </div>

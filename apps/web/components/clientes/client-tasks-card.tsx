@@ -95,7 +95,10 @@ export function ClientTasksCard({
                       disabled={
                         !canUpdateTask(
                           role,
-                          { assigneeId: task.assigneeId, createdBy: task.createdBy },
+                          {
+                            assigneeId: task.assigneeId,
+                            createdBy: task.createdBy,
+                          },
                           currentUserId
                         )
                       }
@@ -106,7 +109,8 @@ export function ClientTasksCard({
                       {task.title}
                     </ItemTitle>
                     <ItemDescription>
-                      {formatTaskDue(task.dueAt)} · {getMemberName(members, task.assigneeId, "Sem responsável")}
+                      {formatTaskDue(task.dueAt)} ·{" "}
+                      {getMemberName(members, task.assigneeId, "Sem responsável")}
                       {task.property ? (
                         <>
                           {" · "}
@@ -131,7 +135,12 @@ export function ClientTasksCard({
         )}
       </CardContent>
       <CardFooter>
-        <Button variant="link" className="px-0" render={<Link href="/tarefas" />} nativeButton={false}>
+        <Button
+          variant="link"
+          className="px-0"
+          render={<Link href="/tarefas" />}
+          nativeButton={false}
+        >
           Ver todas as tarefas
         </Button>
       </CardFooter>

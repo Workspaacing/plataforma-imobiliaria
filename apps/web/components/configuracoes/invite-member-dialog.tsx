@@ -36,10 +36,7 @@ import {
 import { Spinner } from "@workspace/ui/components/spinner"
 import { toast } from "@workspace/ui/components/toast"
 
-import {
-  createInvitation,
-  type CreatedInvitation,
-} from "@/app/(app)/configuracoes/equipe/actions"
+import { createInvitation, type CreatedInvitation } from "@/app/(app)/configuracoes/equipe/actions"
 import { CopyField } from "@/components/configuracoes/copy-field"
 import { FormTextField } from "@/components/configuracoes/form-fields"
 import { InvitationShareActions } from "@/components/configuracoes/invitation-share"
@@ -98,7 +95,10 @@ export function InviteMemberDialog({
 
       for (const [field, message] of Object.entries(result.fieldErrors ?? {})) {
         if (message) {
-          form.setError(field as keyof InvitationValues, { type: "server", message })
+          form.setError(field as keyof InvitationValues, {
+            type: "server",
+            message,
+          })
         }
       }
 
@@ -118,8 +118,8 @@ export function InviteMemberDialog({
             <DialogHeader>
               <DialogTitle>Convite criado</DialogTitle>
               <DialogDescription>
-                Envie o link para {created.email}. Ele vale até{" "}
-                {formatDateTime(created.expiresAt)} e só funciona com este e-mail.
+                Envie o link para {created.email}. Ele vale até {formatDateTime(created.expiresAt)}{" "}
+                e só funciona com este e-mail.
               </DialogDescription>
             </DialogHeader>
             <FieldGroup>
@@ -134,8 +134,8 @@ export function InviteMemberDialog({
                 <MailWarningIcon />
                 <AlertTitle>O CRM ainda não envia o convite sozinho</AlertTitle>
                 <AlertDescription>
-                  O envio automático por e-mail chega numa próxima versão. Por enquanto,
-                  mande o link pelo WhatsApp ou pelo seu e-mail.
+                  O envio automático por e-mail chega numa próxima versão. Por enquanto, mande o
+                  link pelo WhatsApp ou pelo seu e-mail.
                 </AlertDescription>
               </Alert>
             </FieldGroup>
@@ -151,15 +151,11 @@ export function InviteMemberDialog({
             <DialogHeader>
               <DialogTitle>Convidar para a equipe</DialogTitle>
               <DialogDescription>
-                Geramos um link válido por {INVITATION_VALIDITY_DAYS} dias. A pessoa aceita
-                entrando (ou criando a conta) com o e-mail informado.
+                Geramos um link válido por {INVITATION_VALIDITY_DAYS} dias. A pessoa aceita entrando
+                (ou criando a conta) com o e-mail informado.
               </DialogDescription>
             </DialogHeader>
-            <form
-              onSubmit={form.handleSubmit(onSubmit)}
-              noValidate
-              className="flex flex-col gap-4"
-            >
+            <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
               <FieldGroup>
                 {formError ? (
                   <Alert variant="destructive">

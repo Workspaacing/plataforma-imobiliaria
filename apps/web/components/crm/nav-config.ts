@@ -15,11 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react"
 
-import {
-  ORGANIZATION_VIEWER_ROLES,
-  TEAM_MANAGER_ROLES,
-  type Role,
-} from "@/lib/auth/roles"
+import { ORGANIZATION_VIEWER_ROLES, TEAM_MANAGER_ROLES, type Role } from "@/lib/auth/roles"
 
 export type NavItem = {
   title: string

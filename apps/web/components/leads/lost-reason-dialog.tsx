@@ -23,10 +23,7 @@ import {
 import { Textarea } from "@workspace/ui/components/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@workspace/ui/components/toggle-group"
 
-import {
-  LEAD_LOST_REASON_MAX_LENGTH,
-  LEAD_LOST_REASON_SUGGESTIONS,
-} from "@/lib/leads/constants"
+import { LEAD_LOST_REASON_MAX_LENGTH, LEAD_LOST_REASON_SUGGESTIONS } from "@/lib/leads/constants"
 import { lostReasonFormSchema, type LostReasonFormValues } from "@/lib/leads/schemas"
 
 type LostReasonDialogProps = {
@@ -91,7 +88,9 @@ function LostReasonForm({
               const next = value[0]
 
               if (next) {
-                form.setValue("reason", next, { shouldValidate: form.formState.isSubmitted })
+                form.setValue("reason", next, {
+                  shouldValidate: form.formState.isSubmitted,
+                })
               }
             }}
           >

@@ -1,8 +1,4 @@
-import {
-  APP_ROLE_LABELS,
-  APP_ROLE_VALUES,
-  type AppRole,
-} from "@workspace/core/properties/enums"
+import { APP_ROLE_LABELS, APP_ROLE_VALUES, type AppRole } from "@workspace/core/properties/enums"
 
 /**
  * Espelha as políticas RLS de memberships e invitations: o dono gerencia

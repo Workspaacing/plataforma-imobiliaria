@@ -116,7 +116,12 @@ export function ClientAppointmentsCard({
         )}
       </CardContent>
       <CardFooter>
-        <Button variant="link" className="px-0" render={<Link href="/agenda" />} nativeButton={false}>
+        <Button
+          variant="link"
+          className="px-0"
+          render={<Link href="/agenda" />}
+          nativeButton={false}
+        >
           Abrir a agenda
         </Button>
       </CardFooter>

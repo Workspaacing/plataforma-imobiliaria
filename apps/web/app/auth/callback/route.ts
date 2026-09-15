@@ -1,15 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server"
 
 import {
+  exchangeAuthCode,
   getLinkErrorCode,
   getRequestOrigin,
-  isPkceVerifierMissing,
+  isSignUpSession,
+  loginParamsForFailedExchange,
   redirectToLogin,
   resolveSignUpNext,
 } from "@/lib/auth/request"
 import { ONBOARDING_PATH, sanitizeRedirectPath } from "@/lib/auth/routes"
 import { isSupabaseConfigured } from "@/lib/supabase/env"
 import { createClient } from "@/lib/supabase/server"
+import { getDefaultRedirectPath } from "@/lib/tenant/server"
 
 /**
  * Retorno dos links de e-mail no fluxo PKCE (confirmação de cadastro, link
@@ -18,17 +21,18 @@ import { createClient } from "@/lib/supabase/server"
  * Esse fluxo depende do cookie com o code verifier gravado no navegador que
  * fez o pedido. Para links que funcionam em qualquer navegador, use os modelos
  * de e-mail apontando para /auth/confirm (token_hash).
+ *
+ * Nenhum parâmetro da URL concede acesso: a sessão só abre se o Supabase Auth
+ * aceitar o code; `next` passa por sanitizeRedirectPath (caminho relativo com
+ * allowlist) e o tipo do fluxo vem do `amr` do JWT emitido.
  */
 export async function GET(request: NextRequest) {
-  const origin = getRequestOrigin()
-
   if (!isSupabaseConfigured()) {
-    return NextResponse.redirect(new URL("/", origin))
+    return NextResponse.redirect(new URL("/", await getRequestOrigin()))
   }
 
   const { searchParams } = request.nextUrl
-  const next = sanitizeRedirectPath(searchParams.get("next"))
-  const isSignUp = searchParams.get("tipo") === "cadastro" || next === ONBOARDING_PATH
+  const next = sanitizeRedirectPath(searchParams.get("next"), await getDefaultRedirectPath())
 
   const linkError = getLinkErrorCode(request)
 
@@ -36,49 +40,20 @@ export async function GET(request: NextRequest) {
     return redirectToLogin({ erro: linkError, next })
   }
 
-  const code = searchParams.get("code")
-
-  if (!code) {
-    return redirectToLogin({ erro: "link-invalido", next })
-  }
-
-  // O auth-js anexa `sb_flow_id` ao redirectTo: com ele, a troca usa o verifier
-  // exato daquele pedido (e não o do pedido mais recente deste navegador).
-  const flowId = searchParams.get("sb_flow_id")
   const supabase = await createClient()
-  const { error } = await supabase.auth.exchangeCodeForSession(
-    code,
-    flowId ? { flowId } : undefined
-  )
+  const outcome = await exchangeAuthCode(supabase, searchParams, "auth/callback")
 
-  if (error) {
-    // Só o código do erro: nada de e-mail, token ou code no log.
-    console.warn(
-      `[auth/callback] exchangeCodeForSession falhou: ${error.code ?? error.name}`
-    )
-
-    if (isPkceVerifierMissing(error)) {
-      // O Supabase já confirmou o e-mail no /verify antes de redirecionar para
-      // cá; só não dá para abrir a sessão neste navegador.
-      return redirectToLogin(
-        isSignUp
-          ? { aviso: "email-confirmado", next }
-          : { erro: "link-outro-navegador", next }
-      )
-    }
-
-    return redirectToLogin({
-      erro:
-        error.code === "flow_state_expired" || error.code === "otp_expired"
-          ? "link-expirado"
-          : "link-invalido",
-      next,
-    })
+  if (!outcome.ok) {
+    // `tipo=cadastro` só escolhe o texto do aviso exibido em /entrar.
+    const signUpNotice = searchParams.get("tipo") === "cadastro" || next === ONBOARDING_PATH
+    return redirectToLogin(loginParamsForFailedExchange(outcome.reason, next, signUpNotice))
   }
 
   // Cadastro sem imobiliária ainda: só o destino de convite escapa do
-  // onboarding forçado (ver resolveSignUpNext).
-  const finalNext = isSignUp ? await resolveSignUpNext(supabase, next) : next
+  // onboarding forçado (ver resolveSignUpNext). O tipo vem do JWT, não da URL.
+  const finalNext = (await isSignUpSession(supabase))
+    ? await resolveSignUpNext(supabase, next)
+    : next
 
-  return NextResponse.redirect(new URL(finalNext, origin))
+  return NextResponse.redirect(new URL(finalNext, await getRequestOrigin()))
 }

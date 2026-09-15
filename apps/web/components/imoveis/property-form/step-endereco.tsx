@@ -33,7 +33,10 @@ import type { PropertyFormValues } from "@/lib/imoveis/schema"
 
 const STATE_ITEMS: SelectOption[] = [
   { label: "Selecione", value: null },
-  ...BRAZILIAN_STATES.map((state) => ({ label: `${state.code} · ${state.name}`, value: state.code })),
+  ...BRAZILIAN_STATES.map((state) => ({
+    label: `${state.code} · ${state.name}`,
+    value: state.code,
+  })),
 ]
 
 export function StepEndereco({
@@ -59,7 +62,9 @@ export function StepEndereco({
     <FieldGroup>
       <FieldSet>
         <FieldLegend>Localização</FieldLegend>
-        <FieldDescription>O endereço completo fica só no CRM; abaixo você escolhe o que aparece nos portais.</FieldDescription>
+        <FieldDescription>
+          O endereço completo fica só no CRM; abaixo você escolhe o que aparece nos portais.
+        </FieldDescription>
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-[14rem_1fr]">
           <Controller
             name="postalCode"
@@ -95,10 +100,22 @@ export function StepEndereco({
               </Field>
             )}
           />
-          <TextField control={control} name="street" label="Rua" autoComplete="address-line1" maxLength={200} />
+          <TextField
+            control={control}
+            name="street"
+            label="Rua"
+            autoComplete="address-line1"
+            maxLength={200}
+          />
         </div>
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-[10rem_1fr]">
-          <TextField control={control} name="streetNumber" label="Número" maxLength={20} placeholder="Ex.: 120" />
+          <TextField
+            control={control}
+            name="streetNumber"
+            label="Número"
+            maxLength={20}
+            placeholder="Ex.: 120"
+          />
           <TextField
             control={control}
             name="complement"
@@ -109,7 +126,13 @@ export function StepEndereco({
         </div>
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-[1fr_1fr_12rem]">
           <TextField control={control} name="neighborhood" label="Bairro" maxLength={120} />
-          <TextField control={control} name="city" label="Cidade" autoComplete="address-level2" maxLength={120} />
+          <TextField
+            control={control}
+            name="city"
+            label="Cidade"
+            autoComplete="address-level2"
+            maxLength={120}
+          />
           <SelectField control={control} name="state" label="UF" items={STATE_ITEMS} />
         </div>
       </FieldSet>
@@ -119,12 +142,24 @@ export function StepEndereco({
       <FieldSet>
         <FieldLegend>Coordenadas</FieldLegend>
         <FieldDescription>
-          Opcionais, mas valem pontos na Nota do Anúncio. No Google Maps, clique com o botão direito sobre o imóvel e copie
-          os números.
+          Opcionais, mas valem pontos na Nota do Anúncio. No Google Maps, clique com o botão direito
+          sobre o imóvel e copie os números.
         </FieldDescription>
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <TextField control={control} name="latitude" label="Latitude" inputMode="decimal" placeholder="-22.906847" />
-          <TextField control={control} name="longitude" label="Longitude" inputMode="decimal" placeholder="-47.061573" />
+          <TextField
+            control={control}
+            name="latitude"
+            label="Latitude"
+            inputMode="decimal"
+            placeholder="-22.906847"
+          />
+          <TextField
+            control={control}
+            name="longitude"
+            label="Longitude"
+            inputMode="decimal"
+            placeholder="-47.061573"
+          />
         </div>
       </FieldSet>
 
@@ -136,7 +171,9 @@ export function StepEndereco({
         render={({ field }) => (
           <FieldSet>
             <FieldLegend>Exibição do endereço nos portais</FieldLegend>
-            <FieldDescription>Controla o que o público vê no anúncio. Na dúvida, mostre só o bairro.</FieldDescription>
+            <FieldDescription>
+              Controla o que o público vê no anúncio. Na dúvida, mostre só o bairro.
+            </FieldDescription>
             <RadioGroup value={field.value} onValueChange={(value) => field.onChange(value)}>
               {ADDRESS_DISPLAYS.map((option) => (
                 <FieldLabel key={option} htmlFor={`${fieldId("addressDisplay")}-${option}`}>

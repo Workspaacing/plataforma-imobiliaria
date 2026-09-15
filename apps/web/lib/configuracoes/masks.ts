@@ -2,7 +2,10 @@
 
 /** CNPJ numérico ou alfanumérico: 00.000.000/0000-00 ou 12.ABC.345/01DE-35. */
 export function maskCnpj(value: string) {
-  const cnpj = value.toUpperCase().replace(/[^0-9A-Z]/g, "").slice(0, 14)
+  const cnpj = value
+    .toUpperCase()
+    .replace(/[^0-9A-Z]/g, "")
+    .slice(0, 14)
   let formatted = cnpj.slice(0, 2)
 
   if (cnpj.length > 2) formatted += `.${cnpj.slice(2, 5)}`

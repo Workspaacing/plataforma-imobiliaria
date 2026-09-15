@@ -41,7 +41,7 @@ export function StatsRow({
           <dd
             className={cn(
               lpDisplayFont,
-              "text-[2.25rem] leading-none font-bold tabular-nums font-stretch-condensed @3xl:text-[2.75rem]"
+              "text-[2.25rem] leading-none font-bold font-stretch-condensed tabular-nums @3xl:text-[2.75rem]"
             )}
           >
             {stat.stat_value}
@@ -52,7 +52,10 @@ export function StatsRow({
   )
 }
 
-export function hasSocialProof(stats: LandingSocialProofStat[], testimonials: LandingTestimonial[]) {
+export function hasSocialProof(
+  stats: LandingSocialProofStat[],
+  testimonials: LandingTestimonial[]
+) {
   return stats.length > 0 || testimonials.length > 0
 }
 

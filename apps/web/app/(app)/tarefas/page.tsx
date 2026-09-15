@@ -42,8 +42,16 @@ const OPEN_GROUPS: {
     tone: "destructive",
   },
   { key: "today", title: "Hoje", description: "Vencem até o fim do dia." },
-  { key: "upcoming", title: "Próximas", description: "Prazo a partir de amanhã." },
-  { key: "noDue", title: "Sem prazo", description: "Tarefas abertas sem data definida." },
+  {
+    key: "upcoming",
+    title: "Próximas",
+    description: "Prazo a partir de amanhã.",
+  },
+  {
+    key: "noDue",
+    title: "Sem prazo",
+    description: "Tarefas abertas sem data definida.",
+  },
 ]
 
 type SearchParams = Record<string, string | string[] | undefined>

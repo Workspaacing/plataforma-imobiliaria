@@ -57,12 +57,39 @@ export function StepCaracteristicas({ control }: { control: PropertyFormControl 
 
       <FieldSet>
         <FieldLegend>Cômodos</FieldLegend>
-        <FieldDescription>Quartos e banheiros contam pontos na Nota do Anúncio (exceto terreno, galpão, fazenda e sítio).</FieldDescription>
+        <FieldDescription>
+          Quartos e banheiros contam pontos na Nota do Anúncio (exceto terreno, galpão, fazenda e
+          sítio).
+        </FieldDescription>
         <div className="grid grid-cols-2 gap-5 lg:grid-cols-4">
-          <TextField control={control} name="bedrooms" label="Quartos" inputMode="numeric" placeholder="0" />
-          <TextField control={control} name="suites" label="Suítes" inputMode="numeric" placeholder="0" />
-          <TextField control={control} name="bathrooms" label="Banheiros" inputMode="numeric" placeholder="0" />
-          <TextField control={control} name="parkingSpaces" label="Vagas" inputMode="numeric" placeholder="0" />
+          <TextField
+            control={control}
+            name="bedrooms"
+            label="Quartos"
+            inputMode="numeric"
+            placeholder="0"
+          />
+          <TextField
+            control={control}
+            name="suites"
+            label="Suítes"
+            inputMode="numeric"
+            placeholder="0"
+          />
+          <TextField
+            control={control}
+            name="bathrooms"
+            label="Banheiros"
+            inputMode="numeric"
+            placeholder="0"
+          />
+          <TextField
+            control={control}
+            name="parkingSpaces"
+            label="Vagas"
+            inputMode="numeric"
+            placeholder="0"
+          />
         </div>
       </FieldSet>
 
@@ -79,8 +106,19 @@ export function StepCaracteristicas({ control }: { control: PropertyFormControl 
             placeholder="Ex.: 8"
             description="Térreo = 0."
           />
-          <TextField control={control} name="totalFloors" label="Total de andares" inputMode="numeric" />
-          <TextField control={control} name="yearBuilt" label="Ano de construção" inputMode="numeric" placeholder="Ex.: 2015" />
+          <TextField
+            control={control}
+            name="totalFloors"
+            label="Total de andares"
+            inputMode="numeric"
+          />
+          <TextField
+            control={control}
+            name="yearBuilt"
+            label="Ano de construção"
+            inputMode="numeric"
+            placeholder="Ex.: 2015"
+          />
         </div>
       </FieldSet>
 

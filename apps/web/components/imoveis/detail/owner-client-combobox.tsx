@@ -67,7 +67,8 @@ export function OwnerClientCombobox({
 
   const available = results.filter((option) => !excludeIds.includes(option.id))
   // O item selecionado precisa estar na coleção para o rótulo aparecer.
-  const items = value && !available.some((option) => option.id === value.id) ? [value, ...available] : available
+  const items =
+    value && !available.some((option) => option.id === value.id) ? [value, ...available] : available
 
   return (
     <Combobox
@@ -77,7 +78,9 @@ export function OwnerClientCombobox({
       onValueChange={(next: OwnerClientOption | null) => onValueChange(next)}
       itemToStringLabel={(option: OwnerClientOption) => option.label}
       itemToStringValue={(option: OwnerClientOption) => option.id}
-      isItemEqualToValue={(option: OwnerClientOption, selected: OwnerClientOption) => option.id === selected.id}
+      isItemEqualToValue={(option: OwnerClientOption, selected: OwnerClientOption) =>
+        option.id === selected.id
+      }
       onOpenChange={(open) => {
         if (open && !hasSearched) scheduleSearch("", 0)
         if (!open) onBlur?.()
@@ -98,14 +101,18 @@ export function OwnerClientCombobox({
         showClear={Boolean(value) && !disabled}
       />
       <ComboboxContent>
-        <ComboboxEmpty>{isSearching || !hasSearched ? "Buscando…" : "Nenhum cliente encontrado."}</ComboboxEmpty>
+        <ComboboxEmpty>
+          {isSearching || !hasSearched ? "Buscando…" : "Nenhum cliente encontrado."}
+        </ComboboxEmpty>
         <ComboboxList>
           {(option: OwnerClientOption) => (
             <ComboboxItem key={option.id} value={option}>
               <Item size="xs" className="p-0">
                 <ItemContent>
                   <ItemTitle className="whitespace-nowrap">{option.label}</ItemTitle>
-                  {option.description ? <ItemDescription>{option.description}</ItemDescription> : null}
+                  {option.description ? (
+                    <ItemDescription>{option.description}</ItemDescription>
+                  ) : null}
                 </ItemContent>
               </Item>
             </ComboboxItem>

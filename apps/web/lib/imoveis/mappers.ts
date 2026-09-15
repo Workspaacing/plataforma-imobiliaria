@@ -76,7 +76,10 @@ export function todayInSaoPaulo(now: Date = new Date()) {
 }
 
 export function isAuthorizationActive(authorization: AuthorizationPeriod, today: string) {
-  return authorization.starts_on <= today && (authorization.ends_on == null || authorization.ends_on >= today)
+  return (
+    authorization.starts_on <= today &&
+    (authorization.ends_on == null || authorization.ends_on >= today)
+  )
 }
 
 export function isAuthorizationExpired(authorization: AuthorizationPeriod, today: string) {
@@ -87,7 +90,10 @@ export function isAuthorizationExpired(authorization: AuthorizationPeriod, today
  * Validade da autorização vigente para a Nota do Anúncio. Sem data final conta como
  * vigente hoje (fim do dia); com várias vigentes, vale a que vence por último.
  */
-export function getAuthorizationExpiry(authorizations: readonly AuthorizationPeriod[], now: Date = new Date()) {
+export function getAuthorizationExpiry(
+  authorizations: readonly AuthorizationPeriod[],
+  now: Date = new Date()
+) {
   const today = todayInSaoPaulo(now)
   const active = authorizations.filter((item) => isAuthorizationActive(item, today))
   if (active.length === 0) return undefined
@@ -133,10 +139,26 @@ export function withExternalMediaUrls(
   const tour = tourUrl?.trim()
 
   if (video) {
-    result.push({ id: "video", kind: "video", storage_path: null, external_url: video, is_cover: false, caption: null, position: 0 })
+    result.push({
+      id: "video",
+      kind: "video",
+      storage_path: null,
+      external_url: video,
+      is_cover: false,
+      caption: null,
+      position: 0,
+    })
   }
   if (tour) {
-    result.push({ id: "tour", kind: "tour", storage_path: null, external_url: tour, is_cover: false, caption: null, position: 0 })
+    result.push({
+      id: "tour",
+      kind: "tour",
+      storage_path: null,
+      external_url: tour,
+      is_cover: false,
+      caption: null,
+      position: 0,
+    })
   }
 
   return result
@@ -177,7 +199,10 @@ export function computePropertyScore(
   )
 }
 
-export function buildVrsyncInput(property: PropertyPortalSource, media: MediaSummary): VrsyncListingInput {
+export function buildVrsyncInput(
+  property: PropertyPortalSource,
+  media: MediaSummary
+): VrsyncListingInput {
   return {
     code: property.code,
     title: property.title,
@@ -231,7 +256,10 @@ export type PortalValidation = VrsyncValidationResult & {
  * ainda não tem site público. Sem código (imóvel não salvo) o erro de
  * ListingID também é ignorado.
  */
-export function validatePropertyForPortals(property: PropertyPortalSource, media: MediaSummary): PortalValidation {
+export function validatePropertyForPortals(
+  property: PropertyPortalSource,
+  media: MediaSummary
+): PortalValidation {
   const result = validateVrsyncListing(buildVrsyncInput(property, media))
   const issues = result.issues.filter(
     (issue) => issue.field !== "detailUrl" && !(issue.field === "code" && property.code === "")
@@ -264,13 +292,19 @@ export const SCORE_BAND_LABELS: Record<ScoreBand, string> = {
 }
 
 /** Preço exibido conforme a finalidade. */
-export function getDisplayPrices(property: Pick<Tables<"properties">, "purpose" | "sale_price" | "rent_price">) {
+export function getDisplayPrices(
+  property: Pick<Tables<"properties">, "purpose" | "sale_price" | "rent_price">
+) {
   const prices: { label: string; value: number | null; suffix?: string }[] = []
   if (property.purpose === "sale" || property.purpose === "sale_rent") {
     prices.push({ label: "Venda", value: property.sale_price })
   }
   if (property.purpose === "rent" || property.purpose === "sale_rent") {
-    prices.push({ label: "Locação", value: property.rent_price, suffix: "/mês" })
+    prices.push({
+      label: "Locação",
+      value: property.rent_price,
+      suffix: "/mês",
+    })
   }
   return prices
 }

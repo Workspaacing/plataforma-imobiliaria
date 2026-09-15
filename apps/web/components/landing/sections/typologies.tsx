@@ -41,7 +41,9 @@ function TypologiesEmpty({
           <EmptyMedia variant="icon">
             <LayoutPanelLeftIcon />
           </EmptyMedia>
-          <EmptyTitle>{preview ? "Nenhuma tipologia cadastrada" : "Plantas sob consulta"}</EmptyTitle>
+          <EmptyTitle>
+            {preview ? "Nenhuma tipologia cadastrada" : "Plantas sob consulta"}
+          </EmptyTitle>
           <EmptyDescription>
             {preview
               ? "Adicione as plantas no editor com área, quartos e preço inicial."
@@ -69,7 +71,7 @@ function PriceValue({ typology, size }: { typology: LandingTypology; size: "md" 
     <span
       className={cn(
         lpDisplayFont,
-        "leading-tight font-bold tabular-nums font-stretch-semi-condensed",
+        "leading-tight font-bold font-stretch-semi-condensed tabular-nums",
         size === "lg" ? "text-[1.75rem]" : "text-[1.5rem]"
       )}
     >
@@ -115,7 +117,9 @@ export function TypologyCards({
             key={`${index}-${typology.name}`}
             className="flex flex-col gap-5 rounded-(--lp-radius) border border-(--lp-line) bg-(--lp-surface) p-5 text-(--lp-ink)"
           >
-            <h3 className={cn(lpSerifFont, "text-[1.625rem] leading-tight font-medium text-balance")}>
+            <h3
+              className={cn(lpSerifFont, "text-[1.625rem] leading-tight font-medium text-balance")}
+            >
               {typology.name}
             </h3>
             {area || bedrooms ? (
@@ -211,7 +215,12 @@ export function TypologyComparison({
               className="row-span-5 grid snap-start grid-rows-subgrid overflow-hidden rounded-(--lp-radius) border border-(--lp-line) bg-(--lp-surface) text-(--lp-ink)"
             >
               <div className="flex items-end bg-(--lp-surface-alt) px-5 pt-6 pb-4">
-                <h3 className={cn(lpSerifFont, "text-[1.625rem] leading-tight font-medium text-balance")}>
+                <h3
+                  className={cn(
+                    lpSerifFont,
+                    "text-[1.625rem] leading-tight font-medium text-balance"
+                  )}
+                >
                   {typology.name}
                 </h3>
               </div>
@@ -227,7 +236,10 @@ export function TypologyComparison({
                   href={formHref}
                   interest={{ kind: "typology", name: typology.name }}
                   aria-label={`Quero esta planta: ${typology.name}`}
-                  className={lpButtonClass({ tone: "primary", className: "w-full" })}
+                  className={lpButtonClass({
+                    tone: "primary",
+                    className: "w-full",
+                  })}
                 >
                   Quero esta planta
                 </InterestLink>

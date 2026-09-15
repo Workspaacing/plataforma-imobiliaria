@@ -50,7 +50,7 @@ export function TemplateGallery({ groups }: { groups: GalleryGroup[] }) {
   const [pendingKey, setPendingKey] = React.useState<LandingTemplateKey | null>(null)
   const [, startTransition] = React.useTransition()
 
-  function useTemplate(template: GalleryTemplate) {
+  function chooseTemplate(template: GalleryTemplate) {
     setPendingKey(template.key)
 
     startTransition(async () => {
@@ -58,11 +58,18 @@ export function TemplateGallery({ groups }: { groups: GalleryGroup[] }) {
 
       if (!result.ok) {
         setPendingKey(null)
-        toast.add({ type: "error", title: "Não foi possível criar a página", description: result.error })
+        toast.add({
+          type: "error",
+          title: "Não foi possível criar a página",
+          description: result.error,
+        })
         return
       }
 
-      toast.add({ type: "success", title: `Rascunho criado com o modelo ${template.name}.` })
+      toast.add({
+        type: "success",
+        title: `Rascunho criado com o modelo ${template.name}.`,
+      })
       router.push(landingEditorPath(result.id))
     })
   }
@@ -70,7 +77,11 @@ export function TemplateGallery({ groups }: { groups: GalleryGroup[] }) {
   return (
     <div className="flex flex-col gap-10">
       {groups.map((group) => (
-        <section key={group.category} aria-labelledby={`galeria-${group.category}`} className="flex flex-col gap-4">
+        <section
+          key={group.category}
+          aria-labelledby={`galeria-${group.category}`}
+          className="flex flex-col gap-4"
+        >
           <div className="flex flex-col gap-1">
             <h2 id={`galeria-${group.category}`} className="text-lg font-semibold tracking-tight">
               {group.label}
@@ -90,7 +101,11 @@ export function TemplateGallery({ groups }: { groups: GalleryGroup[] }) {
                       aria-hidden="true"
                       className="pointer-events-none relative aspect-4/3 w-full overflow-hidden border-b bg-muted select-none"
                     >
-                      <LandingPreviewFrame device="desktop" title={`Miniatura do modelo ${template.name}`}>
+                      <LandingPreviewFrame
+                        device="desktop"
+                        fit="clip"
+                        title={`Miniatura do modelo ${template.name}`}
+                      >
                         {template.preview}
                       </LandingPreviewFrame>
                     </div>
@@ -104,7 +119,9 @@ export function TemplateGallery({ groups }: { groups: GalleryGroup[] }) {
                       </p>
                       <div className="flex flex-wrap gap-1">
                         <Badge variant="secondary">{template.propertiesLabel}</Badge>
-                        {template.imagesLabel ? <Badge variant="outline">{template.imagesLabel}</Badge> : null}
+                        {template.imagesLabel ? (
+                          <Badge variant="outline">{template.imagesLabel}</Badge>
+                        ) : null}
                       </div>
                     </CardContent>
                     <CardFooter>
@@ -112,7 +129,7 @@ export function TemplateGallery({ groups }: { groups: GalleryGroup[] }) {
                         type="button"
                         className="w-full sm:w-auto"
                         disabled={pendingKey !== null}
-                        onClick={() => useTemplate(template)}
+                        onClick={() => chooseTemplate(template)}
                       >
                         {isPending ? <Spinner data-icon="inline-start" /> : null}
                         {isPending ? "Criando rascunho..." : "Usar este modelo"}

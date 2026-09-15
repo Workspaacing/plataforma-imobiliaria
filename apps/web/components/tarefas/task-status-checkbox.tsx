@@ -32,14 +32,19 @@ export function TaskStatusCheckbox({
 
       if (!result.ok) {
         toast.add({
-          title: checked ? "Não foi possível concluir a tarefa" : "Não foi possível reabrir a tarefa",
+          title: checked
+            ? "Não foi possível concluir a tarefa"
+            : "Não foi possível reabrir a tarefa",
           description: result.error,
           type: "error",
         })
         return
       }
 
-      toast.add({ title: result.message ?? "Tarefa atualizada.", type: "success" })
+      toast.add({
+        title: result.message ?? "Tarefa atualizada.",
+        type: "success",
+      })
     })
   }
 

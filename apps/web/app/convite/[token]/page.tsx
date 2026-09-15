@@ -79,8 +79,8 @@ export default async function ConvitePage({ params }: ConvitePageProps) {
               <CardHeader>
                 <CardTitle>Link de convite inválido</CardTitle>
                 <CardDescription>
-                  O endereço está incompleto ou foi alterado. Copie o link inteiro da
-                  mensagem que você recebeu ou peça um novo a quem convidou você.
+                  O endereço está incompleto ou foi alterado. Copie o link inteiro da mensagem que
+                  você recebeu ou peça um novo a quem convidou você.
                 </CardDescription>
               </CardHeader>
               <CardFooter>
@@ -94,8 +94,8 @@ export default async function ConvitePage({ params }: ConvitePageProps) {
               <CardHeader>
                 <CardTitle>Convite não encontrado</CardTitle>
                 <CardDescription>
-                  Este link não corresponde a nenhum convite. Confira se copiou o
-                  endereço completo ou peça um novo link a quem convidou você.
+                  Este link não corresponde a nenhum convite. Confira se copiou o endereço completo
+                  ou peça um novo link a quem convidou você.
                 </CardDescription>
               </CardHeader>
               <CardFooter>
@@ -109,8 +109,8 @@ export default async function ConvitePage({ params }: ConvitePageProps) {
               <CardHeader>
                 <CardTitle>Convite já utilizado</CardTitle>
                 <CardDescription>
-                  O convite para {preview.organizationName} já foi aceito. Entre com a
-                  conta que você já usa para acessar a imobiliária.
+                  O convite para {preview.organizationName} já foi aceito. Entre com a conta que
+                  você já usa para acessar a imobiliária.
                 </CardDescription>
               </CardHeader>
               <CardFooter>
@@ -125,8 +125,8 @@ export default async function ConvitePage({ params }: ConvitePageProps) {
                 <CardTitle>Convite expirado</CardTitle>
                 <CardDescription>
                   O convite para {preview.organizationName} venceu em{" "}
-                  {formatDate(preview.expiresAt)}. Peça a quem convidou você para
-                  enviar um novo link.
+                  {formatDate(preview.expiresAt)}. Peça a quem convidou você para enviar um novo
+                  link.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -148,8 +148,8 @@ export default async function ConvitePage({ params }: ConvitePageProps) {
                 <CardTitle>Você recebeu um convite</CardTitle>
                 <CardDescription>
                   Você foi convidado para {preview.organizationName} como{" "}
-                  {APP_ROLE_LABELS[preview.role]} no {APP_NAME}. Para aceitar, entre ou
-                  crie sua conta com o mesmo e-mail que recebeu o convite.
+                  {APP_ROLE_LABELS[preview.role]} no {APP_NAME}. Para aceitar, entre ou crie sua
+                  conta com o mesmo e-mail que recebeu o convite.
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
@@ -157,8 +157,8 @@ export default async function ConvitePage({ params }: ConvitePageProps) {
                   <InfoIcon />
                   <AlertTitle>Convite para {preview.emailHint}</AlertTitle>
                   <AlertDescription>
-                    Vale até {formatDate(preview.expiresAt)}. Depois de confirmar seu
-                    e-mail, volte a este link para concluir o aceite.
+                    Vale até {formatDate(preview.expiresAt)}. Depois de confirmar seu e-mail, volte
+                    a este link para concluir o aceite.
                   </AlertDescription>
                 </Alert>
               </CardContent>
@@ -189,21 +189,19 @@ export default async function ConvitePage({ params }: ConvitePageProps) {
                 <CardDescription>
                   {user.email ? `Você entrou como ${user.email}. ` : ""}
                   Você foi convidado para {preview.organizationName} como{" "}
-                  {APP_ROLE_LABELS[preview.role]}. Ao aceitar, a imobiliária aparece no
-                  seu menu com esse papel.
+                  {APP_ROLE_LABELS[preview.role]}. Ao aceitar, a imobiliária aparece no seu menu com
+                  esse papel.
                 </CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
                 <p className="text-sm text-muted-foreground">
-                  Convite para {preview.emailHint} · vale até{" "}
-                  {formatDate(preview.expiresAt)}.
+                  Convite para {preview.emailHint} · vale até {formatDate(preview.expiresAt)}.
                 </p>
                 <AcceptInvitation token={token} />
               </CardContent>
               <CardFooter className="flex flex-wrap items-center justify-between gap-2">
                 <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <LinkIcon className="size-4" />
-                  O convite só vale para o e-mail convidado.
+                  <LinkIcon className="size-4" />O convite só vale para o e-mail convidado.
                 </p>
                 <form action={switchAccount.bind(null, token)}>
                   <Button type="submit" variant="ghost" size="sm">

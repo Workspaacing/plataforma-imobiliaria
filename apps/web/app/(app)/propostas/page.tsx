@@ -27,16 +27,8 @@ import { ProposalsTable, type ProposalTableRow } from "@/components/propostas/pr
 import { StatusTabs } from "@/components/propostas/status-tabs"
 import { requireMembership } from "@/lib/auth/session"
 import { todayInSaoPaulo } from "@/lib/chaves/datetime"
-import {
-  getClientOptions,
-  getPropertyOptions,
-  getTeamMembers,
-} from "@/lib/propostas/options"
-import {
-  canUpdateProposal,
-  COMMERCIAL_ROLES,
-  isSelfBrokerRole,
-} from "@/lib/propostas/permissions"
+import { getClientOptions, getPropertyOptions, getTeamMembers } from "@/lib/propostas/options"
+import { canUpdateProposal, COMMERCIAL_ROLES, isSelfBrokerRole } from "@/lib/propostas/permissions"
 import { listProposals, type ProposalPurpose } from "@/lib/propostas/queries"
 import { isProposalExpired, PROPOSAL_STATUS_LABELS } from "@/lib/propostas/status"
 import { createClient } from "@/lib/supabase/server"
@@ -78,7 +70,12 @@ export default async function PropostasPage({
   const supabase = await createClient()
 
   const [{ rows, counts }, properties, members, clients] = await Promise.all([
-    listProposals(supabase, organizationId, { status, propertyId, brokerId, purpose }),
+    listProposals(supabase, organizationId, {
+      status,
+      propertyId,
+      brokerId,
+      purpose,
+    }),
     getPropertyOptions(supabase, organizationId),
     getTeamMembers(supabase, organizationId),
     isCommercial ? getClientOptions(supabase, organizationId) : Promise.resolve([]),
@@ -96,7 +93,10 @@ export default async function PropostasPage({
   const brokers = members
     .filter((member) => COMMERCIAL_ROLES.includes(member.role))
     .map(({ value, label }) => ({ value, label }))
-  const propertyFilterOptions = properties.map(({ value, label }) => ({ value, label }))
+  const propertyFilterOptions = properties.map(({ value, label }) => ({
+    value,
+    label,
+  }))
   const propertyFormOptions: ProposalPropertyOption[] = properties.map((property) => ({
     value: property.value,
     label: property.label,
@@ -171,7 +171,9 @@ export default async function PropostasPage({
               <SearchXIcon />
             </EmptyMedia>
             <EmptyTitle>Nenhuma proposta encontrada</EmptyTitle>
-            <EmptyDescription>Nenhuma proposta corresponde aos filtros escolhidos.</EmptyDescription>
+            <EmptyDescription>
+              Nenhuma proposta corresponde aos filtros escolhidos.
+            </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
             <Button variant="outline" render={<Link href="/propostas" />} nativeButton={false}>

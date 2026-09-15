@@ -20,10 +20,7 @@ export type InvitationShareData = {
   expiresAt: string
 }
 
-export function getInvitationShareLinks(
-  invitation: InvitationShareData,
-  organizationName: string
-) {
+export function getInvitationShareLinks(invitation: InvitationShareData, organizationName: string) {
   const message = buildInvitationMessage({
     organizationName,
     roleLabel: APP_ROLE_LABELS[invitation.role],
@@ -51,10 +48,7 @@ export function InvitationShareActions({
   organizationName: string
 }) {
   const { copy } = useCopyToClipboard()
-  const { message, whatsappUrl, mailtoUrl } = getInvitationShareLinks(
-    invitation,
-    organizationName
-  )
+  const { message, whatsappUrl, mailtoUrl } = getInvitationShareLinks(invitation, organizationName)
 
   return (
     <div className="flex flex-wrap gap-2">
@@ -71,12 +65,7 @@ export function InvitationShareActions({
         <MessageCircleIcon data-icon="inline-start" />
         Abrir no WhatsApp
       </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        render={<a href={mailtoUrl} />}
-        nativeButton={false}
-      >
+      <Button variant="outline" size="sm" render={<a href={mailtoUrl} />} nativeButton={false}>
         <MailIcon data-icon="inline-start" />
         Abrir no e-mail
       </Button>

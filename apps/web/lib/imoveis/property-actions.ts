@@ -23,7 +23,11 @@ import {
   canReadCaptureRequests,
   mustStayAssigned,
 } from "@/lib/imoveis/permissions"
-import { getPropertyMediaRows, getPropertyRow, type ServerSupabaseClient } from "@/lib/imoveis/queries"
+import {
+  getPropertyMediaRows,
+  getPropertyRow,
+  type ServerSupabaseClient,
+} from "@/lib/imoveis/queries"
 import {
   formValuesToColumns,
   getStatusRequirementIssues,
@@ -155,7 +159,11 @@ export async function savePropertyAction(input: SavePropertyInput): Promise<Save
 
   const parsed = propertyFormSchema.safeParse(input.values)
   if (!parsed.success) {
-    return { ok: false, error: "Confira os campos destacados.", fieldErrors: fieldErrorsFrom(parsed.error) }
+    return {
+      ok: false,
+      error: "Confira os campos destacados.",
+      fieldErrors: fieldErrorsFrom(parsed.error),
+    }
   }
 
   const values = parsed.data
@@ -172,16 +180,25 @@ export async function savePropertyAction(input: SavePropertyInput): Promise<Save
     try {
       existing = await getPropertyRow(supabase, organizationId, propertyId)
     } catch {
-      return { ok: false, error: "Não foi possível carregar o imóvel agora. Tente novamente." }
+      return {
+        ok: false,
+        error: "Não foi possível carregar o imóvel agora. Tente novamente.",
+      }
     }
     if (!existing) {
       return { ok: false, error: "Imóvel não encontrado nesta imobiliária." }
     }
     if (!canEditProperty(role, user.id, existing)) {
-      return { ok: false, error: "Você não tem permissão para editar este imóvel." }
+      return {
+        ok: false,
+        error: "Você não tem permissão para editar este imóvel.",
+      }
     }
   } else if (!canCreateProperty(role)) {
-    return { ok: false, error: "Seu papel nesta imobiliária não permite cadastrar imóveis." }
+    return {
+      ok: false,
+      error: "Seu papel nesta imobiliária não permite cadastrar imóveis.",
+    }
   }
 
   // Corretor/captador que se desvincula perde o acesso de edição (RLS).
@@ -189,7 +206,8 @@ export async function savePropertyAction(input: SavePropertyInput): Promise<Save
     const assigned = values.capturedBy === user.id || values.brokerId === user.id
     const autoAssigned = !existing && !values.capturedBy && !values.brokerId
     if (!assigned && !autoAssigned) {
-      const message = "Você precisa continuar como captador ou corretor deste imóvel para poder editá-lo."
+      const message =
+        "Você precisa continuar como captador ou corretor deste imóvel para poder editá-lo."
       return { ok: false, error: message, fieldErrors: { capturedBy: message } }
     }
   }
@@ -219,7 +237,10 @@ export async function savePropertyAction(input: SavePropertyInput): Promise<Save
     try {
       media = await getPropertyMediaRows(supabase, organizationId, existing.id)
     } catch {
-      return { ok: false, error: "Não foi possível conferir as fotos do imóvel. Tente novamente." }
+      return {
+        ok: false,
+        error: "Não foi possível conferir as fotos do imóvel. Tente novamente.",
+      }
     }
 
     const validation = validatePropertyForPortals(
@@ -231,7 +252,9 @@ export async function savePropertyAction(input: SavePropertyInput): Promise<Save
       return {
         ok: false,
         error: `Para publicar nos portais, corrija: ${validation.errors.map((issue) => issue.message).join(" ")}`,
-        fieldErrors: { publishedToPortals: "Há pendências para publicar nos portais." },
+        fieldErrors: {
+          publishedToPortals: "Há pendências para publicar nos portais.",
+        },
       }
     }
   }
@@ -244,7 +267,11 @@ export async function savePropertyAction(input: SavePropertyInput): Promise<Save
   if (existing) {
     const { data, error } = await supabase
       .from("properties")
-      .update({ ...columns, status: values.status, published_to_portals: publish })
+      .update({
+        ...columns,
+        status: values.status,
+        published_to_portals: publish,
+      })
       .eq("organization_id", organizationId)
       .eq("id", existing.id)
       .select("id, code")
@@ -254,7 +281,10 @@ export async function savePropertyAction(input: SavePropertyInput): Promise<Save
     }
     const row = data?.[0]
     if (!row) {
-      return { ok: false, error: "Você não tem permissão para editar este imóvel ou ele foi removido." }
+      return {
+        ok: false,
+        error: "Você não tem permissão para editar este imóvel ou ele foi removido.",
+      }
     }
     savedId = row.id
     savedCode = row.code
@@ -271,7 +301,10 @@ export async function savePropertyAction(input: SavePropertyInput): Promise<Save
       .single()
 
     if (error || !data) {
-      return { ok: false, error: translateDbError(error ?? {}, "cadastrar imóveis") }
+      return {
+        ok: false,
+        error: translateDbError(error ?? {}, "cadastrar imóveis"),
+      }
     }
     savedId = data.id
     savedCode = data.code
@@ -279,15 +312,29 @@ export async function savePropertyAction(input: SavePropertyInput): Promise<Save
 
   const warnings: string[] = []
 
-  const videoWarning = await syncExternalMedia(supabase, organizationId, savedId, "video", values.videoUrl)
+  const videoWarning = await syncExternalMedia(
+    supabase,
+    organizationId,
+    savedId,
+    "video",
+    values.videoUrl
+  )
   if (videoWarning) warnings.push(videoWarning)
-  const tourWarning = await syncExternalMedia(supabase, organizationId, savedId, "tour", values.tourUrl)
+  const tourWarning = await syncExternalMedia(
+    supabase,
+    organizationId,
+    savedId,
+    "tour",
+    values.tourUrl
+  )
   if (tourWarning) warnings.push(tourWarning)
 
   let convertedCapture = false
   if (!existing && input.captureRequestId && isUuid(input.captureRequestId)) {
     if (!canReadCaptureRequests(role)) {
-      warnings.push("Seu papel não permite atualizar captações; peça para a gestão marcar a captação como convertida.")
+      warnings.push(
+        "Seu papel não permite atualizar captações; peça para a gestão marcar a captação como convertida."
+      )
     } else {
       const { data, error } = await supabase
         .from("capture_requests")
@@ -330,7 +377,10 @@ export async function savePropertyAction(input: SavePropertyInput): Promise<Save
 const statusSchema = z.enum(PROPERTY_STATUSES)
 
 /** Troca o status (ações da ficha). Sair do rascunho respeita os CHECKs do banco. */
-export async function changePropertyStatusAction(propertyId: string, status: string): Promise<ActionResult> {
+export async function changePropertyStatusAction(
+  propertyId: string,
+  status: string
+): Promise<ActionResult> {
   const parsedStatus = statusSchema.safeParse(status)
   if (!parsedStatus.success || !isUuid(propertyId)) {
     return { ok: false, error: "Status inválido." }
@@ -343,7 +393,10 @@ export async function changePropertyStatusAction(propertyId: string, status: str
   const nextStatus = parsedStatus.data
 
   if (property.status === nextStatus) {
-    return { ok: true, message: `O imóvel já está como ${PROPERTY_STATUS_LABELS[nextStatus].toLowerCase()}.` }
+    return {
+      ok: true,
+      message: `O imóvel já está como ${PROPERTY_STATUS_LABELS[nextStatus].toLowerCase()}.`,
+    }
   }
 
   if (nextStatus !== "draft") {
@@ -370,19 +423,31 @@ export async function changePropertyStatusAction(propertyId: string, status: str
     .select("id")
 
   if (error) {
-    return { ok: false, error: translateDbError(error, "alterar o status deste imóvel") }
+    return {
+      ok: false,
+      error: translateDbError(error, "alterar o status deste imóvel"),
+    }
   }
   if (!data?.length) {
-    return { ok: false, error: "Você não tem permissão para alterar o status deste imóvel." }
+    return {
+      ok: false,
+      error: "Você não tem permissão para alterar o status deste imóvel.",
+    }
   }
 
   revalidatePropertyPaths(property.id)
 
-  return { ok: true, message: `Status alterado para ${PROPERTY_STATUS_LABELS[nextStatus].toLowerCase()}.` }
+  return {
+    ok: true,
+    message: `Status alterado para ${PROPERTY_STATUS_LABELS[nextStatus].toLowerCase()}.`,
+  }
 }
 
 /** Liga/desliga a publicação nos portais (só imóvel ativo e sem erros de VRSync). */
-export async function setPublishedToPortalsAction(propertyId: string, published: boolean): Promise<ActionResult> {
+export async function setPublishedToPortalsAction(
+  propertyId: string,
+  published: boolean
+): Promise<ActionResult> {
   if (!isUuid(propertyId)) {
     return { ok: false, error: "Imóvel inválido." }
   }
@@ -394,14 +459,20 @@ export async function setPublishedToPortalsAction(propertyId: string, published:
 
   if (published) {
     if (property.status !== "active") {
-      return { ok: false, error: "Ative o imóvel antes de publicar nos portais." }
+      return {
+        ok: false,
+        error: "Ative o imóvel antes de publicar nos portais.",
+      }
     }
 
     let media: MediaSource[]
     try {
       media = await getPropertyMediaRows(supabase, organizationId, property.id)
     } catch {
-      return { ok: false, error: "Não foi possível conferir as fotos do imóvel. Tente novamente." }
+      return {
+        ok: false,
+        error: "Não foi possível conferir as fotos do imóvel. Tente novamente.",
+      }
     }
 
     const validation = validatePropertyForPortals(property, summarizeMedia(media))
@@ -424,7 +495,10 @@ export async function setPublishedToPortalsAction(propertyId: string, published:
     return { ok: false, error: translateDbError(error, "publicar este imóvel") }
   }
   if (!data?.length) {
-    return { ok: false, error: "Você não tem permissão para publicar este imóvel." }
+    return {
+      ok: false,
+      error: "Você não tem permissão para publicar este imóvel.",
+    }
   }
 
   revalidatePropertyPaths(property.id)

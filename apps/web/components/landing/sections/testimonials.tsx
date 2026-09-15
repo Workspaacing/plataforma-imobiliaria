@@ -30,7 +30,7 @@ export function Testimonials({
       {items.map((item, index) => (
         <li key={`${index}-${item.name}`} className="flex">
           <figure className="flex w-full flex-col gap-5 border-s-2 border-(--lp-brand) ps-5">
-            <blockquote className="text-[1.0625rem] leading-relaxed whitespace-pre-line text-pretty">
+            <blockquote className="text-[1.0625rem] leading-relaxed text-pretty whitespace-pre-line">
               <p>{item.text}</p>
             </blockquote>
             <figcaption className="mt-auto flex items-center gap-3 text-sm font-semibold">

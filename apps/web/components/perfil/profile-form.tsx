@@ -61,14 +61,20 @@ export function ProfileForm({
       const result = await updateProfile(values)
 
       if (result.ok) {
-        toast.add({ title: result.message ?? "Perfil atualizado.", type: "success" })
+        toast.add({
+          title: result.message ?? "Perfil atualizado.",
+          type: "success",
+        })
         form.reset(values)
         return
       }
 
       for (const [field, message] of Object.entries(result.fieldErrors ?? {})) {
         if (message) {
-          form.setError(field as keyof ProfileValues, { type: "server", message })
+          form.setError(field as keyof ProfileValues, {
+            type: "server",
+            message,
+          })
         }
       }
 
@@ -95,8 +101,7 @@ export function ProfileForm({
               <AvatarFallback>{getInitials(fullName || email)}</AvatarFallback>
             </Avatar>
             <FieldDescription>
-              Sua foto e seu nome aparecem para a equipe das imobiliárias em que você
-              trabalha.
+              Sua foto e seu nome aparecem para a equipe das imobiliárias em que você trabalha.
             </FieldDescription>
           </Field>
           <div className="grid gap-5 sm:grid-cols-2">
@@ -142,8 +147,7 @@ export function ProfileForm({
         <FieldSet>
           <FieldLegend>CRECI</FieldLegend>
           <FieldDescription>
-            Não há consulta nacional automática: confira os dados com o seu conselho
-            regional.
+            Não há consulta nacional automática: confira os dados com o seu conselho regional.
           </FieldDescription>
           <div className="grid gap-5 sm:grid-cols-3">
             <FormTextField

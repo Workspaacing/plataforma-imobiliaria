@@ -12,6 +12,7 @@ import { readGtmContainerId } from "@/lib/leads-publicos/landing-extras"
 import { LANDING_NOT_FOUND_METADATA } from "@/lib/leads-publicos/metadata"
 import { getPublicLandingPage } from "@/lib/leads-publicos/queries"
 import { safeGoogleTagId, safeMetaPixelId } from "@/lib/leads-publicos/tracking-ids"
+import { buildLandingPagePath } from "@/lib/tenant/urls"
 
 export const revalidate = 60
 
@@ -28,7 +29,9 @@ export async function generateMetadata({ params }: LandingPrivacyPageProps): Pro
   }
 
   return {
-    title: { absolute: `Privacidade e cookies | ${landing.payload.organization.name}` },
+    title: {
+      absolute: `Privacidade e cookies | ${landing.payload.organization.name}`,
+    },
     robots: { index: false, follow: true },
   }
 }
@@ -48,8 +51,8 @@ export default async function LandingPrivacyPage({ params }: LandingPrivacyPageP
   const contacts = [organization.email, phone].filter(Boolean).join(" · ")
   const hasTrackers = Boolean(
     safeMetaPixelId(payload.page.tracking.meta_pixel_id) ||
-      safeGoogleTagId(payload.page.tracking.google_tag_id) ||
-      readGtmContainerId(payload)
+    safeGoogleTagId(payload.page.tracking.google_tag_id) ||
+    readGtmContainerId(payload)
   )
 
   return (
@@ -58,7 +61,8 @@ export default async function LandingPrivacyPage({ params }: LandingPrivacyPageP
         variant="ghost"
         size="sm"
         className="self-start"
-        render={<Link href={`/lp/${orgSlug}/${pageSlug}`} />}
+        // Caminho no host em que a página é servida (curto no subdomínio, longo no host único).
+        render={<Link href={buildLandingPagePath(orgSlug, pageSlug)} />}
         nativeButton={false}
       >
         <ArrowLeftIcon data-icon="inline-start" />
@@ -81,8 +85,8 @@ export default async function LandingPrivacyPage({ params }: LandingPrivacyPageP
         <CardContent className="flex flex-col gap-2 text-sm">
           <p>
             {organization.name}
-            {organization.creci ? ` (CRECI ${organization.creci.replace(/^creci\s*/i, "")})` : ""}{" "}
-            é a responsável pelos dados enviados por esta página.
+            {organization.creci ? ` (CRECI ${organization.creci.replace(/^creci\s*/i, "")})` : ""} é
+            a responsável pelos dados enviados por esta página.
           </p>
           <p className="text-muted-foreground">
             {contacts
@@ -98,14 +102,14 @@ export default async function LandingPrivacyPage({ params }: LandingPrivacyPageP
         </CardHeader>
         <CardContent className="flex flex-col gap-2 text-sm">
           <p>
-            Nome, telefone ou WhatsApp e, se você informar, e-mail, interesse, imóvel ou
-            tipologia e mensagem. Eles são usados para retornar o seu contato e prestar o
-            atendimento imobiliário, com base no consentimento que você dá ao marcar a
-            autorização no formulário (art. 7º, I, da LGPD).
+            Nome, telefone ou WhatsApp e, se você informar, e-mail, interesse, imóvel ou tipologia e
+            mensagem. Eles são usados para retornar o seu contato e prestar o atendimento
+            imobiliário, com base no consentimento que você dá ao marcar a autorização no formulário
+            (art. 7º, I, da LGPD).
           </p>
           <p className="text-muted-foreground">
-            Para evitar envios abusivos, usamos um código calculado a partir do seu endereço IP,
-            sem guardar o IP.
+            Para evitar envios abusivos, usamos um código calculado a partir do seu endereço IP, sem
+            guardar o IP.
           </p>
         </CardContent>
       </Card>
@@ -119,8 +123,8 @@ export default async function LandingPrivacyPage({ params }: LandingPrivacyPageP
             Para saber qual campanha trouxe você até aqui, a página guarda em cookies próprios os
             parâmetros da campanha (utm) por 30 minutos e os identificadores de clique de anúncios
             (gclid, gbraid, wbraid e fbclid) por 90 dias, e os envia junto com o formulário, com o
-            endereço da página de origem (sem parâmetros). Esse uso se baseia no legítimo
-            interesse da imobiliária em medir as próprias campanhas (art. 7º, IX, da LGPD).
+            endereço da página de origem (sem parâmetros). Esse uso se baseia no legítimo interesse
+            da imobiliária em medir as próprias campanhas (art. 7º, IX, da LGPD).
           </p>
         </CardContent>
       </Card>
@@ -151,10 +155,9 @@ export default async function LandingPrivacyPage({ params }: LandingPrivacyPageP
         </CardHeader>
         <CardContent className="flex flex-col gap-2 text-sm">
           <p>
-            Pela LGPD (art. 18), você pode pedir a confirmação do tratamento, o acesso, a
-            correção, a anonimização ou a eliminação dos seus dados, informações sobre
-            compartilhamento e a revogação do consentimento. Faça o pedido diretamente a{" "}
-            {organization.name}
+            Pela LGPD (art. 18), você pode pedir a confirmação do tratamento, o acesso, a correção,
+            a anonimização ou a eliminação dos seus dados, informações sobre compartilhamento e a
+            revogação do consentimento. Faça o pedido diretamente a {organization.name}
             {contacts ? ` (${contacts})` : ""}.
           </p>
         </CardContent>

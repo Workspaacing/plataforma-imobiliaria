@@ -202,7 +202,15 @@ export async function getConvertedCapture(
 
 type InterestRow = Pick<
   Tables<"client_interests">,
-  "id" | "purpose" | "types" | "min_price" | "max_price" | "min_bedrooms" | "min_parking" | "neighborhoods" | "city"
+  | "id"
+  | "purpose"
+  | "types"
+  | "min_price"
+  | "max_price"
+  | "min_bedrooms"
+  | "min_parking"
+  | "neighborhoods"
+  | "city"
 >
 
 function toClientInterest(row: InterestRow): ClientInterest {
@@ -258,7 +266,13 @@ export async function getPropertyMatches(
 
   const rows = (data ?? []).flatMap((row) =>
     row.client_interest_id && row.client_id
-      ? [{ interestId: row.client_interest_id, clientId: row.client_id, clientName: row.client_name }]
+      ? [
+          {
+            interestId: row.client_interest_id,
+            clientId: row.client_id,
+            clientName: row.client_name,
+          },
+        ]
       : []
   )
 
@@ -274,7 +288,9 @@ export async function getPropertyMatches(
     chunks.map((ids) =>
       supabase
         .from("client_interests")
-        .select("id, purpose, types, min_price, max_price, min_bedrooms, min_parking, neighborhoods, city")
+        .select(
+          "id, purpose, types, min_price, max_price, min_bedrooms, min_parking, neighborhoods, city"
+        )
         .eq("organization_id", organizationId)
         .in("id", ids)
     )

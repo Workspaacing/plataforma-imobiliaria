@@ -15,7 +15,12 @@ type InterestActiveSwitchProps = {
   disabled?: boolean
 }
 
-export function InterestActiveSwitch({ interestId, clientId, active, disabled }: InterestActiveSwitchProps) {
+export function InterestActiveSwitch({
+  interestId,
+  clientId,
+  active,
+  disabled,
+}: InterestActiveSwitchProps) {
   const [optimisticActive, setOptimisticActive] = React.useOptimistic(active)
   const [isPending, startTransition] = React.useTransition()
   const id = `interesse-ativo-${interestId}`

@@ -18,7 +18,11 @@ type CookieConsentBannerProps = {
 }
 
 /** Aviso discreto de cookies de medição, fixo no rodapé até a escolha. */
-export function CookieConsentBanner({ privacyHref, onAccept, onDecline }: CookieConsentBannerProps) {
+export function CookieConsentBanner({
+  privacyHref,
+  onAccept,
+  onDecline,
+}: CookieConsentBannerProps) {
   return (
     <div
       role="region"

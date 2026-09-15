@@ -17,7 +17,13 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@workspace/ui/components/sidebar"
-import { MoreHorizontalIcon, StarOffIcon, LinkIcon, ArrowUpRightIcon, Trash2Icon } from "lucide-react"
+import {
+  MoreHorizontalIcon,
+  StarOffIcon,
+  LinkIcon,
+  ArrowUpRightIcon,
+  Trash2Icon,
+} from "lucide-react"
 
 export function NavFavorites({
   favorites,
@@ -41,15 +47,9 @@ export function NavFavorites({
             </SidebarMenuButton>
             <DropdownMenu>
               <DropdownMenuTrigger
-                render={
-                  <SidebarMenuAction
-                    showOnHover
-                    className="aria-expanded:bg-muted"
-                  />
-                }
+                render={<SidebarMenuAction showOnHover className="aria-expanded:bg-muted" />}
               >
-                <MoreHorizontalIcon
-                />
+                <MoreHorizontalIcon />
                 <span className="sr-only">More</span>
               </DropdownMenuTrigger>
               <DropdownMenuContent
@@ -85,8 +85,7 @@ export function NavFavorites({
         ))}
         <SidebarMenuItem>
           <SidebarMenuButton className="text-sidebar-foreground/70">
-            <MoreHorizontalIcon
-            />
+            <MoreHorizontalIcon />
             <span>More</span>
           </SidebarMenuButton>
         </SidebarMenuItem>

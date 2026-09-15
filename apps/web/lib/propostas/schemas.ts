@@ -27,13 +27,8 @@ export const proposalFormSchema = z.object({
     .string()
     .trim()
     .max(5000, "A forma de pagamento pode ter no máximo 5.000 caracteres."),
-  conditions: z
-    .string()
-    .trim()
-    .max(5000, "As condições podem ter no máximo 5.000 caracteres."),
-  validUntil: z
-    .string()
-    .refine((value) => value === "" || isIsoDate(value), "Data inválida."),
+  conditions: z.string().trim().max(5000, "As condições podem ter no máximo 5.000 caracteres."),
+  validUntil: z.string().refine((value) => value === "" || isIsoDate(value), "Data inválida."),
 })
 
 export type ProposalFormValues = z.infer<typeof proposalFormSchema>

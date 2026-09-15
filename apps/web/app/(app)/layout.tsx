@@ -13,6 +13,12 @@ import { SupabaseSetupNotice } from "@/components/crm/supabase-setup-notice"
 import { ROLE_LABELS } from "@/lib/auth/roles"
 import { requireMembership, type MembershipContext } from "@/lib/auth/session"
 import { isSupabaseConfigured } from "@/lib/supabase/env"
+import {
+  buildTenantOrigin,
+  getAppOrigin,
+  getTenancyMode,
+  isValidTenantSlug,
+} from "@/lib/tenant/urls"
 
 export const metadata: Metadata = {
   title: {
@@ -30,8 +36,11 @@ export default async function AppLayout({
     return <SupabaseSetupNotice />
   }
 
-  // Sem login: /entrar. Sem imobiliária: /onboarding. Páginas e Server Actions
-  // repetem a checagem (layouts não re-renderizam em navegação no cliente).
+  // A imobiliária vem do subdomínio (modo subdomain: header do proxy conferido
+  // com o Host) ou do cookie validado (modo single-host), e precisa de
+  // membership ativa. Ver requireMembership para os redirecionamentos. Páginas
+  // e Server Actions repetem a checagem (layouts não re-renderizam em
+  // navegação no cliente).
   // O error.tsx deste grupo não cobre erros deste layout, por isso o try/catch;
   // unstable_rethrow devolve ao Next os redirects e sinais internos.
   let context: MembershipContext
@@ -50,6 +59,8 @@ export default async function AppLayout({
   const { user, membership, memberships } = context
   const cookieStore = await cookies()
   const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false"
+  const tenancyMode = getTenancyMode()
+  const isSubdomain = tenancyMode === "subdomain"
 
   return (
     <Toaster>
@@ -57,10 +68,17 @@ export default async function AppLayout({
         <CrmSidebar
           role={membership.role}
           currentOrganizationId={membership.organizationId}
+          tenancyMode={tenancyMode}
+          // Host único: links relativos (evita trocar de host em deploys de preview).
+          appOrigin={isSubdomain ? getAppOrigin() : ""}
           organizations={memberships.map((item) => ({
             id: item.organizationId,
             name: item.organization.name,
             roleLabel: ROLE_LABELS[item.role],
+            origin:
+              isSubdomain && isValidTenantSlug(item.organization.slug)
+                ? buildTenantOrigin(item.organization.slug)
+                : null,
           }))}
           user={{
             name: user.fullName ?? user.email ?? "Usuário",

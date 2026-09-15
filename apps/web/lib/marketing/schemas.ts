@@ -133,7 +133,10 @@ export function maskPhone(value: string) {
 
 const optionalHex = z
   .string()
-  .refine((value) => value === "" || LANDING_HEX_COLOR_PATTERN.test(value), "Use uma cor no formato #RRGGBB.")
+  .refine(
+    (value) => value === "" || LANDING_HEX_COLOR_PATTERN.test(value),
+    "Use uma cor no formato #RRGGBB."
+  )
 
 const optionalPath = z.string().max(LANDING_THEME_LIMITS.path).nullable()
 
@@ -228,7 +231,13 @@ export const contentBaseSchema = z.object({
 
 export type ContentValues = z.infer<typeof contentBaseSchema>
 
-export const EMPTY_TYPOLOGY: TypologyValues = { name: "", areaMin: "", areaMax: "", bedrooms: "", priceFrom: "" }
+export const EMPTY_TYPOLOGY: TypologyValues = {
+  name: "",
+  areaMin: "",
+  areaMax: "",
+  bedrooms: "",
+  priceFrom: "",
+}
 export const EMPTY_TESTIMONIAL: TestimonialValues = { name: "", text: "" }
 export const EMPTY_STAT: StatValues = { label: "", value: "" }
 
@@ -265,7 +274,9 @@ function readTextValue(values: ContentValues, key: LandingContentFieldKey): stri
     const launchKey = key.slice("launch.".length) as LaunchTextKey
     return values.launch[launchKey] ?? ""
   }
-  return (ROOT_TEXT_KEYS as readonly string[]).includes(key) ? (values[key as RootTextKey] ?? "") : ""
+  return (ROOT_TEXT_KEYS as readonly string[]).includes(key)
+    ? (values[key as RootTextKey] ?? "")
+    : ""
 }
 
 function requiredMessage(label: string) {
@@ -284,9 +295,17 @@ function validateField(field: LandingTemplateField, values: ContentValues, ctx: 
       if (field.required && !value) {
         ctx.addIssue({ code: "custom", path, message: requiredMessage(label) })
       } else if (field.maxLength && countChars(value) > field.maxLength) {
-        ctx.addIssue({ code: "custom", path, message: `Use no máximo ${field.maxLength} caracteres.` })
+        ctx.addIssue({
+          code: "custom",
+          path,
+          message: `Use no máximo ${field.maxLength} caracteres.`,
+        })
       } else if (field.kind === "state" && value && !/^[A-Za-z]{2}$/.test(value)) {
-        ctx.addIssue({ code: "custom", path, message: "Informe a sigla da UF com 2 letras." })
+        ctx.addIssue({
+          code: "custom",
+          path,
+          message: "Informe a sigla da UF com 2 letras.",
+        })
       }
       return
     }
@@ -296,7 +315,11 @@ function validateField(field: LandingTemplateField, values: ContentValues, ctx: 
       if (field.required && !digits) {
         ctx.addIssue({ code: "custom", path, message: requiredMessage(label) })
       } else if (digits && (digits.length < minDigits || digits.length > maxDigits)) {
-        ctx.addIssue({ code: "custom", path, message: "Informe o DDD e o número (10 ou 11 dígitos)." })
+        ctx.addIssue({
+          code: "custom",
+          path,
+          message: "Informe o DDD e o número (10 ou 11 dígitos).",
+        })
       }
       return
     }
@@ -305,7 +328,11 @@ function validateField(field: LandingTemplateField, values: ContentValues, ctx: 
       if (field.required && !value) {
         ctx.addIssue({ code: "custom", path, message: requiredMessage(label) })
       } else if (value && !localInputToIso(value)) {
-        ctx.addIssue({ code: "custom", path, message: "Data e hora inválidas." })
+        ctx.addIssue({
+          code: "custom",
+          path,
+          message: "Data e hora inválidas.",
+        })
       }
       return
     }
@@ -316,9 +343,17 @@ function validateField(field: LandingTemplateField, values: ContentValues, ctx: 
       if (field.required && !value) {
         ctx.addIssue({ code: "custom", path, message: requiredMessage(label) })
       } else if (value && !/^\d+$/.test(value)) {
-        ctx.addIssue({ code: "custom", path, message: "Use um número inteiro, sem pontos ou vírgulas." })
+        ctx.addIssue({
+          code: "custom",
+          path,
+          message: "Use um número inteiro, sem pontos ou vírgulas.",
+        })
       } else if (value && (Number(value) < min || Number(value) > max)) {
-        ctx.addIssue({ code: "custom", path, message: `Use um número entre ${min} e ${max}.` })
+        ctx.addIssue({
+          code: "custom",
+          path,
+          message: `Use um número entre ${min} e ${max}.`,
+        })
       }
       return
     }
@@ -327,10 +362,18 @@ function validateField(field: LandingTemplateField, values: ContentValues, ctx: 
       const max = field.maxItems ?? LANDING_CONTENT_LIMITS.highlights.items
       const maxLength = field.maxLength ?? LANDING_CONTENT_LIMITS.highlights.length
       if (items.length > max) {
-        ctx.addIssue({ code: "custom", path: [...path, "root"], message: `Use no máximo ${max} itens.` })
+        ctx.addIssue({
+          code: "custom",
+          path: [...path, "root"],
+          message: `Use no máximo ${max} itens.`,
+        })
       }
       if (field.required && !items.some((item) => item.value.trim())) {
-        ctx.addIssue({ code: "custom", path: [...path, "root"], message: `Adicione ao menos um item em “${label}”.` })
+        ctx.addIssue({
+          code: "custom",
+          path: [...path, "root"],
+          message: `Adicione ao menos um item em “${label}”.`,
+        })
       }
       items.forEach((item, index) => {
         if (countChars(item.value.trim()) > maxLength) {
@@ -349,23 +392,47 @@ function validateField(field: LandingTemplateField, values: ContentValues, ctx: 
       const labelMax = field.maxLength ?? LANDING_CONTENT_LIMITS.social_proof.label
       const valueMax = field.valueMaxLength ?? LANDING_CONTENT_LIMITS.social_proof.value
       if (items.length > max) {
-        ctx.addIssue({ code: "custom", path: [...path, "root"], message: `Use no máximo ${max} números.` })
+        ctx.addIssue({
+          code: "custom",
+          path: [...path, "root"],
+          message: `Use no máximo ${max} números.`,
+        })
       }
       if (field.required && items.length === 0) {
-        ctx.addIssue({ code: "custom", path: [...path, "root"], message: `Adicione ao menos um item em “${label}”.` })
+        ctx.addIssue({
+          code: "custom",
+          path: [...path, "root"],
+          message: `Adicione ao menos um item em “${label}”.`,
+        })
       }
       items.forEach((item, index) => {
         const statValue = item.value.trim()
         const statLabel = item.label.trim()
         if (!statValue) {
-          ctx.addIssue({ code: "custom", path: [...path, index, "value"], message: "Informe o número." })
+          ctx.addIssue({
+            code: "custom",
+            path: [...path, index, "value"],
+            message: "Informe o número.",
+          })
         } else if (countChars(statValue) > valueMax) {
-          ctx.addIssue({ code: "custom", path: [...path, index, "value"], message: `Use no máximo ${valueMax} caracteres.` })
+          ctx.addIssue({
+            code: "custom",
+            path: [...path, index, "value"],
+            message: `Use no máximo ${valueMax} caracteres.`,
+          })
         }
         if (!statLabel) {
-          ctx.addIssue({ code: "custom", path: [...path, index, "label"], message: "Diga o que o número significa." })
+          ctx.addIssue({
+            code: "custom",
+            path: [...path, index, "label"],
+            message: "Diga o que o número significa.",
+          })
         } else if (countChars(statLabel) > labelMax) {
-          ctx.addIssue({ code: "custom", path: [...path, index, "label"], message: `Use no máximo ${labelMax} caracteres.` })
+          ctx.addIssue({
+            code: "custom",
+            path: [...path, index, "label"],
+            message: `Use no máximo ${labelMax} caracteres.`,
+          })
         }
       })
       return
@@ -376,23 +443,47 @@ function validateField(field: LandingTemplateField, values: ContentValues, ctx: 
       const textMax = field.maxLength ?? LANDING_CONTENT_LIMITS.testimonials.text
       const nameMax = LANDING_CONTENT_LIMITS.testimonials.name
       if (items.length > max) {
-        ctx.addIssue({ code: "custom", path: [...path, "root"], message: `Use no máximo ${max} depoimentos.` })
+        ctx.addIssue({
+          code: "custom",
+          path: [...path, "root"],
+          message: `Use no máximo ${max} depoimentos.`,
+        })
       }
       if (field.required && items.length === 0) {
-        ctx.addIssue({ code: "custom", path: [...path, "root"], message: `Adicione ao menos um item em “${label}”.` })
+        ctx.addIssue({
+          code: "custom",
+          path: [...path, "root"],
+          message: `Adicione ao menos um item em “${label}”.`,
+        })
       }
       items.forEach((item, index) => {
         const name = item.name.trim()
         const body = item.text.trim()
         if (!name) {
-          ctx.addIssue({ code: "custom", path: [...path, index, "name"], message: "Informe o nome do cliente." })
+          ctx.addIssue({
+            code: "custom",
+            path: [...path, index, "name"],
+            message: "Informe o nome do cliente.",
+          })
         } else if (countChars(name) > nameMax) {
-          ctx.addIssue({ code: "custom", path: [...path, index, "name"], message: `Use no máximo ${nameMax} caracteres.` })
+          ctx.addIssue({
+            code: "custom",
+            path: [...path, index, "name"],
+            message: `Use no máximo ${nameMax} caracteres.`,
+          })
         }
         if (!body) {
-          ctx.addIssue({ code: "custom", path: [...path, index, "text"], message: "Escreva o depoimento." })
+          ctx.addIssue({
+            code: "custom",
+            path: [...path, index, "text"],
+            message: "Escreva o depoimento.",
+          })
         } else if (countChars(body) > textMax) {
-          ctx.addIssue({ code: "custom", path: [...path, index, "text"], message: `Use no máximo ${textMax} caracteres.` })
+          ctx.addIssue({
+            code: "custom",
+            path: [...path, index, "text"],
+            message: `Use no máximo ${textMax} caracteres.`,
+          })
         }
       })
       return
@@ -402,17 +493,33 @@ function validateField(field: LandingTemplateField, values: ContentValues, ctx: 
       const max = field.maxItems ?? LANDING_CONTENT_LIMITS.launch.typologies.items
       const nameMax = field.maxLength ?? LANDING_CONTENT_LIMITS.launch.typologies.name
       if (items.length > max) {
-        ctx.addIssue({ code: "custom", path: [...path, "root"], message: `Use no máximo ${max} tipologias.` })
+        ctx.addIssue({
+          code: "custom",
+          path: [...path, "root"],
+          message: `Use no máximo ${max} tipologias.`,
+        })
       }
       if (field.required && items.length === 0) {
-        ctx.addIssue({ code: "custom", path: [...path, "root"], message: "Adicione ao menos uma tipologia." })
+        ctx.addIssue({
+          code: "custom",
+          path: [...path, "root"],
+          message: "Adicione ao menos uma tipologia.",
+        })
       }
       items.forEach((item, index) => {
         const name = item.name.trim()
         if (!name) {
-          ctx.addIssue({ code: "custom", path: [...path, index, "name"], message: "Informe o nome da planta." })
+          ctx.addIssue({
+            code: "custom",
+            path: [...path, index, "name"],
+            message: "Informe o nome da planta.",
+          })
         } else if (countChars(name) > nameMax) {
-          ctx.addIssue({ code: "custom", path: [...path, index, "name"], message: `Use no máximo ${nameMax} caracteres.` })
+          ctx.addIssue({
+            code: "custom",
+            path: [...path, index, "name"],
+            message: `Use no máximo ${nameMax} caracteres.`,
+          })
         }
         const numbers = {
           areaMin: parseBrNumber(item.areaMin),
@@ -422,7 +529,11 @@ function validateField(field: LandingTemplateField, values: ContentValues, ctx: 
         }
         for (const [key, parsed] of Object.entries(numbers)) {
           if (parsed != null && Number.isNaN(parsed)) {
-            ctx.addIssue({ code: "custom", path: [...path, index, key], message: "Número inválido." })
+            ctx.addIssue({
+              code: "custom",
+              path: [...path, index, key],
+              message: "Número inválido.",
+            })
           }
         }
         if (
@@ -466,8 +577,14 @@ export function contentToValues(value: unknown): ContentValues {
     whatsapp_number: content.whatsapp_number ? maskPhone(content.whatsapp_number) : "",
     whatsapp_message: content.whatsapp_message ?? "",
     countdown_until: isoToLocalInput(content.countdown_until),
-    testimonials: (content.testimonials ?? []).map((item) => ({ name: item.name, text: item.text })),
-    social_proof: (content.social_proof ?? []).map((item) => ({ label: item.stat_label, value: item.stat_value })),
+    testimonials: (content.testimonials ?? []).map((item) => ({
+      name: item.name,
+      text: item.text,
+    })),
+    social_proof: (content.social_proof ?? []).map((item) => ({
+      label: item.stat_label,
+      value: item.stat_value,
+    })),
     units_left: content.units_left != null ? String(content.units_left) : "",
     financing_note: content.financing_note ?? "",
     launch: {
@@ -502,7 +619,14 @@ export function contentValuesToContent(
   const raw: Record<string, unknown> = {}
   const launch: Record<string, unknown> = {}
 
-  for (const key of ["headline", "subheadline", "cta_label", "description", "whatsapp_message", "financing_note"] as const) {
+  for (const key of [
+    "headline",
+    "subheadline",
+    "cta_label",
+    "description",
+    "whatsapp_message",
+    "financing_note",
+  ] as const) {
     if (keys.has(key)) raw[key] = values[key]
   }
   if (keys.has("highlights")) raw.highlights = values.highlights.map((item) => item.value)
@@ -510,14 +634,24 @@ export function contentValuesToContent(
   if (keys.has("countdown_until")) raw.countdown_until = localInputToIso(values.countdown_until)
   if (keys.has("testimonials")) raw.testimonials = values.testimonials
   if (keys.has("social_proof")) {
-    raw.social_proof = values.social_proof.map((item) => ({ stat_label: item.label, stat_value: item.value }))
+    raw.social_proof = values.social_proof.map((item) => ({
+      stat_label: item.label,
+      stat_value: item.value,
+    }))
   }
   if (keys.has("units_left")) {
     const units = values.units_left.trim()
     raw.units_left = /^\d+$/.test(units) ? Number(units) : undefined
   }
 
-  for (const key of ["name", "developer", "delivery_date", "neighborhood", "city", "state"] as const) {
+  for (const key of [
+    "name",
+    "developer",
+    "delivery_date",
+    "neighborhood",
+    "city",
+    "state",
+  ] as const) {
     if (keys.has(`launch.${key}`)) launch[key] = values.launch[key]
   }
   if (keys.has("launch.typologies")) {
@@ -548,7 +682,10 @@ export function buildPropertyIdsSchema(template: LandingTemplateDefinition) {
   const max = maxPropertiesFor(template)
   return z
     .array(z.guid("Imóvel inválido."))
-    .max(max, max === 1 ? "Este modelo exibe só 1 imóvel." : `Este modelo exibe no máximo ${max} imóveis.`)
+    .max(
+      max,
+      max === 1 ? "Este modelo exibe só 1 imóvel." : `Este modelo exibe no máximo ${max} imóveis.`
+    )
     .refine((ids) => new Set(ids).size === ids.length, "O mesmo imóvel foi selecionado duas vezes.")
 }
 
@@ -563,7 +700,10 @@ export const publicationSchema = z.object({
     .string()
     .trim()
     .min(3, "Dê um nome interno com pelo menos 3 caracteres.")
-    .max(LANDING_NAME_MAX_LENGTH, `O nome pode ter no máximo ${LANDING_NAME_MAX_LENGTH} caracteres.`),
+    .max(
+      LANDING_NAME_MAX_LENGTH,
+      `O nome pode ter no máximo ${LANDING_NAME_MAX_LENGTH} caracteres.`
+    ),
   slug: z
     .string()
     .trim()
@@ -630,9 +770,14 @@ export type LandingTrackingValues = LandingTracking & {
 export function readLandingTracking(value: unknown): LandingTrackingValues {
   if (!isPlainObject(value)) return {}
   const tracking: LandingTrackingValues = {}
-  const pixel = typeof value.meta_pixel_id === "number" ? String(value.meta_pixel_id) : value.meta_pixel_id
-  if (typeof pixel === "string" && META_PIXEL_ID_PATTERN.test(pixel.trim())) tracking.meta_pixel_id = pixel.trim()
-  if (typeof value.google_tag_id === "string" && GOOGLE_TAG_ID_PATTERN.test(value.google_tag_id.trim().toUpperCase())) {
+  const pixel =
+    typeof value.meta_pixel_id === "number" ? String(value.meta_pixel_id) : value.meta_pixel_id
+  if (typeof pixel === "string" && META_PIXEL_ID_PATTERN.test(pixel.trim()))
+    tracking.meta_pixel_id = pixel.trim()
+  if (
+    typeof value.google_tag_id === "string" &&
+    GOOGLE_TAG_ID_PATTERN.test(value.google_tag_id.trim().toUpperCase())
+  ) {
     tracking.google_tag_id = value.google_tag_id.trim().toUpperCase()
   }
   if (
@@ -667,13 +812,15 @@ export function toPublicationValues(row: {
 export function publicationValuesToColumns(values: PublicationValues) {
   const seo: LandingSeo = {}
   if (values.seoTitle.trim()) seo.title = clipText(values.seoTitle, SEO_TITLE_MAX_LENGTH)
-  if (values.seoDescription.trim()) seo.description = clipText(values.seoDescription, SEO_DESCRIPTION_MAX_LENGTH)
+  if (values.seoDescription.trim())
+    seo.description = clipText(values.seoDescription, SEO_DESCRIPTION_MAX_LENGTH)
   if (values.ogImagePath) seo.og_image_path = values.ogImagePath
 
   const tracking: LandingTrackingValues = {}
   if (values.metaPixelId.trim()) tracking.meta_pixel_id = values.metaPixelId.trim()
   if (values.googleTagId.trim()) tracking.google_tag_id = values.googleTagId.trim().toUpperCase()
-  if (values.gtmContainerId.trim()) tracking.gtm_container_id = values.gtmContainerId.trim().toUpperCase()
+  if (values.gtmContainerId.trim())
+    tracking.gtm_container_id = values.gtmContainerId.trim().toUpperCase()
 
   return {
     name: values.name.trim(),
@@ -711,23 +858,31 @@ function hasContentValue(content: LandingContent, key: LandingContentFieldKey) {
   }
 }
 
-/** Pendências que impedem publicar (lista vazia = pode publicar). */
+/**
+ * Modelos que só publicam com ao menos 1 imóvel ativo (espelha o trigger
+ * `landing_pages_before_write`: o imóvel em destaque e a vitrine). Nos demais
+ * modelos com imóveis, a seção de imóveis é opcional.
+ */
+export function templateRequiresProperty(template: LandingTemplateDefinition) {
+  return template.usesProperties === "single" || template.key === "portfolio_grid"
+}
+
+/**
+ * Pendências que impedem publicar (lista vazia = pode publicar): campos
+ * obrigatórios do modelo (inclui o título principal) e imóvel ativo quando o
+ * modelo exige. O banco repete a checagem ao publicar.
+ */
 export function getPublishIssues({
   template,
   content,
-  seo,
   activePropertyCount,
 }: {
   template: LandingTemplateDefinition
   content: LandingContent
-  seo: LandingSeo
+  seo?: LandingSeo
   activePropertyCount: number
 }) {
   const issues: string[] = []
-
-  if (!seo.title?.trim()) {
-    issues.push("Informe o título da página em Divulgação.")
-  }
 
   for (const field of template.fields) {
     if (field.required && !hasContentValue(content, field.key)) {
@@ -735,7 +890,7 @@ export function getPublishIssues({
     }
   }
 
-  if (template.usesProperties !== "none" && activePropertyCount < 1) {
+  if (templateRequiresProperty(template) && activePropertyCount < 1) {
     issues.push(
       template.usesProperties === "single"
         ? "Selecione o imóvel ativo que a página vai exibir."

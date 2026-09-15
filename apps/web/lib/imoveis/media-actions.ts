@@ -1,7 +1,11 @@
 "use server"
 
 import type { ActionResult } from "@/lib/auth/action-result"
-import { ACCEPTED_IMAGE_TYPES, CAPTION_MAX_LENGTH, PROPERTY_MEDIA_BUCKET } from "@/lib/imoveis/constants"
+import {
+  ACCEPTED_IMAGE_TYPES,
+  CAPTION_MAX_LENGTH,
+  PROPERTY_MEDIA_BUCKET,
+} from "@/lib/imoveis/constants"
 import { translateDbError } from "@/lib/imoveis/db-errors"
 import { isUuid } from "@/lib/imoveis/ids"
 import { canDeletePropertyRecords } from "@/lib/imoveis/permissions"
@@ -22,7 +26,11 @@ type ImageRow = {
   storage_path: string | null
 }
 
-async function loadImages(supabase: ServerSupabaseClient, organizationId: string, propertyId: string) {
+async function loadImages(
+  supabase: ServerSupabaseClient,
+  organizationId: string,
+  propertyId: string
+) {
   const { data, error } = await supabase
     .from("property_media")
     .select("id, position, is_cover, storage_path")
@@ -39,7 +47,10 @@ async function loadImages(supabase: ServerSupabaseClient, organizationId: string
 async function persistOrder(supabase: ServerSupabaseClient, ordered: readonly ImageRow[]) {
   for (const [index, image] of ordered.entries()) {
     if (image.position === index) continue
-    const { error } = await supabase.from("property_media").update({ position: index }).eq("id", image.id)
+    const { error } = await supabase
+      .from("property_media")
+      .update({ position: index })
+      .eq("id", image.id)
     if (error) return error
   }
   return null
@@ -58,12 +69,18 @@ function isExpectedStoragePath(path: string, organizationId: string, propertyId:
  * Registra fotos que o navegador já enviou ao bucket (o RLS do Storage validou
  * o envio). Novas fotos entram no fim; a primeira vira capa se não houver.
  */
-export async function registerPropertyImagesAction(propertyId: string, storagePaths: string[]): Promise<ActionResult> {
+export async function registerPropertyImagesAction(
+  propertyId: string,
+  storagePaths: string[]
+): Promise<ActionResult> {
   if (!Array.isArray(storagePaths) || storagePaths.length === 0) {
     return { ok: false, error: "Nenhuma foto para registrar." }
   }
   if (storagePaths.length > MAX_IMAGES_PER_CALL) {
-    return { ok: false, error: `Envie no máximo ${MAX_IMAGES_PER_CALL} fotos por vez.` }
+    return {
+      ok: false,
+      error: `Envie no máximo ${MAX_IMAGES_PER_CALL} fotos por vez.`,
+    }
   }
 
   const loaded = await getPropertyActionContext(propertyId)
@@ -78,7 +95,10 @@ export async function registerPropertyImagesAction(propertyId: string, storagePa
 
   const { images, error: loadError } = await loadImages(supabase, organizationId, property.id)
   if (loadError) {
-    return { ok: false, error: translateDbError(loadError, "registrar as fotos") }
+    return {
+      ok: false,
+      error: translateDbError(loadError, "registrar as fotos"),
+    }
   }
 
   const nextPosition = images.reduce((max, image) => Math.max(max, image.position + 1), 0)
@@ -96,7 +116,10 @@ export async function registerPropertyImagesAction(propertyId: string, storagePa
   )
 
   if (error) {
-    return { ok: false, error: translateDbError(error, "adicionar fotos a este imóvel") }
+    return {
+      ok: false,
+      error: translateDbError(error, "adicionar fotos a este imóvel"),
+    }
   }
 
   await refreshImobScore(supabase, organizationId, property.id)
@@ -123,7 +146,10 @@ export async function moveMediaAction(
   const { supabase, organizationId, property } = loaded.context
   const { images, error: loadError } = await loadImages(supabase, organizationId, property.id)
   if (loadError) {
-    return { ok: false, error: translateDbError(loadError, "reordenar as fotos") }
+    return {
+      ok: false,
+      error: translateDbError(loadError, "reordenar as fotos"),
+    }
   }
 
   const index = images.findIndex((image) => image.id === mediaId)
@@ -148,7 +174,10 @@ export async function moveMediaAction(
   return { ok: true }
 }
 
-export async function setCoverMediaAction(propertyId: string, mediaId: string): Promise<ActionResult> {
+export async function setCoverMediaAction(
+  propertyId: string,
+  mediaId: string
+): Promise<ActionResult> {
   if (!isUuid(mediaId)) {
     return { ok: false, error: "Foto inválida." }
   }
@@ -173,7 +202,10 @@ export async function setCoverMediaAction(propertyId: string, mediaId: string): 
   // Índice único parcial: no máximo uma capa por imóvel. Desmarca antes de marcar.
   const previousCovers = images.filter((image) => image.is_cover).map((image) => image.id)
   if (previousCovers.length > 0) {
-    const { error } = await supabase.from("property_media").update({ is_cover: false }).in("id", previousCovers)
+    const { error } = await supabase
+      .from("property_media")
+      .update({ is_cover: false })
+      .in("id", previousCovers)
     if (error) {
       return { ok: false, error: translateDbError(error, "definir a capa") }
     }
@@ -187,11 +219,16 @@ export async function setCoverMediaAction(propertyId: string, mediaId: string): 
 
   if (error || !data?.length) {
     if (previousCovers.length > 0) {
-      await supabase.from("property_media").update({ is_cover: true }).in("id", previousCovers.slice(0, 1))
+      await supabase
+        .from("property_media")
+        .update({ is_cover: true })
+        .in("id", previousCovers.slice(0, 1))
     }
     return {
       ok: false,
-      error: error ? translateDbError(error, "definir a capa") : "Você não tem permissão para definir a capa.",
+      error: error
+        ? translateDbError(error, "definir a capa")
+        : "Você não tem permissão para definir a capa.",
     }
   }
 
@@ -210,7 +247,10 @@ export async function updateMediaCaptionAction(
     return { ok: false, error: "Foto inválida." }
   }
   if (text.length > CAPTION_MAX_LENGTH) {
-    return { ok: false, error: `A legenda pode ter no máximo ${CAPTION_MAX_LENGTH} caracteres.` }
+    return {
+      ok: false,
+      error: `A legenda pode ter no máximo ${CAPTION_MAX_LENGTH} caracteres.`,
+    }
   }
 
   const loaded = await getPropertyActionContext(propertyId)
@@ -229,7 +269,10 @@ export async function updateMediaCaptionAction(
     return { ok: false, error: translateDbError(error, "editar a legenda") }
   }
   if (!data?.length) {
-    return { ok: false, error: "Foto não encontrada ou sem permissão para editar." }
+    return {
+      ok: false,
+      error: "Foto não encontrada ou sem permissão para editar.",
+    }
   }
 
   revalidatePropertyPaths(property.id)
@@ -237,18 +280,26 @@ export async function updateMediaCaptionAction(
 }
 
 /** Remove a foto (linha e arquivo). RLS: só dono e gerente removem mídias. */
-export async function removeMediaAction(propertyId: string, mediaId: string): Promise<ActionResult> {
+export async function removeMediaAction(
+  propertyId: string,
+  mediaId: string
+): Promise<ActionResult> {
   if (!isUuid(mediaId)) {
     return { ok: false, error: "Foto inválida." }
   }
 
-  const loaded = await getPropertyActionContext(propertyId, { requireEdit: false })
+  const loaded = await getPropertyActionContext(propertyId, {
+    requireEdit: false,
+  })
   if (!loaded.ok) return loaded
 
   const { supabase, organizationId, role, property } = loaded.context
 
   if (!canDeletePropertyRecords(role)) {
-    return { ok: false, error: "Somente o dono ou o gerente podem remover fotos." }
+    return {
+      ok: false,
+      error: "Somente o dono ou o gerente podem remover fotos.",
+    }
   }
 
   const { data: removed, error } = await supabase
@@ -265,13 +316,18 @@ export async function removeMediaAction(propertyId: string, mediaId: string): Pr
 
   const row = removed?.[0]
   if (!row) {
-    return { ok: false, error: "Foto não encontrada ou sem permissão para remover." }
+    return {
+      ok: false,
+      error: "Foto não encontrada ou sem permissão para remover.",
+    }
   }
 
   let warning: string | undefined
 
   if (row.storage_path) {
-    const { error: storageError } = await supabase.storage.from(PROPERTY_MEDIA_BUCKET).remove([row.storage_path])
+    const { error: storageError } = await supabase.storage
+      .from(PROPERTY_MEDIA_BUCKET)
+      .remove([row.storage_path])
     if (storageError) {
       warning = "A foto saiu do anúncio, mas o arquivo não pôde ser apagado do armazenamento."
     }

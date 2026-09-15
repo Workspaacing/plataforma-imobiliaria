@@ -25,7 +25,14 @@ import {
 } from "@workspace/ui/components/alert-dialog"
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
-import { Card, CardAction, CardContent, CardFooter, CardHeader, CardTitle } from "@workspace/ui/components/card"
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@workspace/ui/components/card"
 import { Field, FieldLabel } from "@workspace/ui/components/field"
 import {
   InputGroup,
@@ -67,7 +74,12 @@ import { getPropertyMediaPublicUrl } from "@/lib/imoveis/media-url"
 import { createClient } from "@/lib/supabase/client"
 
 const UPLOAD_CONCURRENCY = 3
-const EXTENSION_TYPES: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp" }
+const EXTENSION_TYPES: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+}
 
 type UploadEntry = {
   key: string
@@ -89,7 +101,11 @@ function formatMegabytes(bytes: number) {
 
 function notify(result: ActionResult, { quiet = false }: { quiet?: boolean } = {}) {
   if (!result.ok) {
-    toast.add({ type: "error", title: "Não foi possível concluir", description: result.error })
+    toast.add({
+      type: "error",
+      title: "Não foi possível concluir",
+      description: result.error,
+    })
   } else if (!quiet && result.message) {
     toast.add({ type: "success", title: result.message })
   }
@@ -186,7 +202,11 @@ function MediaCard({
           size="icon-sm"
           title="Subir"
           disabled={isPending || index === 0}
-          onClick={() => run(() => moveMediaAction(propertyId, image.id, "up"), { quiet: true })}
+          onClick={() =>
+            run(() => moveMediaAction(propertyId, image.id, "up"), {
+              quiet: true,
+            })
+          }
         >
           <ArrowUpIcon />
           <span className="sr-only">Subir {label.toLowerCase()}</span>
@@ -197,7 +217,11 @@ function MediaCard({
           size="icon-sm"
           title="Descer"
           disabled={isPending || index === total - 1}
-          onClick={() => run(() => moveMediaAction(propertyId, image.id, "down"), { quiet: true })}
+          onClick={() =>
+            run(() => moveMediaAction(propertyId, image.id, "down"), {
+              quiet: true,
+            })
+          }
         >
           <ArrowDownIcon />
           <span className="sr-only">Descer {label.toLowerCase()}</span>
@@ -216,7 +240,9 @@ function MediaCard({
         )}
         {canDelete ? (
           <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-            <AlertDialogTrigger render={<Button type="button" variant="ghost" size="sm" disabled={isPending} />}>
+            <AlertDialogTrigger
+              render={<Button type="button" variant="ghost" size="sm" disabled={isPending} />}
+            >
               <Trash2Icon data-icon="inline-start" />
               Remover
             </AlertDialogTrigger>
@@ -224,7 +250,8 @@ function MediaCard({
               <AlertDialogHeader>
                 <AlertDialogTitle>Remover a {label.toLowerCase()}?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  A foto sai do anúncio e o arquivo é apagado do armazenamento. Não dá para desfazer.
+                  A foto sai do anúncio e o arquivo é apagado do armazenamento. Não dá para
+                  desfazer.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -292,13 +319,22 @@ export function PropertyMediaManager({
     if (rejected.length > 0) {
       toast.add({
         type: "error",
-        title: rejected.length === 1 ? "Um arquivo foi ignorado" : `${rejected.length} arquivos foram ignorados`,
+        title:
+          rejected.length === 1
+            ? "Um arquivo foi ignorado"
+            : `${rejected.length} arquivos foram ignorados`,
         description: rejected.join("; "),
       })
     }
     if (accepted.length === 0) return
 
-    setUploads(accepted.map(({ file, key }) => ({ key, name: file.name, status: "uploading" })))
+    setUploads(
+      accepted.map(({ file, key }) => ({
+        key,
+        name: file.name,
+        status: "uploading",
+      }))
+    )
 
     const supabase = createClient()
     const uploadedPaths: (string | null)[] = accepted.map(() => null)
@@ -314,11 +350,13 @@ export function PropertyMediaManager({
 
         const extension = ACCEPTED_IMAGE_TYPES[entry.type]
         const path = `${organizationId}/properties/${propertyId}/${crypto.randomUUID()}.${extension}`
-        const { error } = await supabase.storage.from(PROPERTY_MEDIA_BUCKET).upload(path, entry.file, {
-          contentType: entry.type,
-          cacheControl: "31536000",
-          upsert: false,
-        })
+        const { error } = await supabase.storage
+          .from(PROPERTY_MEDIA_BUCKET)
+          .upload(path, entry.file, {
+            contentType: entry.type,
+            cacheControl: "31536000",
+            upsert: false,
+          })
 
         if (error) {
           failures.set(entry.key, translateStorageError(error, "enviar fotos para este imóvel"))
@@ -328,7 +366,9 @@ export function PropertyMediaManager({
       }
     }
 
-    await Promise.all(Array.from({ length: Math.min(UPLOAD_CONCURRENCY, accepted.length) }, () => worker()))
+    await Promise.all(
+      Array.from({ length: Math.min(UPLOAD_CONCURRENCY, accepted.length) }, () => worker())
+    )
 
     const paths = uploadedPaths.filter((path): path is string => path !== null)
 
@@ -344,7 +384,12 @@ export function PropertyMediaManager({
     setUploads(
       accepted
         .filter(({ key }) => failures.has(key))
-        .map(({ file, key }) => ({ key, name: file.name, status: "error", error: failures.get(key) }))
+        .map(({ file, key }) => ({
+          key,
+          name: file.name,
+          status: "error",
+          error: failures.get(key),
+        }))
     )
   }
 
@@ -370,12 +415,21 @@ export function PropertyMediaManager({
         <div className="flex flex-col gap-1">
           <p className="font-medium">Arraste as fotos para cá</p>
           <p className="text-sm text-muted-foreground">
-            JPG, PNG ou WebP até 7 MB cada. Os portais exigem pelo menos 5 fotos; 15 ou mais pontuam o máximo na
-            Nota do Anúncio.
+            JPG, PNG ou WebP até 7 MB cada. Os portais exigem pelo menos 5 fotos; 15 ou mais pontuam
+            o máximo na Nota do Anúncio.
           </p>
         </div>
-        <Button type="button" variant="outline" disabled={isUploading} onClick={() => inputRef.current?.click()}>
-          {isUploading ? <Spinner data-icon="inline-start" /> : <UploadIcon data-icon="inline-start" />}
+        <Button
+          type="button"
+          variant="outline"
+          disabled={isUploading}
+          onClick={() => inputRef.current?.click()}
+        >
+          {isUploading ? (
+            <Spinner data-icon="inline-start" />
+          ) : (
+            <UploadIcon data-icon="inline-start" />
+          )}
           {isUploading ? "Enviando..." : "Selecionar fotos"}
         </Button>
         <input
@@ -399,11 +453,17 @@ export function PropertyMediaManager({
           {uploads.map((entry) => (
             <Item key={entry.key} variant="outline" size="xs">
               <ItemMedia variant="icon">
-                {entry.status === "uploading" ? <Spinner /> : <TriangleAlertIcon className="text-destructive" />}
+                {entry.status === "uploading" ? (
+                  <Spinner />
+                ) : (
+                  <TriangleAlertIcon className="text-destructive" />
+                )}
               </ItemMedia>
               <ItemContent className="min-w-0">
                 <ItemTitle className="truncate">{entry.name}</ItemTitle>
-                <ItemDescription>{entry.status === "uploading" ? "Enviando..." : entry.error}</ItemDescription>
+                <ItemDescription>
+                  {entry.status === "uploading" ? "Enviando..." : entry.error}
+                </ItemDescription>
               </ItemContent>
               {entry.status === "error" ? (
                 <ItemActions>
@@ -411,7 +471,9 @@ export function PropertyMediaManager({
                     type="button"
                     variant="ghost"
                     size="icon-sm"
-                    onClick={() => setUploads((current) => current.filter((item) => item.key !== entry.key))}
+                    onClick={() =>
+                      setUploads((current) => current.filter((item) => item.key !== entry.key))
+                    }
                   >
                     <XIcon />
                     <span className="sr-only">Dispensar aviso de {entry.name}</span>
@@ -432,7 +494,10 @@ export function PropertyMediaManager({
       </div>
 
       {images.length > 0 ? (
-        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Fotos do imóvel">
+        <ul
+          className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
+          aria-label="Fotos do imóvel"
+        >
           {images.map((image, index) => (
             <li key={image.id}>
               <MediaCard

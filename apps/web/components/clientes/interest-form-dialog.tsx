@@ -132,7 +132,12 @@ type InterestFormDialogProps = {
   children: React.ReactNode
 }
 
-export function InterestFormDialog({ clientId, interest, trigger, children }: InterestFormDialogProps) {
+export function InterestFormDialog({
+  clientId,
+  interest,
+  trigger,
+  children,
+}: InterestFormDialogProps) {
   const [open, setOpen] = React.useState(false)
   const [isPending, startTransition] = React.useTransition()
   const initialValues = interest?.values ?? EMPTY_INTEREST_FORM_VALUES
@@ -152,7 +157,10 @@ export function InterestFormDialog({ clientId, interest, trigger, children }: In
         return
       }
 
-      toast.add({ title: result.message ?? "Perfil de busca salvo.", type: "success" })
+      toast.add({
+        title: result.message ?? "Perfil de busca salvo.",
+        type: "success",
+      })
       setOpen(false)
     })
   }
@@ -169,7 +177,9 @@ export function InterestFormDialog({ clientId, interest, trigger, children }: In
       <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-2xl">
         <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
           <DialogHeader>
-            <DialogTitle>{interest ? "Editar perfil de busca" : "Novo perfil de busca"}</DialogTitle>
+            <DialogTitle>
+              {interest ? "Editar perfil de busca" : "Novo perfil de busca"}
+            </DialogTitle>
             <DialogDescription>
               O que o cliente procura. Perfis ativos alimentam a lista de imóveis compatíveis.
             </DialogDescription>
@@ -354,7 +364,9 @@ export function InterestFormDialog({ clientId, interest, trigger, children }: In
                 <Field orientation="horizontal">
                   <FieldContent>
                     <FieldLabel htmlFor="interesse-ativo">Perfil ativo</FieldLabel>
-                    <FieldDescription>Perfis inativos não entram no match de imóveis.</FieldDescription>
+                    <FieldDescription>
+                      Perfis inativos não entram no match de imóveis.
+                    </FieldDescription>
                   </FieldContent>
                   <Switch
                     id="interesse-ativo"
@@ -367,7 +379,12 @@ export function InterestFormDialog({ clientId, interest, trigger, children }: In
           </FieldGroup>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpen(false)}
+              disabled={isPending}
+            >
               Cancelar
             </Button>
             <Button type="submit" disabled={isPending}>

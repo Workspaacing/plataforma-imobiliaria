@@ -48,7 +48,11 @@ export async function saveTask(
   const parsed = taskFormSchema.safeParse(values)
 
   if (!parsed.success) {
-    return { ok: false, error: INVALID_FIELDS_MESSAGE, fieldErrors: toFieldErrors(parsed.error) }
+    return {
+      ok: false,
+      error: INVALID_FIELDS_MESSAGE,
+      fieldErrors: toFieldErrors(parsed.error),
+    }
   }
 
   const { user, membership } = await requireMembership()
@@ -81,7 +85,10 @@ export async function saveTask(
       .single()
 
     if (error) {
-      return { ok: false, error: translateDatabaseError(error, "criar esta tarefa") }
+      return {
+        ok: false,
+        error: translateDatabaseError(error, "criar esta tarefa"),
+      }
     }
 
     revalidateTaskPaths(columns)
@@ -96,7 +103,10 @@ export async function saveTask(
     .maybeSingle()
 
   if (currentError) {
-    return { ok: false, error: translateDatabaseError(currentError, "editar esta tarefa") }
+    return {
+      ok: false,
+      error: translateDatabaseError(currentError, "editar esta tarefa"),
+    }
   }
 
   if (!current) {
@@ -124,7 +134,10 @@ export async function saveTask(
       .maybeSingle()
 
     if (!visibleClient) {
-      return { ok: false, error: permissionDeniedMessage("vincular este cliente à tarefa") }
+      return {
+        ok: false,
+        error: permissionDeniedMessage("vincular este cliente à tarefa"),
+      }
     }
   }
 
@@ -141,7 +154,10 @@ export async function saveTask(
     .select("id")
 
   if (error) {
-    return { ok: false, error: translateDatabaseError(error, "editar esta tarefa") }
+    return {
+      ok: false,
+      error: translateDatabaseError(error, "editar esta tarefa"),
+    }
   }
 
   // UPDATE barrado pelo RLS não dá erro: volta sem linhas.
@@ -202,7 +218,10 @@ export async function deleteTask(id: string): Promise<ActionResult> {
     .maybeSingle()
 
   if (currentError) {
-    return { ok: false, error: translateDatabaseError(currentError, "excluir esta tarefa") }
+    return {
+      ok: false,
+      error: translateDatabaseError(currentError, "excluir esta tarefa"),
+    }
   }
 
   if (!current) {
@@ -221,7 +240,10 @@ export async function deleteTask(id: string): Promise<ActionResult> {
     .select("id, client_id, property_id")
 
   if (error) {
-    return { ok: false, error: translateDatabaseError(error, "excluir esta tarefa") }
+    return {
+      ok: false,
+      error: translateDatabaseError(error, "excluir esta tarefa"),
+    }
   }
 
   // DELETE barrado pelo RLS não dá erro: volta sem linhas.

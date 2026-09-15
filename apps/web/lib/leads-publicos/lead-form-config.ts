@@ -1,12 +1,9 @@
 import type { LeadFormProps } from "@/components/leads-publicos/lead-form"
-import type {
-  LandingProperty,
-  LandingPublicPayload,
-  LandingTemplateKey,
-} from "@/lib/landing/types"
+import type { LandingProperty, LandingPublicPayload, LandingTemplateKey } from "@/lib/landing/types"
 import { LEAD_INTERESTS, type LeadInterest } from "@/lib/leads-publicos/constants"
 import { readWhatsappMessageTemplate } from "@/lib/leads-publicos/landing-extras"
 import { isUuid } from "@/lib/leads-publicos/schemas"
+import { buildLandingPagePath } from "@/lib/tenant/urls"
 
 /** Opções de interesse por modelo. Modelos ausentes mostram todas. */
 const TEMPLATE_INTERESTS: Partial<Record<LandingTemplateKey, readonly LeadInterest[]>> = {
@@ -59,7 +56,8 @@ export function buildLeadFormProps(
     pageSlug,
     organizationName: organization.name,
     pageLabel: page.content.headline ?? page.name,
-    privacyHref: `/lp/${orgSlug}/${pageSlug}/privacidade`,
+    // /lp/{pagina}/privacidade no subdomínio; /lp/{org}/{pagina}/privacidade no host único.
+    privacyHref: `${buildLandingPagePath(orgSlug, pageSlug)}/privacidade`,
     ctaLabel: page.content.cta_label ?? null,
     properties: properties
       .filter((property) => isUuid(property.id))

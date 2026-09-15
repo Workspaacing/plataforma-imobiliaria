@@ -3,12 +3,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { BuildingIcon, RotateCwIcon, SearchXIcon, TriangleAlertIcon } from "lucide-react"
 
-import {
-  Alert,
-  AlertAction,
-  AlertDescription,
-  AlertTitle,
-} from "@workspace/ui/components/alert"
+import { Alert, AlertAction, AlertDescription, AlertTitle } from "@workspace/ui/components/alert"
 import { Button } from "@workspace/ui/components/button"
 import {
   Empty,
@@ -53,7 +48,10 @@ export default async function CondominiosPage({ searchParams }: CondominiosPageP
   const canCreate = canCreateCondominium(membership.role)
 
   const supabase = await createClient()
-  const result = await listCondominiums(supabase, membership.organizationId, { term, page })
+  const result = await listCondominiums(supabase, membership.organizationId, {
+    term,
+    page,
+  })
 
   // Página além do total (link antigo ou itens excluídos): volta para a primeira.
   if (
@@ -85,7 +83,12 @@ export default async function CondominiosPage({ searchParams }: CondominiosPageP
             Tente novamente em instantes. Se o problema continuar, fale com o suporte.
           </AlertDescription>
           <AlertAction>
-            <Button variant="outline" size="sm" render={<Link href={currentHref} />} nativeButton={false}>
+            <Button
+              variant="outline"
+              size="sm"
+              render={<Link href={currentHref} />}
+              nativeButton={false}
+            >
               <RotateCwIcon data-icon="inline-start" />
               Tentar de novo
             </Button>
@@ -104,7 +107,11 @@ export default async function CondominiosPage({ searchParams }: CondominiosPageP
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            <Button variant="outline" render={<Link href={CONDOMINIUMS_PATH} />} nativeButton={false}>
+            <Button
+              variant="outline"
+              render={<Link href={CONDOMINIUMS_PATH} />}
+              nativeButton={false}
+            >
               Limpar busca
             </Button>
           </EmptyContent>

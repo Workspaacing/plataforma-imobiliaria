@@ -47,10 +47,7 @@ export const landingLeadSchema = z
     propertyId: z
       .string()
       .refine((value): boolean => value === "" || isUuid(value), "Imóvel inválido."),
-    typology: z
-      .string()
-      .trim()
-      .max(LEAD_TYPOLOGY_MAX_LENGTH, "Tipologia inválida."),
+    typology: z.string().trim().max(LEAD_TYPOLOGY_MAX_LENGTH, "Tipologia inválida."),
     message: z
       .string()
       .trim()

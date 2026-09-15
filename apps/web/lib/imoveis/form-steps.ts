@@ -5,7 +5,16 @@ export const PROPERTY_FORM_STEPS = [
     key: "dados",
     title: "Dados",
     description: "Título, descrição, tipo e responsáveis.",
-    fields: ["title", "description", "purpose", "usage", "type", "condominiumId", "capturedBy", "brokerId"],
+    fields: [
+      "title",
+      "description",
+      "purpose",
+      "usage",
+      "type",
+      "condominiumId",
+      "capturedBy",
+      "brokerId",
+    ],
   },
   {
     key: "valores",
@@ -86,6 +95,8 @@ export function findStepForPortalIssue(field: string): PropertyFormStepKey {
 }
 
 export function findStepForField(field: string): PropertyFormStepKey {
-  const step = PROPERTY_FORM_STEPS.find((item) => (item.fields as readonly string[]).includes(field))
+  const step = PROPERTY_FORM_STEPS.find((item) =>
+    (item.fields as readonly string[]).includes(field)
+  )
   return step?.key ?? "dados"
 }

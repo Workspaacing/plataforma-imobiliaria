@@ -76,7 +76,11 @@ describe("scoreMatch", () => {
   })
 
   it("reduz a pontuação quando não atinge o mínimo de quartos ou vagas", () => {
-    const interest: ClientInterest = { purpose: "sale", minBedrooms: 4, minParkingSpaces: 3 }
+    const interest: ClientInterest = {
+      purpose: "sale",
+      minBedrooms: 4,
+      minParkingSpaces: 3,
+    }
     const result = scoreMatch(interest, property)
     expect(result.reasons).toContain("Não atende ao número mínimo de quartos.")
     expect(result.reasons).toContain("Não atende ao número mínimo de vagas de garagem.")

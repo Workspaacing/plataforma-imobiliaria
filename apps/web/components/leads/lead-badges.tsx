@@ -2,7 +2,11 @@ import { CopyIcon, MegaphoneIcon, TimerIcon } from "lucide-react"
 
 import { Badge } from "@workspace/ui/components/badge"
 
-import { LEAD_RESPONSE_TARGET_MINUTES, LEAD_SOURCE_LABELS, LEAD_STAGE_LABELS } from "@/lib/leads/constants"
+import {
+  LEAD_RESPONSE_TARGET_MINUTES,
+  LEAD_SOURCE_LABELS,
+  LEAD_STAGE_LABELS,
+} from "@/lib/leads/constants"
 import type { LeadStage } from "@/lib/leads/db-types"
 import {
   formatElapsedShort,
@@ -13,15 +17,16 @@ import {
 } from "@/lib/leads/format"
 import type { LeadItem } from "@/lib/leads/types"
 
-const STAGE_BADGE_VARIANT: Record<LeadStage, "default" | "secondary" | "outline" | "destructive"> = {
-  new: "default",
-  contacted: "outline",
-  qualified: "outline",
-  visit_scheduled: "outline",
-  proposal: "outline",
-  won: "secondary",
-  lost: "destructive",
-}
+const STAGE_BADGE_VARIANT: Record<LeadStage, "default" | "secondary" | "outline" | "destructive"> =
+  {
+    new: "default",
+    contacted: "outline",
+    qualified: "outline",
+    visit_scheduled: "outline",
+    proposal: "outline",
+    won: "secondary",
+    lost: "destructive",
+  }
 
 export function LeadStageBadge({ stage }: { stage: LeadStage }) {
   return <Badge variant={STAGE_BADGE_VARIANT[stage]}>{LEAD_STAGE_LABELS[stage]}</Badge>
@@ -30,10 +35,15 @@ export function LeadStageBadge({ stage }: { stage: LeadStage }) {
 /** Origem; para landing page mostra o nome da página. */
 export function LeadSourceBadge({ lead }: { lead: Pick<LeadItem, "source" | "landingPage"> }) {
   const isLandingPage = lead.source === "landing_page" && lead.landingPage
-  const label = isLandingPage && lead.landingPage ? lead.landingPage.name : LEAD_SOURCE_LABELS[lead.source]
+  const label =
+    isLandingPage && lead.landingPage ? lead.landingPage.name : LEAD_SOURCE_LABELS[lead.source]
 
   return (
-    <Badge variant="outline" className="max-w-full" title={isLandingPage ? `Landing page: ${label}` : label}>
+    <Badge
+      variant="outline"
+      className="max-w-full"
+      title={isLandingPage ? `Landing page: ${label}` : label}
+    >
       <span className="truncate">{label}</span>
     </Badge>
   )
@@ -77,15 +87,19 @@ export function LeadContactTimerBadge({
   )
 }
 
-export function LeadDuplicateBadge({ count }: { count: number }) {
-  if (count === 0) {
+/**
+ * `hasDuplicate` vem da RPC `lead_duplicate_flags` (nunca expõe o registro
+ * duplicado, então o rótulo não cita quantidade nem detalhes).
+ */
+export function LeadDuplicateBadge({ hasDuplicate }: { hasDuplicate: boolean }) {
+  if (!hasDuplicate) {
     return null
   }
 
   return (
     <Badge
       variant="outline"
-      title={`${count} registro(s) com o mesmo telefone ou e-mail nos últimos 90 dias.`}
+      title="Outro lead ou cliente da imobiliária com o mesmo telefone ou e-mail nos últimos 90 dias."
     >
       <CopyIcon data-icon="inline-start" />
       Possível duplicado

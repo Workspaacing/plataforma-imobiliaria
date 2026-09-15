@@ -57,22 +57,37 @@ export function PropertyHeaderActions({
       const result = await changePropertyStatusAction(propertyId, next)
 
       if (result.ok) {
-        toast.add({ title: result.message ?? "Status alterado.", type: "success" })
+        toast.add({
+          title: result.message ?? "Status alterado.",
+          type: "success",
+        })
       } else {
-        toast.add({ title: "Não foi possível alterar o status", description: result.error, type: "error" })
+        toast.add({
+          title: "Não foi possível alterar o status",
+          description: result.error,
+          type: "error",
+        })
       }
     })
   }
 
   return (
     <div className="flex flex-wrap gap-2 lg:justify-end">
-      <Button variant="outline" render={<Link href={`/imoveis/${propertyId}/editar`} />} nativeButton={false}>
+      <Button
+        variant="outline"
+        render={<Link href={`/imoveis/${propertyId}/editar`} />}
+        nativeButton={false}
+      >
         <PencilIcon data-icon="inline-start" />
         Editar
       </Button>
       <DropdownMenu>
         <DropdownMenuTrigger render={<Button variant="outline" disabled={isPending} />}>
-          {isPending ? <Spinner data-icon="inline-start" /> : <ArrowRightLeftIcon data-icon="inline-start" />}
+          {isPending ? (
+            <Spinner data-icon="inline-start" />
+          ) : (
+            <ArrowRightLeftIcon data-icon="inline-start" />
+          )}
           {PROPERTY_STATUS_LABELS[optimisticStatus]}
           <ChevronDownIcon data-icon="inline-end" />
         </DropdownMenuTrigger>
@@ -81,7 +96,11 @@ export function PropertyHeaderActions({
             <DropdownMenuLabel>Alterar status</DropdownMenuLabel>
             <DropdownMenuRadioGroup value={optimisticStatus} onValueChange={handleStatusChange}>
               {PROPERTY_STATUS_VALUES.map((value) => (
-                <DropdownMenuRadioItem key={value} value={value} disabled={value !== "draft" && hasIssues}>
+                <DropdownMenuRadioItem
+                  key={value}
+                  value={value}
+                  disabled={value !== "draft" && hasIssues}
+                >
                   {PROPERTY_STATUS_LABELS[value]}
                 </DropdownMenuRadioItem>
               ))}

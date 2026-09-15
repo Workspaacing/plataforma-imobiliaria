@@ -8,9 +8,14 @@ import { getSupabaseEnv } from "@/lib/supabase/env"
 
 /**
  * Feed VRSync lido pelo Canal Pro do Grupo OLX (ZAP Imóveis, Viva Real, OLX).
- * URL: /api/feeds/<slug>/vrsync.xml?token=<feed_token>
+ * URLs:
+ * - atual: https://<slug>.<raiz>/api/feeds/vrsync.xml?token=<feed_token>
+ *   (o proxy reescreve para esta rota com o slug do subdomínio);
+ * - antiga, por compatibilidade: https://<raiz>/api/feeds/<slug>/vrsync.xml?token=...
+ *   Continua respondendo 200 sem redirecionar: os robôs dos portais leem a URL
+ *   já cadastrada e não é garantido que sigam redirecionamentos.
  *
- * Rota pública (o proxy nem roda para .xml). O acesso é decidido pela RPC
+ * Rota pública e sem sessão. O acesso é decidido pela RPC
  * get_portal_feed, que devolve null para slug inexistente ou token errado,
  * sem distinguir os casos. Anúncios que não passam na validação ficam fora
  * do XML sem derrubar o feed; a prévia em /configuracoes/imobiliaria mostra
@@ -23,13 +28,13 @@ const ERROR_HEADERS = {
 }
 
 function emptyResponse(status: number, extraHeaders: Record<string, string> = {}) {
-  return new Response(null, { status, headers: { ...ERROR_HEADERS, ...extraHeaders } })
+  return new Response(null, {
+    status,
+    headers: { ...ERROR_HEADERS, ...extraHeaders },
+  })
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ slug: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   const env = getSupabaseEnv()
 
   if (!env) {
@@ -60,7 +65,10 @@ export async function GET(
     return emptyResponse(404)
   }
 
-  const feed = buildPortalFeed(data, { supabaseUrl: env.url, provider: APP_NAME })
+  const feed = buildPortalFeed(data, {
+    supabaseUrl: env.url,
+    provider: APP_NAME,
+  })
 
   if (!feed) {
     console.error("[feeds/vrsync] get_portal_feed respondeu num formato inesperado")

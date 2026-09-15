@@ -6,8 +6,7 @@ export type FieldErrors = Record<string, string>
 
 /** Resultado de Server Action que devolve dados (id criado, URL assinada etc.). */
 export type ActionResultWithData<T> =
-  | { ok: true; data: T; message?: string }
-  | { ok: false; error: string; fieldErrors?: FieldErrors }
+  { ok: true; data: T; message?: string } | { ok: false; error: string; fieldErrors?: FieldErrors }
 
 /** Primeira mensagem de cada campo, com o caminho em notação de ponto. */
 export function toFieldErrors(error: z.ZodError): FieldErrors {

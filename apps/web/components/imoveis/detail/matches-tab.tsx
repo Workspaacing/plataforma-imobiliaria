@@ -3,7 +3,13 @@ import { UserSearchIcon } from "lucide-react"
 
 import { LISTING_PURPOSE_LABELS } from "@workspace/core/properties/enums"
 import { Badge } from "@workspace/ui/components/badge"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@workspace/ui/components/card"
 import {
   Empty,
   EmptyDescription,
@@ -62,8 +68,8 @@ export function MatchesTab({ isActive, matches }: { isActive: boolean; matches: 
           </EmptyMedia>
           <EmptyTitle>Match só para imóveis ativos</EmptyTitle>
           <EmptyDescription>
-            Os clientes compatíveis são calculados apenas para imóveis com status Ativo. Ative o imóvel para ver quem
-            procura algo parecido.
+            Os clientes compatíveis são calculados apenas para imóveis com status Ativo. Ative o
+            imóvel para ver quem procura algo parecido.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -79,8 +85,8 @@ export function MatchesTab({ isActive, matches }: { isActive: boolean; matches: 
           </EmptyMedia>
           <EmptyTitle>Nenhum cliente compatível</EmptyTitle>
           <EmptyDescription>
-            Nenhum interesse ativo de cliente combina com este imóvel (finalidade, tipo, faixa de preço, quartos, vagas
-            e localização). Você vê apenas os clientes aos quais tem acesso.
+            Nenhum interesse ativo de cliente combina com este imóvel (finalidade, tipo, faixa de
+            preço, quartos, vagas e localização). Você vê apenas os clientes aos quais tem acesso.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -92,8 +98,8 @@ export function MatchesTab({ isActive, matches }: { isActive: boolean; matches: 
       <CardHeader>
         <CardTitle>Clientes compatíveis</CardTitle>
         <CardDescription>
-          {matches.length === 1 ? "1 cliente" : `${matches.length} clientes`} com interesse ativo compatível, do mais
-          aderente ao menos. Você vê apenas os clientes aos quais tem acesso.
+          {matches.length === 1 ? "1 cliente" : `${matches.length} clientes`} com interesse ativo
+          compatível, do mais aderente ao menos. Você vê apenas os clientes aos quais tem acesso.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -134,8 +140,12 @@ export function MatchesTab({ isActive, matches }: { isActive: boolean; matches: 
                 <ItemTitle>
                   <ClientName match={match} />
                 </ItemTitle>
-                <ItemDescription>Interesse: {LISTING_PURPOSE_LABELS[match.interestPurpose]}</ItemDescription>
-                <ItemDescription className="line-clamp-3">{mainReasons(match.reasons).join(" ")}</ItemDescription>
+                <ItemDescription>
+                  Interesse: {LISTING_PURPOSE_LABELS[match.interestPurpose]}
+                </ItemDescription>
+                <ItemDescription className="line-clamp-3">
+                  {mainReasons(match.reasons).join(" ")}
+                </ItemDescription>
               </ItemContent>
               <ItemActions>
                 <Badge variant={scoreVariant(match.score)} className="tabular-nums">

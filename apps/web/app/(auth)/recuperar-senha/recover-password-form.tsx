@@ -19,10 +19,7 @@ import { Spinner } from "@workspace/ui/components/spinner"
 import { AuthHeading } from "@/app/(auth)/_components/auth-heading"
 import { requestPasswordReset } from "@/app/(auth)/actions"
 import { FormFeedback, type FormFeedbackState } from "@/components/crm/form-feedback"
-import {
-  recoverPasswordSchema,
-  type RecoverPasswordValues,
-} from "@/lib/auth/schemas"
+import { recoverPasswordSchema, type RecoverPasswordValues } from "@/lib/auth/schemas"
 
 export function RecoverPasswordForm() {
   const [isPending, startTransition] = React.useTransition()
@@ -56,11 +53,7 @@ export function RecoverPasswordForm() {
   }
 
   return (
-    <form
-      className="flex flex-col gap-6"
-      onSubmit={form.handleSubmit(onSubmit)}
-      noValidate
-    >
+    <form className="flex flex-col gap-6" onSubmit={form.handleSubmit(onSubmit)} noValidate>
       <FieldGroup>
         <AuthHeading
           title="Recuperar senha"

@@ -10,13 +10,11 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
     "Confirme seu e-mail antes de entrar. Procure a mensagem que enviamos para sua caixa de entrada.",
   user_already_exists: "Já existe uma conta com este e-mail.",
   email_exists: "Já existe uma conta com este e-mail.",
-  weak_password:
-    "Senha fraca. Use pelo menos 8 caracteres, misturando letras, números e símbolos.",
+  weak_password: "Senha fraca. Use pelo menos 8 caracteres, misturando letras, números e símbolos.",
   same_password: "A nova senha precisa ser diferente da atual.",
   over_email_send_rate_limit:
     "Muitos e-mails enviados em pouco tempo. Aguarde alguns minutos e tente de novo.",
-  over_request_rate_limit:
-    "Muitas tentativas seguidas. Aguarde alguns minutos e tente de novo.",
+  over_request_rate_limit: "Muitas tentativas seguidas. Aguarde alguns minutos e tente de novo.",
   otp_expired: "O link expirou. Peça um novo.",
   otp_disabled: "O acesso por link mágico está desativado.",
   signup_disabled: "Novos cadastros estão desativados no momento.",
@@ -25,13 +23,10 @@ const AUTH_ERROR_MESSAGES: Record<string, string> = {
     "Este e-mail não está autorizado a receber mensagens deste projeto.",
   session_not_found: "Sua sessão expirou. Entre novamente.",
   session_expired: "Sua sessão expirou. Entre novamente.",
-  reauthentication_needed:
-    "Por segurança, entre novamente antes de alterar a senha.",
-  flow_state_not_found:
-    "Link inválido. Abra o link no mesmo navegador em que você fez o pedido.",
+  reauthentication_needed: "Por segurança, entre novamente antes de alterar a senha.",
+  flow_state_not_found: "Link inválido. Abra o link no mesmo navegador em que você fez o pedido.",
   flow_state_expired: "O link expirou. Peça um novo.",
-  bad_code_verifier:
-    "Link inválido. Abra o link no mesmo navegador em que você fez o pedido.",
+  bad_code_verifier: "Link inválido. Abra o link no mesmo navegador em que você fez o pedido.",
   user_banned: "Esta conta está bloqueada. Fale com o suporte.",
 }
 

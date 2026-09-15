@@ -14,7 +14,12 @@ import {
 
 export type LeadPropertyRef = { id: string; code: string; title: string }
 
-export type LeadLandingPageRef = { id: string; name: string; slug: string; template: string }
+export type LeadLandingPageRef = {
+  id: string
+  name: string
+  slug: string
+  template: string
+}
 
 /** Outro lead ou cliente com o mesmo telefone ou e-mail (possível duplicado). */
 export type LeadDuplicateRef = {
@@ -60,6 +65,13 @@ export type LeadItem = {
   lastContactAt: string | null
   createdAt: string
   updatedAt: string
+  /**
+   * Sinal de duplicado (RPC `lead_duplicate_flags`, sem expor o registro).
+   * Fonte do badge "Possível duplicado"; pode ser `true` mesmo com
+   * `duplicates` vazio, quando o duplicado existe mas o RLS não deixa ver.
+   */
+  hasDuplicate: boolean
+  /** Duplicados visíveis pelo RLS (para a lista de "registros relacionados" no detalhe). */
   duplicates: LeadDuplicateRef[]
 }
 
@@ -67,6 +79,7 @@ export type LeadRefs = {
   landingPages: ReadonlyMap<string, LeadLandingPageRef>
   properties: ReadonlyMap<string, LeadPropertyRef>
   duplicates: ReadonlyMap<string, LeadDuplicateRef[]>
+  duplicateFlags: ReadonlyMap<string, boolean>
 }
 
 export type LeadItemOptions = {
@@ -111,12 +124,16 @@ export function toLeadItem(row: LeadRow, refs: LeadRefs, options: LeadItemOption
     adPlatforms: detectAdPlatforms(clickIds),
     clickIds: showTrackingIds && hasClickIds ? clickIds : null,
     eventId: showTrackingIds ? (row.event_id ?? null) : null,
-    referrer: showTrackingIds || !row.referrer ? row.referrer : (stripClickIdParams(row.referrer) ?? row.referrer),
+    referrer:
+      showTrackingIds || !row.referrer
+        ? row.referrer
+        : (stripClickIdParams(row.referrer) ?? row.referrer),
     consentAt: row.consent_at,
     lostReason: row.lost_reason,
     lastContactAt: row.last_contact_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    hasDuplicate: refs.duplicateFlags.get(row.id) ?? false,
     duplicates: refs.duplicates.get(row.id) ?? [],
   }
 }

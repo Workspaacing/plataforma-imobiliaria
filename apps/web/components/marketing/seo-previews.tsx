@@ -23,7 +23,10 @@ export function SearchResultPreview({
   const initial = siteName.trim().charAt(0).toUpperCase() || "L"
 
   return (
-    <div className="flex flex-col gap-1 rounded-xl border bg-background p-4" aria-label="Prévia no resultado de busca">
+    <div
+      className="flex flex-col gap-1 rounded-xl border bg-background p-4"
+      aria-label="Prévia no resultado de busca"
+    >
       <div className="flex min-w-0 items-center gap-2">
         <span
           aria-hidden="true"
@@ -37,10 +40,16 @@ export function SearchResultPreview({
         </div>
       </div>
       <p className="text-lg leading-snug text-primary">
-        {title ? truncate(title, 70) : <span className="text-muted-foreground">Título da página</span>}
+        {title ? (
+          truncate(title, 70)
+        ) : (
+          <span className="text-muted-foreground">Título da página</span>
+        )}
       </p>
       <p className="text-sm text-muted-foreground">
-        {description ? truncate(description, 160) : "Descrição que aparece abaixo do título no resultado de busca."}
+        {description
+          ? truncate(description, 160)
+          : "Descrição que aparece abaixo do título no resultado de busca."}
       </p>
     </div>
   )

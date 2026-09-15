@@ -20,7 +20,13 @@ import { DISCLAIMERS, type LandingTemplateRenderProps } from "./shared"
  * cards com preço em destaque e, no fim, "Não achou?" com prova social ao
  * lado do formulário para capturar quem não encontrou o imóvel certo.
  */
-export function PortfolioGridTemplate({ vm, mode, leadForm, id, formHref }: LandingTemplateRenderProps) {
+export function PortfolioGridTemplate({
+  vm,
+  mode,
+  leadForm,
+  id,
+  formHref,
+}: LandingTemplateRenderProps) {
   const propertiesId = id("imoveis")
   const count = vm.properties.length
 

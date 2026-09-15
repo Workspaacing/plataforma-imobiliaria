@@ -101,13 +101,11 @@ export function isLeadSource(value: unknown): value is LeadSource {
 }
 
 /**
- * Origem do cliente criado na conversão. `clients.source` só aceita os valores
- * de CLIENT_SOURCE_VALUES no formulário de cliente; por isso landing page vira
- * "site" e o nome da página vai para as observações do cliente.
- * TODO: usar "landing_page" quando essa origem existir em lib/clientes/constants.
+ * Origem do cliente criado na conversão, dentro de CLIENT_SOURCE_VALUES do
+ * formulário de cliente. O nome da landing page vai para as observações.
  */
 export const LEAD_SOURCE_TO_CLIENT_SOURCE: Record<LeadSource, ClientSource> = {
-  landing_page: "site",
+  landing_page: "landing_page",
   website: "site",
   portal: "portal",
   social: "redes_sociais",
@@ -119,7 +117,13 @@ export const LEAD_SOURCE_TO_CLIENT_SOURCE: Record<LeadSource, ClientSource> = {
 // -----------------------------------------------------------------------------
 // Interesse (leads.interest)
 // -----------------------------------------------------------------------------
-export const LEAD_INTERESTS = ["buy", "rent", "invest", "sell", "info"] as const satisfies readonly LeadInterest[]
+export const LEAD_INTERESTS = [
+  "buy",
+  "rent",
+  "invest",
+  "sell",
+  "info",
+] as const satisfies readonly LeadInterest[]
 
 export const LEAD_INTEREST_LABELS: Record<LeadInterest, string> = {
   buy: "Comprar",

@@ -16,7 +16,10 @@ export function dueInputToIso(dueDate: string, dueTime: string): string | null {
 }
 
 /** ISO gravado no banco para os campos do formulário (hora vazia quando 23:59). */
-export function dueIsoToInput(dueAt: string | null | undefined): { dueDate: string; dueTime: string } {
+export function dueIsoToInput(dueAt: string | null | undefined): {
+  dueDate: string
+  dueTime: string
+} {
   if (!dueAt) {
     return { dueDate: "", dueTime: "" }
   }
@@ -29,5 +32,8 @@ export function dueIsoToInput(dueAt: string | null | undefined): { dueDate: stri
 
   const time = toTimeKey(date)
 
-  return { dueDate: toDateKey(date), dueTime: time === TASK_ALL_DAY_TIME ? "" : time }
+  return {
+    dueDate: toDateKey(date),
+    dueTime: time === TASK_ALL_DAY_TIME ? "" : time,
+  }
 }

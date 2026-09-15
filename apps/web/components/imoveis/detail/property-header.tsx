@@ -32,7 +32,10 @@ export function PropertyHeader({
   portalErrors: string[]
   portalWarnings: string[]
 }) {
-  const location = [property.neighborhood, [property.city, property.state].filter(Boolean).join("/")]
+  const location = [
+    property.neighborhood,
+    [property.city, property.state].filter(Boolean).join("/"),
+  ]
     .filter(Boolean)
     .join(", ")
   const prices = getDisplayPrices(property)
@@ -60,9 +63,13 @@ export function PropertyHeader({
               </Badge>
               <PropertyStatusBadge status={property.status} />
               <ImobScoreBadge score={score} showLabel showName />
-              {property.published_to_portals ? <Badge variant="secondary">Nos portais</Badge> : null}
+              {property.published_to_portals ? (
+                <Badge variant="secondary">Nos portais</Badge>
+              ) : null}
             </div>
-            <h1 className="text-2xl font-semibold tracking-tight text-balance break-words">{property.title}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-balance break-words">
+              {property.title}
+            </h1>
             {location ? (
               <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
                 <MapPinIcon className="size-4 shrink-0" aria-hidden="true" />
@@ -76,7 +83,9 @@ export function PropertyHeader({
                   <span className="text-lg font-semibold tabular-nums">
                     {formatCurrency(price.value)}
                     {price.value != null && price.suffix ? (
-                      <span className="text-sm font-normal text-muted-foreground">{price.suffix}</span>
+                      <span className="text-sm font-normal text-muted-foreground">
+                        {price.suffix}
+                      </span>
                     ) : null}
                   </span>
                 </div>

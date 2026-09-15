@@ -37,6 +37,8 @@ const IN_CHUNK_SIZE = 150
 /** Leads da janela de duplicidade lidos para comparar telefone/e-mail. */
 const DUPLICATE_SCAN_LIMIT = 5000
 const DAY_MS = 24 * 60 * 60 * 1000
+/** Máximo de ids por chamada de `lead_duplicate_flags` (contrato da RPC). */
+const LEAD_DUPLICATE_FLAGS_CHUNK_SIZE = 1000
 
 function chunk<T>(items: readonly T[], size: number) {
   const chunks: T[][] = []
@@ -105,7 +107,11 @@ async function loadPropertyRefs(
 
 type DuplicateCandidate = Omit<LeadDuplicateRef, "matchedBy">
 
-function pushIndexed(index: Map<string, DuplicateCandidate[]>, key: string | null, item: DuplicateCandidate) {
+function pushIndexed(
+  index: Map<string, DuplicateCandidate[]>,
+  key: string | null,
+  item: DuplicateCandidate
+) {
   if (!key) return
 
   const list = index.get(key)
@@ -255,6 +261,44 @@ export async function findLeadDuplicates(
   return duplicates
 }
 
+/**
+ * Sinal de duplicado por RPC (`lead_duplicate_flags`), em lotes de até
+ * `LEAD_DUPLICATE_FLAGS_CHUNK_SIZE` ids. Ao contrário de `findLeadDuplicates`
+ * (que só enxerga o que o RLS permite), a RPC é `security definer` e compara
+ * com toda a imobiliária sem nunca expor o registro duplicado — é a fonte do
+ * badge "Possível duplicado".
+ */
+async function fetchLeadDuplicateFlags(
+  supabase: LeadsServerClient,
+  leadIds: readonly string[]
+): Promise<Map<string, boolean>> {
+  const flags = new Map<string, boolean>()
+  const unique = [...new Set(leadIds)]
+
+  if (unique.length === 0) {
+    return flags
+  }
+
+  const results = await Promise.all(
+    chunk(unique, LEAD_DUPLICATE_FLAGS_CHUNK_SIZE).map((part) =>
+      supabase.rpc("lead_duplicate_flags", { p_lead_ids: part })
+    )
+  )
+
+  for (const result of results) {
+    if (result.error) {
+      console.error("[leads] falha ao consultar duplicados (RPC):", result.error.code ?? "erro")
+      continue
+    }
+
+    for (const row of result.data ?? []) {
+      flags.set(row.lead_id, row.has_duplicate)
+    }
+  }
+
+  return flags
+}
+
 async function toLeadItems(
   supabase: LeadsServerClient,
   params: {
@@ -268,15 +312,20 @@ async function toLeadItems(
   const { organizationId, rows, landingPages, now, options } = params
   const propertyIds = rows.flatMap((row) => (row.property_id ? [row.property_id] : []))
 
-  const [properties, duplicates] = await Promise.all([
+  const [properties, duplicates, duplicateFlags] = await Promise.all([
     loadPropertyRefs(supabase, organizationId, propertyIds),
     findLeadDuplicates(supabase, organizationId, rows, now),
+    fetchLeadDuplicateFlags(
+      supabase,
+      rows.map((row) => row.id)
+    ),
   ])
 
   const refs = {
     landingPages: new Map(landingPages.map((page) => [page.id, page])),
     properties,
     duplicates,
+    duplicateFlags,
   }
 
   return rows.map((row) => toLeadItem(row, refs, options))
@@ -343,7 +392,13 @@ export async function listLeads(
   const rows = data.slice(0, LEADS_LIST_LIMIT)
 
   return {
-    leads: await toLeadItems(supabase, { organizationId, rows, landingPages, now, options }),
+    leads: await toLeadItems(supabase, {
+      organizationId,
+      rows,
+      landingPages,
+      now,
+      options,
+    }),
     truncated: data.length > LEADS_LIST_LIMIT,
     failed: false,
   }
@@ -378,7 +433,9 @@ export async function getLeadSummary(
   organizationId: string,
   now: Date
 ): Promise<LeadSummaryCounts> {
-  const overdueBefore = new Date(now.getTime() - LEAD_RESPONSE_TARGET_MINUTES * 60_000).toISOString()
+  const overdueBefore = new Date(
+    now.getTime() - LEAD_RESPONSE_TARGET_MINUTES * 60_000
+  ).toISOString()
   const todayStart = zonedToIso(toDateKey(now))
 
   const base = () =>
@@ -393,11 +450,15 @@ export async function getLeadSummary(
     base().gte("created_at", todayStart),
   ])
 
+  // Contagem com `head: true` pode vir sem `error` quando a requisição falha
+  // (ex.: tabela ainda inexistente); sem `count` também é falha.
+  const failed = [waiting, overdue, today].some((result) => result.error || result.count === null)
+
   return {
     newWithoutContact: waiting.count ?? 0,
     overdue: overdue.count ?? 0,
     today: today.count ?? 0,
-    failed: Boolean(waiting.error || overdue.error || today.error),
+    failed,
   }
 }
 
@@ -484,16 +545,14 @@ export async function getLeadDetailExtras(
 
   return {
     client: clientResult.data ?? null,
-    activities: activityRows.map(
-      (row): LeadActivityItem => ({
-        id: row.id,
-        type: row.type,
-        body: row.body,
-        occurredAt: row.occurred_at,
-        createdBy: row.created_by,
-        property: row.property_id ? (properties.get(row.property_id) ?? null) : null,
-      })
-    ),
+    activities: activityRows.map((row): LeadActivityItem => ({
+      id: row.id,
+      type: row.type,
+      body: row.body,
+      occurredAt: row.occurred_at,
+      createdBy: row.created_by,
+      property: row.property_id ? (properties.get(row.property_id) ?? null) : null,
+    })),
     activitiesFailed: Boolean(activitiesResult.error),
   }
 }

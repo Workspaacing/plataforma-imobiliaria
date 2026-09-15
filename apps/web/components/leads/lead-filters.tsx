@@ -33,7 +33,10 @@ type Item = { label: string; value: string | null }
 
 const SOURCE_ITEMS: Item[] = [
   { label: "Todas as origens", value: null },
-  ...LEAD_SOURCES.map((source) => ({ label: LEAD_SOURCE_LABELS[source], value: source })),
+  ...LEAD_SOURCES.map((source) => ({
+    label: LEAD_SOURCE_LABELS[source],
+    value: source,
+  })),
 ]
 
 const PERIOD_ITEMS: Item[] = LEAD_PERIODS.map((period) => ({
@@ -93,7 +96,9 @@ export function LeadFilters({
 
   function navigate(changes: Partial<LeadListFilters>) {
     startTransition(() => {
-      router.replace(buildLeadListHref({ ...filters, ...changes }), { scroll: false })
+      router.replace(buildLeadListHref({ ...filters, ...changes }), {
+        scroll: false,
+      })
     })
   }
 
@@ -101,7 +106,9 @@ export function LeadFilters({
     { label: "Todos os responsáveis", value: null },
     { label: "Meus leads", value: MINE_FILTER },
     { label: "Sem responsável", value: UNASSIGNED_FILTER },
-    ...(showMemberOptions ? members.map((member) => ({ label: member.name, value: member.id })) : []),
+    ...(showMemberOptions
+      ? members.map((member) => ({ label: member.name, value: member.id }))
+      : []),
   ]
 
   if (filters.responsavel && !assigneeItems.some((item) => item.value === filters.responsavel)) {
@@ -175,10 +182,9 @@ export function LeadFilters({
           variant="ghost"
           onClick={() =>
             startTransition(() =>
-              router.replace(
-                filters.visao === "lista" ? `${LEADS_PATH}?visao=lista` : LEADS_PATH,
-                { scroll: false }
-              )
+              router.replace(filters.visao === "lista" ? `${LEADS_PATH}?visao=lista` : LEADS_PATH, {
+                scroll: false,
+              })
             )
           }
         >

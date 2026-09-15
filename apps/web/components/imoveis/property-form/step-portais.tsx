@@ -47,7 +47,10 @@ import {
   type PropertyFormValues,
 } from "@/lib/imoveis/schema"
 
-const STATUS_ITEMS: SelectOption[] = PROPERTY_STATUSES.map((value) => ({ label: PROPERTY_STATUS_LABELS[value], value }))
+const STATUS_ITEMS: SelectOption[] = PROPERTY_STATUSES.map((value) => ({
+  label: PROPERTY_STATUS_LABELS[value],
+  value,
+}))
 
 /** Regras para publicar: imóvel salvo, ativo e sem erros de VRSync. */
 export function getPublishState(
@@ -57,7 +60,10 @@ export function getPublishState(
 ) {
   const columns = formValuesToColumns(values)
   const mediaSummary = summarizeMedia(withExternalMediaUrls(media, values.videoUrl, values.tourUrl))
-  const portal = validatePropertyForPortals({ ...columns, code: property?.code ?? "" }, mediaSummary)
+  const portal = validatePropertyForPortals(
+    { ...columns, code: property?.code ?? "" },
+    mediaSummary
+  )
   const canPublish = property !== null && values.status === "active" && portal.valid
 
   let reason = "Pronto para publicar."
@@ -82,7 +88,11 @@ export function StepPortais({
   onGoToStep: (step: PropertyFormStepKey) => void
 }) {
   const values = useWatch({ control }) as PropertyFormValues
-  const { columns, mediaSummary, portal, canPublish, reason } = getPublishState(values, property, media)
+  const { columns, mediaSummary, portal, canPublish, reason } = getPublishState(
+    values,
+    property,
+    media
+  )
   const statusIssues = getStatusRequirementIssues(columns)
   const score = computePropertyScore(columns, mediaSummary, authorizations)
 
@@ -100,7 +110,9 @@ export function StepPortais({
         <Alert variant={values.status === "draft" ? "default" : "destructive"}>
           {values.status === "draft" ? <InfoIcon /> : <TriangleAlertIcon />}
           <AlertTitle>
-            {values.status === "draft" ? "Para ativar depois, falta:" : "Falta completar para sair do rascunho:"}
+            {values.status === "draft"
+              ? "Para ativar depois, falta:"
+              : "Falta completar para sair do rascunho:"}
           </AlertTitle>
           <AlertDescription>
             <ul className="flex list-disc flex-col gap-1 ps-4">
@@ -127,7 +139,8 @@ export function StepPortais({
       <FieldSet>
         <FieldLegend>Publicação nos portais</FieldLegend>
         <FieldDescription>
-          ZAP Imóveis, Viva Real e OLX recebem pelo feed VRSync os imóveis ativos com a publicação ligada.
+          ZAP Imóveis, Viva Real e OLX recebem pelo feed VRSync os imóveis ativos com a publicação
+          ligada.
         </FieldDescription>
 
         <Controller
@@ -136,7 +149,9 @@ export function StepPortais({
           render={({ field }) => (
             <Field orientation="horizontal" data-disabled={!canPublish || undefined}>
               <FieldContent>
-                <FieldLabel htmlFor={fieldId("publishedToPortals")}>Publicar nos portais</FieldLabel>
+                <FieldLabel htmlFor={fieldId("publishedToPortals")}>
+                  Publicar nos portais
+                </FieldLabel>
                 <FieldDescription>{reason}</FieldDescription>
               </FieldContent>
               <Switch
@@ -175,7 +190,9 @@ export function StepPortais({
           <Alert>
             <CircleCheckIcon />
             <AlertTitle>Anúncio dentro das regras do VRSync</AlertTitle>
-            <AlertDescription>Título, descrição, preço, área, endereço e fotos atendem aos portais.</AlertDescription>
+            <AlertDescription>
+              Título, descrição, preço, área, endereço e fotos atendem aos portais.
+            </AlertDescription>
           </Alert>
         )}
 

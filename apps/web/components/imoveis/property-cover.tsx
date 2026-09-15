@@ -22,7 +22,10 @@ export function PropertyCover({
   if (!url) {
     return (
       <div
-        className={cn("flex items-center justify-center rounded-md bg-muted text-muted-foreground", className)}
+        className={cn(
+          "flex items-center justify-center rounded-md bg-muted text-muted-foreground",
+          className
+        )}
         aria-hidden="true"
       >
         <HouseIcon />
@@ -32,6 +35,12 @@ export function PropertyCover({
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={url} alt={alt} loading="lazy" decoding="async" className={cn("rounded-md object-cover", className)} />
+    <img
+      src={url}
+      alt={alt}
+      loading="lazy"
+      decoding="async"
+      className={cn("rounded-md object-cover", className)}
+    />
   )
 }

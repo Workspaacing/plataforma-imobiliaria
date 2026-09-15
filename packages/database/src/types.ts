@@ -776,6 +776,187 @@ export type Database = {
           },
         ]
       }
+      landing_pages: {
+        Row: {
+          content: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          lead_assignee_id: string | null
+          name: string
+          organization_id: string
+          property_ids: string[]
+          published_at: string | null
+          seo: Json
+          slug: string
+          status: Database["public"]["Enums"]["landing_status"]
+          template: Database["public"]["Enums"]["landing_template"]
+          theme: Json
+          tracking: Json
+          updated_at: string
+        }
+        Insert: {
+          content?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lead_assignee_id?: string | null
+          name: string
+          organization_id: string
+          property_ids?: string[]
+          published_at?: string | null
+          seo?: Json
+          slug: string
+          status?: Database["public"]["Enums"]["landing_status"]
+          template: Database["public"]["Enums"]["landing_template"]
+          theme?: Json
+          tracking?: Json
+          updated_at?: string
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lead_assignee_id?: string | null
+          name?: string
+          organization_id?: string
+          property_ids?: string[]
+          published_at?: string | null
+          seo?: Json
+          slug?: string
+          status?: Database["public"]["Enums"]["landing_status"]
+          template?: Database["public"]["Enums"]["landing_template"]
+          theme?: Json
+          tracking?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "landing_pages_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          assigned_to: string | null
+          click_ids: Json
+          client_id: string | null
+          consent_at: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          event_id: string | null
+          id: string
+          interest: string | null
+          landing_page_id: string | null
+          landing_url: string | null
+          last_contact_at: string | null
+          lost_reason: string | null
+          message: string | null
+          name: string
+          organization_id: string
+          phone: string | null
+          position: number | null
+          property_id: string | null
+          referrer: string | null
+          source: Database["public"]["Enums"]["lead_source"]
+          stage: Database["public"]["Enums"]["lead_stage"]
+          typology: string | null
+          updated_at: string
+          utm: Json
+        }
+        Insert: {
+          assigned_to?: string | null
+          click_ids?: Json
+          client_id?: string | null
+          consent_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          event_id?: string | null
+          id?: string
+          interest?: string | null
+          landing_page_id?: string | null
+          landing_url?: string | null
+          last_contact_at?: string | null
+          lost_reason?: string | null
+          message?: string | null
+          name: string
+          organization_id: string
+          phone?: string | null
+          position?: number | null
+          property_id?: string | null
+          referrer?: string | null
+          source?: Database["public"]["Enums"]["lead_source"]
+          stage?: Database["public"]["Enums"]["lead_stage"]
+          typology?: string | null
+          updated_at?: string
+          utm?: Json
+        }
+        Update: {
+          assigned_to?: string | null
+          click_ids?: Json
+          client_id?: string | null
+          consent_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          event_id?: string | null
+          id?: string
+          interest?: string | null
+          landing_page_id?: string | null
+          landing_url?: string | null
+          last_contact_at?: string | null
+          lost_reason?: string | null
+          message?: string | null
+          name?: string
+          organization_id?: string
+          phone?: string | null
+          position?: number | null
+          property_id?: string | null
+          referrer?: string | null
+          source?: Database["public"]["Enums"]["lead_source"]
+          stage?: Database["public"]["Enums"]["lead_stage"]
+          typology?: string | null
+          updated_at?: string
+          utm?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_client_fkey"
+            columns: ["organization_id", "client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "leads_landing_page_fkey"
+            columns: ["organization_id", "landing_page_id"]
+            isOneToOne: false
+            referencedRelation: "landing_pages"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "leads_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_property_fkey"
+            columns: ["organization_id", "property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["organization_id", "id"]
+          },
+        ]
+      }
       listing_authorizations: {
         Row: {
           commission_percent: number | null
@@ -1471,7 +1652,18 @@ export type Database = {
         Args: { p_org_slug: string; p_token: string }
         Returns: Json
       }
+      get_public_landing_page: {
+        Args: { p_org_slug: string; p_page_slug: string }
+        Returns: Json
+      }
       get_public_organization: { Args: { p_slug: string }; Returns: Json }
+      lead_duplicate_flags: {
+        Args: { p_lead_ids: string[] }
+        Returns: {
+          has_duplicate: boolean
+          lead_id: string
+        }[]
+      }
       log_access_event: {
         Args: { p_action?: string; p_entity: string; p_entity_id: string }
         Returns: undefined
@@ -1489,6 +1681,17 @@ export type Database = {
           payload: Json
         }
         Returns: string
+      }
+      submit_landing_lead: {
+        Args: {
+          p_client_key?: string
+          p_nonce?: string
+          p_org_slug: string
+          p_page_slug: string
+          p_payload: Json
+          p_server_key?: string
+        }
+        Returns: undefined
       }
     }
     Enums: {
@@ -1517,6 +1720,33 @@ export type Database = {
       capture_request_status: "new" | "contacted" | "converted" | "discarded"
       client_kind: "pf" | "pj"
       key_status: "available" | "checked_out" | "lost"
+      landing_status: "draft" | "published" | "archived"
+      landing_template:
+        | "campaign_spotlight"
+        | "campaign_offer"
+        | "campaign_valuation"
+        | "launch_showcase"
+        | "launch_waitlist"
+        | "launch_units"
+        | "portfolio_grid"
+        | "portfolio_agency"
+        | "portfolio_broker"
+      lead_source:
+        | "landing_page"
+        | "portal"
+        | "website"
+        | "social"
+        | "referral"
+        | "manual"
+        | "other"
+      lead_stage:
+        | "new"
+        | "contacted"
+        | "qualified"
+        | "visit_scheduled"
+        | "proposal"
+        | "won"
+        | "lost"
       listing_purpose: "sale" | "rent" | "sale_rent"
       media_kind: "image" | "video" | "tour"
       organization_plan: "small" | "medium" | "large"
@@ -1708,6 +1938,36 @@ export const Constants = {
       capture_request_status: ["new", "contacted", "converted", "discarded"],
       client_kind: ["pf", "pj"],
       key_status: ["available", "checked_out", "lost"],
+      landing_status: ["draft", "published", "archived"],
+      landing_template: [
+        "campaign_spotlight",
+        "campaign_offer",
+        "campaign_valuation",
+        "launch_showcase",
+        "launch_waitlist",
+        "launch_units",
+        "portfolio_grid",
+        "portfolio_agency",
+        "portfolio_broker",
+      ],
+      lead_source: [
+        "landing_page",
+        "portal",
+        "website",
+        "social",
+        "referral",
+        "manual",
+        "other",
+      ],
+      lead_stage: [
+        "new",
+        "contacted",
+        "qualified",
+        "visit_scheduled",
+        "proposal",
+        "won",
+        "lost",
+      ],
       listing_purpose: ["sale", "rent", "sale_rent"],
       media_kind: ["image", "video", "tour"],
       organization_plan: ["small", "medium", "large"],

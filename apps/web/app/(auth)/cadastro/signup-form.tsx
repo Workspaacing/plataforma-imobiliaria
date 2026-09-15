@@ -25,9 +25,7 @@ import { signUpSchema, type SignUpValues } from "@/lib/auth/schemas"
 export function SignUpForm({ next }: { next: string | null }) {
   const [isPending, startTransition] = React.useTransition()
   const [feedback, setFeedback] = React.useState<FormFeedbackState>(null)
-  const [confirmationMessage, setConfirmationMessage] = React.useState<
-    string | null
-  >(null)
+  const [confirmationMessage, setConfirmationMessage] = React.useState<string | null>(null)
 
   const form = useForm<SignUpValues>({
     resolver: zodResolver(signUpSchema),
@@ -58,11 +56,7 @@ export function SignUpForm({ next }: { next: string | null }) {
     return (
       <div className="flex flex-col gap-6">
         <AuthHeading title="Confirme seu e-mail" description={confirmationMessage} />
-        <Button
-          variant="outline"
-          render={<Link href={loginHref} />}
-          nativeButton={false}
-        >
+        <Button variant="outline" render={<Link href={loginHref} />} nativeButton={false}>
           Voltar para entrar
         </Button>
       </div>
@@ -70,11 +64,7 @@ export function SignUpForm({ next }: { next: string | null }) {
   }
 
   return (
-    <form
-      className="flex flex-col gap-6"
-      onSubmit={form.handleSubmit(onSubmit)}
-      noValidate
-    >
+    <form className="flex flex-col gap-6" onSubmit={form.handleSubmit(onSubmit)} noValidate>
       <FieldGroup>
         <AuthHeading
           title="Crie sua conta"
@@ -115,9 +105,7 @@ export function SignUpForm({ next }: { next: string | null }) {
               {fieldState.invalid ? (
                 <FieldError errors={[fieldState.error]} />
               ) : (
-                <FieldDescription>
-                  Enviaremos um link para confirmar o endereço.
-                </FieldDescription>
+                <FieldDescription>Enviaremos um link para confirmar o endereço.</FieldDescription>
               )}
             </Field>
           )}

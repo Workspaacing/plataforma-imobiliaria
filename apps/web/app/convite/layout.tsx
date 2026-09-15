@@ -23,9 +23,5 @@ export default function ConviteLayout({
     return <SupabaseSetupNotice />
   }
 
-  return (
-    <div className="flex min-h-svh flex-col bg-muted/40">
-      {children}
-    </div>
-  )
+  return <div className="flex min-h-svh flex-col bg-muted/40">{children}</div>
 }

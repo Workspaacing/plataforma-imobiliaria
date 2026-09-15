@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 
 import { LeadDetailView } from "@/components/leads/lead-detail-view"
+import { LeadViewLogger } from "@/components/leads/lead-view-logger"
 import { requireMembership } from "@/lib/auth/session"
 import { getOrganizationMembers } from "@/lib/clientes/members"
 import { createLeadsClient } from "@/lib/leads/db"
@@ -35,6 +36,7 @@ export default async function LeadPage({ params }: LeadPageProps) {
   return (
     <div className="flex flex-1 flex-col p-4 lg:p-6">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+        <LeadViewLogger leadId={lead.id} />
         <LeadDetailView
           lead={lead}
           members={members}

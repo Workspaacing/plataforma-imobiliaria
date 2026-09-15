@@ -1,26 +1,24 @@
 "use server"
 
-import { headers } from "next/headers"
-
 import { checkFormToken, issueFormToken } from "@/lib/captacao/anti-bot"
+import {
+  createRequestNonce,
+  getVisitorClientKey,
+  readServerKey,
+} from "@/lib/captacao/server-request"
 import {
   sanitizeClickIds,
   sanitizeLandingUrl,
   sanitizeReferrer,
   sanitizeUtm,
 } from "@/lib/leads-publicos/attribution"
-import { hashClientKey } from "@/lib/leads-publicos/client-key"
 import {
   isUuid,
   landingLeadSchema,
   toLandingLeadPayload,
   type LandingLeadValues,
 } from "@/lib/leads-publicos/schemas"
-import {
-  landingTokenScope,
-  normalizeOrgSlug,
-  normalizePageSlug,
-} from "@/lib/leads-publicos/slugs"
+import { landingTokenScope, normalizeOrgSlug, normalizePageSlug } from "@/lib/leads-publicos/slugs"
 import { createLandingAnonClient } from "@/lib/leads-publicos/supabase"
 
 export type LeadFieldErrors = Partial<Record<keyof LandingLeadValues, string>>
@@ -45,12 +43,18 @@ export type SubmitLandingLeadInput = {
 
 export type SubmitLandingLeadResult =
   | { ok: true }
-  | { ok: false; error: string; fieldErrors?: LeadFieldErrors; expired?: boolean }
+  | {
+      ok: false
+      error: string
+      fieldErrors?: LeadFieldErrors
+      expired?: boolean
+    }
 
 export type IssueLandingFormTokenResult = { ok: true; token: string } | { ok: false; error: string }
 
 const PAGE_UNAVAILABLE = "Esta página não está mais disponível."
 const GENERIC_ERROR = "Não foi possível enviar agora. Tente novamente em instantes."
+const RELOAD_ERROR = "Não foi possível enviar o formulário. Recarregue a página e tente de novo."
 const MAX_DB_MESSAGE_LENGTH = 300
 
 function readSlugs(orgSlug: unknown, pageSlug: unknown) {
@@ -78,7 +82,10 @@ export async function issueLandingFormToken(
     return { ok: false, error: PAGE_UNAVAILABLE }
   }
 
-  return { ok: true, token: issueFormToken(landingTokenScope(slugs.org, slugs.page)) }
+  return {
+    ok: true,
+    token: issueFormToken(landingTokenScope(slugs.org, slugs.page)),
+  }
 }
 
 /**
@@ -131,10 +138,10 @@ export async function submitLandingLead(
     return { ok: false, error: "Confira os campos destacados.", fieldErrors }
   }
 
-  const serverKey = process.env.LEAD_SERVER_KEY?.trim()
+  // Loga só o nome da variável ausente (lib/captacao/server-request.ts).
+  const serverKey = readServerKey("LEAD_SERVER_KEY")
 
   if (!serverKey) {
-    console.error("LEAD_SERVER_KEY ausente")
     return { ok: false, error: GENERIC_ERROR }
   }
 
@@ -149,14 +156,16 @@ export async function submitLandingLead(
   })
 
   try {
+    // Hash HMAC do IP; sem IP ou sem CAPTURE_FORM_SECRET vem null e não é enviado.
+    const clientKey = await getVisitorClientKey()
     const supabase = createLandingAnonClient()
     const { error } = await supabase.rpc("submit_landing_lead", {
       p_org_slug: slugs.org,
       p_page_slug: slugs.page,
       p_payload: payload,
       p_server_key: serverKey,
-      p_nonce: crypto.randomUUID(),
-      p_client_key: hashClientKey(await headers()),
+      p_nonce: createRequestNonce(),
+      ...(clientKey ? { p_client_key: clientKey } : {}),
     })
 
     if (!error) {
@@ -167,8 +176,15 @@ export async function submitLandingLead(
       case "54000":
         return {
           ok: false,
-          error: "Recebemos muitos contatos seus agora há pouco. Aguarde alguns minutos e tente de novo.",
+          error:
+            error.details === "organization"
+              ? "Esta imobiliária recebeu muitos contatos agora há pouco. Tente de novo em alguns minutos."
+              : "Recebemos vários envios seus agora há pouco. Aguarde alguns minutos e tente de novo.",
         }
+      case "42501":
+        // Chave do servidor ou nonce recusados.
+        console.error("Envio de lead de landing page recusado (42501)")
+        return { ok: false, error: RELOAD_ERROR }
       case "P0002":
         return { ok: false, error: PAGE_UNAVAILABLE }
       case "22023": {

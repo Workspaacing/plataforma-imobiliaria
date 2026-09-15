@@ -97,7 +97,11 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
             />
           ) : null}
           {canSchedule ? (
-            <AppointmentFormDialog {...viewProps} defaults={{ dateKey: view.day }} trigger={<Button />}>
+            <AppointmentFormDialog
+              {...viewProps}
+              defaults={{ dateKey: view.day }}
+              trigger={<Button />}
+            >
               <PlusIcon data-icon="inline-start" />
               Nova visita
             </AppointmentFormDialog>
@@ -109,7 +113,9 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
         <Alert variant="destructive">
           <TriangleAlertIcon />
           <AlertTitle>Parte da agenda não carregou</AlertTitle>
-          <AlertDescription>Recarregue a página. Se continuar, tente novamente mais tarde.</AlertDescription>
+          <AlertDescription>
+            Recarregue a página. Se continuar, tente novamente mais tarde.
+          </AlertDescription>
         </Alert>
       ) : null}
 

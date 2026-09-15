@@ -87,12 +87,19 @@ export function AppointmentActions({
 
   function changeStatus(nextStatus: QuickStatus) {
     startTransition(async () => {
-      const result = await updateAppointmentStatus({ id: appointment.id, status: nextStatus })
+      const result = await updateAppointmentStatus({
+        id: appointment.id,
+        status: nextStatus,
+      })
 
       toast.add(
         result.ok
           ? { title: result.message ?? "Visita atualizada.", type: "success" }
-          : { title: "Não foi possível atualizar a visita", description: result.error, type: "error" }
+          : {
+              title: "Não foi possível atualizar a visita",
+              description: result.error,
+              type: "error",
+            }
       )
     })
   }
@@ -102,12 +109,19 @@ export function AppointmentActions({
       const result = await deleteAppointment(appointment.id)
 
       if (!result.ok) {
-        toast.add({ title: "Não foi possível excluir a visita", description: result.error, type: "error" })
+        toast.add({
+          title: "Não foi possível excluir a visita",
+          description: result.error,
+          type: "error",
+        })
         return
       }
 
       setDeleteOpen(false)
-      toast.add({ title: result.message ?? "Visita excluída.", type: "success" })
+      toast.add({
+        title: result.message ?? "Visita excluída.",
+        type: "success",
+      })
     })
   }
 
@@ -194,9 +208,17 @@ export function AppointmentActions({
                 : null,
               // Cliente escondido pelo RLS: mantém o vínculo ao salvar.
               client: appointment.client
-                ? { id: appointment.client.id, label: appointment.client.name, description: null }
+                ? {
+                    id: appointment.client.id,
+                    label: appointment.client.name,
+                    description: null,
+                  }
                 : appointment.clientId
-                  ? { id: appointment.clientId, label: "Cliente sem acesso", description: null }
+                  ? {
+                      id: appointment.clientId,
+                      label: "Cliente sem acesso",
+                      description: null,
+                    }
                   : null,
               brokerId: appointment.brokerId,
               startsAt: appointment.startsAt,

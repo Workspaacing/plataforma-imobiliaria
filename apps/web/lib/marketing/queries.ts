@@ -3,10 +3,10 @@ import "server-only"
 import type { Json } from "@workspace/database/types"
 
 import type { ServerSupabaseClient } from "@/lib/imoveis/queries"
-import type { LandingPropertyInput } from "@/lib/marketing/payload"
 import { LANDING_STATUSES, type LandingStatus } from "@/lib/marketing/constants"
-import { asMarketingClient, asUntypedClient, type LandingPageRow } from "@/lib/marketing/db-types"
+import type { LandingPageRecord } from "@/lib/marketing/db-types"
 import { isMissingRelationError } from "@/lib/marketing/errors"
+import type { LandingPropertyInput } from "@/lib/marketing/payload"
 
 export type LandingListItem = {
   id: string
@@ -16,23 +16,24 @@ export type LandingListItem = {
   status: LandingStatus
   publishedAt: string | null
   updatedAt: string
-  /** null quando a tabela de leads (ou a coluna landing_page_id) ainda não existe. */
+  /** null quando os leads não puderam ser contados. */
   leadCount: number | null
 }
 
 export type LandingListResult =
-  | { available: true; items: LandingListItem[] }
-  | { available: false; items: [] }
+  { available: true; items: LandingListItem[] } | { available: false; items: [] }
 
 function toStatus(value: unknown): LandingStatus {
-  return (LANDING_STATUSES as readonly string[]).includes(String(value)) ? (value as LandingStatus) : "draft"
+  return (LANDING_STATUSES as readonly string[]).includes(String(value))
+    ? (value as LandingStatus)
+    : "draft"
 }
 
 export async function listLandingPages(
   supabase: ServerSupabaseClient,
   organizationId: string
 ): Promise<LandingListResult> {
-  const { data, error } = await asMarketingClient(supabase)
+  const { data, error } = await supabase
     .from("landing_pages")
     .select("id, name, template, slug, status, published_at, updated_at")
     .eq("organization_id", organizationId)
@@ -66,8 +67,8 @@ export async function listLandingPages(
 }
 
 /**
- * Leads recebidos por página (tabela `leads`, coluna `landing_page_id`). Se a
- * tabela ou a coluna ainda não existirem, devolve null e a lista mostra "—".
+ * Leads recebidos por página (`leads.landing_page_id`). Conta o que o RLS de
+ * `leads` deixa o usuário ver; se a consulta falhar, a lista mostra "—".
  */
 async function countLeadsByLandingPage(
   supabase: ServerSupabaseClient,
@@ -76,10 +77,9 @@ async function countLeadsByLandingPage(
 ): Promise<Map<string, number> | null> {
   if (pageIds.length === 0) return new Map()
 
-  const client = asUntypedClient(supabase)
   const results = await Promise.all(
     pageIds.map(async (pageId) => {
-      const { count, error } = await client
+      const { count, error } = await supabase
         .from("leads")
         .select("id", { count: "exact", head: true })
         .eq("organization_id", organizationId)
@@ -95,15 +95,19 @@ async function countLeadsByLandingPage(
   return new Map(results.map((result) => [result.pageId, result.count ?? 0]))
 }
 
+/** Colunas explícitas (grants por coluna: nunca `*`, nunca created_by). */
+const LANDING_PAGE_COLUMNS =
+  "id, organization_id, template, name, slug, status, published_at, theme, content, property_ids, tracking, seo, lead_assignee_id, created_at, updated_at" as const
+
 /** Landing page da imobiliária atual; null se não existir nela. */
 export async function getLandingPageRow(
   supabase: ServerSupabaseClient,
   organizationId: string,
   pageId: string
-): Promise<LandingPageRow | null> {
-  const { data, error } = await asMarketingClient(supabase)
+): Promise<LandingPageRecord | null> {
+  const { data, error } = await supabase
     .from("landing_pages")
-    .select("*")
+    .select(LANDING_PAGE_COLUMNS)
     .eq("organization_id", organizationId)
     .eq("id", pageId)
     .maybeSingle()
@@ -113,7 +117,13 @@ export async function getLandingPageRow(
     throw new Error(`Não foi possível carregar a landing page (${error.code ?? "erro"}).`)
   }
 
-  return data ? { ...data, status: toStatus(data.status), property_ids: data.property_ids ?? [] } : null
+  return data
+    ? {
+        ...data,
+        status: toStatus(data.status),
+        property_ids: data.property_ids ?? [],
+      }
+    : null
 }
 
 /** Slugs já usados na imobiliária (para sugerir um slug livre). */
@@ -121,7 +131,7 @@ export async function getTakenLandingSlugs(
   supabase: ServerSupabaseClient,
   organizationId: string
 ): Promise<Set<string>> {
-  const { data } = await asMarketingClient(supabase)
+  const { data } = await supabase
     .from("landing_pages")
     .select("slug")
     .eq("organization_id", organizationId)
@@ -141,6 +151,7 @@ export type LandingOrganizationRow = {
   brand: Json
 }
 
+/** Dados públicos da imobiliária (colunas explícitas: feed_token não é legível). */
 export async function getLandingOrganization(
   supabase: ServerSupabaseClient,
   organizationId: string
@@ -222,8 +233,6 @@ const PROPERTY_MEDIA_LIMIT = 20
 export const LANDING_PROPERTY_SELECT =
   "id, code, title, purpose, type, status, sale_price, rent_price, condo_fee, bedrooms, suites, bathrooms, parking_spaces, living_area, lot_area, neighborhood, city, state, features, property_media(storage_path, is_cover, position, kind)" as const
 
-export { PROPERTY_MEDIA_LIMIT as LANDING_PROPERTY_MEDIA_LIMIT }
-
 export type LandingPropertySource = LandingPropertyInput
 
 /**
@@ -248,7 +257,9 @@ export async function getLandingPropertiesByIds(
     .limit(PROPERTY_MEDIA_LIMIT, { referencedTable: "property_media" })
 
   if (error) {
-    throw new Error(`Não foi possível carregar os imóveis da landing page (${error.code ?? "erro"}).`)
+    throw new Error(
+      `Não foi possível carregar os imóveis da landing page (${error.code ?? "erro"}).`
+    )
   }
 
   const byId = new Map<string, LandingPropertySource>(

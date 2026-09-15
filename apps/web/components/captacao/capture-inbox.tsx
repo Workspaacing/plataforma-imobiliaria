@@ -64,7 +64,9 @@ const STATUS_BADGE: Record<CaptureStatus, "default" | "secondary" | "outline"> =
 function formatLocation(row: CaptureRow) {
   const cityState = [row.city, row.state].filter(Boolean).join("/")
   const parts = [row.neighborhood, cityState].filter(Boolean)
-  const postal = row.postalCode ? `CEP ${row.postalCode.slice(0, 5)}-${row.postalCode.slice(5)}` : null
+  const postal = row.postalCode
+    ? `CEP ${row.postalCode.slice(0, 5)}-${row.postalCode.slice(5)}`
+    : null
 
   return [...parts, postal].filter(Boolean).join(" · ") || null
 }
@@ -225,11 +227,18 @@ export function CaptureInbox({ rows }: { rows: CaptureRow[] }) {
       setPendingId(null)
 
       if (!result.ok) {
-        toast.add({ title: "Não foi possível atualizar", description: result.error, type: "error" })
+        toast.add({
+          title: "Não foi possível atualizar",
+          description: result.error,
+          type: "error",
+        })
         return
       }
 
-      toast.add({ title: result.message ?? "Captação atualizada.", type: "success" })
+      toast.add({
+        title: result.message ?? "Captação atualizada.",
+        type: "success",
+      })
     })
   }
 
@@ -242,11 +251,18 @@ export function CaptureInbox({ rows }: { rows: CaptureRow[] }) {
       const result = await updateCaptureStatus(captureId, "discarded")
 
       if (!result.ok) {
-        toast.add({ title: "Não foi possível descartar", description: result.error, type: "error" })
+        toast.add({
+          title: "Não foi possível descartar",
+          description: result.error,
+          type: "error",
+        })
         return
       }
 
-      toast.add({ title: result.message ?? "Captação descartada.", type: "success" })
+      toast.add({
+        title: result.message ?? "Captação descartada.",
+        type: "success",
+      })
       setDiscardOpen(false)
     })
   }
@@ -274,13 +290,16 @@ export function CaptureInbox({ rows }: { rows: CaptureRow[] }) {
             <AlertDialogTitle>Descartar esta captação?</AlertDialogTitle>
             <AlertDialogDescription>
               {discardRow ? `${discardRow.ownerName}. ` : ""}
-              Use quando o imóvel não interessar à imobiliária. Você pode reabrir a captação
-              depois.
+              Use quando o imóvel não interessar à imobiliária. Você pode reabrir a captação depois.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isDiscarding}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" disabled={isDiscarding} onClick={confirmDiscard}>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={isDiscarding}
+              onClick={confirmDiscard}
+            >
               {isDiscarding ? <Spinner data-icon="inline-start" /> : null}
               Descartar
             </AlertDialogAction>

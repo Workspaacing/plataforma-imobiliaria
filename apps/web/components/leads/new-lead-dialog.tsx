@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { CircleAlertIcon } from "lucide-react"
+import { CircleAlertIcon, InfoIcon } from "lucide-react"
 import { Controller, useForm, useWatch } from "react-hook-form"
 
 import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert"
@@ -25,8 +25,6 @@ import {
   FieldError,
   FieldGroup,
   FieldLabel,
-  FieldLegend,
-  FieldSet,
   FieldTitle,
 } from "@workspace/ui/components/field"
 import { Input } from "@workspace/ui/components/input"
@@ -125,7 +123,10 @@ function NewLeadForm({
   const form = useForm<NewLeadFormValues>({
     resolver: zodResolver(newLeadFormSchema),
     mode: "onTouched",
-    defaultValues: { ...EMPTY_NEW_LEAD_FORM_VALUES, assignedTo: canChoose ? "" : currentUserId },
+    defaultValues: {
+      ...EMPTY_NEW_LEAD_FORM_VALUES,
+      assignedTo: canChoose ? "" : currentUserId,
+    },
   })
   const hasConsent = useWatch({ control: form.control, name: "hasConsent" })
 
@@ -139,7 +140,10 @@ function NewLeadForm({
         })),
       ]
     : [
-        { label: `${currentMember?.name ?? "Você"} (você)`, value: currentUserId },
+        {
+          label: `${currentMember?.name ?? "Você"} (você)`,
+          value: currentUserId,
+        },
         { label: "Sem responsável", value: null },
       ]
 
@@ -162,7 +166,10 @@ function NewLeadForm({
         return
       }
 
-      toast.add({ title: result.message ?? "Lead cadastrado.", type: "success" })
+      toast.add({
+        title: result.message ?? "Lead cadastrado.",
+        type: "success",
+      })
       onClose()
     })
   }
@@ -188,7 +195,9 @@ function NewLeadForm({
           <Alert>
             <CircleAlertIcon />
             <AlertTitle>Sem permissão</AlertTitle>
-            <AlertDescription>Seu papel nesta imobiliária não permite cadastrar leads.</AlertDescription>
+            <AlertDescription>
+              Seu papel nesta imobiliária não permite cadastrar leads.
+            </AlertDescription>
           </Alert>
         ) : null}
 
@@ -268,7 +277,11 @@ function NewLeadForm({
                     if (source) field.onChange(source)
                   }}
                 >
-                  <SelectTrigger id="novo-lead-origem" className="w-full" aria-invalid={fieldState.invalid}>
+                  <SelectTrigger
+                    id="novo-lead-origem"
+                    className="w-full"
+                    aria-invalid={fieldState.invalid}
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -382,55 +395,69 @@ function NewLeadForm({
           )}
         />
 
-        <FieldSet>
-          <FieldLegend variant="label">LGPD</FieldLegend>
-          <Controller
-            name="hasConsent"
-            control={form.control}
-            render={({ field }) => (
-              <Field orientation="horizontal">
-                <Checkbox
-                  id="novo-lead-consentimento"
-                  checked={field.value}
-                  onCheckedChange={(checked) => {
-                    field.onChange(checked === true)
+        <Controller
+          name="hasConsent"
+          control={form.control}
+          render={({ field }) => (
+            <Field orientation="horizontal">
+              <Checkbox
+                id="novo-lead-consentimento"
+                name={field.name}
+                checked={field.value}
+                onCheckedChange={(checked) => {
+                  const value = checked === true
+                  field.onChange(value)
+                  if (value && !form.getValues("consentDate")) {
+                    form.setValue("consentDate", toDateKey(new Date()))
+                  }
+                }}
+                onBlur={field.onBlur}
+              />
+              <FieldContent>
+                <FieldLabel htmlFor="novo-lead-consentimento" className="font-normal">
+                  O contato já autorizou o uso dos dados (consentimento, LGPD)
+                </FieldLabel>
+              </FieldContent>
+            </Field>
+          )}
+        />
 
-                    if (checked === true && !form.getValues("consentDate")) {
-                      form.setValue("consentDate", toDateKey(new Date()))
-                    }
-                  }}
+        {hasConsent ? (
+          <Controller
+            name="consentDate"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="novo-lead-data-consentimento">
+                  Data do consentimento
+                </FieldLabel>
+                <DatePicker
+                  id="novo-lead-data-consentimento"
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  invalid={fieldState.invalid}
                 />
-                <FieldContent>
-                  <FieldLabel htmlFor="novo-lead-consentimento" className="font-normal">
-                    O contato autorizou o uso dos dados para retorno (consentimento)
-                  </FieldLabel>
+                {fieldState.invalid ? (
+                  <FieldError errors={[fieldState.error]} />
+                ) : (
                   <FieldDescription>
-                    Sem consentimento, a base legal é escolhida na conversão em cliente.
+                    Dia em que o contato autorizou o uso dos dados.
                   </FieldDescription>
-                </FieldContent>
+                )}
               </Field>
             )}
           />
-          {hasConsent ? (
-            <Controller
-              name="consentDate"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="novo-lead-consentimento-data">Data do consentimento</FieldLabel>
-                  <DatePicker
-                    id="novo-lead-consentimento-data"
-                    value={field.value}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                    invalid={fieldState.invalid}
-                  />
-                  {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
-                </Field>
-              )}
-            />
-          ) : null}
-        </FieldSet>
+        ) : (
+          <Alert>
+            <InfoIcon />
+            <AlertTitle>LGPD: base legal na conversão</AlertTitle>
+            <AlertDescription>
+              Sem consentimento marcado agora, escolha a base legal ao converter o lead em cliente —
+              inclusive consentimento, com a data em que foi dado.
+            </AlertDescription>
+          </Alert>
+        )}
       </FieldGroup>
 
       <DialogFooter>

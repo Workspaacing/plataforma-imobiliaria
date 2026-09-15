@@ -20,7 +20,9 @@ const decimalInputFormat = new Intl.NumberFormat("pt-BR", {
 
 /** Máscara de moeda enquanto digita: "123456" vira "1.234,56". Vazio continua vazio. */
 export function maskBrlInput(raw: string) {
-  const digits = digitsOnly(raw).replace(/^0+(?=\d)/, "").slice(0, 14)
+  const digits = digitsOnly(raw)
+    .replace(/^0+(?=\d)/, "")
+    .slice(0, 14)
   if (!digits) return ""
   return brlInputFormat.format(Number(digits) / 100)
 }

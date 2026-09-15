@@ -36,8 +36,6 @@ export async function searchClientOptions(query: string): Promise<ClientOption[]
   return data.map((client) => ({
     id: client.id,
     label: client.name,
-    description: [CLIENT_KIND_LABELS[client.kind], client.trade_name]
-      .filter(Boolean)
-      .join(" · "),
+    description: [CLIENT_KIND_LABELS[client.kind], client.trade_name].filter(Boolean).join(" · "),
   }))
 }

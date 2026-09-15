@@ -7,11 +7,7 @@ import {
   BreadcrumbPage,
 } from "@workspace/ui/components/breadcrumb"
 import { Separator } from "@workspace/ui/components/separator"
-import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@workspace/ui/components/sidebar"
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@workspace/ui/components/sidebar"
 
 export default function Page() {
   return (

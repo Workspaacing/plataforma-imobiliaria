@@ -56,7 +56,10 @@ import {
   type LandingEditorSection,
 } from "@/components/marketing/editor/types"
 import { InertLeadForm } from "@/components/marketing/inert-lead-form"
-import { LandingPreviewFrame, type PreviewDevice } from "@/components/marketing/landing-preview-frame"
+import {
+  LandingPreviewFrame,
+  type PreviewDevice,
+} from "@/components/marketing/landing-preview-frame"
 import { LandingStatusBadge } from "@/components/marketing/landing-status-badge"
 import { LANDING_TEMPLATE_CATEGORY_LABELS, getLandingTemplate } from "@/lib/landing/templates"
 import type { LandingOrganization, LandingTemplateKey } from "@/lib/landing/types"
@@ -91,7 +94,13 @@ import {
   publicationValuesToColumns,
 } from "@/lib/marketing/schemas"
 
-const SECTION_ORDER: readonly LandingEditorSection[] = ["identity", "content", "properties", "leads", "publication"]
+const SECTION_ORDER: readonly LandingEditorSection[] = [
+  "identity",
+  "content",
+  "properties",
+  "leads",
+  "publication",
+]
 
 type Snapshot = Record<LandingEditorSection, string>
 
@@ -117,15 +126,20 @@ function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
-const STATUS_CONFIRM: Record<LandingStatus, { title: string; description: string; action: string }> = {
+const STATUS_CONFIRM: Record<
+  LandingStatus,
+  { title: string; description: string; action: string }
+> = {
   published: {
     title: "Publicar a landing page?",
-    description: "A página fica no ar no endereço público e cada contato enviado vira um lead no funil.",
+    description:
+      "A página fica no ar no endereço público e cada contato enviado vira um lead no funil.",
     action: "Publicar",
   },
   draft: {
     title: "Tirar a página do ar?",
-    description: "O endereço público deixa de abrir e a página volta a ser rascunho. Os leads recebidos continuam no funil.",
+    description:
+      "O endereço público deixa de abrir e a página volta a ser rascunho. Os leads recebidos continuam no funil.",
     action: "Despublicar",
   },
   archived: {
@@ -151,7 +165,6 @@ export type LandingEditorProps = {
   members: LandingMemberOption[]
   organization: LandingOrganization
   organizationSlug: string
-  siteUrl: string
   canEdit: boolean
 }
 
@@ -164,7 +177,6 @@ export function LandingEditor({
   members,
   organization,
   organizationSlug,
-  siteUrl,
   canEdit,
 }: LandingEditorProps) {
   const template = getLandingTemplate(page.template)
@@ -200,7 +212,9 @@ export function LandingEditor({
       leadAssigneeId: initialLeadAssigneeId,
     })
   )
-  const [failures, setFailures] = React.useState<Partial<Record<LandingEditorSection, SectionFailure>>>({})
+  const [failures, setFailures] = React.useState<
+    Partial<Record<LandingEditorSection, SectionFailure>>
+  >({})
   const [isSaving, setIsSaving] = React.useState(false)
   const [savedAt, setSavedAt] = React.useState<string | null>(null)
   const [leadsError, setLeadsError] = React.useState<string | null>(null)
@@ -216,12 +230,21 @@ export function LandingEditor({
   const queuedRef = React.useRef(false)
 
   const propertyIds = properties.map((property) => property.id)
-  const current = serializeSections({ values: watched, propertyIds, leadAssigneeId })
+  const current = serializeSections({
+    values: watched,
+    propertyIds,
+    leadAssigneeId,
+  })
   const dirty = SECTION_ORDER.filter((section) => current[section] !== saved[section])
   const retryable = dirty.filter((section) => failures[section]?.snapshot !== current[section])
   const dirtyKey = retryable.map((section) => `${section}:${current[section]}`).join("|")
 
-  const latestRef = React.useRef({ propertyIds, leadAssigneeId, retryable, dirty })
+  const latestRef = React.useRef({
+    propertyIds,
+    leadAssigneeId,
+    retryable,
+    dirty,
+  })
   React.useEffect(() => {
     latestRef.current = { propertyIds, leadAssigneeId, retryable, dirty }
   })
@@ -250,7 +273,11 @@ export function LandingEditor({
             toOpen.push(section)
             setFailures((previous) => ({
               ...previous,
-              [section]: { snapshot: serialized[section], message: "Corrija os campos destacados.", invalid: true },
+              [section]: {
+                snapshot: serialized[section],
+                message: "Corrija os campos destacados.",
+                invalid: true,
+              },
             }))
             continue
           }
@@ -276,12 +303,18 @@ export function LandingEditor({
               break
           }
         } catch {
-          result = { ok: false, error: "Sem conexão com o servidor. Confira a internet e tente de novo." }
+          result = {
+            ok: false,
+            error: "Sem conexão com o servidor. Confira a internet e tente de novo.",
+          }
         }
 
         if (result.ok) {
           anySaved = true
-          setSaved((previous) => ({ ...previous, [section]: serialized[section] }))
+          setSaved((previous) => ({
+            ...previous,
+            [section]: serialized[section],
+          }))
           setFailures((previous) => {
             const next = { ...previous }
             delete next[section]
@@ -299,7 +332,11 @@ export function LandingEditor({
 
         setFailures((previous) => ({
           ...previous,
-          [section]: { snapshot: serialized[section], message: result.error, invalid: hasFieldErrors },
+          [section]: {
+            snapshot: serialized[section],
+            message: result.error,
+            invalid: hasFieldErrors,
+          },
         }))
 
         if (section === "leads") {
@@ -308,7 +345,10 @@ export function LandingEditor({
           setPropertiesError(result.error)
         } else {
           for (const [key, message] of Object.entries(fieldErrors)) {
-            form.setError(`${section}.${key}` as FieldPath<LandingEditorFormValues>, { type: "server", message })
+            form.setError(`${section}.${key}` as FieldPath<LandingEditorFormValues>, {
+              type: "server",
+              message,
+            })
           }
         }
       }
@@ -382,7 +422,17 @@ export function LandingEditor({
         properties: deferredProperties,
         broker: members.find((member) => member.id === deferredAssignee)?.broker ?? null,
       }),
-    [deferredAssignee, deferredProperties, deferredValues, members, organization, page.id, page.template, publishedAt, template]
+    [
+      deferredAssignee,
+      deferredProperties,
+      deferredValues,
+      members,
+      organization,
+      page.id,
+      page.template,
+      publishedAt,
+      template,
+    ]
   )
 
   // ---------------------------------------------------------------------------
@@ -413,7 +463,8 @@ export function LandingEditor({
 
     startStatusChange(async () => {
       // Termina o salvamento em andamento e grava o que falta antes de mudar o status.
-      for (let attempt = 0; attempt < 100 && savingRef.current; attempt += 1) {
+      // Até 30 s: as seções são salvas uma a uma e a conexão pode estar lenta.
+      for (let attempt = 0; attempt < 300 && savingRef.current; attempt += 1) {
         await wait(100)
       }
 
@@ -444,7 +495,11 @@ export function LandingEditor({
           setServerIssues(result.issues)
           setIssuesOpen(true)
         } else {
-          toast.add({ type: "error", title: "Não foi possível alterar o status", description: result.error })
+          toast.add({
+            type: "error",
+            title: "Não foi possível alterar o status",
+            description: result.error,
+          })
         }
         return
       }
@@ -462,10 +517,19 @@ export function LandingEditor({
       (section) => failures[section]?.invalid && failures[section]?.snapshot === current[section]
     )
     if (invalid.length > 0) {
-      return { kind: "invalid", sections: invalid.map((section) => LANDING_EDITOR_SECTION_LABELS[section]) }
+      return {
+        kind: "invalid",
+        sections: invalid.map((section) => LANDING_EDITOR_SECTION_LABELS[section]),
+      }
     }
-    const failed = dirty.find((section) => failures[section] && failures[section]?.snapshot === current[section])
-    if (failed) return { kind: "error", message: failures[failed]?.message ?? "Tente novamente." }
+    const failed = dirty.find(
+      (section) => failures[section] && failures[section]?.snapshot === current[section]
+    )
+    if (failed)
+      return {
+        kind: "error",
+        message: failures[failed]?.message ?? "Tente novamente.",
+      }
     if (dirty.length > 0) return { kind: "pending" }
     return { kind: "saved", at: savedAt }
   })()
@@ -474,7 +538,8 @@ export function LandingEditor({
   const disabled = !canEdit
   const confirmCopy = confirmStatus ? STATUS_CONFIRM[confirmStatus] : null
   const maxProperties = maxPropertiesFor(template)
-  const fallbackShareImagePath = watched.identity.backgroundPath ?? watched.identity.bannerPaths[0] ?? null
+  const fallbackShareImagePath =
+    watched.identity.backgroundPath ?? watched.identity.bannerPaths[0] ?? null
 
   return (
     <div className="flex flex-1 flex-col gap-4 p-4 lg:p-6">
@@ -507,27 +572,47 @@ export function LandingEditor({
           <Button
             variant="outline"
             size="sm"
-            render={<a href={landingPreviewPath(page.id)} target="_blank" rel="noopener noreferrer" />}
+            render={
+              <a href={landingPreviewPath(page.id)} target="_blank" rel="noopener noreferrer" />
+            }
             nativeButton={false}
           >
             <EyeIcon data-icon="inline-start" />
             Tela cheia
           </Button>
           {canEdit && status === "published" ? (
-            <Button variant="outline" size="sm" disabled={isChangingStatus} onClick={() => requestStatus("draft")}>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isChangingStatus}
+              onClick={() => requestStatus("draft")}
+            >
               <EyeOffIcon data-icon="inline-start" />
               Despublicar
             </Button>
           ) : null}
           {canEdit && status === "archived" ? (
-            <Button variant="outline" size="sm" disabled={isChangingStatus} onClick={() => requestStatus("draft")}>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={isChangingStatus}
+              onClick={() => requestStatus("draft")}
+            >
               <ArchiveRestoreIcon data-icon="inline-start" />
               Restaurar
             </Button>
           ) : null}
           {canEdit && status === "draft" ? (
-            <Button size="sm" disabled={isChangingStatus} onClick={() => requestStatus("published")}>
-              {isChangingStatus ? <Spinner data-icon="inline-start" /> : <SendIcon data-icon="inline-start" />}
+            <Button
+              size="sm"
+              disabled={isChangingStatus}
+              onClick={() => requestStatus("published")}
+            >
+              {isChangingStatus ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <SendIcon data-icon="inline-start" />
+              )}
               Publicar
             </Button>
           ) : null}
@@ -539,7 +624,8 @@ export function LandingEditor({
           <LockIcon />
           <AlertTitle>Somente leitura</AlertTitle>
           <AlertDescription>
-            Seu papel permite ver a configuração. Para editar, peça ao dono, ao gerente ou a um assistente.
+            Seu papel permite ver a configuração. Para editar, peça ao dono, ao gerente ou a um
+            assistente.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -556,7 +642,12 @@ export function LandingEditor({
       </Tabs>
 
       <div className="grid flex-1 items-start gap-6 lg:grid-cols-[minmax(0,28rem)_minmax(0,1fr)]">
-        <div className={cn("min-w-0 flex-col gap-4", mobileView === "editar" ? "flex" : "hidden lg:flex")}>
+        <div
+          className={cn(
+            "min-w-0 flex-col gap-4",
+            mobileView === "editar" ? "flex" : "hidden lg:flex"
+          )}
+        >
           {canEdit && status === "draft" && publishIssues.length > 0 ? (
             <Alert>
               <ClipboardListIcon />
@@ -603,7 +694,8 @@ export function LandingEditor({
                       control={form.control}
                       disabled={disabled}
                       whatsappVariables={{
-                        codigo: properties.find((property) => property.status === "active")?.code ?? null,
+                        codigo:
+                          properties.find((property) => property.status === "active")?.code ?? null,
                         pagina: watched.publication.name,
                       }}
                     />
@@ -632,7 +724,9 @@ export function LandingEditor({
                         }}
                         disabled={disabled}
                       />
-                      {propertiesError ? <p className="text-sm text-destructive">{propertiesError}</p> : null}
+                      {propertiesError ? (
+                        <p className="text-sm text-destructive">{propertiesError}</p>
+                      ) : null}
                     </div>
                   </AccordionContent>
                 </AccordionItem>
@@ -666,7 +760,6 @@ export function LandingEditor({
                       setValue={form.setValue}
                       organizationName={organization.name}
                       organizationSlug={organizationSlug}
-                      siteUrl={siteUrl}
                       status={status}
                       fallbackShareImagePath={fallbackShareImagePath}
                       uploadTarget={uploadTarget}
@@ -715,11 +808,16 @@ export function LandingEditor({
         </section>
       </div>
 
-      <AlertDialog open={confirmStatus !== null} onOpenChange={(open) => (!open ? setConfirmStatus(null) : null)}>
+      <AlertDialog
+        open={confirmStatus !== null}
+        onOpenChange={(open) => (!open ? setConfirmStatus(null) : null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {status === "archived" && confirmStatus === "draft" ? "Restaurar como rascunho?" : confirmCopy?.title}
+              {status === "archived" && confirmStatus === "draft"
+                ? "Restaurar como rascunho?"
+                : confirmCopy?.title}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {status === "archived" && confirmStatus === "draft"
@@ -735,7 +833,9 @@ export function LandingEditor({
               onClick={runStatusChange}
             >
               {isChangingStatus ? <Spinner data-icon="inline-start" /> : null}
-              {status === "archived" && confirmStatus === "draft" ? "Restaurar" : confirmCopy?.action}
+              {status === "archived" && confirmStatus === "draft"
+                ? "Restaurar"
+                : confirmCopy?.action}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

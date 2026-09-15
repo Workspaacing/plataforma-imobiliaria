@@ -59,11 +59,15 @@ export function maskPostalCodeInput(value: string) {
   return digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits
 }
 
-const integerFormat = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 })
+const integerFormat = new Intl.NumberFormat("pt-BR", {
+  maximumFractionDigits: 0,
+})
 
 /** Valor em reais inteiros com separador de milhar ("350.000"). */
 export function maskMoneyInput(value: string) {
-  const digits = onlyDigits(value).replace(/^0+(?=\d)/, "").slice(0, 12)
+  const digits = onlyDigits(value)
+    .replace(/^0+(?=\d)/, "")
+    .slice(0, 12)
   return digits ? integerFormat.format(Number(digits)) : ""
 }
 

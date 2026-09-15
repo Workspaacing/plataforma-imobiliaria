@@ -176,10 +176,7 @@ export function localDateToDateKey(date: Date) {
   return `${year}-${month}-${day}`
 }
 
-export function formatDateKey(
-  dateKey: string,
-  style: "short" | "long" | "weekday" = "short"
-) {
+export function formatDateKey(dateKey: string, style: "short" | "long" | "weekday" = "short") {
   const parsed = parseDateKey(dateKey)
 
   if (!parsed) {
@@ -204,7 +201,5 @@ export function formatMonthKey(monthKey: string) {
     return "—"
   }
 
-  return monthKeyFormatter.format(
-    new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, 15))
-  )
+  return monthKeyFormatter.format(new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, 15)))
 }

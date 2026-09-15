@@ -45,7 +45,10 @@ export async function registerClientDocument(
   const parsed = registerDocumentSchema.safeParse(input)
 
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Arquivo inválido." }
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Arquivo inválido.",
+    }
   }
 
   const { membership } = await requireMembership()
@@ -103,11 +106,17 @@ export async function getClientDocumentDownloadUrl(
     .maybeSingle()
 
   if (error) {
-    return { ok: false, error: translateDatabaseError(error, "baixar este documento") }
+    return {
+      ok: false,
+      error: translateDatabaseError(error, "baixar este documento"),
+    }
   }
 
   if (!document) {
-    return { ok: false, error: "Documento não encontrado. Ele pode ter sido removido." }
+    return {
+      ok: false,
+      error: "Documento não encontrado. Ele pode ter sido removido.",
+    }
   }
 
   const { data: signed, error: signError } = await supabase.storage
@@ -117,7 +126,10 @@ export async function getClientDocumentDownloadUrl(
     })
 
   if (signError || !signed?.signedUrl) {
-    return { ok: false, error: "Não foi possível gerar o link de download. Tente novamente." }
+    return {
+      ok: false,
+      error: "Não foi possível gerar o link de download. Tente novamente.",
+    }
   }
 
   const { error: logError } = await supabase.rpc("log_access_event", {
@@ -177,7 +189,10 @@ export async function deleteClientDocument(
     .remove([removed.storage_path])
 
   if (storageError) {
-    console.error("[clientes] documento excluído, mas o arquivo ficou no Storage:", storageError.name)
+    console.error(
+      "[clientes] documento excluído, mas o arquivo ficou no Storage:",
+      storageError.name
+    )
   }
 
   revalidatePath(`${CLIENTS_PATH}/${clientId}`)

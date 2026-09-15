@@ -104,7 +104,10 @@ export function AuthorizationDialog({
     authorization && !ownerOptions.some((option) => option.value === authorization.ownerClientId)
       ? [
           ...ownerOptions,
-          { value: authorization.ownerClientId, label: authorization.ownerName ?? "Cliente sem acesso" },
+          {
+            value: authorization.ownerClientId,
+            label: authorization.ownerName ?? "Cliente sem acesso",
+          },
         ]
       : ownerOptions
   const selectItems = [{ label: "Selecione o proprietário", value: null }, ...options]
@@ -120,9 +123,16 @@ export function AuthorizationDialog({
 
       if (result.ok) {
         setOpen(false)
-        toast.add({ title: result.message ?? "Autorização salva.", type: "success" })
+        toast.add({
+          title: result.message ?? "Autorização salva.",
+          type: "success",
+        })
       } else {
-        toast.add({ title: "Não foi possível salvar a autorização", description: result.error, type: "error" })
+        toast.add({
+          title: "Não foi possível salvar a autorização",
+          description: result.error,
+          type: "error",
+        })
       }
     })
   }
@@ -199,7 +209,9 @@ export function AuthorizationDialog({
                   />
                   <FieldContent>
                     <FieldLabel htmlFor={`${idPrefix}-exclusiva`}>Exclusiva</FieldLabel>
-                    <FieldDescription>Somente esta imobiliária pode anunciar e negociar o imóvel.</FieldDescription>
+                    <FieldDescription>
+                      Somente esta imobiliária pode anunciar e negociar o imóvel.
+                    </FieldDescription>
                   </FieldContent>
                 </Field>
               )}
@@ -273,7 +285,9 @@ export function AuthorizationDialog({
                 control={form.control}
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor={`${idPrefix}-assinatura`}>Assinada em (opcional)</FieldLabel>
+                    <FieldLabel htmlFor={`${idPrefix}-assinatura`}>
+                      Assinada em (opcional)
+                    </FieldLabel>
                     <Input
                       {...field}
                       id={`${idPrefix}-assinatura`}

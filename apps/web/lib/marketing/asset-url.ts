@@ -24,7 +24,11 @@ export function landingAssetFolder(organizationId: string, pageId: string) {
 }
 
 /** Caminho no formato {organization_id}/landing/{page_id}/{uuid}.{ext}. */
-export function isLandingAssetPath(path: unknown, organizationId: string, pageId: string): path is string {
+export function isLandingAssetPath(
+  path: unknown,
+  organizationId: string,
+  pageId: string
+): path is string {
   if (typeof path !== "string") return false
   const prefix = landingAssetFolder(organizationId, pageId)
   if (!path.startsWith(prefix)) return false
@@ -34,7 +38,10 @@ export function isLandingAssetPath(path: unknown, organizationId: string, pageId
 }
 
 /** Caminhos de landing-assets de qualquer página da imobiliária (para duplicar). */
-export function isOrganizationLandingAssetPath(path: unknown, organizationId: string): path is string {
+export function isOrganizationLandingAssetPath(
+  path: unknown,
+  organizationId: string
+): path is string {
   if (typeof path !== "string") return false
   const match = new RegExp(`^${organizationId}/landing/([0-9a-f-]{36})/`, "i").exec(path)
   return Boolean(match && isLandingAssetPath(path, organizationId, match[1] ?? ""))

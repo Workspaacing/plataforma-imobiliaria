@@ -41,7 +41,11 @@ type EditarImovelPageProps = {
 }
 
 export default async function EditarImovelPage({ params, searchParams }: EditarImovelPageProps) {
-  const [{ user, membership }, { id }, query] = await Promise.all([requireMembership(), params, searchParams])
+  const [{ user, membership }, { id }, query] = await Promise.all([
+    requireMembership(),
+    params,
+    searchParams,
+  ])
   const organizationId = membership.organizationId
   const supabase = await createClient()
 
@@ -61,12 +65,16 @@ export default async function EditarImovelPage({ params, searchParams }: EditarI
             </EmptyMedia>
             <EmptyTitle>Você não pode editar este imóvel</EmptyTitle>
             <EmptyDescription>
-              Corretores e captadores editam só os imóveis em que são o captador ou o corretor responsável. Peça
-              para a gestão ajustar, se necessário.
+              Corretores e captadores editam só os imóveis em que são o captador ou o corretor
+              responsável. Peça para a gestão ajustar, se necessário.
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            <Button variant="outline" render={<Link href={`/imoveis/${property.id}`} />} nativeButton={false}>
+            <Button
+              variant="outline"
+              render={<Link href={`/imoveis/${property.id}`} />}
+              nativeButton={false}
+            >
               Ver ficha do imóvel
             </Button>
           </EmptyContent>
@@ -95,7 +103,11 @@ export default async function EditarImovelPage({ params, searchParams }: EditarI
           </div>
           <PageHeading title="Editar imóvel" description={property.title} />
         </div>
-        <Button variant="ghost" render={<Link href={`/imoveis/${property.id}`} />} nativeButton={false}>
+        <Button
+          variant="ghost"
+          render={<Link href={`/imoveis/${property.id}`} />}
+          nativeButton={false}
+        >
           <ArrowLeftIcon data-icon="inline-start" />
           Voltar para a ficha
         </Button>
@@ -104,7 +116,11 @@ export default async function EditarImovelPage({ params, searchParams }: EditarI
       <PropertyForm
         organizationId={organizationId}
         role={membership.role}
-        property={{ id: property.id, code: property.code, status: property.status }}
+        property={{
+          id: property.id,
+          code: property.code,
+          status: property.status,
+        }}
         initialValues={propertyRowToFormValues(property, summarizeMedia(media))}
         initialStep={initialStep}
         media={media}

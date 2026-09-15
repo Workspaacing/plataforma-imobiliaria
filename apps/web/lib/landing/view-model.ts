@@ -157,7 +157,10 @@ function defaultWhatsappMessage(
     return `Olá! Tenho interesse no imóvel "${featured.title}"${featured.code ? ` (cód. ${featured.code})` : ""}.`
   }
   if (key === "campaign_valuation") return "Olá! Quero avaliar meu imóvel."
-  if (launchName && (key === "launch_showcase" || key === "launch_waitlist" || key === "launch_units")) {
+  if (
+    launchName &&
+    (key === "launch_showcase" || key === "launch_waitlist" || key === "launch_units")
+  ) {
     return `Olá! Quero saber mais sobre o lançamento ${launchName}.`
   }
   return `Olá! Vim pela página de ${organizationName} e quero mais informações.`
@@ -171,9 +174,12 @@ export function buildLandingViewModel(
   const key = page.template
   const template = getLandingTemplate(key)
   const content = page.content
-  const baseUrl = options.storageBaseUrl === undefined ? getStorageBaseUrl() : options.storageBaseUrl
+  const baseUrl =
+    options.storageBaseUrl === undefined ? getStorageBaseUrl() : options.storageBaseUrl
 
-  const theme = resolveLandingTheme(page.theme, organization.brand, { storageBaseUrl: baseUrl })
+  const theme = resolveLandingTheme(page.theme, organization.brand, {
+    storageBaseUrl: baseUrl,
+  })
 
   const properties =
     template.usesProperties === "none"

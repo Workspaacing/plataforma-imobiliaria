@@ -16,11 +16,7 @@ export function sanitizeSearchTerm(value: unknown, maxLength = 80) {
 
 /** Filtro `.or()` para clientes: nome, nome fantasia, e-mail, telefones e documento. */
 export function buildClientSearchFilter(term: string) {
-  const filters = [
-    `name.ilike.%${term}%`,
-    `trade_name.ilike.%${term}%`,
-    `email.ilike.%${term}%`,
-  ]
+  const filters = [`name.ilike.%${term}%`, `trade_name.ilike.%${term}%`, `email.ilike.%${term}%`]
 
   const digits = term.replace(/\D/g, "")
   const alphanumeric = term.toUpperCase().replace(/[^0-9A-Z]/g, "")
@@ -38,9 +34,5 @@ export function buildClientSearchFilter(term: string) {
 
 /** Filtro `.or()` para imóveis: código, título e bairro. */
 export function buildPropertySearchFilter(term: string) {
-  return [
-    `code.ilike.%${term}%`,
-    `title.ilike.%${term}%`,
-    `neighborhood.ilike.%${term}%`,
-  ].join(",")
+  return [`code.ilike.%${term}%`, `title.ilike.%${term}%`, `neighborhood.ilike.%${term}%`].join(",")
 }

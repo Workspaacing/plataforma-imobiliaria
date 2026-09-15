@@ -129,7 +129,13 @@ export async function listTaskGroups(
     }
   }
 
-  const groups: TaskGroups = { overdue: [], today: [], upcoming: [], noDue: [], done: [] }
+  const groups: TaskGroups = {
+    overdue: [],
+    today: [],
+    upcoming: [],
+    noDue: [],
+    done: [],
+  }
 
   for (const item of open.data.map(toItem)) {
     if (!item.dueAt) {

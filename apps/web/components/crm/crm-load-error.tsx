@@ -32,16 +32,13 @@ export function CrmLoadError() {
           </EmptyMedia>
           <EmptyTitle>Não foi possível carregar o CRM</EmptyTitle>
           <EmptyDescription>
-            Tivemos um problema ao buscar suas imobiliárias. Tente de novo em
-            instantes; se persistir, fale com o suporte.
+            Tivemos um problema ao buscar suas imobiliárias. Tente de novo em instantes; se
+            persistir, fale com o suporte.
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
           <div className="flex flex-wrap justify-center gap-2">
-            <Button
-              disabled={isRetrying}
-              onClick={() => startRetry(() => router.refresh())}
-            >
+            <Button disabled={isRetrying} onClick={() => startRetry(() => router.refresh())}>
               {isRetrying ? (
                 <Spinner data-icon="inline-start" />
               ) : (

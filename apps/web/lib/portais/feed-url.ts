@@ -22,16 +22,9 @@ export function isOrganizationSlug(value: string | null | undefined): value is s
   )
 }
 
-export function buildFeedPath(slug: string) {
-  return `/api/feeds/${encodeURIComponent(slug)}/vrsync.xml`
-}
-
-/** URL cadastrada no Canal Pro do Grupo OLX (ZAP, Viva Real e OLX). */
-export function buildFeedUrl(origin: string, slug: string, token: string) {
-  const url = new URL(buildFeedPath(slug), origin)
-  url.searchParams.set("token", token)
-  return url.toString()
-}
+// A URL cadastrada no Canal Pro (ZAP, Viva Real e OLX) fica no subdomínio da
+// imobiliária: buildPortalFeedUrl em lib/tenant/urls.ts. O caminho antigo
+// /api/feeds/<slug>/vrsync.xml no domínio raiz continua respondendo.
 
 /** URL pública de um arquivo do bucket property-media. */
 export function buildPublicMediaUrl(supabaseUrl: string, storagePath: string) {

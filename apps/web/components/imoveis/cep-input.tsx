@@ -4,13 +4,21 @@ import * as React from "react"
 import { SearchIcon } from "lucide-react"
 
 import type { CepAddress } from "@/lib/br/cep"
-import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupInput } from "@workspace/ui/components/input-group"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@workspace/ui/components/input-group"
 import { Spinner } from "@workspace/ui/components/spinner"
 
 import { lookupCepAction } from "@/lib/imoveis/cep-actions"
 import { maskPostalCodeInput } from "@/lib/imoveis/number"
 
-type CepInputProps = Omit<React.ComponentProps<"input">, "value" | "onChange" | "type" | "onBlur"> & {
+type CepInputProps = Omit<
+  React.ComponentProps<"input">,
+  "value" | "onChange" | "type" | "onBlur"
+> & {
   value: string
   onValueChange: (value: string) => void
   onBlur?: () => void
@@ -78,7 +86,11 @@ export function CepInput({
           onClick={() => runLookup(true)}
           disabled={disabled || isLookingUp || value.replace(/\D/g, "").length !== 8}
         >
-          {isLookingUp ? <Spinner data-icon="inline-start" /> : <SearchIcon data-icon="inline-start" />}
+          {isLookingUp ? (
+            <Spinner data-icon="inline-start" />
+          ) : (
+            <SearchIcon data-icon="inline-start" />
+          )}
           Buscar
         </InputGroupButton>
       </InputGroupAddon>

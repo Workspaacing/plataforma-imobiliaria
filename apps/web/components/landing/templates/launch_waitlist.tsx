@@ -19,7 +19,13 @@ import { DISCLAIMERS, PreviewHint, type LandingTemplateRenderProps } from "./sha
  * dígitos condensados enormes como peça central. Formulário curto na mesma
  * dobra. Abaixo, só as vantagens de entrar primeiro.
  */
-export function LaunchWaitlistTemplate({ vm, mode, leadForm, id, formHref }: LandingTemplateRenderProps) {
+export function LaunchWaitlistTemplate({
+  vm,
+  mode,
+  leadForm,
+  id,
+  formHref,
+}: LandingTemplateRenderProps) {
   return (
     <>
       <LandingHeader vm={vm} formHref={formHref} variant="overlay" showCta={false} />
@@ -37,7 +43,12 @@ export function LaunchWaitlistTemplate({ vm, mode, leadForm, id, formHref }: Lan
           <div className="mx-auto grid max-w-6xl gap-10 px-4 pt-28 pb-14 @3xl:px-8 @3xl:pt-36 @5xl:min-h-[44rem] @5xl:grid-cols-[minmax(0,1fr)_24rem] @5xl:items-center @5xl:gap-16 @5xl:pb-24">
             <div className="flex flex-col gap-6">
               {vm.launch.name ? (
-                <p className={cn(lpSerifFont, "text-[1.75rem] leading-tight font-medium @xl:text-[2.25rem]")}>
+                <p
+                  className={cn(
+                    lpSerifFont,
+                    "text-[1.75rem] leading-tight font-medium @xl:text-[2.25rem]"
+                  )}
+                >
                   {vm.launch.name}
                 </p>
               ) : null}

@@ -23,7 +23,9 @@ export const LANDING_ACCEPTED_IMAGE_TYPES: Record<string, string> = {
   "image/webp": "webp",
 }
 
-export const LANDING_ACCEPTED_IMAGE_ACCEPT_ATTR = Object.keys(LANDING_ACCEPTED_IMAGE_TYPES).join(",")
+export const LANDING_ACCEPTED_IMAGE_ACCEPT_ATTR = Object.keys(LANDING_ACCEPTED_IMAGE_TYPES).join(
+  ","
+)
 
 export const LANDING_STATUSES = ["draft", "published", "archived"] as const
 export type LandingStatus = (typeof LANDING_STATUSES)[number]

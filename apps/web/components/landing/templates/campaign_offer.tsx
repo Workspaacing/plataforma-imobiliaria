@@ -26,7 +26,13 @@ import { DISCLAIMERS, PreviewHint, type LandingTemplateRenderProps } from "./sha
  * faixa da marca, com a condição em corpo condensado e o prazo na parte de
  * baixo. Benefícios, prova social e formulário ficam lado a lado em seguida.
  */
-export function CampaignOfferTemplate({ vm, mode, leadForm, id, formHref }: LandingTemplateRenderProps) {
+export function CampaignOfferTemplate({
+  vm,
+  mode,
+  leadForm,
+  id,
+  formHref,
+}: LandingTemplateRenderProps) {
   const banner = vm.theme.images.banners[0] ?? null
   const hasBenefits = vm.highlights.length > 0 || Boolean(vm.description)
 
@@ -76,7 +82,10 @@ export function CampaignOfferTemplate({ vm, mode, leadForm, id, formHref }: Land
                 <FinancingNote text={vm.financingNote} />
               </div>
 
-              <div aria-hidden="true" className="relative border-t-2 border-dashed border-(--lp-line)">
+              <div
+                aria-hidden="true"
+                className="relative border-t-2 border-dashed border-(--lp-line)"
+              >
                 <span className="absolute top-1/2 -left-3 size-6 -translate-y-1/2 rounded-full bg-(--lp-primary)" />
                 <span className="absolute top-1/2 -right-3 size-6 -translate-y-1/2 rounded-full bg-(--lp-primary)" />
               </div>
@@ -92,7 +101,10 @@ export function CampaignOfferTemplate({ vm, mode, leadForm, id, formHref }: Land
                 ) : null}
                 <a
                   href={formHref}
-                  className={lpButtonClass({ size: "lg", className: "w-full @xl:w-auto @xl:self-start" })}
+                  className={lpButtonClass({
+                    size: "lg",
+                    className: "w-full @xl:w-auto @xl:self-start",
+                  })}
                 >
                   {vm.copy.ctaLabel}
                 </a>
@@ -106,7 +118,10 @@ export function CampaignOfferTemplate({ vm, mode, leadForm, id, formHref }: Land
             <div className="flex flex-col gap-14">
               {hasBenefits ? (
                 <div className="flex flex-col gap-7">
-                  <SectionHeading id={id("benefits-title")} title="O que está incluído na condição" />
+                  <SectionHeading
+                    id={id("benefits-title")}
+                    title="O que está incluído na condição"
+                  />
                   <HighlightList items={vm.highlights} />
                   {vm.description ? (
                     <div className="flex flex-col gap-2 rounded-(--lp-radius) bg-(--lp-surface-alt) p-5">

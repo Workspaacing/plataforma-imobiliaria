@@ -61,7 +61,8 @@ export async function loadFeedSettings(
   ) {
     return {
       status: "error",
-      message: "O endereço do feed respondeu num formato inesperado. Verifique as migrações do banco.",
+      message:
+        "O endereço do feed respondeu num formato inesperado. Verifique as migrações do banco.",
     }
   }
 

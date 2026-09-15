@@ -59,7 +59,17 @@ type LookupFeedback = {
   message: string
 } | null
 
-export function OnboardingForm() {
+export type SlugAffix = { position: "start" | "end"; text: string }
+
+export function OnboardingForm({
+  slugAffix,
+}: {
+  /**
+   * Texto ao lado do campo de endereço: ".seucrm.com.br" (modo subdomain) ou
+   * "captar/" (modo single-host, rotas longas).
+   */
+  slugAffix: SlugAffix
+}) {
   const [isSubmitting, startSubmit] = React.useTransition()
   const [isLookingUp, startLookup] = React.useTransition()
   const [formError, setFormError] = React.useState<string | null>(null)
@@ -85,7 +95,10 @@ export function OnboardingForm() {
     const cnpj = normalizeCnpj(rawCnpj)
 
     if (!isValidCnpj(cnpj)) {
-      form.setError("cnpj", { type: "manual", message: "CNPJ inválido. Confira os números." })
+      form.setError("cnpj", {
+        type: "manual",
+        message: "CNPJ inválido. Confira os números.",
+      })
       return
     }
 
@@ -140,7 +153,10 @@ export function OnboardingForm() {
 
       for (const [field, message] of Object.entries(result.fieldErrors ?? {})) {
         if (message) {
-          form.setError(field as keyof OrganizationValues, { type: "server", message })
+          form.setError(field as keyof OrganizationValues, {
+            type: "server",
+            message,
+          })
         }
       }
 
@@ -161,7 +177,9 @@ export function OnboardingForm() {
 
         <FieldSet>
           <FieldLegend>Identificação</FieldLegend>
-          <FieldDescription>Como a imobiliária aparece para a equipe e para os clientes.</FieldDescription>
+          <FieldDescription>
+            Como a imobiliária aparece para a equipe e para os clientes.
+          </FieldDescription>
           <FieldGroup>
             <Controller
               name="name"
@@ -196,9 +214,11 @@ export function OnboardingForm() {
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor="org-slug">Endereço</FieldLabel>
                   <InputGroup>
-                    <InputGroupAddon>
-                      <InputGroupText>captar/</InputGroupText>
-                    </InputGroupAddon>
+                    {slugAffix.position === "start" ? (
+                      <InputGroupAddon>
+                        <InputGroupText>{slugAffix.text}</InputGroupText>
+                      </InputGroupAddon>
+                    ) : null}
                     <InputGroupInput
                       {...field}
                       id="org-slug"
@@ -212,12 +232,18 @@ export function OnboardingForm() {
                         field.onChange(slug)
                       }}
                     />
+                    {slugAffix.position === "end" ? (
+                      <InputGroupAddon align="inline-end">
+                        <InputGroupText>{slugAffix.text}</InputGroupText>
+                      </InputGroupAddon>
+                    ) : null}
                   </InputGroup>
                   {fieldState.invalid ? (
                     <FieldError errors={[fieldState.error]} />
                   ) : (
                     <FieldDescription>
-                      Gerado a partir do nome. Letras minúsculas, números e hífen; usado nos links públicos.
+                      Endereço do CRM e dos links públicos da imobiliária. Gerado a partir do nome:
+                      letras minúsculas, números e hífens simples.
                     </FieldDescription>
                   )}
                 </Field>
@@ -230,7 +256,9 @@ export function OnboardingForm() {
 
         <FieldSet>
           <FieldLegend>Dados legais</FieldLegend>
-          <FieldDescription>Informe o CNPJ para preencher a razão social e o endereço automaticamente.</FieldDescription>
+          <FieldDescription>
+            Informe o CNPJ para preencher a razão social e o endereço automaticamente.
+          </FieldDescription>
           <FieldGroup>
             <Controller
               name="cnpj"
@@ -250,7 +278,11 @@ export function OnboardingForm() {
                         const cnpj = normalizeCnpj(formatted)
                         field.onChange(formatted)
 
-                        if (cnpj.length === 14 && isValidCnpj(cnpj) && cnpj !== lastLookupRef.current) {
+                        if (
+                          cnpj.length === 14 &&
+                          isValidCnpj(cnpj) &&
+                          cnpj !== lastLookupRef.current
+                        ) {
                           runLookup(cnpj)
                         }
                       }}
@@ -275,8 +307,7 @@ export function OnboardingForm() {
                     <FieldError>{lookupFeedback.message}</FieldError>
                   ) : (
                     <FieldDescription>
-                      {lookupFeedback?.message ??
-                        "Consultamos a Receita Federal pela BrasilAPI."}
+                      {lookupFeedback?.message ?? "Consultamos a Receita Federal pela BrasilAPI."}
                     </FieldDescription>
                   )}
                 </Field>
@@ -354,11 +385,7 @@ export function OnboardingForm() {
                       if (!open) field.onBlur()
                     }}
                   >
-                    <SelectTrigger
-                      id="org-uf"
-                      className="w-full"
-                      aria-invalid={fieldState.invalid}
-                    >
+                    <SelectTrigger id="org-uf" className="w-full" aria-invalid={fieldState.invalid}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>

@@ -53,7 +53,8 @@ function describePrice(match: ClientMatchItem) {
 function describeRooms(match: ClientMatchItem) {
   const parts: string[] = []
 
-  if (match.bedrooms !== null) parts.push(`${match.bedrooms} ${match.bedrooms === 1 ? "quarto" : "quartos"}`)
+  if (match.bedrooms !== null)
+    parts.push(`${match.bedrooms} ${match.bedrooms === 1 ? "quarto" : "quartos"}`)
   if (match.parkingSpaces !== null) {
     parts.push(`${match.parkingSpaces} ${match.parkingSpaces === 1 ? "vaga" : "vagas"}`)
   }
@@ -77,7 +78,9 @@ export function MatchesPanel({
             <HouseIcon />
           </EmptyMedia>
           <EmptyTitle>
-            {hasActiveInterests ? "Nenhum imóvel compatível no momento" : "Sem perfil de busca ativo"}
+            {hasActiveInterests
+              ? "Nenhum imóvel compatível no momento"
+              : "Sem perfil de busca ativo"}
           </EmptyTitle>
           <EmptyDescription>
             {hasActiveInterests
@@ -99,7 +102,12 @@ export function MatchesPanel({
       <ItemGroup className="gap-2">
         {matches.map((match) => {
           const location = [match.neighborhood, match.city].filter(Boolean).join(", ")
-          const details = [PROPERTY_TYPE_LABELS[match.type], LISTING_PURPOSE_LABELS[match.purpose], location, ...describeRooms(match)]
+          const details = [
+            PROPERTY_TYPE_LABELS[match.type],
+            LISTING_PURPOSE_LABELS[match.purpose],
+            location,
+            ...describeRooms(match),
+          ]
             .filter(Boolean)
             .join(" · ")
 
@@ -107,7 +115,10 @@ export function MatchesPanel({
             <Item key={match.propertyId} variant="outline" role="listitem">
               <ItemContent className="min-w-0">
                 <ItemTitle>
-                  <Link href={`/imoveis/${match.propertyId}`} className="underline-offset-4 hover:underline">
+                  <Link
+                    href={`/imoveis/${match.propertyId}`}
+                    className="underline-offset-4 hover:underline"
+                  >
                     {match.code} · {match.title}
                   </Link>
                 </ItemTitle>
@@ -116,7 +127,9 @@ export function MatchesPanel({
               </ItemContent>
               <ItemActions className="flex-wrap">
                 <Badge
-                  variant={match.score >= 75 ? "default" : match.score >= 50 ? "secondary" : "outline"}
+                  variant={
+                    match.score >= 75 ? "default" : match.score >= 50 ? "secondary" : "outline"
+                  }
                   title={match.reasons.join("\n")}
                 >
                   {match.score}% compatível

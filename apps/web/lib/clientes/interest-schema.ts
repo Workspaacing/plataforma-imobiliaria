@@ -46,18 +46,30 @@ export const interestFormSchema = z
   })
   .superRefine((values, ctx) => {
     if (values.types.some((type) => !isPropertyType(type))) {
-      ctx.addIssue({ code: "custom", path: ["types"], message: "Tipo de imóvel inválido." })
+      ctx.addIssue({
+        code: "custom",
+        path: ["types"],
+        message: "Tipo de imóvel inválido.",
+      })
     }
 
     const minPrice = parseMoneyInput(values.minPrice)
     const maxPrice = parseMoneyInput(values.maxPrice)
 
     if (minPrice !== null && minPrice > MAX_PRICE) {
-      ctx.addIssue({ code: "custom", path: ["minPrice"], message: "Valor alto demais." })
+      ctx.addIssue({
+        code: "custom",
+        path: ["minPrice"],
+        message: "Valor alto demais.",
+      })
     }
 
     if (maxPrice !== null && maxPrice > MAX_PRICE) {
-      ctx.addIssue({ code: "custom", path: ["maxPrice"], message: "Valor alto demais." })
+      ctx.addIssue({
+        code: "custom",
+        path: ["maxPrice"],
+        message: "Valor alto demais.",
+      })
     }
 
     if (minPrice !== null && maxPrice !== null && maxPrice < minPrice) {
@@ -100,8 +112,10 @@ export function interestRowToFormValues(interest: Tables<"client_interests">): I
     types: interest.types,
     neighborhoods: interest.neighborhoods,
     city: interest.city ?? "",
-    minPrice: interest.min_price === null ? "" : maskMoneyInput(String(Math.round(interest.min_price))),
-    maxPrice: interest.max_price === null ? "" : maskMoneyInput(String(Math.round(interest.max_price))),
+    minPrice:
+      interest.min_price === null ? "" : maskMoneyInput(String(Math.round(interest.min_price))),
+    maxPrice:
+      interest.max_price === null ? "" : maskMoneyInput(String(Math.round(interest.max_price))),
     minBedrooms: interest.min_bedrooms === null ? "" : String(interest.min_bedrooms),
     minParking: interest.min_parking === null ? "" : String(interest.min_parking),
     notes: interest.notes ?? "",

@@ -46,7 +46,10 @@ export function hasRecentRecoveryAuthentication(
       return false
     }
 
-    const { method, timestamp } = entry as { method?: unknown; timestamp?: unknown }
+    const { method, timestamp } = entry as {
+      method?: unknown
+      timestamp?: unknown
+    }
 
     return (
       typeof method === "string" &&
@@ -59,9 +62,7 @@ export function hasRecentRecoveryAuthentication(
 }
 
 export type RecoverySessionState =
-  | { status: "recovery"; email: string | null }
-  | { status: "signed-in" }
-  | { status: "anonymous" }
+  { status: "recovery"; email: string | null } | { status: "signed-in" } | { status: "anonymous" }
 
 /** Situação da sessão atual em relação à redefinição de senha (JWT validado). */
 export async function getRecoverySessionState(): Promise<RecoverySessionState> {

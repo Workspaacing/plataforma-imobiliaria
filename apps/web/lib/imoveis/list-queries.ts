@@ -2,7 +2,12 @@ import "server-only"
 
 import type { Tables } from "@workspace/database/types"
 
-import { LISTING_PURPOSES, PROPERTIES_PAGE_SIZE, PROPERTY_STATUSES, PROPERTY_TYPES } from "@/lib/imoveis/constants"
+import {
+  LISTING_PURPOSES,
+  PROPERTIES_PAGE_SIZE,
+  PROPERTY_STATUSES,
+  PROPERTY_TYPES,
+} from "@/lib/imoveis/constants"
 import type { ServerSupabaseClient } from "@/lib/imoveis/queries"
 
 type SearchParams = Record<string, string | string[] | undefined>
@@ -61,12 +66,12 @@ export function parsePropertyListFilters(params: SearchParams): PropertyListFilt
 export function hasActiveFilters(filters: PropertyListFilters) {
   return Boolean(
     filters.q ||
-      filters.status ||
-      filters.purpose ||
-      filters.type ||
-      filters.minPrice != null ||
-      filters.maxPrice != null ||
-      filters.minBedrooms != null
+    filters.status ||
+    filters.purpose ||
+    filters.type ||
+    filters.minPrice != null ||
+    filters.maxPrice != null ||
+    filters.minBedrooms != null
   )
 }
 
@@ -79,7 +84,8 @@ export function filtersToSearchParams(filters: PropertyListFilters) {
   if (filters.type) params.set(PROPERTY_LIST_PARAMS.type, filters.type)
   if (filters.minPrice != null) params.set(PROPERTY_LIST_PARAMS.minPrice, String(filters.minPrice))
   if (filters.maxPrice != null) params.set(PROPERTY_LIST_PARAMS.maxPrice, String(filters.maxPrice))
-  if (filters.minBedrooms != null) params.set(PROPERTY_LIST_PARAMS.minBedrooms, String(filters.minBedrooms))
+  if (filters.minBedrooms != null)
+    params.set(PROPERTY_LIST_PARAMS.minBedrooms, String(filters.minBedrooms))
   return params
 }
 
@@ -113,7 +119,10 @@ export type PropertyListResult = {
 
 /** Remove caracteres com significado na sintaxe de filtros do PostgREST. */
 function sanitizeSearchTerm(value: string) {
-  return value.replace(/[%_,()"'\\*:.]/g, " ").replace(/\s+/g, " ").trim()
+  return value
+    .replace(/[%_,()"'\\*:.]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
 }
 
 function priceRange(column: "sale_price" | "rent_price", min: number | null, max: number | null) {
@@ -146,7 +155,9 @@ export async function listProperties(
 
   const term = sanitizeSearchTerm(filters.q)
   if (term) {
-    query = query.or(`code.ilike."%${term}%",title.ilike."%${term}%",neighborhood.ilike."%${term}%"`)
+    query = query.or(
+      `code.ilike."%${term}%",title.ilike."%${term}%",neighborhood.ilike."%${term}%"`
+    )
   }
 
   if (filters.status) query = query.eq("status", filters.status)
@@ -180,7 +191,13 @@ export async function listProperties(
   if (error) {
     // PGRST103: página além do total.
     if (error.code === "PGRST103") {
-      return { items: [], total: count ?? 0, page: filters.page, pageCount: 0, outOfRange: true }
+      return {
+        items: [],
+        total: count ?? 0,
+        page: filters.page,
+        pageCount: 0,
+        outOfRange: true,
+      }
     }
     throw new Error(`Não foi possível carregar os imóveis (${error.code ?? "erro"}).`)
   }

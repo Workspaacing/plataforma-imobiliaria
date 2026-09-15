@@ -51,7 +51,9 @@ export function AgendaBrokerFilter({ members, broker, day, month }: AgendaBroker
         onValueChange={(value) => {
           startTransition(() => {
             setOptimisticSelected(value)
-            router.push(buildAgendaHref({ day, month, broker: value }), { scroll: false })
+            router.push(buildAgendaHref({ day, month, broker: value }), {
+              scroll: false,
+            })
           })
         }}
       >

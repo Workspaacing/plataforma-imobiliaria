@@ -1,89 +1,33 @@
-import type { SupabaseClient } from "@supabase/supabase-js"
-
-import type { Database, Json } from "@workspace/database/types"
-
-import type { LandingStatus } from "@/lib/marketing/constants"
+import type { Tables, TablesInsert, TablesUpdate } from "@workspace/database/types"
 
 /*
- * TODO: trocar pelos tipos gerados. Enquanto `@workspace/database/types` não
- * tiver `landing_pages` (migração ainda não aplicada/regenerada), este arquivo
- * espelha a tabela para as queries tipadas. Depois de regenerar:
- *   - LandingPageRow    -> Tables<"landing_pages">
- *   - MarketingDatabase -> Database
- *   - asMarketingClient -> remover (usar o cliente direto)
+ * Tipos de `landing_pages` a partir dos tipos gerados (`@workspace/database/types`).
+ *
+ * Regras de gravação refletidas aqui (grants por coluna da migração):
+ * - `created_by` é preenchido por trigger (auth.uid()); o app nunca envia nem lê;
+ * - `published_at` é gravado pelo banco quando a página é publicada;
+ * - `organization_id` vem sempre da sessão e não muda num UPDATE;
+ * - `template` é fixo depois de criada a página;
+ * - created_at/updated_at são gerados pelo banco.
  */
 
-export type LandingPageRow = {
-  id: string
-  organization_id: string
-  /** Enum landing_template (as 9 chaves de LANDING_TEMPLATES). */
-  template: string
-  name: string
-  slug: string
-  status: LandingStatus
-  published_at: string | null
-  theme: Json
-  content: Json
-  property_ids: string[]
-  tracking: Json
-  seo: Json
-  lead_assignee_id: string | null
-  created_by: string | null
-  created_at: string
-  updated_at: string
-}
+export type LandingPageRow = Tables<"landing_pages">
 
-export type LandingPageInsert = {
-  id?: string
-  organization_id: string
-  template: string
-  name: string
-  slug: string
-  status?: LandingStatus
-  published_at?: string | null
-  theme?: Json
-  content?: Json
-  property_ids?: string[]
-  tracking?: Json
-  seo?: Json
-  lead_assignee_id?: string | null
-  created_by?: string | null
-  created_at?: string
-  updated_at?: string
-}
+/** Colunas que o editor lê (sem created_by). */
+export type LandingPageRecord = Omit<LandingPageRow, "created_by">
 
-export type LandingPageUpdate = Partial<LandingPageInsert>
+export type LandingPageInsert = Omit<
+  TablesInsert<"landing_pages">,
+  "created_by" | "published_at" | "created_at" | "updated_at"
+>
 
-type PublicSchema = Database["public"]
-
-export type MarketingDatabase = Omit<Database, "public"> & {
-  public: Omit<PublicSchema, "Tables" | "Enums"> & {
-    Tables: PublicSchema["Tables"] & {
-      landing_pages: {
-        Row: LandingPageRow
-        Insert: LandingPageInsert
-        Update: LandingPageUpdate
-        Relationships: []
-      }
-    }
-    Enums: PublicSchema["Enums"] & {
-      landing_status: LandingStatus
-      landing_template: string
-    }
-  }
-}
-
-export type MarketingSupabaseClient = SupabaseClient<MarketingDatabase>
-
-/** Cliente tipado com landing_pages (ver TODO acima). */
-export function asMarketingClient(client: SupabaseClient<Database>): MarketingSupabaseClient {
-  return client as unknown as MarketingSupabaseClient
-}
-
-/**
- * Cliente sem tipos para tabelas opcionais criadas por outros módulos (ex.:
- * `leads`), cuja existência é checada em tempo de execução.
- */
-export function asUntypedClient(client: SupabaseClient<Database>): SupabaseClient {
-  return client as unknown as SupabaseClient
-}
+export type LandingPageUpdate = Omit<
+  TablesUpdate<"landing_pages">,
+  | "created_by"
+  | "published_at"
+  | "id"
+  | "created_at"
+  | "updated_at"
+  | "organization_id"
+  | "template"
+>

@@ -11,9 +11,7 @@ export function isDateOnly(value: string) {
   const date = new Date(Date.UTC(year ?? 0, (month ?? 1) - 1, day ?? 1))
 
   return (
-    date.getUTCFullYear() === year &&
-    date.getUTCMonth() + 1 === month &&
-    date.getUTCDate() === day
+    date.getUTCFullYear() === year && date.getUTCMonth() + 1 === month && date.getUTCDate() === day
   )
 }
 

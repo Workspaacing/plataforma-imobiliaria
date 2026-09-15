@@ -77,10 +77,7 @@ function AttachmentMedia({
   )
 }
 
-function AttachmentContent({
-  className,
-  ...props
-}: React.ComponentProps<"div">) {
+function AttachmentContent({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="attachment-content"
@@ -93,10 +90,7 @@ function AttachmentContent({
   )
 }
 
-function AttachmentTitle({
-  className,
-  ...props
-}: React.ComponentProps<"span">) {
+function AttachmentTitle({ className, ...props }: React.ComponentProps<"span">) {
   return (
     <span
       data-slot="attachment-title"
@@ -109,10 +103,7 @@ function AttachmentTitle({
   )
 }
 
-function AttachmentDescription({
-  className,
-  ...props
-}: React.ComponentProps<"span">) {
+function AttachmentDescription({ className, ...props }: React.ComponentProps<"span">) {
   return (
     <span
       data-slot="attachment-description"
@@ -126,15 +117,12 @@ function AttachmentDescription({
   )
 }
 
-function AttachmentActions({
-  className,
-  ...props
-}: React.ComponentProps<"div">) {
+function AttachmentActions({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="attachment-actions"
       className={cn(
-        "relative z-20 flex shrink-0 items-center group-data-[orientation=vertical]/attachment:absolute group-data-[orientation=vertical]/attachment:top-3 group-data-[orientation=vertical]/attachment:end-3 group-data-[orientation=vertical]/attachment:gap-1",
+        "relative z-20 flex shrink-0 items-center group-data-[orientation=vertical]/attachment:absolute group-data-[orientation=vertical]/attachment:end-3 group-data-[orientation=vertical]/attachment:top-3 group-data-[orientation=vertical]/attachment:gap-1",
         className
       )}
       {...props}

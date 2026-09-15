@@ -21,11 +21,7 @@ import { NewKeyButton } from "@/components/chaves/new-key-button"
 import { PageHeading } from "@/components/crm/page-placeholder"
 import { requireMembership } from "@/lib/auth/session"
 import { listKeys } from "@/lib/chaves/queries"
-import {
-  getClientOptions,
-  getPropertyOptions,
-  getTeamMembers,
-} from "@/lib/propostas/options"
+import { getClientOptions, getPropertyOptions, getTeamMembers } from "@/lib/propostas/options"
 import { canEditProperty, canReturnKey, COMMERCIAL_ROLES } from "@/lib/propostas/permissions"
 import { createClient } from "@/lib/supabase/server"
 
@@ -59,13 +55,20 @@ export default async function ChavesPage({
   const supabase = await createClient()
 
   const [keys, properties, members, clients] = await Promise.all([
-    listKeys(supabase, organizationId, { status: status as KeyStatus | null, propertyId, overdue }),
+    listKeys(supabase, organizationId, {
+      status: status as KeyStatus | null,
+      propertyId,
+      overdue,
+    }),
     getPropertyOptions(supabase, organizationId),
     isCommercial ? getTeamMembers(supabase, organizationId) : Promise.resolve([]),
     isCommercial ? getClientOptions(supabase, organizationId) : Promise.resolve([]),
   ])
 
-  const propertyOptions = properties.map(({ value, label }) => ({ value, label }))
+  const propertyOptions = properties.map(({ value, label }) => ({
+    value,
+    label,
+  }))
   const editableProperties = properties
     .filter((property) => canEditProperty(role, user.id, property))
     .map(({ value, label }) => ({ value, label }))
@@ -163,8 +166,8 @@ export default async function ChavesPage({
             </EmptyMedia>
             <EmptyTitle>Cadastre um imóvel primeiro</EmptyTitle>
             <EmptyDescription>
-              As chaves ficam vinculadas a um imóvel. Cadastre o primeiro imóvel para controlar
-              as chaves dele.
+              As chaves ficam vinculadas a um imóvel. Cadastre o primeiro imóvel para controlar as
+              chaves dele.
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>

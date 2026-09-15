@@ -28,17 +28,8 @@ import {
   parseLeadListFilters,
   type RawSearchParams,
 } from "@/lib/leads/filters"
-import {
-  canCreateLeads,
-  canSeeLeadTrackingIds,
-  canViewAllLeads,
-} from "@/lib/leads/permissions"
-import {
-  getLeadSummary,
-  listLandingPages,
-  listLeadCampaigns,
-  listLeads,
-} from "@/lib/leads/queries"
+import { canCreateLeads, canSeeLeadTrackingIds, canViewAllLeads } from "@/lib/leads/permissions"
+import { getLeadSummary, listLandingPages, listLeadCampaigns, listLeads } from "@/lib/leads/queries"
 
 export const metadata: Metadata = {
   title: "Leads",
@@ -156,7 +147,9 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
           {result.truncated ? (
             <Alert>
               <TriangleAlertIcon />
-              <AlertTitle>Mostrando os {LEADS_LIST_LIMIT.toLocaleString("pt-BR")} leads mais recentes</AlertTitle>
+              <AlertTitle>
+                Mostrando os {LEADS_LIST_LIMIT.toLocaleString("pt-BR")} leads mais recentes
+              </AlertTitle>
               <AlertDescription>
                 Use o filtro de período ou de responsável para ver os mais antigos.
               </AlertDescription>

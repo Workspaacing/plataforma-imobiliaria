@@ -63,7 +63,11 @@ type DocumentsPanelProps = {
 function describeStorageError(error: { message: string }) {
   const message = error.message.toLowerCase()
 
-  if (message.includes("row-level security") || message.includes("unauthorized") || message.includes("403")) {
+  if (
+    message.includes("row-level security") ||
+    message.includes("unauthorized") ||
+    message.includes("403")
+  ) {
     return "Você não tem permissão para enviar documentos deste cliente."
   }
 
@@ -110,13 +114,19 @@ export function DocumentsPanel({
         if (file.size === 0 || file.size > CLIENT_DOCUMENT_MAX_BYTES) {
           toast.add({
             title: `"${file.name}" não foi enviado`,
-            description: file.size === 0 ? "O arquivo está vazio." : "O arquivo passa do limite de 20 MB.",
+            description:
+              file.size === 0 ? "O arquivo está vazio." : "O arquivo passa do limite de 20 MB.",
             type: "error",
           })
           continue
         }
 
-        const path = buildClientDocumentPath(organizationId, clientId, file.name, crypto.randomUUID())
+        const path = buildClientDocumentPath(
+          organizationId,
+          clientId,
+          file.name,
+          crypto.randomUUID()
+        )
         const { error: uploadError } = await supabase.storage
           .from(CLIENT_DOCUMENTS_BUCKET)
           .upload(path, file, { contentType: mimeType, upsert: false })
@@ -141,7 +151,11 @@ export function DocumentsPanel({
         if (!result.ok) {
           // Tenta não deixar arquivo órfão (só dono/gerente conseguem remover pelo RLS).
           await supabase.storage.from(CLIENT_DOCUMENTS_BUCKET).remove([path])
-          toast.add({ title: `"${file.name}" não foi registrado`, description: result.error, type: "error" })
+          toast.add({
+            title: `"${file.name}" não foi registrado`,
+            description: result.error,
+            type: "error",
+          })
           continue
         }
 
@@ -203,7 +217,11 @@ export function DocumentsPanel({
             }}
           />
           <Button onClick={() => inputRef.current?.click()} disabled={isUploading}>
-            {isUploading ? <Spinner data-icon="inline-start" /> : <UploadIcon data-icon="inline-start" />}
+            {isUploading ? (
+              <Spinner data-icon="inline-start" />
+            ) : (
+              <UploadIcon data-icon="inline-start" />
+            )}
             {isUploading ? "Enviando…" : "Enviar documentos"}
           </Button>
         </div>
@@ -243,9 +261,13 @@ export function DocumentsPanel({
                     </span>
                   </TableCell>
                   <TableCell>{getDocumentKindLabel(document.mimeType)}</TableCell>
-                  <TableCell className="tabular-nums">{formatFileSize(document.sizeBytes)}</TableCell>
+                  <TableCell className="tabular-nums">
+                    {formatFileSize(document.sizeBytes)}
+                  </TableCell>
                   <TableCell>{document.uploadedByName}</TableCell>
-                  <TableCell className="tabular-nums">{formatDateTime(document.createdAt)}</TableCell>
+                  <TableCell className="tabular-nums">
+                    {formatDateTime(document.createdAt)}
+                  </TableCell>
                   <TableCell>
                     <div className="flex justify-end gap-1">
                       <Button
@@ -254,7 +276,11 @@ export function DocumentsPanel({
                         onClick={() => download(document.id)}
                         disabled={isDownloading}
                       >
-                        {isDownloading && downloadingId === document.id ? <Spinner /> : <DownloadIcon />}
+                        {isDownloading && downloadingId === document.id ? (
+                          <Spinner />
+                        ) : (
+                          <DownloadIcon />
+                        )}
                         <span className="sr-only">Baixar {document.name}</span>
                       </Button>
                       {canDelete ? (

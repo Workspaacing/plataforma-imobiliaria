@@ -8,7 +8,13 @@ import { requiredPrices, requiresLotArea, type ListingPurpose, type PropertyType
  */
 
 /** Tipos de imóvel que, em geral, não têm taxa de condomínio (casa isolada, terreno, etc.). */
-const NO_CONDO_TYPES: ReadonlySet<PropertyType> = new Set(["house", "land", "farm", "ranch", "warehouse"])
+const NO_CONDO_TYPES: ReadonlySet<PropertyType> = new Set([
+  "house",
+  "land",
+  "farm",
+  "ranch",
+  "warehouse",
+])
 
 export interface ImobScorePrices {
   salePrice?: number
@@ -77,7 +83,11 @@ function scoreDescription(description: string | undefined): number {
   return 0
 }
 
-function scorePrices(purpose: ListingPurpose, type: PropertyType, prices: ImobScorePrices | undefined): number {
+function scorePrices(
+  purpose: ListingPurpose,
+  type: PropertyType,
+  prices: ImobScorePrices | undefined
+): number {
   const required = requiredPrices(purpose)
   const hasRequiredPrices = required.every((field) => isPositiveNumber(prices?.[field]))
 
@@ -96,7 +106,7 @@ function scoreAreasAndRooms(
   livingArea: number | undefined,
   lotArea: number | undefined,
   bedrooms: number | undefined,
-  bathrooms: number | undefined,
+  bathrooms: number | undefined
 ): number {
   const lotOnly = requiresLotArea(type)
   const relevantArea = lotOnly ? lotArea : livingArea
@@ -110,7 +120,8 @@ function scoreAreasAndRooms(
 }
 
 function scoreAddress(address: ImobScoreAddress | undefined): number {
-  const cepPoints = address?.postalCode !== undefined && isValidPostalCode(address.postalCode) ? 5 : 0
+  const cepPoints =
+    address?.postalCode !== undefined && isValidPostalCode(address.postalCode) ? 5 : 0
   const coordsPoints =
     Number.isFinite(address?.latitude) && Number.isFinite(address?.longitude) ? 5 : 0
   return cepPoints + coordsPoints
@@ -136,7 +147,7 @@ export function computeImobScore(input: ImobScoreInput, now: Date = new Date()):
     input.livingArea,
     input.lotArea,
     input.bedrooms,
-    input.bathrooms,
+    input.bathrooms
   )
   const addressPoints = scoreAddress(input.address)
   const mediaPoints = scoreMedia(input.videoUrl, input.tourUrl)

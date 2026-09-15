@@ -17,22 +17,15 @@ import {
   PendingInvitations,
   type PendingInvitation,
 } from "@/components/configuracoes/pending-invitations"
-import {
-  TeamMembersTable,
-  type TeamMember,
-} from "@/components/configuracoes/team-members-table"
+import { TeamMembersTable, type TeamMember } from "@/components/configuracoes/team-members-table"
 import { PageHeading } from "@/components/crm/page-placeholder"
 import { TEAM_MANAGER_ROLES } from "@/lib/auth/roles"
 import { requireRole } from "@/lib/auth/session"
-import { getSiteUrl } from "@/lib/auth/site-url"
 import { todayInSaoPaulo } from "@/lib/configuracoes/dates"
-import {
-  buildInvitationUrl,
-  INVITATION_VALIDITY_DAYS,
-  isInvitationExpired,
-} from "@/lib/configuracoes/invitations"
+import { INVITATION_VALIDITY_DAYS, isInvitationExpired } from "@/lib/configuracoes/invitations"
 import { getAssignableRoles } from "@/lib/configuracoes/roles"
 import { createClient } from "@/lib/supabase/server"
+import { buildInvitationUrl } from "@/lib/tenant/urls"
 
 export const metadata: Metadata = {
   title: "Equipe",
@@ -45,7 +38,7 @@ export default async function EquipePage() {
   const actorRole: AppRole = membership.role
   const supabase = await createClient()
 
-  const [membershipsResult, invitationsResult, siteUrl] = await Promise.all([
+  const [membershipsResult, invitationsResult] = await Promise.all([
     supabase
       .from("memberships")
       .select("id, user_id, role, active")
@@ -57,7 +50,6 @@ export default async function EquipePage() {
       .eq("organization_id", organizationId)
       .is("accepted_at", null)
       .order("created_at", { ascending: false }),
-    getSiteUrl(),
   ])
 
   if (membershipsResult.error) {
@@ -78,7 +70,9 @@ export default async function EquipePage() {
     )
 
   if (profilesError) {
-    throw new Error(`Não foi possível carregar os perfis da equipe (${profilesError.code ?? "erro"}).`)
+    throw new Error(
+      `Não foi possível carregar os perfis da equipe (${profilesError.code ?? "erro"}).`
+    )
   }
 
   const profileById = new Map((profiles ?? []).map((profile) => [profile.id, profile]))
@@ -110,7 +104,8 @@ export default async function EquipePage() {
     id: invitation.id,
     email: invitation.email,
     role: invitation.role,
-    url: buildInvitationUrl(siteUrl, invitation.token),
+    // Link no subdomínio da imobiliária que convida.
+    url: buildInvitationUrl(membership.organization.slug, invitation.token),
     expiresAt: invitation.expires_at,
     expired: isInvitationExpired(invitation.expires_at),
   }))
@@ -140,8 +135,8 @@ export default async function EquipePage() {
         <CardHeader>
           <CardTitle>Convites pendentes</CardTitle>
           <CardDescription>
-            Cada convite é um link válido por {INVITATION_VALIDITY_DAYS} dias que só
-            funciona com o e-mail convidado.
+            Cada convite é um link válido por {INVITATION_VALIDITY_DAYS} dias que só funciona com o
+            e-mail convidado.
           </CardDescription>
           <CardAction>
             <InviteMemberDialog
@@ -155,9 +150,8 @@ export default async function EquipePage() {
             <MailWarningIcon />
             <AlertTitle>O envio automático por e-mail ainda não está disponível</AlertTitle>
             <AlertDescription>
-              Por enquanto, copie o link do convite e mande pelo WhatsApp ou pelo seu
-              e-mail. A pessoa precisa entrar ou criar a conta com o mesmo e-mail
-              convidado.
+              Por enquanto, copie o link do convite e mande pelo WhatsApp ou pelo seu e-mail. A
+              pessoa precisa entrar ou criar a conta com o mesmo e-mail convidado.
             </AlertDescription>
           </Alert>
           {invitationsResult.error ? (

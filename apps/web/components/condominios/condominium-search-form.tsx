@@ -3,11 +3,7 @@ import Link from "next/link"
 import { SearchIcon, XIcon } from "lucide-react"
 
 import { Button } from "@workspace/ui/components/button"
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-} from "@workspace/ui/components/input-group"
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@workspace/ui/components/input-group"
 
 import { CONDOMINIUM_SEARCH_MAX_LENGTH, CONDOMINIUMS_PATH } from "@/lib/condominios/search"
 

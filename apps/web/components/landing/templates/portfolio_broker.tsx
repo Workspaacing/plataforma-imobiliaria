@@ -28,7 +28,13 @@ import { DISCLAIMERS, type LandingTemplateRenderProps } from "./shared"
  * (é como o público do Instagram prefere falar), mas o formulário fecha a
  * página junto com depoimentos e números.
  */
-export function PortfolioBrokerTemplate({ vm, mode, leadForm, id, formHref }: LandingTemplateRenderProps) {
+export function PortfolioBrokerTemplate({
+  vm,
+  mode,
+  leadForm,
+  id,
+  formHref,
+}: LandingTemplateRenderProps) {
   const broker = vm.broker
   const name = broker?.name ?? vm.organization.name
   const initials = broker?.initials ?? vm.organization.initials
@@ -40,7 +46,10 @@ export function PortfolioBrokerTemplate({ vm, mode, leadForm, id, formHref }: La
       <LandingHeader vm={vm} formHref={formHref} variant="solid" />
 
       <main>
-        <section aria-labelledby={id("hero-title")} className="bg-(--lp-surface-alt) text-(--lp-ink)">
+        <section
+          aria-labelledby={id("hero-title")}
+          className="bg-(--lp-surface-alt) text-(--lp-ink)"
+        >
           <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 @3xl:grid-cols-[minmax(0,19rem)_minmax(0,1fr)] @3xl:items-center @3xl:gap-14 @3xl:px-8 @3xl:py-16">
             <div className="relative mx-auto aspect-4/5 w-full max-w-64 overflow-hidden rounded-[calc(var(--lp-radius)*2)] bg-(--lp-primary) @3xl:max-w-none">
               {photo ? (
@@ -58,12 +67,17 @@ export function PortfolioBrokerTemplate({ vm, mode, leadForm, id, formHref }: La
                   aria-hidden="true"
                   className="flex size-full items-center justify-center text-(--lp-on-primary)"
                 >
-                  <span className={cn(lpDisplayFont, "text-[5.5rem] font-bold font-stretch-condensed")}>
+                  <span
+                    className={cn(lpDisplayFont, "text-[5.5rem] font-bold font-stretch-condensed")}
+                  >
                     {initials}
                   </span>
                 </div>
               )}
-              <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-2 bg-(--lp-brand)" />
+              <span
+                aria-hidden="true"
+                className="absolute inset-x-0 bottom-0 h-2 bg-(--lp-brand)"
+              />
             </div>
 
             <div className="flex flex-col gap-5">
@@ -79,7 +93,9 @@ export function PortfolioBrokerTemplate({ vm, mode, leadForm, id, formHref }: La
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                 {creci ? <Badge variant="outline">{creci}</Badge> : null}
                 {broker ? (
-                  <span className="text-sm text-(--lp-ink-muted)">Equipe {vm.organization.name}</span>
+                  <span className="text-sm text-(--lp-ink-muted)">
+                    Equipe {vm.organization.name}
+                  </span>
                 ) : null}
               </div>
               <p className="max-w-xl text-xl leading-snug text-balance">{vm.copy.headline}</p>
@@ -101,7 +117,10 @@ export function PortfolioBrokerTemplate({ vm, mode, leadForm, id, formHref }: La
                 ) : null}
                 <a
                   href={formHref}
-                  className={lpButtonClass({ tone: vm.whatsappHref ? "outline" : "primary", size: "lg" })}
+                  className={lpButtonClass({
+                    tone: vm.whatsappHref ? "outline" : "primary",
+                    size: "lg",
+                  })}
                 >
                   {vm.copy.ctaLabel}
                 </a>

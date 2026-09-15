@@ -22,11 +22,16 @@ export function StepValores({ control }: { control: PropertyFormControl }) {
       <FieldSet>
         <FieldLegend>Preço</FieldLegend>
         <FieldDescription>
-          Obrigatório para sair do rascunho. Os portais recebem o valor inteiro em reais, sem centavos.
+          Obrigatório para sair do rascunho. Os portais recebem o valor inteiro em reais, sem
+          centavos.
         </FieldDescription>
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          {hasSale ? <MoneyField control={control} name="salePrice" label="Preço de venda" /> : null}
-          {hasRent ? <MoneyField control={control} name="rentPrice" label="Aluguel" suffix="/mês" /> : null}
+          {hasSale ? (
+            <MoneyField control={control} name="salePrice" label="Preço de venda" />
+          ) : null}
+          {hasRent ? (
+            <MoneyField control={control} name="rentPrice" label="Aluguel" suffix="/mês" />
+          ) : null}
         </div>
       </FieldSet>
 
@@ -34,7 +39,9 @@ export function StepValores({ control }: { control: PropertyFormControl }) {
 
       <FieldSet>
         <FieldLegend>Custos do imóvel</FieldLegend>
-        <FieldDescription>Condomínio e IPTU aparecem no anúncio e contam pontos na Nota do Anúncio.</FieldDescription>
+        <FieldDescription>
+          Condomínio e IPTU aparecem no anúncio e contam pontos na Nota do Anúncio.
+        </FieldDescription>
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <MoneyField
             control={control}

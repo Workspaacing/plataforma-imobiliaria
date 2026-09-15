@@ -3,20 +3,13 @@
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
-import {
-  LISTING_PURPOSE_LABELS,
-  PROPOSAL_STATUS_VALUES,
-} from "@workspace/core/properties/enums"
+import { LISTING_PURPOSE_LABELS, PROPOSAL_STATUS_VALUES } from "@workspace/core/properties/enums"
 
 import type { ActionResult } from "@/lib/auth/action-result"
 import { requireMembership } from "@/lib/auth/session"
 import { translateDbError } from "@/lib/propostas/db-errors"
 import { parseBrlInput } from "@/lib/propostas/money"
-import {
-  canEditProperty,
-  COMMERCIAL_ROLES,
-  isSelfBrokerRole,
-} from "@/lib/propostas/permissions"
+import { canEditProperty, COMMERCIAL_ROLES, isSelfBrokerRole } from "@/lib/propostas/permissions"
 import {
   proposalFormSchema,
   proposalIdSchema,
@@ -81,7 +74,10 @@ export async function createProposal(values: ProposalFormValues): Promise<Action
   const parsed = proposalFormSchema.safeParse(values)
 
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Confira os campos." }
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Confira os campos.",
+    }
   }
 
   const { user, membership } = await requireMembership()
@@ -134,7 +130,10 @@ export async function updateProposal(
 
   if (!id.success) return { ok: false, error: "Proposta inválida." }
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Confira os campos." }
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Confira os campos.",
+    }
   }
 
   const { membership } = await requireMembership()
@@ -147,7 +146,11 @@ export async function updateProposal(
     .eq("organization_id", membership.organizationId)
     .maybeSingle()
 
-  if (currentError) return { ok: false, error: translateDbError(currentError, NO_UPDATE_PERMISSION) }
+  if (currentError)
+    return {
+      ok: false,
+      error: translateDbError(currentError, NO_UPDATE_PERMISSION),
+    }
   if (!current) return { ok: false, error: "Proposta não encontrada. Recarregue a página." }
 
   if (!OPEN_PROPOSAL_STATUSES.includes(current.status)) {
@@ -207,11 +210,18 @@ export async function changeProposalStatus(
     .eq("organization_id", membership.organizationId)
     .maybeSingle()
 
-  if (loadError) return { ok: false, error: translateDbError(loadError, NO_UPDATE_PERMISSION) }
+  if (loadError)
+    return {
+      ok: false,
+      error: translateDbError(loadError, NO_UPDATE_PERMISSION),
+    }
   if (!proposal) return { ok: false, error: "Proposta não encontrada. Recarregue a página." }
 
   if (!canTransition(proposal.status, target.data)) {
-    return { ok: false, error: "Esta mudança de status não é permitida para a proposta." }
+    return {
+      ok: false,
+      error: "Esta mudança de status não é permitida para a proposta.",
+    }
   }
 
   const { data, error } = await supabase
@@ -252,7 +262,10 @@ export async function changeProposalStatus(
       capturedBy: property.captured_by,
       brokerId: property.broker_id,
     })
-      ? { propertyId: property.id, propertyLabel: `${property.code} · ${property.title}` }
+      ? {
+          propertyId: property.id,
+          propertyLabel: `${property.code} · ${property.title}`,
+        }
       : null
 
   revalidateProposals()

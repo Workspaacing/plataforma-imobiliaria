@@ -44,7 +44,10 @@ const KEY_STATUS_VARIANTS: Record<KeyStatus, "secondary" | "outline" | "destruct
   lost: "destructive",
 }
 
-const PROPOSAL_STATUS_VARIANTS: Record<ProposalStatus, "default" | "secondary" | "outline" | "destructive"> = {
+const PROPOSAL_STATUS_VARIANTS: Record<
+  ProposalStatus,
+  "default" | "secondary" | "outline" | "destructive"
+> = {
   draft: "outline",
   sent: "secondary",
   countered: "secondary",
@@ -71,7 +74,12 @@ export function KeysProposalsTab({
           <CardTitle>Chaves</CardTitle>
           <CardDescription>Onde estão as chaves deste imóvel.</CardDescription>
           <CardAction>
-            <Button variant="outline" size="sm" render={<Link href={`/chaves?${query}`} />} nativeButton={false}>
+            <Button
+              variant="outline"
+              size="sm"
+              render={<Link href={`/chaves?${query}`} />}
+              nativeButton={false}
+            >
               Ver chaves
               <ArrowUpRightIcon data-icon="inline-end" />
             </Button>
@@ -85,7 +93,9 @@ export function KeysProposalsTab({
                   <KeyRoundIcon />
                 </EmptyMedia>
                 <EmptyTitle>Nenhuma chave cadastrada</EmptyTitle>
-                <EmptyDescription>Cadastre e controle as retiradas das chaves no módulo de chaves.</EmptyDescription>
+                <EmptyDescription>
+                  Cadastre e controle as retiradas das chaves no módulo de chaves.
+                </EmptyDescription>
               </EmptyHeader>
             </Empty>
           ) : (
@@ -97,7 +107,9 @@ export function KeysProposalsTab({
                     <ItemDescription>{key.location || "Local não informado"}</ItemDescription>
                   </ItemContent>
                   <ItemActions>
-                    <Badge variant={KEY_STATUS_VARIANTS[key.status]}>{KEY_STATUS_LABELS[key.status]}</Badge>
+                    <Badge variant={KEY_STATUS_VARIANTS[key.status]}>
+                      {KEY_STATUS_LABELS[key.status]}
+                    </Badge>
                   </ItemActions>
                 </Item>
               ))}
@@ -109,9 +121,16 @@ export function KeysProposalsTab({
       <Card>
         <CardHeader>
           <CardTitle>Propostas</CardTitle>
-          <CardDescription>Propostas recebidas para este imóvel, das mais recentes às mais antigas.</CardDescription>
+          <CardDescription>
+            Propostas recebidas para este imóvel, das mais recentes às mais antigas.
+          </CardDescription>
           <CardAction>
-            <Button variant="outline" size="sm" render={<Link href={`/propostas?${query}`} />} nativeButton={false}>
+            <Button
+              variant="outline"
+              size="sm"
+              render={<Link href={`/propostas?${query}`} />}
+              nativeButton={false}
+            >
               Ver propostas
               <ArrowUpRightIcon data-icon="inline-end" />
             </Button>
@@ -125,7 +144,9 @@ export function KeysProposalsTab({
                   <HandshakeIcon />
                 </EmptyMedia>
                 <EmptyTitle>Nenhuma proposta</EmptyTitle>
-                <EmptyDescription>As propostas registradas para este imóvel aparecem aqui.</EmptyDescription>
+                <EmptyDescription>
+                  As propostas registradas para este imóvel aparecem aqui.
+                </EmptyDescription>
               </EmptyHeader>
             </Empty>
           ) : (
@@ -143,8 +164,11 @@ export function KeysProposalsTab({
                       )}
                     </ItemTitle>
                     <ItemDescription className="line-clamp-none">
-                      {LISTING_PURPOSE_LABELS[proposal.purpose]} · Criada em {formatDate(proposal.createdAt)}
-                      {proposal.validUntil ? ` · Válida até ${formatDateOnly(proposal.validUntil)}` : ""}
+                      {LISTING_PURPOSE_LABELS[proposal.purpose]} · Criada em{" "}
+                      {formatDate(proposal.createdAt)}
+                      {proposal.validUntil
+                        ? ` · Válida até ${formatDateOnly(proposal.validUntil)}`
+                        : ""}
                     </ItemDescription>
                   </ItemContent>
                   <ItemActions className="flex-col items-end gap-1">

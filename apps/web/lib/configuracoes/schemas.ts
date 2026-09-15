@@ -17,7 +17,10 @@ function isEmail(value: string) {
 const optionalPhone = z
   .string()
   .trim()
-  .refine((value) => value === "" || isValidPhoneBr(value), "Telefone inválido. Informe o DDD e o número.")
+  .refine(
+    (value) => value === "" || isValidPhoneBr(value),
+    "Telefone inválido. Informe o DDD e o número."
+  )
 
 const optionalState = z
   .string()

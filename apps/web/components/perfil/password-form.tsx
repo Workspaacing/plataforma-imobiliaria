@@ -13,10 +13,7 @@ import { toast } from "@workspace/ui/components/toast"
 
 import { changePassword } from "@/app/(app)/perfil/actions"
 import { FormTextField } from "@/components/configuracoes/form-fields"
-import {
-  changePasswordSchema,
-  type ChangePasswordValues,
-} from "@/lib/configuracoes/schemas"
+import { changePasswordSchema, type ChangePasswordValues } from "@/lib/configuracoes/schemas"
 
 const EMPTY_VALUES: ChangePasswordValues = {
   currentPassword: "",
@@ -40,14 +37,20 @@ export function PasswordForm() {
       const result = await changePassword(values)
 
       if (result.ok) {
-        toast.add({ title: result.message ?? "Senha alterada.", type: "success" })
+        toast.add({
+          title: result.message ?? "Senha alterada.",
+          type: "success",
+        })
         form.reset(EMPTY_VALUES)
         return
       }
 
       for (const [field, message] of Object.entries(result.fieldErrors ?? {})) {
         if (message) {
-          form.setError(field as keyof ChangePasswordValues, { type: "server", message })
+          form.setError(field as keyof ChangePasswordValues, {
+            type: "server",
+            message,
+          })
         }
       }
 

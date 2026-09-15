@@ -69,7 +69,10 @@ export function toMemberNameMap(members: readonly OrganizationMember[]) {
   return new Map(members.map((member) => [member.id, member.name]))
 }
 
-export type CondominiumOption = Pick<Tables<"condominiums">, "id" | "name" | "neighborhood" | "city">
+export type CondominiumOption = Pick<
+  Tables<"condominiums">,
+  "id" | "name" | "neighborhood" | "city"
+>
 
 export async function getCondominiumOptions(
   supabase: ServerSupabaseClient,

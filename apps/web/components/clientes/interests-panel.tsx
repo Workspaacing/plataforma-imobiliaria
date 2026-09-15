@@ -54,7 +54,8 @@ export function InterestsPanel({ clientId, interests, canEdit, canDelete }: Inte
           </EmptyMedia>
           <EmptyTitle>Nenhum perfil de busca</EmptyTitle>
           <EmptyDescription>
-            Registre finalidade, tipos, bairros e faixa de preço para o CRM sugerir imóveis compatíveis.
+            Registre finalidade, tipos, bairros e faixa de preço para o CRM sugerir imóveis
+            compatíveis.
           </EmptyDescription>
         </EmptyHeader>
         {newButton ? <EmptyContent>{newButton}</EmptyContent> : null}
@@ -72,13 +73,16 @@ export function InterestsPanel({ clientId, interests, canEdit, canDelete }: Inte
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         {interests.map((interest) => {
-          const location = [interest.neighborhoods.join(", "), interest.city].filter(Boolean).join(" · ")
+          const location = [interest.neighborhoods.join(", "), interest.city]
+            .filter(Boolean)
+            .join(" · ")
 
           return (
             <Card key={interest.id}>
               <CardHeader>
                 <CardTitle>
-                  {describeInterestPurpose(interest.purpose)} · {describeInterestTypes(interest.types)}
+                  {describeInterestPurpose(interest.purpose)} ·{" "}
+                  {describeInterestTypes(interest.types)}
                 </CardTitle>
                 <CardDescription>{location || "Qualquer localização"}</CardDescription>
               </CardHeader>
@@ -87,13 +91,21 @@ export function InterestsPanel({ clientId, interests, canEdit, canDelete }: Inte
                   <dt className="text-muted-foreground">Faixa de preço</dt>
                   <dd>{describeInterestPriceRange(interest.min_price, interest.max_price)}</dd>
                   <dt className="text-muted-foreground">Quartos</dt>
-                  <dd>{interest.min_bedrooms === null ? "Indiferente" : `${interest.min_bedrooms} ou mais`}</dd>
+                  <dd>
+                    {interest.min_bedrooms === null
+                      ? "Indiferente"
+                      : `${interest.min_bedrooms} ou mais`}
+                  </dd>
                   <dt className="text-muted-foreground">Vagas</dt>
-                  <dd>{interest.min_parking === null ? "Indiferente" : `${interest.min_parking} ou mais`}</dd>
+                  <dd>
+                    {interest.min_parking === null
+                      ? "Indiferente"
+                      : `${interest.min_parking} ou mais`}
+                  </dd>
                   {interest.notes ? (
                     <>
                       <dt className="text-muted-foreground">Observações</dt>
-                      <dd className="whitespace-pre-wrap break-words">{interest.notes}</dd>
+                      <dd className="break-words whitespace-pre-wrap">{interest.notes}</dd>
                     </>
                   ) : null}
                 </dl>
@@ -109,7 +121,10 @@ export function InterestsPanel({ clientId, interests, canEdit, canDelete }: Inte
                   {canEdit ? (
                     <InterestFormDialog
                       clientId={clientId}
-                      interest={{ id: interest.id, values: interestRowToFormValues(interest) }}
+                      interest={{
+                        id: interest.id,
+                        values: interestRowToFormValues(interest),
+                      }}
                       trigger={<Button variant="ghost" size="icon-sm" />}
                     >
                       <PencilIcon />

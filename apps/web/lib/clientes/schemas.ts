@@ -61,7 +61,10 @@ export const clientFormSchema = z
           .string()
           .trim()
           .min(1, "Etiqueta vazia.")
-          .max(CLIENT_TAG_MAX_LENGTH, `Cada etiqueta pode ter no máximo ${CLIENT_TAG_MAX_LENGTH} caracteres.`)
+          .max(
+            CLIENT_TAG_MAX_LENGTH,
+            `Cada etiqueta pode ter no máximo ${CLIENT_TAG_MAX_LENGTH} caracteres.`
+          )
       )
       .max(CLIENT_TAGS_MAX, `Use no máximo ${CLIENT_TAGS_MAX} etiquetas.`),
     assignedTo: z.string(),
@@ -88,14 +91,20 @@ export const clientFormSchema = z
         ctx.addIssue({
           code: "custom",
           path: ["document"],
-          message: isPf ? "CPF inválido. Confira os números." : "CNPJ inválido. Confira os caracteres.",
+          message: isPf
+            ? "CPF inválido. Confira os números."
+            : "CNPJ inválido. Confira os caracteres.",
         })
       }
     }
 
     if (isPf && values.birthDate) {
       if (!isDateKey(values.birthDate)) {
-        ctx.addIssue({ code: "custom", path: ["birthDate"], message: "Data inválida." })
+        ctx.addIssue({
+          code: "custom",
+          path: ["birthDate"],
+          message: "Data inválida.",
+        })
       } else if (values.birthDate > today) {
         ctx.addIssue({
           code: "custom",
@@ -106,7 +115,11 @@ export const clientFormSchema = z
     }
 
     if (values.email && !z.email().safeParse(values.email).success) {
-      ctx.addIssue({ code: "custom", path: ["email"], message: "E-mail inválido." })
+      ctx.addIssue({
+        code: "custom",
+        path: ["email"],
+        message: "E-mail inválido.",
+      })
     }
 
     for (const field of ["phone", "whatsapp"] as const) {
@@ -120,19 +133,35 @@ export const clientFormSchema = z
     }
 
     if (values.postalCode && !isValidPostalCode(values.postalCode)) {
-      ctx.addIssue({ code: "custom", path: ["postalCode"], message: "CEP inválido." })
+      ctx.addIssue({
+        code: "custom",
+        path: ["postalCode"],
+        message: "CEP inválido.",
+      })
     }
 
     if (values.state && !isStateCode(values.state)) {
-      ctx.addIssue({ code: "custom", path: ["state"], message: "Selecione uma UF válida." })
+      ctx.addIssue({
+        code: "custom",
+        path: ["state"],
+        message: "Selecione uma UF válida.",
+      })
     }
 
     if (values.source && !isClientSource(values.source)) {
-      ctx.addIssue({ code: "custom", path: ["source"], message: "Origem inválida." })
+      ctx.addIssue({
+        code: "custom",
+        path: ["source"],
+        message: "Origem inválida.",
+      })
     }
 
     if (values.assignedTo && !z.guid().safeParse(values.assignedTo).success) {
-      ctx.addIssue({ code: "custom", path: ["assignedTo"], message: "Responsável inválido." })
+      ctx.addIssue({
+        code: "custom",
+        path: ["assignedTo"],
+        message: "Responsável inválido.",
+      })
     }
 
     if (!isLgpdLegalBasis(values.legalBasis)) {

@@ -59,9 +59,18 @@ export function Countdown({
   }
 
   const units: { label: string; value: string }[] = [
-    { label: "dias", value: remaining === null ? "--" : String(Math.floor(remaining / 86400)) },
-    { label: "horas", value: remaining === null ? "--" : pad(Math.floor((remaining % 86400) / 3600)) },
-    { label: "min", value: remaining === null ? "--" : pad(Math.floor((remaining % 3600) / 60)) },
+    {
+      label: "dias",
+      value: remaining === null ? "--" : String(Math.floor(remaining / 86400)),
+    },
+    {
+      label: "horas",
+      value: remaining === null ? "--" : pad(Math.floor((remaining % 86400) / 3600)),
+    },
+    {
+      label: "min",
+      value: remaining === null ? "--" : pad(Math.floor((remaining % 3600) / 60)),
+    },
     { label: "seg", value: remaining === null ? "--" : pad(remaining % 60) },
   ]
 
@@ -82,8 +91,10 @@ export function Countdown({
             <span
               className={cn(
                 lpDisplayFont,
-                "leading-none font-extrabold tabular-nums font-stretch-condensed",
-                size === "lg" ? "text-[2.75rem] @xl:text-[4.25rem]" : "text-[2rem] @xl:text-[2.5rem]"
+                "leading-none font-extrabold font-stretch-condensed tabular-nums",
+                size === "lg"
+                  ? "text-[2.75rem] @xl:text-[4.25rem]"
+                  : "text-[2rem] @xl:text-[2.5rem]"
               )}
             >
               {unit.value}

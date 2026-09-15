@@ -17,7 +17,6 @@ import { PageHeading } from "@/components/crm/page-placeholder"
 import { LandingPagesTable, type LandingTableRow } from "@/components/marketing/landing-pages-table"
 import { StatusTabs } from "@/components/propostas/status-tabs"
 import { requireMembership } from "@/lib/auth/session"
-import { getSiteUrl } from "@/lib/auth/site-url"
 import { getLandingTemplate } from "@/lib/landing/templates"
 import { isLandingTemplateKey } from "@/lib/landing/types"
 import {
@@ -28,7 +27,7 @@ import {
 } from "@/lib/marketing/constants"
 import { canEditLandingPages } from "@/lib/marketing/permissions"
 import { listLandingPages } from "@/lib/marketing/queries"
-import { buildLandingPublicUrl } from "@/lib/marketing/urls"
+import { getLandingPublicUrl } from "@/lib/marketing/urls"
 import { createClient } from "@/lib/supabase/server"
 
 export const metadata: Metadata = {
@@ -58,10 +57,7 @@ export default async function LandingPagesPage({
   const canEdit = canEditLandingPages(membership.role)
 
   const supabase = await createClient()
-  const [result, siteUrl] = await Promise.all([
-    listLandingPages(supabase, membership.organizationId),
-    getSiteUrl(),
-  ])
+  const result = await listLandingPages(supabase, membership.organizationId)
 
   const heading = (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -86,8 +82,8 @@ export default async function LandingPagesPage({
           <TriangleAlertIcon />
           <AlertTitle>Landing pages ainda não ativadas</AlertTitle>
           <AlertDescription>
-            O banco desta instalação ainda não tem as tabelas das landing pages. Assim que a atualização for
-            aplicada, as páginas aparecem aqui.
+            O banco desta instalação ainda não tem as tabelas das landing pages. Assim que a
+            atualização for aplicada, as páginas aparecem aqui.
           </AlertDescription>
         </Alert>
       </div>
@@ -102,7 +98,9 @@ export default async function LandingPagesPage({
     archived: items.filter((item) => item.status === "archived").length,
   }
 
-  const visible = items.filter((item) => (status ? item.status === status : item.status !== "archived"))
+  const visible = items.filter((item) =>
+    status ? item.status === status : item.status !== "archived"
+  )
 
   const rows: LandingTableRow[] = visible.map((item) => ({
     id: item.id,
@@ -111,7 +109,7 @@ export default async function LandingPagesPage({
       ? getLandingTemplate(item.template).name
       : "Modelo desconhecido",
     status: item.status,
-    publicUrl: buildLandingPublicUrl(siteUrl, membership.organization.slug, item.slug),
+    publicUrl: getLandingPublicUrl(membership.organization.slug, item.slug),
     leadCount: item.leadCount,
     publishedAt: item.publishedAt,
   }))
@@ -163,7 +161,9 @@ export default async function LandingPagesPage({
                   <SearchXIcon />
                 </EmptyMedia>
                 <EmptyTitle>
-                  {status ? `Nenhuma landing page com status “${LANDING_STATUS_LABELS[status]}”` : "Nenhuma landing page ativa"}
+                  {status
+                    ? `Nenhuma landing page com status “${LANDING_STATUS_LABELS[status]}”`
+                    : "Nenhuma landing page ativa"}
                 </EmptyTitle>
                 <EmptyDescription>
                   {status === "archived"
@@ -172,7 +172,11 @@ export default async function LandingPagesPage({
                 </EmptyDescription>
               </EmptyHeader>
               <EmptyContent>
-                <Button variant="outline" render={<Link href={LANDING_PAGES_PATH} />} nativeButton={false}>
+                <Button
+                  variant="outline"
+                  render={<Link href={LANDING_PAGES_PATH} />}
+                  nativeButton={false}
+                >
                   Ver páginas ativas
                 </Button>
               </EmptyContent>

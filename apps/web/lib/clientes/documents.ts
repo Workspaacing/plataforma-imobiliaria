@@ -13,7 +13,10 @@ export function sanitizeFileName(name: string) {
   const base = lastDot > 0 ? normalized.slice(0, lastDot) : normalized
   const extension = lastDot > 0 ? normalized.slice(lastDot + 1) : ""
   const clean = (value: string) =>
-    value.replace(/[^A-Za-z0-9_-]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "")
+    value
+      .replace(/[^A-Za-z0-9_-]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
 
   const safeBase = clean(base).slice(0, 80) || "arquivo"
   const safeExtension = clean(extension).slice(0, 10).toLowerCase()

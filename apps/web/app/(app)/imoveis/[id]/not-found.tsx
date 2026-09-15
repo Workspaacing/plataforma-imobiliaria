@@ -21,7 +21,8 @@ export default function PropertyNotFound() {
           </EmptyMedia>
           <EmptyTitle>Imóvel não encontrado</EmptyTitle>
           <EmptyDescription>
-            O imóvel pode ter sido removido, o link está incorreto ou ele pertence a outra imobiliária.
+            O imóvel pode ter sido removido, o link está incorreto ou ele pertence a outra
+            imobiliária.
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>

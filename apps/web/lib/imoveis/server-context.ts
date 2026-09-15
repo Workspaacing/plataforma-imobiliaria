@@ -40,7 +40,10 @@ export async function getPropertyActionContext(
   try {
     property = await getPropertyRow(supabase, membership.organizationId, propertyId)
   } catch {
-    return { ok: false, error: "Não foi possível carregar o imóvel agora. Tente novamente." }
+    return {
+      ok: false,
+      error: "Não foi possível carregar o imóvel agora. Tente novamente.",
+    }
   }
 
   if (!property) {
@@ -48,7 +51,10 @@ export async function getPropertyActionContext(
   }
 
   if (requireEdit && !canEditProperty(membership.role, user.id, property)) {
-    return { ok: false, error: "Você não tem permissão para editar este imóvel." }
+    return {
+      ok: false,
+      error: "Você não tem permissão para editar este imóvel.",
+    }
   }
 
   return {

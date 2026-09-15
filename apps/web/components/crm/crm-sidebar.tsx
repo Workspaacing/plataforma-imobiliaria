@@ -18,16 +18,22 @@ import {
   type OrganizationOption,
 } from "@/components/crm/organization-switcher"
 import type { Role } from "@/lib/auth/roles"
+import type { TenancyMode } from "@/lib/tenant/urls"
 
 export function CrmSidebar({
   organizations,
   currentOrganizationId,
+  appOrigin,
+  tenancyMode,
   role,
   user,
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
   organizations: OrganizationOption[]
   currentOrganizationId: string
+  /** Origem do domínio raiz (escolha de imobiliária e onboarding); "" no host único. */
+  appOrigin: string
+  tenancyMode: TenancyMode
   role: Role
   user: NavUserData
 }) {
@@ -39,6 +45,8 @@ export function CrmSidebar({
         <OrganizationSwitcher
           organizations={organizations}
           currentOrganizationId={currentOrganizationId}
+          appOrigin={appOrigin}
+          tenancyMode={tenancyMode}
         />
       </SidebarHeader>
       <SidebarContent>

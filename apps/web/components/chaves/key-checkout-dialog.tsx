@@ -113,7 +113,10 @@ function CheckoutForm({
         return
       }
 
-      toast.add({ title: result.message ?? "Retirada registrada.", type: "success" })
+      toast.add({
+        title: result.message ?? "Retirada registrada.",
+        type: "success",
+      })
       onDone()
     })
   }
@@ -195,7 +198,9 @@ function CheckoutForm({
                   {fieldState.invalid ? (
                     <FieldError errors={[fieldState.error]} />
                   ) : (
-                    <FieldDescription>Só aparecem os clientes a que você tem acesso.</FieldDescription>
+                    <FieldDescription>
+                      Só aparecem os clientes a que você tem acesso.
+                    </FieldDescription>
                   )}
                 </Field>
               )}

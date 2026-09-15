@@ -63,10 +63,7 @@ export const publicCaptureSchema = z
         (value) => value === "" || (parseBrlInput(value) ?? 0) <= MAX_PRICE,
         "Valor alto demais."
       ),
-    message: z
-      .string()
-      .trim()
-      .max(2000, "A mensagem pode ter no máximo 2.000 caracteres."),
+    message: z.string().trim().max(2000, "A mensagem pode ter no máximo 2.000 caracteres."),
     consent: z.boolean().refine((value) => value, "Autorize o contato para enviar o formulário."),
   })
   .superRefine((values, ctx) => {

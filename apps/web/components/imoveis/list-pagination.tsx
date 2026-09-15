@@ -11,7 +11,9 @@ import {
 
 function pageWindow(page: number, pageCount: number): (number | "gap")[] {
   const pages = new Set([1, pageCount, page - 1, page, page + 1])
-  const sorted = [...pages].filter((value) => value >= 1 && value <= pageCount).sort((a, b) => a - b)
+  const sorted = [...pages]
+    .filter((value) => value >= 1 && value <= pageCount)
+    .sort((a, b) => a - b)
   const result: (number | "gap")[] = []
 
   for (const [index, value] of sorted.entries()) {

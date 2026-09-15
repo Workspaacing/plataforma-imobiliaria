@@ -12,14 +12,8 @@ const keyDetailsShape = {
     .trim()
     .min(1, "Informe um rótulo para a chave.")
     .max(60, "O rótulo pode ter no máximo 60 caracteres."),
-  location: z
-    .string()
-    .trim()
-    .max(200, "O local pode ter no máximo 200 caracteres."),
-  notes: z
-    .string()
-    .trim()
-    .max(2000, "A observação pode ter no máximo 2.000 caracteres."),
+  location: z.string().trim().max(200, "O local pode ter no máximo 200 caracteres."),
+  notes: z.string().trim().max(2000, "A observação pode ter no máximo 2.000 caracteres."),
 }
 
 export const keyCreateSchema = z.object({
@@ -40,10 +34,7 @@ export const keyCheckoutSchema = z
     memberId: z.string(),
     clientId: z.string(),
     dueAt: z.string(),
-    notes: z
-      .string()
-      .trim()
-      .max(2000, "A observação pode ter no máximo 2.000 caracteres."),
+    notes: z.string().trim().max(2000, "A observação pode ter no máximo 2.000 caracteres."),
   })
   .superRefine((values, ctx) => {
     if (values.takerKind === "member" && !isGuid(values.memberId)) {
@@ -74,7 +65,11 @@ export const keyCheckoutSchema = z
     const dueAt = localInputToIso(values.dueAt)
 
     if (!dueAt) {
-      ctx.addIssue({ code: "custom", path: ["dueAt"], message: "Data e hora inválidas." })
+      ctx.addIssue({
+        code: "custom",
+        path: ["dueAt"],
+        message: "Data e hora inválidas.",
+      })
     } else if (Date.parse(dueAt) <= Date.now()) {
       ctx.addIssue({
         code: "custom",

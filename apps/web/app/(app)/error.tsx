@@ -35,8 +35,8 @@ export default function CrmError({
           </EmptyMedia>
           <EmptyTitle>Algo deu errado ao carregar esta página</EmptyTitle>
           <EmptyDescription>
-            Pode ser uma instabilidade momentânea. Tente de novo; se o problema
-            continuar, informe o código abaixo ao suporte.
+            Pode ser uma instabilidade momentânea. Tente de novo; se o problema continuar, informe o
+            código abaixo ao suporte.
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
@@ -50,9 +50,7 @@ export default function CrmError({
             </Button>
           </div>
           {error.digest ? (
-            <p className="font-mono text-xs text-muted-foreground">
-              Código: {error.digest}
-            </p>
+            <p className="font-mono text-xs text-muted-foreground">Código: {error.digest}</p>
           ) : null}
         </EmptyContent>
       </Empty>

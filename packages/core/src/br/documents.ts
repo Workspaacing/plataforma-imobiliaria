@@ -163,33 +163,73 @@ export function formatPostalCode(value: string): string {
 
 /** DDDs brasileiros válidos (ANATEL). */
 const VALID_DDD = new Set([
-  "11", "12", "13", "14", "15", "16", "17", "18", "19",
-  "21", "22", "24",
-  "27", "28",
-  "31", "32", "33", "34", "35", "37", "38",
-  "41", "42", "43", "44", "45", "46",
-  "47", "48", "49",
-  "51", "53", "54", "55",
+  "11",
+  "12",
+  "13",
+  "14",
+  "15",
+  "16",
+  "17",
+  "18",
+  "19",
+  "21",
+  "22",
+  "24",
+  "27",
+  "28",
+  "31",
+  "32",
+  "33",
+  "34",
+  "35",
+  "37",
+  "38",
+  "41",
+  "42",
+  "43",
+  "44",
+  "45",
+  "46",
+  "47",
+  "48",
+  "49",
+  "51",
+  "53",
+  "54",
+  "55",
   "61",
-  "62", "64",
+  "62",
+  "64",
   "63",
-  "65", "66",
+  "65",
+  "66",
   "67",
   "68",
   "69",
-  "71", "73", "74", "75", "77",
+  "71",
+  "73",
+  "74",
+  "75",
+  "77",
   "79",
-  "81", "87",
+  "81",
+  "87",
   "82",
   "83",
   "84",
-  "85", "88",
-  "86", "89",
-  "91", "93", "94",
-  "92", "97",
+  "85",
+  "88",
+  "86",
+  "89",
+  "91",
+  "93",
+  "94",
+  "92",
+  "97",
   "95",
   "96",
-  "98", "99",
+  "98",
+  "99",
 ])
 
 export function normalizePhoneBr(value: string): string {
@@ -269,7 +309,10 @@ export const cpfOrCnpjSchema = z.string().transform((value, ctx) => {
 export const postalCodeSchema = z.string().transform((value, ctx) => {
   const normalized = normalizePostalCode(value)
   if (!isValidPostalCode(normalized)) {
-    ctx.addIssue({ code: "custom", message: "CEP inválido. Use o formato 00000-000." })
+    ctx.addIssue({
+      code: "custom",
+      message: "CEP inválido. Use o formato 00000-000.",
+    })
     return z.NEVER
   }
   return normalized
@@ -278,7 +321,10 @@ export const postalCodeSchema = z.string().transform((value, ctx) => {
 export const phoneBrSchema = z.string().transform((value, ctx) => {
   const normalized = normalizePhoneBr(value)
   if (!isValidPhoneBr(normalized)) {
-    ctx.addIssue({ code: "custom", message: "Telefone inválido. Informe o DDD e o número." })
+    ctx.addIssue({
+      code: "custom",
+      message: "Telefone inválido. Informe o DDD e o número.",
+    })
     return z.NEVER
   }
   return normalized

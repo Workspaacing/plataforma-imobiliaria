@@ -24,7 +24,10 @@ export async function createClientActivity(
   const parsed = activityFormSchema.safeParse(values)
 
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Confira os campos." }
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Confira os campos.",
+    }
   }
 
   const { membership } = await requireMembership()

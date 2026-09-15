@@ -79,7 +79,10 @@ export async function changePassword(
   const user = await requireUser()
 
   if (!user.email) {
-    return { ok: false, error: "Sua conta não tem e-mail cadastrado para confirmar a senha." }
+    return {
+      ok: false,
+      error: "Sua conta não tem e-mail cadastrado para confirmar a senha.",
+    }
   }
 
   const supabase = await createClient()
@@ -102,7 +105,9 @@ export async function changePassword(
     return { ok: false, error: translateAuthError(verifyError) }
   }
 
-  const { error } = await supabase.auth.updateUser({ password: parsed.data.password })
+  const { error } = await supabase.auth.updateUser({
+    password: parsed.data.password,
+  })
 
   if (error) {
     return {

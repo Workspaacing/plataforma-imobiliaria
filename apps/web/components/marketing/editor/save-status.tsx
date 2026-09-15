@@ -23,14 +23,20 @@ export function SaveStatus({ state, onRetry }: { state: SaveStatusState; onRetry
       return <span className="text-sm text-muted-foreground">Somente leitura</span>
     case "saving":
       return (
-        <span className="flex items-center gap-1.5 text-sm text-muted-foreground" aria-live="polite">
+        <span
+          className="flex items-center gap-1.5 text-sm text-muted-foreground"
+          aria-live="polite"
+        >
           <Spinner />
           Salvando…
         </span>
       )
     case "pending":
       return (
-        <span className="flex items-center gap-1.5 text-sm text-muted-foreground" aria-live="polite">
+        <span
+          className="flex items-center gap-1.5 text-sm text-muted-foreground"
+          aria-live="polite"
+        >
           <CircleDashedIcon aria-hidden="true" className="size-4" />
           Alterações pendentes
         </span>
@@ -60,7 +66,10 @@ export function SaveStatus({ state, onRetry }: { state: SaveStatusState; onRetry
       )
     case "saved":
       return (
-        <span className="flex items-center gap-1.5 text-sm text-muted-foreground" aria-live="polite">
+        <span
+          className="flex items-center gap-1.5 text-sm text-muted-foreground"
+          aria-live="polite"
+        >
           <CircleCheckIcon aria-hidden="true" className="size-4" />
           {state.at ? `Salvo às ${formatTime(state.at)}` : "Tudo salvo"}
         </span>

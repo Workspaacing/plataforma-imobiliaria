@@ -8,6 +8,7 @@ export const CLIENTS_PAGE_SIZE = 20
 // -----------------------------------------------------------------------------
 export const CLIENT_SOURCE_VALUES = [
   "site",
+  "landing_page",
   "portal",
   "indicacao",
   "placa",
@@ -19,6 +20,7 @@ export type ClientSource = (typeof CLIENT_SOURCE_VALUES)[number]
 
 export const CLIENT_SOURCE_LABELS: Record<ClientSource, string> = {
   site: "Site",
+  landing_page: "Landing page",
   portal: "Portal",
   indicacao: "Indicação",
   placa: "Placa",
@@ -49,9 +51,7 @@ export const LGPD_LEGAL_BASIS_LABELS: Record<LgpdLegalBasis, string> = {
 }
 
 export function isLgpdLegalBasis(value: unknown): value is LgpdLegalBasis {
-  return (
-    typeof value === "string" && (LGPD_LEGAL_BASIS_VALUES as readonly string[]).includes(value)
-  )
+  return typeof value === "string" && (LGPD_LEGAL_BASIS_VALUES as readonly string[]).includes(value)
 }
 
 export function getLgpdLegalBasisLabel(value: string | null | undefined) {

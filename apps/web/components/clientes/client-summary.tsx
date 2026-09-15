@@ -36,7 +36,10 @@ export function ClientSummary({ client }: { client: Tables<"clients"> }) {
     ? [
         { label: "CPF", value: formatClientDocument("pf", client.document) },
         { label: "RG", value: client.rg ?? "—" },
-        { label: "Nascimento", value: client.birth_date ? formatDate(`${client.birth_date}T12:00:00-03:00`) : "—" },
+        {
+          label: "Nascimento",
+          value: client.birth_date ? formatDate(`${client.birth_date}T12:00:00-03:00`) : "—",
+        },
         { label: "Cadastrado em", value: formatDate(client.created_at) },
       ]
     : [
@@ -73,7 +76,10 @@ export function ClientSummary({ client }: { client: Tables<"clients"> }) {
                 { label: "Complemento", value: client.complement ?? "—" },
                 { label: "Bairro", value: client.neighborhood ?? "—" },
                 { label: "Cidade", value: cityLine || "—" },
-                { label: "CEP", value: formatPostalCodeSafe(client.postal_code) },
+                {
+                  label: "CEP",
+                  value: formatPostalCodeSafe(client.postal_code),
+                },
               ]}
             />
           </CardContent>
@@ -93,7 +99,10 @@ export function ClientSummary({ client }: { client: Tables<"clients"> }) {
         <CardContent>
           <DetailList
             items={[
-              { label: "Base legal", value: getLgpdLegalBasisLabel(client.lgpd_legal_basis) },
+              {
+                label: "Base legal",
+                value: getLgpdLegalBasisLabel(client.lgpd_legal_basis),
+              },
               {
                 label: "Consentimento",
                 value: client.lgpd_consent_at ? formatDateTime(client.lgpd_consent_at) : "—",
@@ -109,7 +118,7 @@ export function ClientSummary({ client }: { client: Tables<"clients"> }) {
             <CardTitle>Observações</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm whitespace-pre-wrap break-words">{client.notes}</p>
+            <p className="text-sm break-words whitespace-pre-wrap">{client.notes}</p>
           </CardContent>
         </Card>
       ) : null}

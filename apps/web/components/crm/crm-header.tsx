@@ -59,10 +59,7 @@ function HeaderBreadcrumb() {
   }
 
   const { group, item } = match
-  const trail = pathname
-    .slice(item.url.length)
-    .split("/")
-    .filter(Boolean)
+  const trail = pathname.slice(item.url.length).split("/").filter(Boolean)
   const showGroup = group.title !== item.title && group.title !== "Principal"
 
   return (

@@ -458,7 +458,8 @@ export function resolveLandingTheme(
     onScrim: WHITE,
   }
 
-  const baseUrl = options.storageBaseUrl === undefined ? getStorageBaseUrl() : options.storageBaseUrl
+  const baseUrl =
+    options.storageBaseUrl === undefined ? getStorageBaseUrl() : options.storageBaseUrl
   const assetUrl = (path: string | null | undefined) =>
     buildPublicStorageUrl(baseUrl, LANDING_ASSETS_BUCKET, path)
 

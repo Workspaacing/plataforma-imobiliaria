@@ -36,11 +36,14 @@ export function ClientHeader({ client, members, canEdit, canDelete }: ClientHead
               <span>
                 Responsável:{" "}
                 <span className="text-foreground">
-                  {client.assigned_to ? getMemberName(members, client.assigned_to) : "sem responsável"}
+                  {client.assigned_to
+                    ? getMemberName(members, client.assigned_to)
+                    : "sem responsável"}
                 </span>
               </span>
               <span>
-                Origem: <span className="text-foreground">{getClientSourceLabel(client.source)}</span>
+                Origem:{" "}
+                <span className="text-foreground">{getClientSourceLabel(client.source)}</span>
               </span>
             </div>
           </div>
@@ -71,7 +74,11 @@ export function ClientHeader({ client, members, canEdit, canDelete }: ClientHead
                   variant="outline"
                   size="sm"
                   render={
-                    <a href={whatsappHref(client.whatsapp)} target="_blank" rel="noopener noreferrer" />
+                    <a
+                      href={whatsappHref(client.whatsapp)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    />
                   }
                   nativeButton={false}
                 >

@@ -58,10 +58,7 @@ export async function createKey(values: KeyCreateValues): Promise<ActionResult> 
       error:
         error.code === "23503"
           ? "Imóvel não encontrado. Recarregue a página."
-          : translateDbError(
-              error,
-              "Você não tem permissão para cadastrar chaves neste imóvel."
-            ),
+          : translateDbError(error, "Você não tem permissão para cadastrar chaves neste imóvel."),
     }
   }
 
@@ -99,10 +96,7 @@ export async function updateKey(keyId: string, values: KeyUpdateValues): Promise
   return { ok: true, message: "Chave atualizada." }
 }
 
-export async function checkoutKey(
-  keyId: string,
-  values: KeyCheckoutValues
-): Promise<ActionResult> {
+export async function checkoutKey(keyId: string, values: KeyCheckoutValues): Promise<ActionResult> {
   const id = keyIdSchema.safeParse(keyId)
   const parsed = keyCheckoutSchema.safeParse(values)
 
@@ -112,7 +106,10 @@ export async function checkoutKey(
   const { membership } = await requireMembership()
 
   if (!COMMERCIAL_ROLES.includes(membership.role)) {
-    return { ok: false, error: "Você não tem permissão para registrar retirada de chaves." }
+    return {
+      ok: false,
+      error: "Você não tem permissão para registrar retirada de chaves.",
+    }
   }
 
   const supabase = await createClient()
@@ -127,7 +124,10 @@ export async function checkoutKey(
     .maybeSingle()
 
   if (keyError) {
-    return { ok: false, error: translateDbError(keyError, "Você não tem acesso a esta chave.") }
+    return {
+      ok: false,
+      error: translateDbError(keyError, "Você não tem acesso a esta chave."),
+    }
   }
 
   if (!key) return { ok: false, error: "Chave não encontrada. Recarregue a página." }
@@ -252,7 +252,10 @@ export async function markKeyFound(keyId: string): Promise<ActionResult> {
     .is("returned_at", null)
 
   if (countError) {
-    return { ok: false, error: translateDbError(countError, NO_EDIT_PERMISSION) }
+    return {
+      ok: false,
+      error: translateDbError(countError, NO_EDIT_PERMISSION),
+    }
   }
 
   const { data, error } = await supabase
@@ -286,8 +289,7 @@ export type KeyHistoryItem = {
 }
 
 export type KeyHistoryResult =
-  | { ok: true; movements: KeyHistoryItem[] }
-  | { ok: false; error: string }
+  { ok: true; movements: KeyHistoryItem[] } | { ok: false; error: string }
 
 export async function loadKeyHistory(keyId: string): Promise<KeyHistoryResult> {
   const id = keyIdSchema.safeParse(keyId)

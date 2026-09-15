@@ -2,7 +2,12 @@
 
 import * as React from "react"
 
-import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@workspace/ui/components/input-group"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+  InputGroupText,
+} from "@workspace/ui/components/input-group"
 
 import { maskBrlInput } from "@/lib/imoveis/number"
 

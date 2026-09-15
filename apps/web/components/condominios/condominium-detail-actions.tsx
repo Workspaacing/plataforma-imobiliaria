@@ -52,7 +52,8 @@ export function CondominiumDetailActions({
       } catch {
         toast.add({
           title: "Não foi possível excluir o condomínio",
-          description: "Não foi possível falar com o servidor. Verifique sua conexão e tente de novo.",
+          description:
+            "Não foi possível falar com o servidor. Verifique sua conexão e tente de novo.",
           type: "error",
         })
         return
@@ -69,7 +70,10 @@ export function CondominiumDetailActions({
         return
       }
 
-      toast.add({ title: result.message ?? "Condomínio excluído.", type: "success" })
+      toast.add({
+        title: result.message ?? "Condomínio excluído.",
+        type: "success",
+      })
       setDeleteOpen(false)
       router.push("/condominios")
     })

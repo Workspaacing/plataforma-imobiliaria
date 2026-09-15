@@ -99,7 +99,9 @@ export function ClientsTable({ rows, members }: ClientsTableProps) {
                     <span className="text-muted-foreground">—</span>
                   )}
                 </TableCell>
-                <TableCell className="text-end tabular-nums">{formatDate(client.created_at)}</TableCell>
+                <TableCell className="text-end tabular-nums">
+                  {formatDate(client.created_at)}
+                </TableCell>
               </TableRow>
             )
           })}

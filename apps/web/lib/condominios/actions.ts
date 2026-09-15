@@ -62,7 +62,9 @@ function toFieldErrors(error: z.ZodError): CondominiumFieldErrors {
 
 function toDbFailure(error: DbErrorLike, action: string): SaveCondominiumResult {
   const message = translateDbError(error, action)
-  const constraint = /constraint "([^"]+)"/.exec(`${error.message ?? ""} ${error.details ?? ""}`)?.[1]
+  const constraint = /constraint "([^"]+)"/.exec(
+    `${error.message ?? ""} ${error.details ?? ""}`
+  )?.[1]
   const field = constraint ? FIELD_BY_CONSTRAINT[constraint] : undefined
 
   if (!field) {
@@ -98,7 +100,11 @@ export async function saveCondominiumAction(
   const parsed = condominiumFormSchema.safeParse(values)
 
   if (!parsed.success) {
-    return { ok: false, error: INVALID_FIELDS_MESSAGE, fieldErrors: toFieldErrors(parsed.error) }
+    return {
+      ok: false,
+      error: INVALID_FIELDS_MESSAGE,
+      fieldErrors: toFieldErrors(parsed.error),
+    }
   }
 
   const { user, membership } = await requireMembership()
@@ -108,7 +114,10 @@ export async function saveCondominiumAction(
 
   if (condominiumId === null) {
     if (!canCreateCondominium(membership.role)) {
-      return { ok: false, error: "Seu papel nesta imobiliária não permite cadastrar condomínios." }
+      return {
+        ok: false,
+        error: "Seu papel nesta imobiliária não permite cadastrar condomínios.",
+      }
     }
 
     const { data, error } = await supabase
@@ -143,7 +152,8 @@ export async function saveCondominiumAction(
   if (!canEditCondominium(membership.role, user.id, current.created_by)) {
     return {
       ok: false,
-      error: "Você não tem permissão para editar este condomínio. Só a gestão ou quem o cadastrou pode alterá-lo.",
+      error:
+        "Você não tem permissão para editar este condomínio. Só a gestão ou quem o cadastrou pode alterá-lo.",
     }
   }
 
@@ -162,7 +172,8 @@ export async function saveCondominiumAction(
   if (!data || data.length === 0) {
     return {
       ok: false,
-      error: "O condomínio não foi alterado: você não tem permissão para editá-lo ou ele foi excluído.",
+      error:
+        "O condomínio não foi alterado: você não tem permissão para editá-lo ou ele foi excluído.",
     }
   }
 
@@ -201,7 +212,8 @@ export async function deleteCondominiumAction(id: string): Promise<ActionResult>
   if (!data || data.length === 0) {
     return {
       ok: false,
-      error: "O condomínio não foi excluído: ele não existe mais ou você não tem permissão para removê-lo.",
+      error:
+        "O condomínio não foi excluído: ele não existe mais ou você não tem permissão para removê-lo.",
     }
   }
 

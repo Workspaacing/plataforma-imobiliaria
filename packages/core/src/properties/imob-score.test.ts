@@ -45,7 +45,11 @@ describe("computeImobScore", () => {
   })
 
   describe("fotos (fronteiras)", () => {
-    const base: ImobScoreInput = { purpose: "sale", type: "apartment", photosCount: 0 }
+    const base: ImobScoreInput = {
+      purpose: "sale",
+      type: "apartment",
+      photosCount: 0,
+    }
 
     it("4 fotos pontua proporcionalmente (10 pts) e não conclui o item", () => {
       const result = computeImobScore({ ...base, photosCount: 4 }, NOW)
@@ -75,7 +79,11 @@ describe("computeImobScore", () => {
   })
 
   describe("descrição (fronteiras)", () => {
-    const base: ImobScoreInput = { purpose: "sale", type: "apartment", photosCount: 0 }
+    const base: ImobScoreInput = {
+      purpose: "sale",
+      type: "apartment",
+      photosCount: 0,
+    }
 
     it("49 caracteres não pontua", () => {
       const result = computeImobScore({ ...base, description: "A".repeat(49) }, NOW)
@@ -104,8 +112,13 @@ describe("computeImobScore", () => {
   describe("preços", () => {
     it("casa (sem condomínio aplicável) recebe o bônus de condomínio automaticamente", () => {
       const result = computeImobScore(
-        { purpose: "sale", type: "house", photosCount: 0, prices: { salePrice: 300_000 } },
-        NOW,
+        {
+          purpose: "sale",
+          type: "house",
+          photosCount: 0,
+          prices: { salePrice: 300_000 },
+        },
+        NOW
       )
       // 9 (preço obrigatório) + 3 (condomínio considerado atendido) + 0 (sem IPTU)
       expect(findItem(result, "prices").points).toBe(12)
@@ -113,16 +126,26 @@ describe("computeImobScore", () => {
 
     it("apartamento sem condomínio informado não recebe o bônus de condomínio", () => {
       const result = computeImobScore(
-        { purpose: "sale", type: "apartment", photosCount: 0, prices: { salePrice: 300_000 } },
-        NOW,
+        {
+          purpose: "sale",
+          type: "apartment",
+          photosCount: 0,
+          prices: { salePrice: 300_000 },
+        },
+        NOW
       )
       expect(findItem(result, "prices").points).toBe(9)
     })
 
     it("sale_rent exige os dois preços para o bônus de preço obrigatório", () => {
       const onlySale = computeImobScore(
-        { purpose: "sale_rent", type: "apartment", photosCount: 0, prices: { salePrice: 300_000 } },
-        NOW,
+        {
+          purpose: "sale_rent",
+          type: "apartment",
+          photosCount: 0,
+          prices: { salePrice: 300_000 },
+        },
+        NOW
       )
       expect(findItem(onlySale, "prices").points).toBe(0)
 
@@ -133,7 +156,7 @@ describe("computeImobScore", () => {
           photosCount: 0,
           prices: { salePrice: 300_000, rentPrice: 2_000 },
         },
-        NOW,
+        NOW
       )
       expect(findItem(both, "prices").points).toBe(9)
     })
@@ -141,14 +164,17 @@ describe("computeImobScore", () => {
 
   describe("áreas e cômodos", () => {
     it("terreno considera apenas a área (quartos/banheiros concedidos automaticamente)", () => {
-      const result = computeImobScore({ purpose: "sale", type: "land", photosCount: 0, lotArea: 500 }, NOW)
+      const result = computeImobScore(
+        { purpose: "sale", type: "land", photosCount: 0, lotArea: 500 },
+        NOW
+      )
       expect(findItem(result, "areas").points).toBe(10)
     })
 
     it("apartamento sem quartos/banheiros perde os 4 pontos de cômodos", () => {
       const result = computeImobScore(
         { purpose: "sale", type: "apartment", photosCount: 0, livingArea: 75 },
-        NOW,
+        NOW
       )
       expect(findItem(result, "areas").points).toBe(6)
     })
@@ -163,7 +189,7 @@ describe("computeImobScore", () => {
           photosCount: 0,
           saleAuthorizationExpiresAt: new Date("2026-01-01T00:00:00Z"),
         },
-        NOW,
+        NOW
       )
       const item = findItem(result, "authorization")
       expect(item.points).toBe(0)
@@ -178,7 +204,7 @@ describe("computeImobScore", () => {
           photosCount: 0,
           saleAuthorizationExpiresAt: new Date("2026-12-31T00:00:00Z"),
         },
-        NOW,
+        NOW
       )
       expect(findItem(result, "authorization").points).toBe(10)
     })

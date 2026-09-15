@@ -1,18 +1,19 @@
 import "server-only"
 
-const DEVELOPMENT_SITE_URL = "http://localhost:3000"
+import { getAppOrigin } from "@/lib/tenant/urls"
 
 /**
- * Origem pública do app (sem barra final), usada nos links enviados por e-mail
- * (confirmação, link mágico, recuperação de senha, convites) e nos
- * redirecionamentos de /auth.
+ * Origem pública do domínio raiz (sem barra final).
  *
- * Vem só de NEXT_PUBLIC_SITE_URL, nunca dos headers da requisição (Origin,
- * Host, X-Forwarded-Host): eles podem ser forjados para fazer um link de
- * recuperação apontar para o domínio de um atacante.
+ * Com o multi-tenant por subdomínio, links de e-mail, de convite e das páginas
+ * públicas usam as funções de lib/tenant/urls.ts (env + slug validado) e os
+ * redirecionamentos de /auth usam getCurrentOrigin (lib/tenant/server.ts).
+ * Esta função fica por compatibilidade: devolve NEXT_PUBLIC_SITE_URL, se
+ * definida, ou a origem de NEXT_PUBLIC_ROOT_DOMAIN.
  *
- * A URL precisa estar na lista de "Redirect URLs" do Supabase; caso contrário
- * ele usa o Site URL do projeto.
+ * Nunca vem dos headers da requisição (Origin, Host, X-Forwarded-Host): eles
+ * podem ser forjados para fazer um link de recuperação apontar para o domínio
+ * de um atacante.
  */
 export function getSiteUrl(): string {
   const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim()
@@ -21,13 +22,7 @@ export function getSiteUrl(): string {
     return parseSiteUrl(configured)
   }
 
-  if (process.env.NODE_ENV === "production") {
-    throw new Error(
-      "NEXT_PUBLIC_SITE_URL não está definida. Em produção ela é obrigatória: informe a URL pública do app (ex.: https://crm.suaimobiliaria.com.br), sem barra no final."
-    )
-  }
-
-  return DEVELOPMENT_SITE_URL
+  return getAppOrigin()
 }
 
 function parseSiteUrl(value: string) {
@@ -37,7 +32,7 @@ function parseSiteUrl(value: string) {
     url = new URL(value)
   } catch {
     throw new Error(
-      "NEXT_PUBLIC_SITE_URL é inválida. Use uma URL absoluta, como https://crm.suaimobiliaria.com.br."
+      "NEXT_PUBLIC_SITE_URL é inválida. Use uma URL absoluta, como https://seucrm.com.br."
     )
   }
 
@@ -49,12 +44,17 @@ function parseSiteUrl(value: string) {
   return url.origin
 }
 
+/**
+ * URL de /auth/callback numa origem já validada (getCurrentOrigin). A URL
+ * precisa casar com as "Redirect URLs" do Supabase; caso contrário ele usa o
+ * Site URL do projeto.
+ */
 export function buildAuthCallbackUrl(
-  siteUrl: string,
+  origin: string,
   next: string,
   extraParams: Record<string, string> = {}
 ) {
-  const url = new URL("/auth/callback", siteUrl)
+  const url = new URL("/auth/callback", origin)
   url.searchParams.set("next", next)
 
   for (const [key, value] of Object.entries(extraParams)) {

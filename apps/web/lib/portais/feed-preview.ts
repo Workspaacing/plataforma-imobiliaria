@@ -25,7 +25,10 @@ export async function loadFeedPreview(
   const env = getSupabaseEnv()
 
   if (!env) {
-    return { status: "error", message: "O Supabase não está configurado neste ambiente." }
+    return {
+      status: "error",
+      message: "O Supabase não está configurado neste ambiente.",
+    }
   }
 
   const { data, error } = await supabase.rpc("get_portal_feed", {
@@ -47,7 +50,10 @@ export async function loadFeedPreview(
     }
   }
 
-  const result = buildPortalFeed(data, { supabaseUrl: env.url, provider: APP_NAME })
+  const result = buildPortalFeed(data, {
+    supabaseUrl: env.url,
+    provider: APP_NAME,
+  })
 
   if (!result) {
     return {

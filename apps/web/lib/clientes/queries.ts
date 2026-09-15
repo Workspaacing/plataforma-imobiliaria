@@ -74,9 +74,7 @@ export async function listClientTags(organizationId: string) {
     return []
   }
 
-  return [...new Set(data.flatMap((row) => row.tags))].sort((a, b) =>
-    a.localeCompare(b, "pt-BR")
-  )
+  return [...new Set(data.flatMap((row) => row.tags))].sort((a, b) => a.localeCompare(b, "pt-BR"))
 }
 
 /** Cliente da imobiliária atual; null se o id é inválido, não existe ou o RLS esconde. */

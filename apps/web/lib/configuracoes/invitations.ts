@@ -14,13 +14,13 @@ export function isInvitationToken(value: string | null | undefined): value is st
   return typeof value === "string" && INVITATION_TOKEN_PATTERN.test(value)
 }
 
+/** Caminho relativo do convite (vale no subdomínio e, por compatibilidade, na raiz). */
 export function buildInvitationPath(token: string) {
   return `/convite/${token}`
 }
 
-export function buildInvitationUrl(origin: string, token: string) {
-  return new URL(buildInvitationPath(token), origin).toString()
-}
+// A URL absoluta do convite fica em lib/tenant/urls.ts (buildInvitationUrl),
+// no subdomínio da imobiliária que convida.
 
 export function getInvitationExpiry(now: Date = new Date()) {
   return new Date(now.getTime() + INVITATION_VALIDITY_DAYS * 24 * 60 * 60 * 1000)
@@ -71,18 +71,10 @@ export function buildMailtoUrl(email: string, subject: string, body: string) {
  * - "É preciso estar autenticado para aceitar o convite." → `unauthenticated`
  */
 export type AcceptInvitationDenialReason =
-  | "email_not_confirmed"
-  | "email_mismatch"
-  | "unauthenticated"
-  | "unknown"
+  "email_not_confirmed" | "email_mismatch" | "unauthenticated" | "unknown"
 
 function normalizeDatabaseMessage(message: string) {
-  return message
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim()
+  return message.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\s+/g, " ").trim()
 }
 
 export function classifyAcceptInvitationDenial(

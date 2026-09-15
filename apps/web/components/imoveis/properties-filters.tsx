@@ -44,17 +44,26 @@ type Option = { label: string; value: string | null }
 
 const STATUS_ITEMS: Option[] = [
   { label: "Todos", value: null },
-  ...PROPERTY_STATUSES.map((value) => ({ label: PROPERTY_STATUS_LABELS[value], value })),
+  ...PROPERTY_STATUSES.map((value) => ({
+    label: PROPERTY_STATUS_LABELS[value],
+    value,
+  })),
 ]
 
 const PURPOSE_ITEMS: Option[] = [
   { label: "Todas", value: null },
-  ...LISTING_PURPOSES.map((value) => ({ label: LISTING_PURPOSE_LABELS[value], value })),
+  ...LISTING_PURPOSES.map((value) => ({
+    label: LISTING_PURPOSE_LABELS[value],
+    value,
+  })),
 ]
 
 const TYPE_ITEMS: Option[] = [
   { label: "Todos", value: null },
-  ...PROPERTY_TYPES.map((value) => ({ label: PROPERTY_TYPE_LABELS[value], value })),
+  ...PROPERTY_TYPES.map((value) => ({
+    label: PROPERTY_TYPE_LABELS[value],
+    value,
+  })),
 ]
 
 const BEDROOM_ITEMS: Option[] = [
@@ -136,7 +145,13 @@ export function PropertiesFilters({ defaults }: { defaults: PropertyFilterDefaul
               />
             </InputGroup>
           </Field>
-          <FilterSelect id="filtro-status" name="status" label="Status" items={STATUS_ITEMS} defaultValue={defaults.status} />
+          <FilterSelect
+            id="filtro-status"
+            name="status"
+            label="Status"
+            items={STATUS_ITEMS}
+            defaultValue={defaults.status}
+          />
           <FilterSelect
             id="filtro-finalidade"
             name="finalidade"
@@ -144,7 +159,13 @@ export function PropertiesFilters({ defaults }: { defaults: PropertyFilterDefaul
             items={PURPOSE_ITEMS}
             defaultValue={defaults.finalidade}
           />
-          <FilterSelect id="filtro-tipo" name="tipo" label="Tipo" items={TYPE_ITEMS} defaultValue={defaults.tipo} />
+          <FilterSelect
+            id="filtro-tipo"
+            name="tipo"
+            label="Tipo"
+            items={TYPE_ITEMS}
+            defaultValue={defaults.tipo}
+          />
         </div>
         <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-3 xl:grid-cols-[repeat(3,minmax(0,1fr))_auto]">
           <Field>
@@ -186,7 +207,11 @@ export function PropertiesFilters({ defaults }: { defaults: PropertyFilterDefaul
           />
           <div className="flex gap-2 sm:col-span-3 xl:col-span-1">
             <Button type="submit" disabled={isPending} className="flex-1 xl:flex-none">
-              {isPending ? <Spinner data-icon="inline-start" /> : <FilterIcon data-icon="inline-start" />}
+              {isPending ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <FilterIcon data-icon="inline-start" />
+              )}
               Filtrar
             </Button>
             {hasFilters ? (

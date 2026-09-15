@@ -1,18 +1,8 @@
 import type * as React from "react"
-import {
-  Controller,
-  type Control,
-  type FieldPath,
-  type FieldValues,
-} from "react-hook-form"
+import { Controller, type Control, type FieldPath, type FieldValues } from "react-hook-form"
 
 import { BRAZILIAN_STATES } from "@workspace/core/br/states"
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldLabel,
-} from "@workspace/ui/components/field"
+import { Field, FieldDescription, FieldError, FieldLabel } from "@workspace/ui/components/field"
 import { Input } from "@workspace/ui/components/input"
 import {
   Select,
@@ -103,10 +93,7 @@ export function FormStateSelect<T extends FieldValues>({
   disabled,
   allowEmpty = false,
 }: FormStateSelectProps<T>) {
-  const items = [
-    { label: allowEmpty ? "Sem UF" : "Selecione", value: null },
-    ...STATE_OPTIONS,
-  ]
+  const items = [{ label: allowEmpty ? "Sem UF" : "Selecione", value: null }, ...STATE_OPTIONS]
   const listed = allowEmpty ? items : STATE_OPTIONS
 
   return (

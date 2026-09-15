@@ -17,5 +17,7 @@ export function isPropertyDetailTab(value: unknown): value is PropertyDetailTab 
 }
 
 export function propertyTabHref(propertyId: string, tab: PropertyDetailTab) {
-  return tab === DEFAULT_PROPERTY_DETAIL_TAB ? `/imoveis/${propertyId}` : `/imoveis/${propertyId}?aba=${tab}`
+  return tab === DEFAULT_PROPERTY_DETAIL_TAB
+    ? `/imoveis/${propertyId}`
+    : `/imoveis/${propertyId}?aba=${tab}`
 }

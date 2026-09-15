@@ -47,7 +47,12 @@ function clientLabel(appointment: AgendaAppointment) {
 }
 
 /** Visita na lista do dia. */
-export function AppointmentCard({ appointment, members, currentUserId, role }: AppointmentViewProps) {
+export function AppointmentCard({
+  appointment,
+  members,
+  currentUserId,
+  role,
+}: AppointmentViewProps) {
   const { property, client } = appointment
   const hasReturn =
     appointment.status === "done" && (appointment.rating !== null || Boolean(appointment.feedback))

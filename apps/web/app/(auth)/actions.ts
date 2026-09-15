@@ -9,7 +9,6 @@ import {
   RECOVERY_LINK_REQUIRED_MESSAGE,
 } from "@/lib/auth/recovery-session"
 import {
-  HOME_PATH,
   INVITATION_PATH_PREFIX,
   ONBOARDING_PATH,
   RESET_PASSWORD_PATH,
@@ -27,9 +26,16 @@ import {
   type SignInValues,
   type SignUpValues,
 } from "@/lib/auth/schemas"
-import { buildAuthCallbackUrl, getSiteUrl } from "@/lib/auth/site-url"
+import { buildAuthCallbackUrl } from "@/lib/auth/site-url"
 import { isSupabaseConfigured } from "@/lib/supabase/env"
 import { createClient } from "@/lib/supabase/server"
+import { getCurrentOrigin, getDefaultRedirectPath } from "@/lib/tenant/server"
+
+// Links de e-mail (emailRedirectTo/redirectTo) voltam para o MESMO host em que
+// o fluxo começou: o subdomínio validado da imobiliária ou o domínio raiz,
+// sempre montado de env + slug (getCurrentOrigin), nunca de Host/Origin. O
+// code verifier do PKCE e a sessão ficam em cookies desse host (host-only em
+// localhost), então voltar a outro host quebraria o login em desenvolvimento.
 
 const INVALID_FORM: ActionResult = {
   ok: false,
@@ -62,7 +68,7 @@ export async function signInWithPassword(
     return { ok: false, error: translateAuthError(error) }
   }
 
-  redirect(sanitizeRedirectPath(next))
+  redirect(sanitizeRedirectPath(next, await getDefaultRedirectPath()))
 }
 
 export async function sendMagicLink(
@@ -85,8 +91,8 @@ export async function sendMagicLink(
     email,
     options: {
       emailRedirectTo: buildAuthCallbackUrl(
-        await getSiteUrl(),
-        sanitizeRedirectPath(next)
+        await getCurrentOrigin(),
+        sanitizeRedirectPath(next, await getDefaultRedirectPath())
       ),
       // Contas novas passam pelo /cadastro, que coleta o nome completo.
       shouldCreateUser: false,
@@ -103,10 +109,7 @@ export async function sendMagicLink(
   }
 }
 
-export async function signUp(
-  values: SignUpValues,
-  next?: string | null
-): Promise<ActionResult> {
+export async function signUp(values: SignUpValues, next?: string | null): Promise<ActionResult> {
   const parsed = signUpSchema.safeParse(values)
 
   if (!parsed.success) {
@@ -131,9 +134,9 @@ export async function signUp(
     options: {
       // Lido pelo trigger que cria a linha em `profiles`.
       data: { full_name: fullName },
-      // `tipo=cadastro` permite ao callback reconhecer a confirmação de cadastro
-      // mesmo quando o link é aberto em outro navegador.
-      emailRedirectTo: buildAuthCallbackUrl(await getSiteUrl(), redirectNext, {
+      // `tipo=cadastro` só escolhe o aviso em /entrar quando o link abre em
+      // outro navegador; o tipo do fluxo é conferido pelo `amr` da sessão.
+      emailRedirectTo: buildAuthCallbackUrl(await getCurrentOrigin(), redirectNext, {
         tipo: "cadastro",
       }),
     },
@@ -156,9 +159,7 @@ export async function signUp(
   }
 }
 
-export async function requestPasswordReset(
-  values: RecoverPasswordValues
-): Promise<ActionResult> {
+export async function requestPasswordReset(values: RecoverPasswordValues): Promise<ActionResult> {
   const parsed = recoverPasswordSchema.safeParse(values)
 
   if (!parsed.success) {
@@ -172,7 +173,7 @@ export async function requestPasswordReset(
   const { email } = parsed.data
   const supabase = await createClient()
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: buildAuthCallbackUrl(await getSiteUrl(), RESET_PASSWORD_PATH),
+    redirectTo: buildAuthCallbackUrl(await getCurrentOrigin(), RESET_PASSWORD_PATH),
   })
 
   if (error && !isAccountEnumerationError(error)) {
@@ -185,9 +186,7 @@ export async function requestPasswordReset(
   }
 }
 
-export async function updatePassword(
-  values: ResetPasswordValues
-): Promise<ActionResult> {
+export async function updatePassword(values: ResetPasswordValues): Promise<ActionResult> {
   const parsed = resetPasswordSchema.safeParse(values)
 
   if (!parsed.success) {
@@ -215,5 +214,5 @@ export async function updatePassword(
     return { ok: false, error: translateAuthError(error) }
   }
 
-  redirect(HOME_PATH)
+  redirect(await getDefaultRedirectPath())
 }

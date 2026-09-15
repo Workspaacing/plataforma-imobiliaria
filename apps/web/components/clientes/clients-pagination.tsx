@@ -30,7 +30,14 @@ export function ClientsPagination({ filters, total, totalPages }: ClientsPaginat
               {page > 1 ? (
                 <Button
                   variant="ghost"
-                  render={<Link href={buildClientListHref({ ...filters, pagina: page - 1 })} />}
+                  render={
+                    <Link
+                      href={buildClientListHref({
+                        ...filters,
+                        pagina: page - 1,
+                      })}
+                    />
+                  }
                   nativeButton={false}
                 >
                   <ChevronLeftIcon data-icon="inline-start" />
@@ -47,7 +54,14 @@ export function ClientsPagination({ filters, total, totalPages }: ClientsPaginat
               {page < totalPages ? (
                 <Button
                   variant="ghost"
-                  render={<Link href={buildClientListHref({ ...filters, pagina: page + 1 })} />}
+                  render={
+                    <Link
+                      href={buildClientListHref({
+                        ...filters,
+                        pagina: page + 1,
+                      })}
+                    />
+                  }
                   nativeButton={false}
                 >
                   Próxima

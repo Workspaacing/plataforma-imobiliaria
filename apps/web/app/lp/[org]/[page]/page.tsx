@@ -61,7 +61,11 @@ export default async function LandingPublicPage({ params }: LandingPublicPagePro
         gtmContainerId={readGtmContainerId(payload)}
         privacyHref={formProps.privacyHref}
       />
-      <LandingTemplate mode="public" payload={payload} leadForm={<LeadForm {...formProps} />} />
+      <LandingTemplate
+        mode="public"
+        payload={payload}
+        leadForm={(context) => <LeadForm {...formProps} ctaLabel={context.submitLabel} />}
+      />
     </>
   )
 }

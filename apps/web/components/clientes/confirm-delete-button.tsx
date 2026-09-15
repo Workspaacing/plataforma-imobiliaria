@@ -62,7 +62,12 @@ export function ConfirmDeleteButton({
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger
-        render={<Button variant={showLabel ? "outline" : "ghost"} size={showLabel ? "default" : "icon-sm"} />}
+        render={
+          <Button
+            variant={showLabel ? "outline" : "ghost"}
+            size={showLabel ? "default" : "icon-sm"}
+          />
+        }
       >
         <Trash2Icon data-icon={showLabel ? "inline-start" : undefined} />
         {showLabel ? label : <span className="sr-only">{label}</span>}

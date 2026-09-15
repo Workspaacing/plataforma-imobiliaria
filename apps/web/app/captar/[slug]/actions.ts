@@ -153,11 +153,18 @@ export async function lookupPostalCode(value: string): Promise<PostalCodeLookupR
   const address = await lookupCep(postalCode)
 
   if (!address) {
-    return { ok: false, error: "CEP não encontrado. Preencha o endereço manualmente." }
+    return {
+      ok: false,
+      error: "CEP não encontrado. Preencha o endereço manualmente.",
+    }
   }
 
   return {
     ok: true,
-    data: { neighborhood: address.neighborhood, city: address.city, state: address.state },
+    data: {
+      neighborhood: address.neighborhood,
+      city: address.city,
+      state: address.state,
+    },
   }
 }

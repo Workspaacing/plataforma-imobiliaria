@@ -51,16 +51,15 @@ function priceForInterest(interest: ClientInterest, property: PropertyForMatch) 
 
 // Mesma regra da view SQL (unaccent + lower): "Cambuí" casa com "CAMBUI".
 function normalizePlace(value: string | undefined) {
-  return (value ?? "")
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .trim()
-    .toLowerCase()
+  return (value ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase()
 }
 
 export function scoreMatch(interest: ClientInterest, property: PropertyForMatch): MatchResult {
   if (!purposesMatch(interest.purpose, property.purpose)) {
-    return { score: 0, reasons: ["Finalidade do imóvel não corresponde ao interesse do cliente."] }
+    return {
+      score: 0,
+      reasons: ["Finalidade do imóvel não corresponde ao interesse do cliente."],
+    }
   }
 
   let score = 30
@@ -100,7 +99,10 @@ export function scoreMatch(interest: ClientInterest, property: PropertyForMatch)
   }
 
   if (interest.minParkingSpaces !== undefined) {
-    if (isFinitePositiveOrZero(property.parkingSpaces) && property.parkingSpaces >= interest.minParkingSpaces) {
+    if (
+      isFinitePositiveOrZero(property.parkingSpaces) &&
+      property.parkingSpaces >= interest.minParkingSpaces
+    ) {
       score += 5
       reasons.push("Atende ao número mínimo de vagas de garagem.")
     } else {
@@ -110,13 +112,20 @@ export function scoreMatch(interest: ClientInterest, property: PropertyForMatch)
 
   if (interest.neighborhoods && interest.neighborhoods.length > 0) {
     const neighborhood = normalizePlace(property.neighborhood)
-    if (neighborhood && interest.neighborhoods.some((item) => normalizePlace(item) === neighborhood)) {
+    if (
+      neighborhood &&
+      interest.neighborhoods.some((item) => normalizePlace(item) === neighborhood)
+    ) {
       score += 10
       reasons.push("Bairro corresponde ao interesse do cliente.")
     } else {
       reasons.push("Bairro fora da lista de interesse do cliente.")
     }
-  } else if (interest.city && property.city && normalizePlace(interest.city) === normalizePlace(property.city)) {
+  } else if (
+    interest.city &&
+    property.city &&
+    normalizePlace(interest.city) === normalizePlace(property.city)
+  ) {
     score += 5
     reasons.push("Cidade corresponde ao interesse do cliente.")
   }

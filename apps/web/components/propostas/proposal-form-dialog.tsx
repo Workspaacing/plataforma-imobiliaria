@@ -170,7 +170,10 @@ function ProposalForm({ onDone, ...props }: ProposalFormProps & { onDone: () => 
 
     return [
       { label: "Sem corretor", value: null as string | null },
-      ...options.map((option) => ({ label: option.label, value: option.value as string | null })),
+      ...options.map((option) => ({
+        label: option.label,
+        value: option.value as string | null,
+      })),
     ]
   }, [brokers, editing])
 
@@ -391,7 +394,9 @@ function ProposalForm({ onDone, ...props }: ProposalFormProps & { onDone: () => 
                 {fieldState.invalid ? (
                   <FieldError errors={[fieldState.error]} />
                 ) : (
-                  <FieldDescription>Depois dessa data, a proposta aparece como vencida.</FieldDescription>
+                  <FieldDescription>
+                    Depois dessa data, a proposta aparece como vencida.
+                  </FieldDescription>
                 )}
               </Field>
             )}

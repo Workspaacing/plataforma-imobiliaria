@@ -54,7 +54,9 @@ function SectionError({ title }: { title: string }) {
     <Alert variant="destructive">
       <TriangleAlertIcon />
       <AlertTitle>{title}</AlertTitle>
-      <AlertDescription>Pode ser uma instabilidade momentânea. Recarregue a página.</AlertDescription>
+      <AlertDescription>
+        Pode ser uma instabilidade momentânea. Recarregue a página.
+      </AlertDescription>
     </Alert>
   )
 }
@@ -133,7 +135,10 @@ export default async function ClientePage({ params, searchParams }: ClientePageP
         member.id !== client.assigned_to &&
         !detail.shares.some((share) => share.userId === member.id)
     )
-    .map((member) => ({ id: member.id, label: `${member.name} · ${ROLE_LABELS[member.role]}` }))
+    .map((member) => ({
+      id: member.id,
+      label: `${member.name} · ${ROLE_LABELS[member.role]}`,
+    }))
 
   const activeInterests = detail.interests.filter((interest) => interest.active)
 
@@ -149,7 +154,8 @@ export default async function ClientePage({ params, searchParams }: ClientePageP
             <TabsTrigger value="historico">Histórico</TabsTrigger>
             <TabsTrigger value="perfil">Perfil de busca</TabsTrigger>
             <TabsTrigger value="compativeis">
-              Imóveis compatíveis{detail.matches.length > 0 ? ` (${detail.matches.length})` : ""}
+              Imóveis compatíveis
+              {detail.matches.length > 0 ? ` (${detail.matches.length})` : ""}
             </TabsTrigger>
             <TabsTrigger value="documentos">
               Documentos{documents.length > 0 ? ` (${documents.length})` : ""}

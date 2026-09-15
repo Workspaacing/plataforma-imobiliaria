@@ -23,10 +23,7 @@ import { toast } from "@workspace/ui/components/toast"
 import { updateOrganizationData } from "@/app/(app)/configuracoes/imobiliaria/actions"
 import { FormStateSelect, FormTextField } from "@/components/configuracoes/form-fields"
 import { maskCnpj, maskPhoneBr } from "@/lib/configuracoes/masks"
-import {
-  organizationDataSchema,
-  type OrganizationDataValues,
-} from "@/lib/configuracoes/schemas"
+import { organizationDataSchema, type OrganizationDataValues } from "@/lib/configuracoes/schemas"
 
 type OrganizationFormProps = {
   defaultValues: OrganizationDataValues
@@ -65,7 +62,10 @@ export function OrganizationForm({
 
       for (const [field, message] of Object.entries(result.fieldErrors ?? {})) {
         if (message) {
-          form.setError(field as keyof OrganizationDataValues, { type: "server", message })
+          form.setError(field as keyof OrganizationDataValues, {
+            type: "server",
+            message,
+          })
         }
       }
 
@@ -182,8 +182,8 @@ export function OrganizationForm({
               <FieldLabel htmlFor="org-slug">Endereço (slug)</FieldLabel>
               <Input id="org-slug" value={slug} readOnly spellCheck={false} />
               <FieldDescription>
-                Compõe os links públicos: formulário de captação e feed dos portais. Não
-                muda aqui para não quebrar links já divulgados.
+                Compõe os links públicos: formulário de captação e feed dos portais. Não muda aqui
+                para não quebrar links já divulgados.
               </FieldDescription>
             </Field>
             <Field>

@@ -7,7 +7,11 @@ import type { ActionResult } from "@/lib/auth/action-result"
 import { requireMembership } from "@/lib/auth/session"
 import { CLIENTS_PATH } from "@/lib/clientes/constants"
 import { permissionDeniedMessage, translateDatabaseError } from "@/lib/clientes/db-errors"
-import { interestFormSchema, toInterestRow, type InterestFormValues } from "@/lib/clientes/interest-schema"
+import {
+  interestFormSchema,
+  toInterestRow,
+  type InterestFormValues,
+} from "@/lib/clientes/interest-schema"
 import { canDeleteClientData } from "@/lib/clientes/permissions"
 import { createClient } from "@/lib/supabase/server"
 
@@ -19,14 +23,20 @@ export async function saveClientInterest(
   interestId: string | null,
   values: InterestFormValues
 ): Promise<ActionResult> {
-  if (!idSchema.safeParse(clientId).success || (interestId && !idSchema.safeParse(interestId).success)) {
+  if (
+    !idSchema.safeParse(clientId).success ||
+    (interestId && !idSchema.safeParse(interestId).success)
+  ) {
     return { ok: false, error: "Perfil de busca inválido." }
   }
 
   const parsed = interestFormSchema.safeParse(values)
 
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0]?.message ?? "Confira os campos." }
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Confira os campos.",
+    }
   }
 
   const { membership } = await requireMembership()
@@ -69,7 +79,10 @@ export async function saveClientInterest(
 
   revalidatePath(`${CLIENTS_PATH}/${clientId}`)
 
-  return { ok: true, message: interestId ? "Perfil de busca atualizado." : "Perfil de busca criado." }
+  return {
+    ok: true,
+    message: interestId ? "Perfil de busca atualizado." : "Perfil de busca criado.",
+  }
 }
 
 export async function setClientInterestActive(
@@ -107,7 +120,10 @@ export async function setClientInterestActive(
 
   revalidatePath(`${CLIENTS_PATH}/${clientId}`)
 
-  return { ok: true, message: active ? "Perfil de busca ativado." : "Perfil de busca desativado." }
+  return {
+    ok: true,
+    message: active ? "Perfil de busca ativado." : "Perfil de busca desativado.",
+  }
 }
 
 export async function deleteClientInterest(

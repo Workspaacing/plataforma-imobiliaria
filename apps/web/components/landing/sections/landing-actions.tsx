@@ -63,7 +63,7 @@ export function LandingActions({
           className={cn(
             position,
             "bottom-6 z-40 hidden @3xl:flex",
-            mode === "public" ? "right-6" : "me-6 ms-auto w-fit"
+            mode === "public" ? "right-6" : "ms-auto me-6 w-fit"
           )}
         >
           <a

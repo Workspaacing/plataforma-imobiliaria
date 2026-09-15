@@ -64,7 +64,10 @@ export default async function ImoveisPage({ searchParams }: ImoveisPageProps) {
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <PageHeading title="Imóveis" description="Cadastro, fotos, status e publicação nos portais." />
+        <PageHeading
+          title="Imóveis"
+          description="Cadastro, fotos, status e publicação nos portais."
+        />
         {newPropertyButton}
       </div>
 
@@ -127,7 +130,9 @@ export default async function ImoveisPage({ searchParams }: ImoveisPageProps) {
               <SearchXIcon />
             </EmptyMedia>
             <EmptyTitle>Nenhum imóvel encontrado</EmptyTitle>
-            <EmptyDescription>Nenhum imóvel corresponde aos filtros. Ajuste a busca ou limpe os filtros.</EmptyDescription>
+            <EmptyDescription>
+              Nenhum imóvel corresponde aos filtros. Ajuste a busca ou limpe os filtros.
+            </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
             <Button variant="outline" render={<Link href="/imoveis" />} nativeButton={false}>

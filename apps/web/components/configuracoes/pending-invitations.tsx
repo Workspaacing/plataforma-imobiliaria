@@ -49,10 +49,7 @@ import {
 import { Spinner } from "@workspace/ui/components/spinner"
 import { toast } from "@workspace/ui/components/toast"
 
-import {
-  renewInvitation,
-  revokeInvitation,
-} from "@/app/(app)/configuracoes/equipe/actions"
+import { renewInvitation, revokeInvitation } from "@/app/(app)/configuracoes/equipe/actions"
 import { useCopyToClipboard } from "@/components/configuracoes/copy-field"
 import { getInvitationShareLinks } from "@/components/configuracoes/invitation-share"
 import { INVITATION_VALIDITY_DAYS } from "@/lib/configuracoes/invitations"
@@ -87,8 +84,8 @@ export function PendingInvitations({
           </EmptyMedia>
           <EmptyTitle>Nenhum convite pendente</EmptyTitle>
           <EmptyDescription>
-            Use “Convidar pessoa” para gerar um link de convite. Convites aceitos saem
-            desta lista e a pessoa aparece em Membros.
+            Use “Convidar pessoa” para gerar um link de convite. Convites aceitos saem desta lista e
+            a pessoa aparece em Membros.
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
@@ -132,7 +129,11 @@ function InvitationItem({
       toast.add(
         result.ok
           ? { title: result.message ?? "Convite renovado.", type: "success" }
-          : { title: "Não foi possível renovar", description: result.error, type: "error" }
+          : {
+              title: "Não foi possível renovar",
+              description: result.error,
+              type: "error",
+            }
       )
     })
   }
@@ -143,11 +144,18 @@ function InvitationItem({
 
       if (result.ok) {
         setRevokeOpen(false)
-        toast.add({ title: result.message ?? "Convite revogado.", type: "success" })
+        toast.add({
+          title: result.message ?? "Convite revogado.",
+          type: "success",
+        })
         return
       }
 
-      toast.add({ title: "Não foi possível revogar", description: result.error, type: "error" })
+      toast.add({
+        title: "Não foi possível revogar",
+        description: result.error,
+        type: "error",
+      })
     })
   }
 
@@ -236,8 +244,8 @@ function InvitationItem({
                 <AlertDialogHeader>
                   <AlertDialogTitle>Revogar o convite de {invitation.email}?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    O link deixa de funcionar na hora. Se mudar de ideia, será preciso gerar
-                    um novo convite.
+                    O link deixa de funcionar na hora. Se mudar de ideia, será preciso gerar um novo
+                    convite.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

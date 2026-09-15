@@ -12,12 +12,7 @@ export const COMMERCIAL_ROLES: readonly Role[] = [
 ]
 
 /** Quem lê e atualiza a caixa de entrada de captações. */
-export const CAPTURE_INBOX_ROLES: readonly Role[] = [
-  "owner",
-  "manager",
-  "capturer",
-  "assistant",
-]
+export const CAPTURE_INBOX_ROLES: readonly Role[] = ["owner", "manager", "capturer", "assistant"]
 
 /**
  * Papéis que só criam proposta em imóvel que não editam se forem o próprio

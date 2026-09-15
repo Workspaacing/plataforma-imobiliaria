@@ -98,7 +98,9 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
               <UsersIcon />
             </EmptyMedia>
             <EmptyTitle>Esta página não tem clientes</EmptyTitle>
-            <EmptyDescription>A lista tem {totalPages} página(s). Volte para a primeira.</EmptyDescription>
+            <EmptyDescription>
+              A lista tem {totalPages} página(s). Volte para a primeira.
+            </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
             <Button

@@ -26,7 +26,13 @@ import { DISCLAIMERS, launchFacts, type LandingTemplateRenderProps } from "./sha
  * localização, plantas). Galeria, tipologias, localização e o pedido do book
  * numa faixa escura com o formulário.
  */
-export function LaunchShowcaseTemplate({ vm, mode, leadForm, id, formHref }: LandingTemplateRenderProps) {
+export function LaunchShowcaseTemplate({
+  vm,
+  mode,
+  leadForm,
+  id,
+  formHref,
+}: LandingTemplateRenderProps) {
   const name = vm.launch.name
   const facts = launchFacts(vm)
   const heroImage = vm.theme.images.background ?? vm.theme.images.banners[0] ?? null

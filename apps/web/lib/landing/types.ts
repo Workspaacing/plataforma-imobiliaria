@@ -157,10 +157,12 @@ export type LandingSocialProofStat = {
 }
 
 export type LandingTracking = {
-  /** Somente dígitos (validado: seguro para injetar no script do Pixel). */
+  /** 5 a 20 dígitos (validado: seguro para injetar no script do Pixel). */
   meta_pixel_id?: string
-  /** G-XXXX, AW-XXXX, GT-XXXX ou DC-XXXX (validado). */
+  /** G-XXXX, GT-XXXX ou AW-XXXX (validado, maiúsculas). */
   google_tag_id?: string
+  /** GTM-XXXX (validado, maiúsculas). */
+  gtm_container_id?: string
 }
 
 export type LandingSeo = {
@@ -288,11 +290,13 @@ const nonNegative = z.unknown().transform((value) => {
 
 const nullableNonNegative = nonNegative.transform((value) => value ?? null)
 
-const hexColor = z.unknown().transform((value) =>
-  typeof value === "string" && LANDING_HEX_COLOR_PATTERN.test(value.trim())
-    ? value.trim().toUpperCase()
-    : undefined
-)
+const hexColor = z
+  .unknown()
+  .transform((value) =>
+    typeof value === "string" && LANDING_HEX_COLOR_PATTERN.test(value.trim())
+      ? value.trim().toUpperCase()
+      : undefined
+  )
 
 /**
  * Caminho relativo dentro de um bucket. Recusa URL absoluta, `..`, barra
@@ -348,9 +352,7 @@ function looseObject<Shape extends z.ZodRawShape>(shape: Shape) {
 }
 
 function onlyDefined<T extends Record<string, unknown>>(value: T): T {
-  return Object.fromEntries(
-    Object.entries(value).filter(([, entry]) => entry !== undefined)
-  ) as T
+  return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined)) as T
 }
 
 // ---------------------------------------------------------------------------
@@ -369,7 +371,12 @@ const themeSchema = looseObject({
 /** jsonb desconhecido → `LandingTheme` seguro (cores `#RRGGBB` maiúsculas, caminhos validados). */
 export function parseLandingTheme(value: unknown): LandingTheme {
   const parsed = themeSchema.safeParse(value)
-  if (!parsed.success) return { background_image_path: null, banner_image_paths: [], logo_path: null }
+  if (!parsed.success)
+    return {
+      background_image_path: null,
+      banner_image_paths: [],
+      logo_path: null,
+    }
   return onlyDefined<LandingTheme>(parsed.data)
 }
 
@@ -396,11 +403,13 @@ const isoDateTime = z.unknown().transform((value) => {
   return Number.isNaN(new Date(trimmed).getTime()) ? undefined : trimmed
 })
 
-const stateCode = z.unknown().transform((value) =>
-  typeof value === "string" && /^[a-zA-Z]{2}$/.test(value.trim())
-    ? value.trim().toUpperCase()
-    : undefined
-)
+const stateCode = z
+  .unknown()
+  .transform((value) =>
+    typeof value === "string" && /^[a-zA-Z]{2}$/.test(value.trim())
+      ? value.trim().toUpperCase()
+      : undefined
+  )
 
 const typologySchema = z.unknown().transform((value): LandingTypology | undefined => {
   if (!isPlainObject(value)) return undefined
@@ -496,16 +505,22 @@ export function parseLandingContent(value: unknown): LandingContent {
 // Payload público
 // ---------------------------------------------------------------------------
 
+/** Id de tag: aparado, em maiúsculas, até 40 caracteres e no formato exato; senão undefined. */
+const tagId = (pattern: RegExp) =>
+  z.unknown().transform((value) => {
+    if (typeof value !== "string") return undefined
+    const normalized = value.trim().toUpperCase()
+    return normalized.length <= 40 && pattern.test(normalized) ? normalized : undefined
+  })
+
+// Formatos alinhados com a rota pública (L3), que injeta esses ids em scripts.
 const trackingSchema = looseObject({
   meta_pixel_id: z.unknown().transform((value) => {
-    const raw = typeof value === "number" ? String(value) : value
-    return typeof raw === "string" && /^\d{6,20}$/.test(raw.trim()) ? raw.trim() : undefined
+    const raw = typeof value === "number" && Number.isInteger(value) ? String(value) : value
+    return typeof raw === "string" && /^[0-9]{5,20}$/.test(raw.trim()) ? raw.trim() : undefined
   }),
-  google_tag_id: z.unknown().transform((value) =>
-    typeof value === "string" && /^(G|AW|GT|DC)-[A-Z0-9]{4,20}$/i.test(value.trim())
-      ? value.trim().toUpperCase()
-      : undefined
-  ),
+  google_tag_id: tagId(/^(G|GT|AW)-[A-Z0-9]+$/),
+  gtm_container_id: tagId(/^GTM-[A-Z0-9]+$/),
 })
 
 const seoSchema = looseObject({
@@ -529,17 +544,21 @@ const organizationSchema = looseObject({
   brand: brandSchema,
 })
 
-const listingPurpose = z.unknown().transform((value): ListingPurpose | null =>
-  typeof value === "string" && (LISTING_PURPOSE_VALUES as readonly string[]).includes(value)
-    ? (value as ListingPurpose)
-    : null
-)
+const listingPurpose = z
+  .unknown()
+  .transform((value): ListingPurpose | null =>
+    typeof value === "string" && (LISTING_PURPOSE_VALUES as readonly string[]).includes(value)
+      ? (value as ListingPurpose)
+      : null
+  )
 
-const propertyType = z.unknown().transform((value): PropertyType | null =>
-  typeof value === "string" && (PROPERTY_TYPE_VALUES as readonly string[]).includes(value)
-    ? (value as PropertyType)
-    : null
-)
+const propertyType = z
+  .unknown()
+  .transform((value): PropertyType | null =>
+    typeof value === "string" && (PROPERTY_TYPE_VALUES as readonly string[]).includes(value)
+      ? (value as PropertyType)
+      : null
+  )
 
 const identifier = z.unknown().transform((value) => {
   if (typeof value === "number" && Number.isFinite(value)) return String(value)
@@ -609,7 +628,9 @@ export function parseLandingPublicPayload(value: unknown): LandingPublicPayload 
   return {
     page: {
       id,
-      template: isLandingTemplateKey(rawPage.template) ? rawPage.template : DEFAULT_LANDING_TEMPLATE,
+      template: isLandingTemplateKey(rawPage.template)
+        ? rawPage.template
+        : DEFAULT_LANDING_TEMPLATE,
       slug,
       name: cleanText(rawPage.name, 160) ?? organization.name,
       theme: parseLandingTheme(rawPage.theme),

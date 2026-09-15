@@ -80,7 +80,7 @@ export function LeadsTable({
                     </button>
                     <div className="flex flex-wrap gap-1 empty:hidden">
                       <LeadContactTimerBadge lead={lead} nowMs={nowMs} />
-                      <LeadDuplicateBadge count={lead.duplicates.length} />
+                      <LeadDuplicateBadge hasDuplicate={lead.hasDuplicate} />
                     </div>
                   </div>
                 </TableCell>

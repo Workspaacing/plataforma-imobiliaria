@@ -2,10 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { HousePlusIcon, SearchXIcon } from "lucide-react"
 
-import {
-  CAPTURE_STATUS_LABELS,
-  CAPTURE_STATUS_VALUES,
-} from "@workspace/core/properties/enums"
+import { CAPTURE_STATUS_LABELS, CAPTURE_STATUS_VALUES } from "@workspace/core/properties/enums"
 import { Button } from "@workspace/ui/components/button"
 import {
   Empty,
@@ -21,10 +18,10 @@ import { PublicLinkCard } from "@/components/captacao/public-link-card"
 import { PageHeading } from "@/components/crm/page-placeholder"
 import { StatusTabs } from "@/components/propostas/status-tabs"
 import { requireRole } from "@/lib/auth/session"
-import { getSiteUrl } from "@/lib/auth/site-url"
 import { listCaptureRequests } from "@/lib/captacao/queries"
 import { CAPTURE_INBOX_ROLES } from "@/lib/propostas/permissions"
 import { createClient } from "@/lib/supabase/server"
+import { buildCaptureUrl } from "@/lib/tenant/urls"
 
 export const metadata: Metadata = {
   title: "Captações",
@@ -46,12 +43,10 @@ export default async function CaptacaoPage({
   const status = CAPTURE_STATUS_VALUES.find((value) => value === statusParam) ?? null
 
   const supabase = await createClient()
-  const [{ rows, counts }, siteUrl] = await Promise.all([
-    listCaptureRequests(supabase, membership.organizationId, status),
-    getSiteUrl(),
-  ])
+  const { rows, counts } = await listCaptureRequests(supabase, membership.organizationId, status)
 
-  const publicUrl = `${siteUrl}/captar/${membership.organization.slug}`
+  // Formulário público no subdomínio da imobiliária ({slug}.raiz/captar).
+  const publicUrl = buildCaptureUrl(membership.organization.slug)
 
   const statusItems = CAPTURE_STATUS_VALUES.map((value) => ({
     value,

@@ -7,9 +7,13 @@ import { CookieConsentBanner } from "@/components/leads-publicos/cookie-consent-
 import { captureAttribution } from "@/lib/leads-publicos/attribution"
 import { saveLandingConsent, useLandingConsent } from "@/lib/leads-publicos/consent"
 import {
+  GOOGLE_TAG_ID_PATTERN,
+  GTM_CONTAINER_ID_PATTERN,
+  META_PIXEL_ID_PATTERN,
   safeGoogleTagId,
   safeGtmContainerId,
   safeMetaPixelId,
+  toInlineScriptString,
 } from "@/lib/leads-publicos/tracking-ids"
 
 type TrackingWindow = Window & {
@@ -52,14 +56,25 @@ export function LandingTracking({
     captureAttribution()
   }, [])
 
+  // Revalida cada ID com a regex logo antes de montar o script e interpola só
+  // o literal escapado (toInlineScriptString), nunca o texto cru.
+  const pixelLiteral =
+    canTrack && pixelId && META_PIXEL_ID_PATTERN.test(pixelId)
+      ? toInlineScriptString(pixelId)
+      : null
+  const tagLiteral =
+    canTrack && tagId && GOOGLE_TAG_ID_PATTERN.test(tagId) ? toInlineScriptString(tagId) : null
+  const gtmLiteral =
+    canTrack && gtmId && GTM_CONTAINER_ID_PATTERN.test(gtmId) ? toInlineScriptString(gtmId) : null
+
   return (
     <>
-      {canTrack && pixelId ? (
+      {pixelLiteral ? (
         <Script id="lp-meta-pixel" strategy="afterInteractive">
-          {`!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init',${JSON.stringify(pixelId)});fbq('track','PageView');`}
+          {`!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init',${pixelLiteral});fbq('track','PageView');`}
         </Script>
       ) : null}
-      {canTrack && tagId ? (
+      {tagLiteral && tagId ? (
         <>
           <Script
             id="lp-gtag-src"
@@ -67,13 +82,13 @@ export function LandingTracking({
             strategy="afterInteractive"
           />
           <Script id="lp-gtag-init" strategy="afterInteractive">
-            {`window.dataLayer=window.dataLayer||[];window.gtag=window.gtag||function(){window.dataLayer.push(arguments)};window.gtag('js',new Date());window.gtag('config',${JSON.stringify(tagId)});`}
+            {`window.dataLayer=window.dataLayer||[];window.gtag=window.gtag||function(){window.dataLayer.push(arguments)};window.gtag('js',new Date());window.gtag('config',${tagLiteral});`}
           </Script>
         </>
       ) : null}
-      {canTrack && gtmId ? (
+      {gtmLiteral ? (
         <Script id="lp-gtm" strategy="afterInteractive">
-          {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer',${JSON.stringify(gtmId)});`}
+          {`(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer',${gtmLiteral});`}
         </Script>
       ) : null}
       {hasTrackers && consent === "unset" ? (
@@ -124,7 +139,10 @@ export function trackLeadConversion({
 
   runSafely(() => trackingWindow.fbq?.("track", "Lead", {}, { eventID: eventId }))
   runSafely(() =>
-    trackingWindow.gtag?.("event", "generate_lead", { transaction_id: eventId, ...extra })
+    trackingWindow.gtag?.("event", "generate_lead", {
+      transaction_id: eventId,
+      ...extra,
+    })
   )
   runSafely(() => {
     const dataLayer = trackingWindow.dataLayer

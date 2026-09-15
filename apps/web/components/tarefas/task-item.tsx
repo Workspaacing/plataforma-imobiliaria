@@ -1,5 +1,11 @@
 import Link from "next/link"
-import { CalendarClockIcon, CircleCheckIcon, HouseIcon, UserIcon, UserRoundIcon } from "lucide-react"
+import {
+  CalendarClockIcon,
+  CircleCheckIcon,
+  HouseIcon,
+  UserIcon,
+  UserRoundIcon,
+} from "lucide-react"
 
 import { Badge } from "@workspace/ui/components/badge"
 import {
@@ -99,7 +105,11 @@ export function TaskItem({ task, assigneeName, canEdit, canDelete }: TaskItemPro
             dueAt: task.dueAt,
             priority: task.priority,
             client: task.client
-              ? { id: task.client.id, label: task.client.name, description: null }
+              ? {
+                  id: task.client.id,
+                  label: task.client.name,
+                  description: null,
+                }
               : null,
             property: task.property
               ? {

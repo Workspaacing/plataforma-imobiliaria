@@ -6,15 +6,9 @@ import { normalizeCnpj, normalizePhoneBr } from "@workspace/core/br/documents"
 import type { TablesUpdate } from "@workspace/database/types"
 
 import type { ActionResult } from "@/lib/auth/action-result"
-import {
-  getActionMembership,
-  type FormActionResult,
-} from "@/lib/configuracoes/action-context"
+import { getActionMembership, type FormActionResult } from "@/lib/configuracoes/action-context"
 import { mergeOrganizationBrand } from "@/lib/configuracoes/brand"
-import {
-  PERMISSION_DENIED_MESSAGE,
-  translateDatabaseError,
-} from "@/lib/configuracoes/errors"
+import { PERMISSION_DENIED_MESSAGE, translateDatabaseError } from "@/lib/configuracoes/errors"
 import {
   brandSchema,
   getFieldErrors,
@@ -164,13 +158,17 @@ export async function rotateFeedToken(): Promise<ActionResult> {
   }
 
   if (typeof data !== "string") {
-    return { ok: false, error: "Não foi possível gerar um novo endereço agora." }
+    return {
+      ok: false,
+      error: "Não foi possível gerar um novo endereço agora.",
+    }
   }
 
   revalidatePath(PAGE_PATH)
 
   return {
     ok: true,
-    message: "Novo endereço gerado. Cadastre a nova URL no Canal Pro para os portais continuarem lendo o feed.",
+    message:
+      "Novo endereço gerado. Cadastre a nova URL no Canal Pro para os portais continuarem lendo o feed.",
   }
 }

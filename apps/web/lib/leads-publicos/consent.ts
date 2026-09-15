@@ -4,10 +4,7 @@
 
 import * as React from "react"
 
-import {
-  CONSENT_COOKIE_MAX_AGE_SECONDS,
-  CONSENT_COOKIE_NAME,
-} from "@/lib/leads-publicos/constants"
+import { CONSENT_COOKIE_MAX_AGE_SECONDS, CONSENT_COOKIE_NAME } from "@/lib/leads-publicos/constants"
 import { readBrowserCookie, writeBrowserCookie } from "@/lib/leads-publicos/cookies"
 
 export type LandingConsentChoice = "granted" | "denied"

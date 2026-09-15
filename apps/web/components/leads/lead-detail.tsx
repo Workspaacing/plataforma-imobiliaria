@@ -187,7 +187,11 @@ export function LeadDetail({
     : LEAD_SOURCE_LABELS[lead.source]
 
   const property: PropertyOption | null = lead.property
-    ? { id: lead.property.id, label: `${lead.property.code} · ${lead.property.title}`, description: null }
+    ? {
+        id: lead.property.id,
+        label: `${lead.property.code} · ${lead.property.title}`,
+        description: null,
+      }
     : null
   const client: ClientOption | null = extras?.client
     ? {
@@ -218,33 +222,47 @@ export function LeadDetail({
         </Alert>
       ) : null}
 
-      {lead.duplicates.length > 0 ? (
+      {lead.hasDuplicate ? (
         <Alert>
           <CopyIcon />
           <AlertTitle>Possível duplicado</AlertTitle>
           <AlertDescription>
-            <p>
-              Mesmo telefone ou e-mail de outros registros nos últimos {LEAD_DUPLICATE_WINDOW_DAYS}{" "}
-              dias. Confira antes de atender para evitar disputa de atendimento e comissão.
-            </p>
-            <ul className="flex flex-col gap-1">
-              {lead.duplicates.map((item) => (
-                <li key={`${item.kind}-${item.id}`}>
-                  <Link
-                    href={item.kind === "lead" ? `${LEADS_PATH}/${item.id}` : `${CLIENTS_PATH}/${item.id}`}
-                    className="font-medium text-foreground underline-offset-4 hover:underline"
-                  >
-                    {item.name}
-                  </Link>{" "}
-                  ·{" "}
-                  {item.kind === "lead"
-                    ? `Lead${item.stage ? ` em ${LEAD_STAGE_LABELS[item.stage]}` : ""}`
-                    : "Cliente"}{" "}
-                  · {item.matchedBy.map((reason) => (reason === "phone" ? "telefone" : "e-mail")).join(" e ")}{" "}
-                  · {formatDate(item.createdAt)}
-                </li>
-              ))}
-            </ul>
+            {lead.duplicates.length > 0 ? (
+              <>
+                <p>
+                  Mesmo telefone ou e-mail de outros registros nos últimos{" "}
+                  {LEAD_DUPLICATE_WINDOW_DAYS} dias. Confira antes de atender para evitar disputa de
+                  atendimento e comissão.
+                </p>
+                <ul className="flex flex-col gap-1">
+                  {lead.duplicates.map((item) => (
+                    <li key={`${item.kind}-${item.id}`}>
+                      <Link
+                        href={
+                          item.kind === "lead"
+                            ? `${LEADS_PATH}/${item.id}`
+                            : `${CLIENTS_PATH}/${item.id}`
+                        }
+                        className="font-medium text-foreground underline-offset-4 hover:underline"
+                      >
+                        {item.name}
+                      </Link>{" "}
+                      ·{" "}
+                      {item.kind === "lead"
+                        ? `Lead${item.stage ? ` em ${LEAD_STAGE_LABELS[item.stage]}` : ""}`
+                        : "Cliente"}{" "}
+                      ·{" "}
+                      {item.matchedBy
+                        .map((reason) => (reason === "phone" ? "telefone" : "e-mail"))
+                        .join(" e ")}{" "}
+                      · {formatDate(item.createdAt)}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p>Existe um cadastro com o mesmo contato atribuído a outra pessoa da equipe.</p>
+            )}
           </AlertDescription>
         </Alert>
       ) : null}
@@ -390,7 +408,7 @@ export function LeadDetail({
           </dd>
         </dl>
         {lead.message ? (
-          <p className="rounded-lg bg-muted/50 p-3 text-sm whitespace-pre-wrap break-words">
+          <p className="rounded-lg bg-muted/50 p-3 text-sm break-words whitespace-pre-wrap">
             {lead.message}
           </p>
         ) : (
@@ -469,7 +487,9 @@ export function LeadDetail({
           <div className="flex flex-col gap-2 rounded-lg border p-3">
             <p className="text-xs font-medium">
               Identificadores de rastreamento{" "}
-              <span className="font-normal text-muted-foreground">(visível só para dono e gerente)</span>
+              <span className="font-normal text-muted-foreground">
+                (visível só para dono e gerente)
+              </span>
             </p>
             <dl className={`${DETAIL_LIST_CLASS} text-xs`}>
               {CLICK_ID_KEYS.map((key) =>
@@ -497,7 +517,10 @@ export function LeadDetail({
         {lead.consentAt ? (
           <p className="flex items-start gap-2 text-sm">
             <ShieldCheckIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-            Consentimento para contato registrado em {formatDateTime(lead.consentAt)}.
+            {/* Fora da landing page, a equipe informa só o dia (o horário gravado não é real). */}
+            {lead.source === "landing_page"
+              ? `Consentimento para contato registrado em ${formatDateTime(lead.consentAt)}.`
+              : `Consentimento para contato informado pela equipe no cadastro, dado em ${formatDate(lead.consentAt)}.`}
           </p>
         ) : (
           <Alert>
@@ -631,7 +654,9 @@ export function LeadDetail({
             </ItemMedia>
             <ItemContent className="min-w-0">
               <ItemTitle>Etapa atual: {LEAD_STAGE_LABELS[lead.stage]}</ItemTitle>
-              <ItemDescription>Última alteração em {formatDateTime(lead.updatedAt)}</ItemDescription>
+              <ItemDescription>
+                Última alteração em {formatDateTime(lead.updatedAt)}
+              </ItemDescription>
             </ItemContent>
           </Item>
         </ItemGroup>
@@ -782,7 +807,7 @@ function LeadActivities({
                 </span>
               </ItemTitle>
               {activity.body ? (
-                <p className="text-sm whitespace-pre-wrap break-words">{activity.body}</p>
+                <p className="text-sm break-words whitespace-pre-wrap">{activity.body}</p>
               ) : null}
               {activity.property ? (
                 <Link

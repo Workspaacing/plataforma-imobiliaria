@@ -144,7 +144,11 @@ export function KeysTable({
       const result = await run(keyId)
 
       if (!result.ok) {
-        toast.add({ title: "Não foi possível concluir", description: result.error, type: "error" })
+        toast.add({
+          title: "Não foi possível concluir",
+          description: result.error,
+          type: "error",
+        })
         return
       }
 

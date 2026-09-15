@@ -256,7 +256,9 @@ function TaskForm({
           <Alert>
             <CircleAlertIcon />
             <AlertTitle>Sem permissão</AlertTitle>
-            <AlertDescription>Seu papel nesta imobiliária não permite criar tarefas.</AlertDescription>
+            <AlertDescription>
+              Seu papel nesta imobiliária não permite criar tarefas.
+            </AlertDescription>
           </Alert>
         ) : null}
 
@@ -350,7 +352,9 @@ function TaskForm({
                     field.onChange(value)
 
                     if (!value) {
-                      form.setValue("dueTime", "", { shouldValidate: form.formState.isSubmitted })
+                      form.setValue("dueTime", "", {
+                        shouldValidate: form.formState.isSubmitted,
+                      })
                     }
                   }}
                   onBlur={field.onBlur}

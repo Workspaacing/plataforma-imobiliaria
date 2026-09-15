@@ -23,7 +23,13 @@ import { DISCLAIMERS, launchFacts, type LandingTemplateRenderProps } from "./sha
  * (área, quartos, valor), cada coluna com "Quero esta planta", que leva a
  * tipologia ao formulário. Hero curto com o nome em Bodoni e a ficha resumida.
  */
-export function LaunchUnitsTemplate({ vm, mode, leadForm, id, formHref }: LandingTemplateRenderProps) {
+export function LaunchUnitsTemplate({
+  vm,
+  mode,
+  leadForm,
+  id,
+  formHref,
+}: LandingTemplateRenderProps) {
   const name = vm.launch.name
   const banner = vm.theme.images.banners[0] ?? null
   const facts = launchFacts(vm).filter((fact) => fact.label !== "Plantas")
@@ -34,11 +40,19 @@ export function LaunchUnitsTemplate({ vm, mode, leadForm, id, formHref }: Landin
       <LandingHeader vm={vm} formHref={formHref} variant="solid" />
 
       <main>
-        <section aria-labelledby={id("hero-title")} className="bg-(--lp-surface-alt) text-(--lp-ink)">
+        <section
+          aria-labelledby={id("hero-title")}
+          className="bg-(--lp-surface-alt) text-(--lp-ink)"
+        >
           <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 @3xl:px-8 @3xl:py-16 @4xl:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)] @4xl:items-center @4xl:gap-14">
             <div className="flex flex-col gap-5">
               {name ? (
-                <p className={cn(lpSerifFont, "text-[2rem] leading-tight font-medium @xl:text-[2.75rem]")}>
+                <p
+                  className={cn(
+                    lpSerifFont,
+                    "text-[2rem] leading-tight font-medium @xl:text-[2.75rem]"
+                  )}
+                >
                   {name}
                 </p>
               ) : null}
@@ -121,7 +135,10 @@ export function LaunchUnitsTemplate({ vm, mode, leadForm, id, formHref }: Landin
           </div>
         </Section>
 
-        <Section tone="alt" labelledBy={vm.highlights.length > 0 ? id("highlights-title") : undefined}>
+        <Section
+          tone="alt"
+          labelledBy={vm.highlights.length > 0 ? id("highlights-title") : undefined}
+        >
           {vm.highlights.length > 0 ? (
             <div className="grid gap-10 @4xl:grid-cols-[minmax(0,1fr)_26rem] @4xl:items-start @4xl:gap-16">
               <div className="flex flex-col gap-6">

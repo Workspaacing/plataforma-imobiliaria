@@ -82,10 +82,7 @@ type PainelPageProps = {
 }
 
 export default async function PainelPage({ searchParams }: PainelPageProps) {
-  const [{ user, membership }, params] = await Promise.all([
-    requireMembership(),
-    searchParams,
-  ])
+  const [{ user, membership }, params] = await Promise.all([requireMembership(), searchParams])
 
   const supabase = await createClient()
   const organizationId = membership.organizationId
@@ -230,8 +227,8 @@ export default async function PainelPage({ searchParams }: PainelPageProps) {
                 </EmptyMedia>
                 <EmptyTitle>Nenhum imóvel ativo</EmptyTitle>
                 <EmptyDescription>
-                  Cadastre o primeiro imóvel para publicar nos portais e começar a
-                  receber interessados.
+                  Cadastre o primeiro imóvel para publicar nos portais e começar a receber
+                  interessados.
                 </EmptyDescription>
               </EmptyHeader>
               <EmptyContent>
@@ -250,16 +247,12 @@ export default async function PainelPage({ searchParams }: PainelPageProps) {
                 </EmptyMedia>
                 <EmptyTitle>Nenhum cliente cadastrado</EmptyTitle>
                 <EmptyDescription>
-                  Cadastre compradores, inquilinos e proprietários para acompanhar
-                  visitas, propostas e o perfil de busca de cada um.
+                  Cadastre compradores, inquilinos e proprietários para acompanhar visitas,
+                  propostas e o perfil de busca de cada um.
                 </EmptyDescription>
               </EmptyHeader>
               <EmptyContent>
-                <Button
-                  variant="outline"
-                  render={<Link href="/clientes" />}
-                  nativeButton={false}
-                >
+                <Button variant="outline" render={<Link href="/clientes" />} nativeButton={false}>
                   <PlusIcon data-icon="inline-start" />
                   Cadastrar cliente
                   <ArrowUpRightIcon data-icon="inline-end" />

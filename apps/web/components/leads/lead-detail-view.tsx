@@ -31,7 +31,14 @@ type LeadDetailViewProps = {
 }
 
 /** Página própria do lead (/leads/[id]), com as mesmas ações do painel lateral. */
-export function LeadDetailView({ lead, members, extras, currentUserId, role, nowMs }: LeadDetailViewProps) {
+export function LeadDetailView({
+  lead,
+  members,
+  extras,
+  currentUserId,
+  role,
+  nowMs,
+}: LeadDetailViewProps) {
   const router = useRouter()
   const now = useNow(nowMs)
   const mutations = useLeadMutations([lead], { managePositions: false })
@@ -56,7 +63,7 @@ export function LeadDetailView({ lead, members, extras, currentUserId, role, now
             <LeadStageBadge stage={current.stage} />
             <LeadSourceBadge lead={current} />
             <LeadContactTimerBadge lead={current} nowMs={now} />
-            <LeadDuplicateBadge count={current.duplicates.length} />
+            <LeadDuplicateBadge hasDuplicate={current.hasDuplicate} />
           </div>
         </div>
       </div>

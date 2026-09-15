@@ -42,18 +42,12 @@ export function ResetPasswordForm({ email }: { email: string | null }) {
   }
 
   return (
-    <form
-      className="flex flex-col gap-6"
-      onSubmit={form.handleSubmit(onSubmit)}
-      noValidate
-    >
+    <form className="flex flex-col gap-6" onSubmit={form.handleSubmit(onSubmit)} noValidate>
       <FieldGroup>
         <AuthHeading
           title="Crie uma nova senha"
           description={
-            email
-              ? `Defina a nova senha da conta ${email}.`
-              : "Defina a nova senha da sua conta."
+            email ? `Defina a nova senha da conta ${email}.` : "Defina a nova senha da sua conta."
           }
         />
         <FormFeedback feedback={feedback} />

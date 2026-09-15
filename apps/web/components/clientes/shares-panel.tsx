@@ -55,11 +55,23 @@ type SharesPanelProps = {
   role: Role
 }
 
-export function SharesPanel({ clientId, shares, candidates, currentUserId, role }: SharesPanelProps) {
+export function SharesPanel({
+  clientId,
+  shares,
+  candidates,
+  currentUserId,
+  role,
+}: SharesPanelProps) {
   const [selectedUserId, setSelectedUserId] = React.useState<string | null>(null)
   const [isPending, startTransition] = React.useTransition()
 
-  const items = [{ label: "Selecione um colega", value: null }, ...candidates.map((candidate) => ({ label: candidate.label, value: candidate.id }))]
+  const items = [
+    { label: "Selecione um colega", value: null },
+    ...candidates.map((candidate) => ({
+      label: candidate.label,
+      value: candidate.id,
+    })),
+  ]
 
   function share() {
     if (!selectedUserId) return
@@ -72,7 +84,10 @@ export function SharesPanel({ clientId, shares, candidates, currentUserId, role 
         return
       }
 
-      toast.add({ title: result.message ?? "Cliente compartilhado.", type: "success" })
+      toast.add({
+        title: result.message ?? "Cliente compartilhado.",
+        type: "success",
+      })
       setSelectedUserId(null)
     })
   }
@@ -102,7 +117,11 @@ export function SharesPanel({ clientId, shares, candidates, currentUserId, role 
             </SelectContent>
           </Select>
           <Button onClick={share} disabled={!selectedUserId || isPending}>
-            {isPending ? <Spinner data-icon="inline-start" /> : <UserPlusIcon data-icon="inline-start" />}
+            {isPending ? (
+              <Spinner data-icon="inline-start" />
+            ) : (
+              <UserPlusIcon data-icon="inline-start" />
+            )}
             Compartilhar
           </Button>
         </div>
@@ -120,9 +139,7 @@ export function SharesPanel({ clientId, shares, candidates, currentUserId, role 
               <Share2Icon />
             </EmptyMedia>
             <EmptyTitle>Não compartilhado</EmptyTitle>
-            <EmptyDescription>
-              Só o responsável e a gestão acessam este cliente.
-            </EmptyDescription>
+            <EmptyDescription>Só o responsável e a gestão acessam este cliente.</EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : (

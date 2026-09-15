@@ -4,19 +4,19 @@ import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { zodResolver } from "@hookform/resolvers/zod"
-import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  CircleAlertIcon,
-  EyeIcon,
-  SaveIcon,
-} from "lucide-react"
+import { ChevronLeftIcon, ChevronRightIcon, CircleAlertIcon, EyeIcon, SaveIcon } from "lucide-react"
 import { useForm, useWatch, type FieldErrors } from "react-hook-form"
 
 import { PROPERTY_STATUS_LABELS } from "@workspace/core/properties/enums"
 import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert"
 import { Button } from "@workspace/ui/components/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@workspace/ui/components/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@workspace/ui/components/card"
 import { Spinner } from "@workspace/ui/components/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs"
 import { toast } from "@workspace/ui/components/toast"
@@ -27,7 +27,11 @@ import { StepEndereco } from "@/components/imoveis/property-form/step-endereco"
 import { StepMidia } from "@/components/imoveis/property-form/step-midia"
 import { getPublishState, StepPortais } from "@/components/imoveis/property-form/step-portais"
 import { StepValores } from "@/components/imoveis/property-form/step-valores"
-import type { CaptureSummary, MemberOption, PropertySummary } from "@/components/imoveis/property-form/types"
+import type {
+  CaptureSummary,
+  MemberOption,
+  PropertySummary,
+} from "@/components/imoveis/property-form/types"
 import type { Role } from "@/lib/auth/roles"
 import {
   findStepForField,
@@ -137,14 +141,19 @@ export function PropertyForm({
         }
         if (firstField) setStep(findStepForField(firstField))
         setFormError(result.error)
-        toast.add({ type: "error", title: "Não foi possível salvar", description: result.error })
+        toast.add({
+          type: "error",
+          title: "Não foi possível salvar",
+          description: result.error,
+        })
         return
       }
 
       toast.add({
         type: "success",
         title: result.message,
-        description: result.imobScore != null ? `Nota do Anúncio: ${result.imobScore}/100.` : undefined,
+        description:
+          result.imobScore != null ? `Nota do Anúncio: ${result.imobScore}/100.` : undefined,
       })
       for (const warning of result.warnings) {
         toast.add({ type: "warning", title: "Atenção", description: warning })
@@ -224,8 +233,15 @@ export function PropertyForm({
         </Alert>
       ) : null}
 
-      <Tabs value={step} onValueChange={(value) => setStep(value as PropertyFormStepKey)} className="gap-4">
-        <TabsList aria-label="Etapas do cadastro" className="max-w-full justify-start overflow-x-auto">
+      <Tabs
+        value={step}
+        onValueChange={(value) => setStep(value as PropertyFormStepKey)}
+        className="gap-4"
+      >
+        <TabsList
+          aria-label="Etapas do cadastro"
+          className="max-w-full justify-start overflow-x-auto"
+        >
           {PROPERTY_FORM_STEPS.map((item, index) => {
             const hasError = item.fields.some((field) => errors[field])
             return (
@@ -279,16 +295,26 @@ export function PropertyForm({
         </div>
         <div className="flex items-center gap-2">
           {isDirty ? (
-            <span className="hidden text-xs text-muted-foreground md:inline">Alterações não salvas</span>
+            <span className="hidden text-xs text-muted-foreground md:inline">
+              Alterações não salvas
+            </span>
           ) : null}
           {property ? (
-            <Button variant="ghost" render={<Link href={`/imoveis/${property.id}`} />} nativeButton={false}>
+            <Button
+              variant="ghost"
+              render={<Link href={`/imoveis/${property.id}`} />}
+              nativeButton={false}
+            >
               <EyeIcon data-icon="inline-start" />
               <span className="hidden sm:inline">Ver ficha</span>
             </Button>
           ) : null}
           <Button type="submit" disabled={isSaving}>
-            {isSaving ? <Spinner data-icon="inline-start" /> : <SaveIcon data-icon="inline-start" />}
+            {isSaving ? (
+              <Spinner data-icon="inline-start" />
+            ) : (
+              <SaveIcon data-icon="inline-start" />
+            )}
             {status === "draft" ? "Salvar rascunho" : "Salvar"}
           </Button>
         </div>

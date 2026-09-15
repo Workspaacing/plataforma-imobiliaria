@@ -7,7 +7,10 @@ import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/al
 import { TabsContent } from "@workspace/ui/components/tabs"
 
 import { AuthorizationsPanel } from "@/components/imoveis/detail/authorizations-panel"
-import { PropertyDetailTabs, type PropertyDetailTabItem } from "@/components/imoveis/detail/detail-tabs"
+import {
+  PropertyDetailTabs,
+  type PropertyDetailTabItem,
+} from "@/components/imoveis/detail/detail-tabs"
 import { KeysProposalsTab } from "@/components/imoveis/detail/keys-proposals-tab"
 import { MatchesTab } from "@/components/imoveis/detail/matches-tab"
 import { MediaTab } from "@/components/imoveis/detail/media-tab"
@@ -39,7 +42,11 @@ import {
   canEditProperty,
   canReadCaptureRequests,
 } from "@/lib/imoveis/permissions"
-import { getOrganizationMembers, getPropertyMediaRows, toMemberNameMap } from "@/lib/imoveis/queries"
+import {
+  getOrganizationMembers,
+  getPropertyMediaRows,
+  toMemberNameMap,
+} from "@/lib/imoveis/queries"
 import { getStatusRequirementIssues } from "@/lib/imoveis/schema"
 import { createClient } from "@/lib/supabase/server"
 
@@ -75,19 +82,20 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
   const supabase = await createClient()
   const role = membership.role
 
-  const [media, owners, authorizations, members, condominium, matches, keys, proposals, capture] = await Promise.all([
-    getPropertyMediaRows(supabase, organizationId, property.id),
-    getPropertyOwners(supabase, organizationId, property.id),
-    getPropertyAuthorizations(supabase, organizationId, property.id),
-    getOrganizationMembers(supabase, organizationId),
-    getCondominiumSummary(supabase, organizationId, property.condominium_id),
-    getPropertyMatches(supabase, organizationId, property),
-    getPropertyKeys(supabase, organizationId, property.id),
-    getPropertyProposals(supabase, organizationId, property.id),
-    canReadCaptureRequests(role)
-      ? getConvertedCapture(supabase, organizationId, property.id)
-      : Promise.resolve(null),
-  ])
+  const [media, owners, authorizations, members, condominium, matches, keys, proposals, capture] =
+    await Promise.all([
+      getPropertyMediaRows(supabase, organizationId, property.id),
+      getPropertyOwners(supabase, organizationId, property.id),
+      getPropertyAuthorizations(supabase, organizationId, property.id),
+      getOrganizationMembers(supabase, organizationId),
+      getCondominiumSummary(supabase, organizationId, property.condominium_id),
+      getPropertyMatches(supabase, organizationId, property),
+      getPropertyKeys(supabase, organizationId, property.id),
+      getPropertyProposals(supabase, organizationId, property.id),
+      canReadCaptureRequests(role)
+        ? getConvertedCapture(supabase, organizationId, property.id)
+        : Promise.resolve(null),
+    ])
 
   const canEdit = canEditProperty(role, user.id, property)
   const canDelete = canDeletePropertyRecords(role)
@@ -95,11 +103,15 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
 
   const mediaSummary = summarizeMedia(media)
   const coverPath =
-    (mediaSummary.images.find((image) => image.is_cover) ?? mediaSummary.images[0])?.storage_path ?? null
+    (mediaSummary.images.find((image) => image.is_cover) ?? mediaSummary.images[0])?.storage_path ??
+    null
   const score = computePropertyScore(
     property,
     mediaSummary,
-    authorizations.map((item) => ({ starts_on: item.startsOn, ends_on: item.endsOn }))
+    authorizations.map((item) => ({
+      starts_on: item.startsOn,
+      ends_on: item.endsOn,
+    }))
   )
   const portalValidation = validatePropertyForPortals(property, mediaSummary)
 
@@ -162,7 +174,12 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
           />
         </TabsContent>
         <TabsContent value="midia">
-          <MediaTab propertyId={property.id} propertyCode={property.code} media={mediaSummary} canEdit={canEdit} />
+          <MediaTab
+            propertyId={property.id}
+            propertyCode={property.code}
+            media={mediaSummary}
+            canEdit={canEdit}
+          />
         </TabsContent>
         <TabsContent value="proprietarios">
           <OwnersPanel

@@ -40,9 +40,7 @@ export function PropertiesEmpty({
           <EmptyMedia variant="icon">
             <HouseIcon />
           </EmptyMedia>
-          <EmptyTitle>
-            {preview ? "Nenhum imóvel selecionado" : "Novas opções em breve"}
-          </EmptyTitle>
+          <EmptyTitle>{preview ? "Nenhum imóvel selecionado" : "Novas opções em breve"}</EmptyTitle>
           <EmptyDescription>
             {preview
               ? "Escolha no editor quais imóveis aparecem nesta página."
@@ -79,9 +77,7 @@ export function PropertyGrid({
   }
 
   return (
-    <ul
-      className={cn("grid gap-5 @xl:grid-cols-2", columns === 3 && "@5xl:grid-cols-3")}
-    >
+    <ul className={cn("grid gap-5 @xl:grid-cols-2", columns === 3 && "@5xl:grid-cols-3")}>
       {properties.map((property) => (
         <li key={property.id} className="flex">
           <PropertyCard property={property} formHref={formHref} />

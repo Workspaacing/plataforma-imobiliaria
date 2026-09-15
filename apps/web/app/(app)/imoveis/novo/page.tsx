@@ -31,7 +31,12 @@ type NovoImovelPageProps = {
   searchParams: Promise<{ captacao?: string | string[] }>
 }
 
-type CaptureNotice = { title: string; message: string; href?: string; hrefLabel?: string }
+type CaptureNotice = {
+  title: string
+  message: string
+  href?: string
+  hrefLabel?: string
+}
 
 export default async function NovoImovelPage({ searchParams }: NovoImovelPageProps) {
   const [{ user, membership }, params] = await Promise.all([requireMembership(), searchParams])
@@ -47,7 +52,9 @@ export default async function NovoImovelPage({ searchParams }: NovoImovelPagePro
               <ShieldAlertIcon />
             </EmptyMedia>
             <EmptyTitle>Acesso restrito</EmptyTitle>
-            <EmptyDescription>Seu papel nesta imobiliária não permite cadastrar imóveis.</EmptyDescription>
+            <EmptyDescription>
+              Seu papel nesta imobiliária não permite cadastrar imóveis.
+            </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
             <Button variant="outline" render={<Link href="/imoveis" />} nativeButton={false}>
@@ -73,7 +80,10 @@ export default async function NovoImovelPage({ searchParams }: NovoImovelPagePro
 
   if (rawCaptureId) {
     if (!isUuid(rawCaptureId)) {
-      captureNotice = { title: "Captação inválida", message: "O link da captação está incompleto." }
+      captureNotice = {
+        title: "Captação inválida",
+        message: "O link da captação está incompleto.",
+      }
     } else if (!canReadCaptureRequests(membership.role)) {
       captureNotice = {
         title: "Sem acesso à captação",
@@ -94,11 +104,15 @@ export default async function NovoImovelPage({ searchParams }: NovoImovelPagePro
       }
 
       if (!data) {
-        captureNotice = { title: "Captação não encontrada", message: "Ela pode ter sido removida." }
+        captureNotice = {
+          title: "Captação não encontrada",
+          message: "Ela pode ter sido removida.",
+        }
       } else if (data.status === "converted" && data.converted_property_id) {
         captureNotice = {
           title: "Captação já convertida",
-          message: "Esta captação já virou um imóvel. Cadastrar de novo criaria um anúncio duplicado.",
+          message:
+            "Esta captação já virou um imóvel. Cadastrar de novo criaria um anúncio duplicado.",
           href: `/imoveis/${data.converted_property_id}`,
           hrefLabel: "Abrir o imóvel",
         }
@@ -133,7 +147,9 @@ export default async function NovoImovelPage({ searchParams }: NovoImovelPagePro
           <AlertTitle>{captureNotice.title}</AlertTitle>
           <AlertDescription>
             {captureNotice.message}{" "}
-            {captureNotice.href ? <Link href={captureNotice.href}>{captureNotice.hrefLabel}</Link> : null}
+            {captureNotice.href ? (
+              <Link href={captureNotice.href}>{captureNotice.hrefLabel}</Link>
+            ) : null}
           </AlertDescription>
         </Alert>
       ) : null}

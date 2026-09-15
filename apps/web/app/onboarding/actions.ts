@@ -21,10 +21,9 @@ import {
 import { HOME_PATH, LOGIN_PATH, ONBOARDING_PATH } from "@/lib/auth/routes"
 import { getCurrentUser } from "@/lib/auth/session"
 import { createClient } from "@/lib/supabase/server"
+import { buildTenantUrl, isSubdomainTenancy, isValidTenantSlug } from "@/lib/tenant/urls"
 
-export type OrganizationFieldErrors = Partial<
-  Record<keyof OrganizationValues, string>
->
+export type OrganizationFieldErrors = Partial<Record<keyof OrganizationValues, string>>
 
 export type CreateOrganizationResult = {
   ok: false
@@ -65,7 +64,9 @@ function mapCreateOrganizationError(error: DatabaseError): CreateOrganizationRes
         : {
             ok: false,
             error: "Este endereço já está em uso.",
-            fieldErrors: { slug: "Este endereço já está em uso. Escolha outro." },
+            fieldErrors: {
+              slug: "Este endereço já está em uso. Escolha outro.",
+            },
           }
     case "PGRST202":
     case "42883":
@@ -121,19 +122,16 @@ export async function createOrganization(
   const supabase = await createClient()
 
   // A função cria a organização e a membership de dono na mesma transação.
-  const { data: organizationId, error } = await supabase.rpc(
-    "create_organization",
-    {
-      p_name: name,
-      p_slug: slug,
-      p_legal_name: legalName,
-      // Parâmetros com DEFAULT NULL na função: omitir em vez de enviar null.
-      p_cnpj: cnpj ? normalizeCnpj(cnpj) : undefined,
-      p_creci: creci,
-      p_city: city,
-      p_state: state,
-    }
-  )
+  const { data: organizationId, error } = await supabase.rpc("create_organization", {
+    p_name: name,
+    p_slug: slug,
+    p_legal_name: legalName,
+    // Parâmetros com DEFAULT NULL na função: omitir em vez de enviar null.
+    p_cnpj: cnpj ? normalizeCnpj(cnpj) : undefined,
+    p_creci: creci,
+    p_city: city,
+    p_state: state,
+  })
 
   if (error) {
     return mapCreateOrganizationError(error)
@@ -146,11 +144,37 @@ export async function createOrganization(
     }
   }
 
-  const cookieStore = await cookies()
-  cookieStore.set(ORGANIZATION_COOKIE_NAME, organizationId, ORGANIZATION_COOKIE_OPTIONS)
+  // Host único: a nova imobiliária vira a escolha do cookie (validado a cada requisição).
+  if (!isSubdomainTenancy()) {
+    const cookieStore = await cookies()
+    cookieStore.set(ORGANIZATION_COOKIE_NAME, organizationId, ORGANIZATION_COOKIE_OPTIONS)
+
+    revalidatePath("/", "layout")
+    redirect(HOME_PATH)
+  }
+
+  // O slug gravado pelo banco (normalizado na função) define o subdomínio.
+  const { data: created } = await supabase
+    .from("organizations")
+    .select("slug")
+    .eq("id", organizationId)
+    .maybeSingle()
+
+  const createdSlug = created?.slug ?? slug
 
   revalidatePath("/", "layout")
-  redirect(HOME_PATH)
+
+  if (!isValidTenantSlug(createdSlug)) {
+    return {
+      ok: false,
+      error:
+        "A imobiliária foi criada, mas o endereço não serve como subdomínio. Fale com o suporte.",
+    }
+  }
+
+  // Cada imobiliária tem o próprio subdomínio. Em localhost o cookie de sessão
+  // não é compartilhado entre subdomínios: lá o usuário entra de novo.
+  redirect(buildTenantUrl(createdSlug, HOME_PATH))
 }
 
 const brasilApiCnpjSchema = z.object({
@@ -162,6 +186,9 @@ const brasilApiCnpjSchema = z.object({
 })
 
 const CNPJ_LOOKUP_TIMEOUT_MS = 8000
+
+/** CNPJ normalizado (alfanumérico desde 2026): só este formato chega à URL. */
+const CNPJ_URL_PATTERN = /^[0-9A-Z]{12}[0-9]{2}$/
 
 /** Consulta a BrasilAPI no servidor (evita CORS e expõe só o necessário). */
 export async function lookupCnpj(value: string): Promise<CnpjLookupResult> {
@@ -177,8 +204,15 @@ export async function lookupCnpj(value: string): Promise<CnpjLookupResult> {
     return { ok: false, error: "CNPJ inválido. Confira os números." }
   }
 
+  // Validação ancorada logo antes do fetch; host e caminho fixos (sem SSRF).
+  if (!CNPJ_URL_PATTERN.test(cnpj)) {
+    return { ok: false, error: "CNPJ inválido. Confira os números." }
+  }
+
+  const lookupUrl = new URL(`/api/cnpj/v1/${cnpj}`, "https://brasilapi.com.br")
+
   try {
-    const response = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`, {
+    const response = await fetch(lookupUrl, {
       headers: { Accept: "application/json" },
       cache: "no-store",
       signal: AbortSignal.timeout(CNPJ_LOOKUP_TIMEOUT_MS),
@@ -210,7 +244,8 @@ export async function lookupCnpj(value: string): Promise<CnpjLookupResult> {
     if (!parsed.success) {
       return {
         ok: false,
-        error: "A consulta de CNPJ respondeu num formato inesperado. Preencha os dados manualmente.",
+        error:
+          "A consulta de CNPJ respondeu num formato inesperado. Preencha os dados manualmente.",
       }
     }
 
@@ -222,9 +257,7 @@ export async function lookupCnpj(value: string): Promise<CnpjLookupResult> {
       ok: true,
       data: {
         legalName: company.razao_social.trim(),
-        tradeName: company.nome_fantasia?.trim()
-          ? toTitleCase(company.nome_fantasia.trim())
-          : null,
+        tradeName: company.nome_fantasia?.trim() ? toTitleCase(company.nome_fantasia.trim()) : null,
         city: company.municipio?.trim() ? toTitleCase(company.municipio.trim()) : null,
         state: isBrazilianState(uf) ? uf : null,
       },

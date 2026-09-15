@@ -21,7 +21,11 @@ export function createAnonClient() {
   }
 
   return createSupabaseClient<Database>(env.url, env.publishableKey, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
   })
 }
 
@@ -76,7 +80,9 @@ export const getPublicOrganization = cache(
     }
 
     const supabase = createAnonClient()
-    const { data, error } = await supabase.rpc("get_public_organization", { p_slug: slug })
+    const { data, error } = await supabase.rpc("get_public_organization", {
+      p_slug: slug,
+    })
 
     if (error) {
       throw new Error(`Não foi possível carregar a imobiliária (${error.code ?? "erro"}).`)

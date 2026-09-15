@@ -223,7 +223,9 @@ export async function getClientDetailData(organizationId: string, clientId: stri
       .limit(10),
     supabase
       .from("tasks")
-      .select("id, title, description, status, priority, due_at, assignee_id, created_by, property_id")
+      .select(
+        "id, title, description, status, priority, due_at, assignee_id, created_by, property_id"
+      )
       .eq("organization_id", organizationId)
       .eq("client_id", clientId)
       .eq("status", "open")
@@ -231,7 +233,9 @@ export async function getClientDetailData(organizationId: string, clientId: stri
       .limit(10),
     supabase
       .from("tasks")
-      .select("id, title, description, status, priority, due_at, assignee_id, created_by, property_id")
+      .select(
+        "id, title, description, status, priority, due_at, assignee_id, created_by, property_id"
+      )
       .eq("organization_id", organizationId)
       .eq("client_id", clientId)
       .eq("status", "done")
@@ -272,9 +276,7 @@ export async function getClientDetailData(organizationId: string, clientId: stri
   const propertyFor = (id: string | null) => (id ? (propertyById.get(id) ?? null) : null)
   const interests = interestsResult.data ?? []
 
-  const mapTask = (
-    task: NonNullable<typeof openTasksResult.data>[number]
-  ): ClientTaskItem => ({
+  const mapTask = (task: NonNullable<typeof openTasksResult.data>[number]): ClientTaskItem => ({
     id: task.id,
     title: task.title,
     description: task.description,
@@ -287,52 +289,44 @@ export async function getClientDetailData(organizationId: string, clientId: stri
   })
 
   return {
-    activities: (activitiesResult.data ?? []).map(
-      (activity): ClientActivityItem => ({
-        id: activity.id,
-        type: activity.type,
-        body: activity.body,
-        occurredAt: activity.occurred_at,
-        createdBy: activity.created_by,
-        property: propertyFor(activity.property_id),
-      })
-    ),
+    activities: (activitiesResult.data ?? []).map((activity): ClientActivityItem => ({
+      id: activity.id,
+      type: activity.type,
+      body: activity.body,
+      occurredAt: activity.occurred_at,
+      createdBy: activity.created_by,
+      property: propertyFor(activity.property_id),
+    })),
     activitiesFailed: Boolean(activitiesResult.error),
     interests,
     interestsFailed: Boolean(interestsResult.error),
-    documents: (documentsResult.data ?? []).map(
-      (document): ClientDocumentItem => ({
-        id: document.id,
-        name: document.name,
-        mimeType: document.mime_type,
-        sizeBytes: document.size_bytes,
-        uploadedBy: document.uploaded_by,
-        createdAt: document.created_at,
-      })
-    ),
+    documents: (documentsResult.data ?? []).map((document): ClientDocumentItem => ({
+      id: document.id,
+      name: document.name,
+      mimeType: document.mime_type,
+      sizeBytes: document.size_bytes,
+      uploadedBy: document.uploaded_by,
+      createdAt: document.created_at,
+    })),
     documentsFailed: Boolean(documentsResult.error),
-    shares: (sharesResult.data ?? []).map(
-      (share): ClientShareItem => ({
-        id: share.id,
-        userId: share.user_id,
-        sharedBy: share.shared_by,
-        createdAt: share.created_at,
-      })
-    ),
+    shares: (sharesResult.data ?? []).map((share): ClientShareItem => ({
+      id: share.id,
+      userId: share.user_id,
+      sharedBy: share.shared_by,
+      createdAt: share.created_at,
+    })),
     matches: rankMatches(matchesResult.data ?? [], interests),
     matchesFailed: Boolean(matchesResult.error),
-    appointments: (appointmentsResult.data ?? []).map(
-      (appointment): ClientAppointmentItem => ({
-        id: appointment.id,
-        startsAt: appointment.starts_at,
-        endsAt: appointment.ends_at,
-        status: appointment.status,
-        brokerId: appointment.broker_id,
-        createdBy: appointment.created_by,
-        meetingPoint: appointment.meeting_point,
-        property: propertyFor(appointment.property_id),
-      })
-    ),
+    appointments: (appointmentsResult.data ?? []).map((appointment): ClientAppointmentItem => ({
+      id: appointment.id,
+      startsAt: appointment.starts_at,
+      endsAt: appointment.ends_at,
+      status: appointment.status,
+      brokerId: appointment.broker_id,
+      createdBy: appointment.created_by,
+      meetingPoint: appointment.meeting_point,
+      property: propertyFor(appointment.property_id),
+    })),
     appointmentsFailed: Boolean(appointmentsResult.error),
     openTasks: (openTasksResult.data ?? []).map(mapTask),
     doneTasks: (doneTasksResult.data ?? []).map(mapTask),

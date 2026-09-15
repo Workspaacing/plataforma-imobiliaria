@@ -49,7 +49,9 @@ export function PortalPublishCard({
 
   let description: string
   if (optimisticPublished) {
-    description = publishedAt ? `Publicado desde ${formatDateTime(publishedAt)}.` : "Publicado no feed dos portais."
+    description = publishedAt
+      ? `Publicado desde ${formatDateTime(publishedAt)}.`
+      : "Publicado no feed dos portais."
   } else if (!isActive) {
     description = "Ative o imóvel para publicar no feed VRSync."
   } else if (!isValid) {
@@ -64,9 +66,16 @@ export function PortalPublishCard({
       const result = await setPublishedToPortalsAction(propertyId, checked)
 
       if (result.ok) {
-        toast.add({ title: result.message ?? "Publicação atualizada.", type: "success" })
+        toast.add({
+          title: result.message ?? "Publicação atualizada.",
+          type: "success",
+        })
       } else {
-        toast.add({ title: "Não foi possível atualizar a publicação", description: result.error, type: "error" })
+        toast.add({
+          title: "Não foi possível atualizar a publicação",
+          description: result.error,
+          type: "error",
+        })
       }
     })
   }

@@ -68,7 +68,9 @@ function AppointmentFeedbackForm({
   defaultRating,
   defaultFeedback,
   onClose,
-}: Omit<AppointmentFeedbackDialogProps, "open" | "onOpenChange"> & { onClose: () => void }) {
+}: Omit<AppointmentFeedbackDialogProps, "open" | "onOpenChange"> & {
+  onClose: () => void
+}) {
   const [isSaving, startSaving] = React.useTransition()
   const form = useForm<AppointmentFeedbackFormValues>({
     resolver: zodResolver(appointmentFeedbackFormSchema),
@@ -96,7 +98,10 @@ function AppointmentFeedbackForm({
         return
       }
 
-      toast.add({ title: result.message ?? "Retorno da visita registrado.", type: "success" })
+      toast.add({
+        title: result.message ?? "Retorno da visita registrado.",
+        type: "success",
+      })
       onClose()
     })
   }

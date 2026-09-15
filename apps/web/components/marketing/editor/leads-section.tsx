@@ -37,7 +37,10 @@ export function LeadsSection({
   const known = value === null || members.some((member) => member.id === value)
   const items: { label: string; value: string | null }[] = [
     { label: "Sem responsável (fila do funil)", value: null },
-    ...members.map((member) => ({ label: `${member.name} · ${member.roleLabel}`, value: member.id })),
+    ...members.map((member) => ({
+      label: `${member.name} · ${member.roleLabel}`,
+      value: member.id,
+    })),
     ...(known ? [] : [{ label: "Ex-membro da equipe", value }]),
   ]
 
@@ -51,7 +54,11 @@ export function LeadsSection({
           onValueChange={(next) => onChange(typeof next === "string" ? next : null)}
           disabled={disabled}
         >
-          <SelectTrigger id="lp-responsavel" className="w-full" aria-invalid={Boolean(error) || !known || undefined}>
+          <SelectTrigger
+            id="lp-responsavel"
+            className="w-full"
+            aria-invalid={Boolean(error) || !known || undefined}
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -67,18 +74,21 @@ export function LeadsSection({
         {error ? (
           <FieldError>{error}</FieldError>
         ) : !known ? (
-          <FieldError>Esta pessoa não está mais ativa na equipe. Escolha outro responsável.</FieldError>
+          <FieldError>
+            Esta pessoa não está mais ativa na equipe. Escolha outro responsável.
+          </FieldError>
         ) : (
           <FieldDescription>
-            Cada contato enviado por esta página vira um lead no funil, já atribuído a esta pessoa. Sem
-            responsável, o lead entra na fila para distribuição.
+            Cada contato enviado por esta página vira um lead no funil, já atribuído a esta pessoa.
+            Sem responsável, o lead entra na fila para distribuição.
           </FieldDescription>
         )}
       </Field>
       <Alert>
         <InfoIcon />
         <AlertDescription>
-          Nos modelos com bloco do corretor, a página mostra o nome, a foto e o CRECI do responsável escolhido.
+          Nos modelos com bloco do corretor, a página mostra o nome, a foto e o CRECI do responsável
+          escolhido.
         </AlertDescription>
       </Alert>
     </FieldGroup>
