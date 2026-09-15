@@ -25,6 +25,7 @@ import type { ProposalPropertyOption } from "@/components/propostas/proposal-for
 import { ProposalsFilters } from "@/components/propostas/proposals-filters"
 import { ProposalsTable, type ProposalTableRow } from "@/components/propostas/proposals-table"
 import { StatusTabs } from "@/components/propostas/status-tabs"
+import { PageShell } from "@/components/shared/page-shell"
 import { requireMembership } from "@/lib/auth/session"
 import { todayInSaoPaulo } from "@/lib/chaves/datetime"
 import { getClientOptions, getPropertyOptions, getTeamMembers } from "@/lib/propostas/options"
@@ -116,7 +117,7 @@ export default async function PropostasPage({
   }))
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
+    <PageShell>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <PageHeading
           title="Propostas"
@@ -209,6 +210,6 @@ export default async function PropostasPage({
           ) : null}
         </Empty>
       )}
-    </div>
+    </PageShell>
   )
 }

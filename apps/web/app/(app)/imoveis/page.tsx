@@ -17,6 +17,7 @@ import { PageHeading } from "@/components/crm/page-placeholder"
 import { ListPagination } from "@/components/imoveis/list-pagination"
 import { PropertiesFilters } from "@/components/imoveis/properties-filters"
 import { PropertiesList } from "@/components/imoveis/properties-list"
+import { PageShell } from "@/components/shared/page-shell"
 import { requireMembership } from "@/lib/auth/session"
 import {
   filtersToSearchParams,
@@ -62,7 +63,7 @@ export default async function ImoveisPage({ searchParams }: ImoveisPageProps) {
   ) : null
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
+    <PageShell>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <PageHeading
           title="Imóveis"
@@ -156,6 +157,6 @@ export default async function ImoveisPage({ searchParams }: ImoveisPageProps) {
           {newPropertyButton ? <EmptyContent>{newPropertyButton}</EmptyContent> : null}
         </Empty>
       )}
-    </div>
+    </PageShell>
   )
 }

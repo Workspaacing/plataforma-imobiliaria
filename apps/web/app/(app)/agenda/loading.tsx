@@ -1,8 +1,10 @@
 import { Skeleton } from "@workspace/ui/components/skeleton"
 
+import { PageShell } from "@/components/shared/page-shell"
+
 export default function AgendaLoading() {
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6" aria-busy="true">
+    <PageShell aria-busy="true">
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="flex flex-col gap-2">
           <Skeleton className="h-7 w-28" />
@@ -29,6 +31,6 @@ export default function AgendaLoading() {
           ))}
         </div>
       </div>
-    </div>
+    </PageShell>
   )
 }

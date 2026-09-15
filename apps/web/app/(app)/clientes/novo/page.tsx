@@ -3,6 +3,7 @@ import type { Metadata } from "next"
 import { ClientAccessDenied } from "@/components/clientes/client-access-denied"
 import { ClientForm } from "@/components/clientes/client-form"
 import { PageHeading } from "@/components/crm/page-placeholder"
+import { PageShell } from "@/components/shared/page-shell"
 import { toDateKey } from "@/lib/agenda/datetime"
 import { requireMembership } from "@/lib/auth/session"
 import { CLIENTS_PATH } from "@/lib/clientes/constants"
@@ -35,24 +36,26 @@ export default async function NovoClientePage() {
   ])
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
-      <PageHeading
-        title="Novo cliente"
-        description="Pessoa física ou jurídica. CPF, CNPJ, telefones e CEP são validados antes de salvar."
-      />
-      <div className="w-full max-w-4xl">
-        <ClientForm
-          mode="create"
-          initialValues={{
-            ...EMPTY_CLIENT_FORM_VALUES,
-            assignedTo: membership.role === "broker" ? user.id : "",
-          }}
-          members={members}
-          role={membership.role}
-          existingTags={tags}
-          today={toDateKey(new Date())}
+    <PageShell
+      variant="form"
+      header={
+        <PageHeading
+          title="Novo cliente"
+          description="Pessoa física ou jurídica. CPF, CNPJ, telefones e CEP são validados antes de salvar."
         />
-      </div>
-    </div>
+      }
+    >
+      <ClientForm
+        mode="create"
+        initialValues={{
+          ...EMPTY_CLIENT_FORM_VALUES,
+          assignedTo: membership.role === "broker" ? user.id : "",
+        }}
+        members={members}
+        role={membership.role}
+        existingTags={tags}
+        today={toDateKey(new Date())}
+      />
+    </PageShell>
   )
 }

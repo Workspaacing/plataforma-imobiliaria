@@ -19,6 +19,7 @@ import { CondominiumsCards, CondominiumsTable } from "@/components/condominios/c
 import { CondominiumsPagination } from "@/components/condominios/condominiums-pagination"
 import { NewCondominiumButton } from "@/components/condominios/new-condominium-button"
 import { PageHeading } from "@/components/crm/page-placeholder"
+import { PageShell } from "@/components/shared/page-shell"
 import { requireMembership } from "@/lib/auth/session"
 import { CONDOMINIUMS_PAGE_SIZE, listCondominiums } from "@/lib/condominios/queries"
 import {
@@ -64,7 +65,7 @@ export default async function CondominiosPage({ searchParams }: CondominiosPageP
   const currentHref = buildCondominiumsHref({ query, page })
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
+    <PageShell>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <PageHeading
           title="Condomínios"
@@ -147,6 +148,6 @@ export default async function CondominiosPage({ searchParams }: CondominiosPageP
           />
         </section>
       )}
-    </div>
+    </PageShell>
   )
 }

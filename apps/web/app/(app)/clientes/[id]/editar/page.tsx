@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 import { ClientAccessDenied } from "@/components/clientes/client-access-denied"
 import { ClientForm } from "@/components/clientes/client-form"
 import { PageHeading } from "@/components/crm/page-placeholder"
+import { PageShell } from "@/components/shared/page-shell"
 import { toDateKey } from "@/lib/agenda/datetime"
 import { requireMembership } from "@/lib/auth/session"
 import { CLIENTS_PATH } from "@/lib/clientes/constants"
@@ -45,19 +46,19 @@ export default async function EditarClientePage({ params }: EditarClientePagePro
   ])
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
-      <PageHeading title="Editar cliente" description={client.name} />
-      <div className="w-full max-w-4xl">
-        <ClientForm
-          mode="edit"
-          clientId={client.id}
-          initialValues={clientRowToFormValues(client)}
-          members={members}
-          role={membership.role}
-          existingTags={tags}
-          today={toDateKey(new Date())}
-        />
-      </div>
-    </div>
+    <PageShell
+      variant="form"
+      header={<PageHeading title="Editar cliente" description={client.name} />}
+    >
+      <ClientForm
+        mode="edit"
+        clientId={client.id}
+        initialValues={clientRowToFormValues(client)}
+        members={members}
+        role={membership.role}
+        existingTags={tags}
+        today={toDateKey(new Date())}
+      />
+    </PageShell>
   )
 }

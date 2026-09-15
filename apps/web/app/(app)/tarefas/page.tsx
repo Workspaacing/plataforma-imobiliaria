@@ -14,6 +14,7 @@ import {
 } from "@workspace/ui/components/empty"
 
 import { PageHeading } from "@/components/crm/page-placeholder"
+import { PageShell } from "@/components/shared/page-shell"
 import { NewTaskButton } from "@/components/tarefas/new-task-button"
 import { TaskFilters } from "@/components/tarefas/task-filters"
 import { TaskGroupCard } from "@/components/tarefas/task-group-card"
@@ -176,7 +177,7 @@ export default async function TarefasPage({
 
   return (
     <TaskListProvider members={members} currentUserId={user.id} role={role}>
-      <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
+      <PageShell>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <PageHeading
             title="Tarefas"
@@ -188,7 +189,7 @@ export default async function TarefasPage({
         <TaskFilters />
 
         {content}
-      </div>
+      </PageShell>
     </TaskListProvider>
   )
 }

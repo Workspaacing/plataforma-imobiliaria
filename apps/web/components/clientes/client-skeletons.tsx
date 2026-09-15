@@ -1,25 +1,31 @@
 import { Skeleton } from "@workspace/ui/components/skeleton"
 
+import { PageShell } from "@/components/shared/page-shell"
+
 export function ClientFormSkeleton() {
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
-      <div className="flex flex-col gap-2">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-4 w-96 max-w-full" />
-      </div>
-      <div className="flex w-full max-w-4xl flex-col gap-6">
-        <Skeleton className="h-8 w-72" />
-        {Array.from({ length: 4 }, (_, section) => (
-          <div key={section} className="flex flex-col gap-3">
-            <Skeleton className="h-5 w-32" />
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Skeleton className="h-8 w-full" />
-              <Skeleton className="h-8 w-full" />
-            </div>
+    <PageShell
+      variant="form"
+      aria-busy="true"
+      header={
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-96 max-w-full" />
+        </div>
+      }
+    >
+      <Skeleton className="h-8 w-72" />
+      {Array.from({ length: 4 }, (_, section) => (
+        <div key={section} className="flex flex-col gap-3">
+          <Skeleton className="h-5 w-32" />
+          <div className="grid gap-4 @min-[40rem]/main:grid-cols-2 @min-[64rem]/main:grid-cols-3">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
           </div>
-        ))}
-      </div>
-    </div>
+        </div>
+      ))}
+    </PageShell>
   )
 }
 

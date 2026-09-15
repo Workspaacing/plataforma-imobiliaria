@@ -95,6 +95,13 @@ const LEGAL_BASIS_HINTS: Record<string, string> = {
     "Uso compatível com o que o cliente espera (ex.: retorno de um contato que ele iniciou). Registre a justificativa nas observações.",
 }
 
+/**
+ * Campos curtos: 2 colunas e, com o formulário a partir de 64rem (≈ 1536 px de tela com a
+ * sidebar aberta), 3 colunas. Container query no FieldGroup, que acompanha a sidebar.
+ */
+const SHORT_FIELDS_GRID =
+  "grid gap-5 @min-[40rem]/field-group:grid-cols-2 @min-[64rem]/field-group:grid-cols-3"
+
 type TextFieldName = Exclude<keyof ClientFormValues, "kind" | "tags">
 
 type TextFieldProps = Omit<
@@ -294,7 +301,7 @@ export function ClientForm({
             />
 
             {isPf ? (
-              <div className="grid gap-5 sm:grid-cols-2">
+              <div className={SHORT_FIELDS_GRID}>
                 <TextField
                   control={form.control}
                   name="name"
@@ -327,7 +334,7 @@ export function ClientForm({
                 />
               </div>
             ) : (
-              <div className="grid gap-5 sm:grid-cols-2">
+              <div className={SHORT_FIELDS_GRID}>
                 <TextField
                   control={form.control}
                   name="name"
@@ -515,7 +522,7 @@ export function ClientForm({
         <FieldSet>
           <FieldLegend>Atendimento</FieldLegend>
           <FieldGroup>
-            <div className="grid gap-5 sm:grid-cols-2">
+            <div className={SHORT_FIELDS_GRID}>
               <Controller
                 control={form.control}
                 name="source"
@@ -653,7 +660,7 @@ export function ClientForm({
             Informe a base legal que autoriza a imobiliária a tratar os dados deste cliente.
             Obrigatório.
           </FieldDescription>
-          <div className="grid gap-5 sm:grid-cols-2">
+          <div className={SHORT_FIELDS_GRID}>
             <Controller
               control={form.control}
               name="legalBasis"
@@ -706,7 +713,11 @@ export function ClientForm({
           </div>
         </FieldSet>
 
-        <Field orientation="horizontal" className="justify-end">
+        {/* Barra de ações fixa no rodapé enquanto o formulário rola. */}
+        <Field
+          orientation="horizontal"
+          className="sticky bottom-0 z-10 justify-end border-t bg-background py-3"
+        >
           <Button variant="outline" render={<Link href={cancelHref} />} nativeButton={false}>
             Cancelar
           </Button>

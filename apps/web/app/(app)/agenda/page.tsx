@@ -28,6 +28,7 @@ import { AgendaCalendar } from "@/components/agenda/agenda-calendar"
 import { AppointmentCard, PendingAppointmentItem } from "@/components/agenda/appointment-card"
 import { AppointmentFormDialog } from "@/components/agenda/appointment-form-dialog"
 import { PageHeading } from "@/components/crm/page-placeholder"
+import { PageShell } from "@/components/shared/page-shell"
 import { formatDateKey, formatMonthKey, toDateKey } from "@/lib/agenda/datetime"
 import { canScheduleAppointments, canViewAllAppointments } from "@/lib/agenda/permissions"
 import { getAgendaData } from "@/lib/agenda/queries"
@@ -77,7 +78,7 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
   const viewProps = { members, currentUserId: user.id, role }
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
+    <PageShell>
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <PageHeading
           title="Agenda"
@@ -217,6 +218,6 @@ export default async function AgendaPage({ searchParams }: AgendaPageProps) {
           )}
         </section>
       </div>
-    </div>
+    </PageShell>
   )
 }

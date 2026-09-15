@@ -17,6 +17,7 @@ import { CaptureInbox } from "@/components/captacao/capture-inbox"
 import { PublicLinkCard } from "@/components/captacao/public-link-card"
 import { PageHeading } from "@/components/crm/page-placeholder"
 import { StatusTabs } from "@/components/propostas/status-tabs"
+import { PageShell } from "@/components/shared/page-shell"
 import { requireRole } from "@/lib/auth/session"
 import { listCaptureRequests } from "@/lib/captacao/queries"
 import { CAPTURE_INBOX_ROLES } from "@/lib/propostas/permissions"
@@ -55,7 +56,7 @@ export default async function CaptacaoPage({
   }))
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
+    <PageShell>
       <PageHeading
         title="Captações"
         description="Imóveis oferecidos por proprietários no formulário público de captação."
@@ -96,6 +97,6 @@ export default async function CaptacaoPage({
           </EmptyHeader>
         </Empty>
       )}
-    </div>
+    </PageShell>
   )
 }

@@ -19,6 +19,7 @@ import { KeysFilters } from "@/components/chaves/keys-filters"
 import { KeysTable, type KeyTableRow } from "@/components/chaves/keys-table"
 import { NewKeyButton } from "@/components/chaves/new-key-button"
 import { PageHeading } from "@/components/crm/page-placeholder"
+import { PageShell } from "@/components/shared/page-shell"
 import { requireMembership } from "@/lib/auth/session"
 import { listKeys } from "@/lib/chaves/queries"
 import { getClientOptions, getPropertyOptions, getTeamMembers } from "@/lib/propostas/options"
@@ -94,7 +95,7 @@ export default async function ChavesPage({
       : undefined
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
+    <PageShell>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <PageHeading
           title="Chaves"
@@ -194,6 +195,6 @@ export default async function ChavesPage({
           ) : null}
         </Empty>
       )}
-    </div>
+    </PageShell>
   )
 }

@@ -1,8 +1,10 @@
 import { Skeleton } from "@workspace/ui/components/skeleton"
 
+import { PageShell } from "@/components/shared/page-shell"
+
 export default function ClientesLoading() {
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
+    <PageShell>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-2">
           <Skeleton className="h-8 w-40" />
@@ -22,6 +24,6 @@ export default function ClientesLoading() {
           <Skeleton key={index} className="h-10 w-full" />
         ))}
       </div>
-    </div>
+    </PageShell>
   )
 }

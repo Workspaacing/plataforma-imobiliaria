@@ -1,13 +1,11 @@
 import { Card, CardContent } from "@workspace/ui/components/card"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 
+import { PageShell } from "@/components/shared/page-shell"
+
 export default function ImoveisLoading() {
   return (
-    <div
-      className="flex flex-1 flex-col gap-6 p-4 lg:p-6"
-      aria-busy="true"
-      aria-label="Carregando imóveis"
-    >
+    <PageShell aria-busy="true" aria-label="Carregando imóveis">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-col gap-2">
           <Skeleton className="h-7 w-32" />
@@ -47,6 +45,6 @@ export default function ImoveisLoading() {
           </div>
         ))}
       </div>
-    </div>
+    </PageShell>
   )
 }

@@ -13,8 +13,8 @@ updates:
     labels:
       - dependencias
     commit-message:
-      prefix: "chore(deps)"
-      prefix-development: "chore(deps-dev)"
+      # Com `include: scope`, o Dependabot já acrescenta "(deps)" ou "(deps-dev)".
+      prefix: "chore"
       include: scope
     groups:
       # Atualizações menores e correções agrupadas em um PR por família.
@@ -74,6 +74,13 @@ updates:
       # (peer typescript < 6.1). Remover quando o typescript-eslint suportar o TS 7.
       - dependency-name: typescript
         versions: [">=7.0.0"]
+      # ESLint 10 quebra o lint (eslint-plugin-react ainda declara peer eslint <= 9).
+      # Remover quando o eslint-plugin-react suportar o ESLint 10; atualizar eslint e
+      # @eslint/js juntos.
+      - dependency-name: eslint
+        versions: [">=10.0.0"]
+      - dependency-name: "@eslint/js"
+        versions: [">=10.0.0"]
 
   # Versões das GitHub Actions usadas nos workflows.
   - package-ecosystem: github-actions
@@ -87,7 +94,8 @@ updates:
       - dependencias
       - ci
     commit-message:
-      prefix: "chore(ci)"
+      prefix: "chore"
+      include: scope
     groups:
       actions:
         patterns:

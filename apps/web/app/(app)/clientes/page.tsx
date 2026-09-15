@@ -17,6 +17,7 @@ import { ClientFilters } from "@/components/clientes/client-filters"
 import { ClientsPagination } from "@/components/clientes/clients-pagination"
 import { ClientsTable } from "@/components/clientes/clients-table"
 import { PageHeading } from "@/components/crm/page-placeholder"
+import { PageShell } from "@/components/shared/page-shell"
 import { requireMembership } from "@/lib/auth/session"
 import { CLIENTS_PAGE_SIZE, CLIENTS_PATH } from "@/lib/clientes/constants"
 import {
@@ -60,7 +61,7 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
         : "Pessoas e empresas, com histórico, documentos e perfil de busca."
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
+    <PageShell>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <PageHeading title="Clientes" description={description} />
         {canCreate ? (
@@ -152,6 +153,6 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
           ) : null}
         </Empty>
       )}
-    </div>
+    </PageShell>
   )
 }

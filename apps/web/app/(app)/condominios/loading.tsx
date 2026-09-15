@@ -1,8 +1,10 @@
 import { Skeleton } from "@workspace/ui/components/skeleton"
 
+import { PageShell } from "@/components/shared/page-shell"
+
 export default function CondominiosLoading() {
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6" aria-busy="true">
+    <PageShell aria-busy="true">
       <span className="sr-only">Carregando condomínios…</span>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-2">
@@ -26,6 +28,6 @@ export default function CondominiosLoading() {
           <Skeleton key={index} className="h-44 w-full rounded-xl" />
         ))}
       </div>
-    </div>
+    </PageShell>
   )
 }

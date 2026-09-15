@@ -16,6 +16,7 @@ import {
 import { PageHeading } from "@/components/crm/page-placeholder"
 import { LandingPagesTable, type LandingTableRow } from "@/components/marketing/landing-pages-table"
 import { StatusTabs } from "@/components/propostas/status-tabs"
+import { PageShell } from "@/components/shared/page-shell"
 import { requireMembership } from "@/lib/auth/session"
 import { getLandingTemplate } from "@/lib/landing/templates"
 import { isLandingTemplateKey } from "@/lib/landing/types"
@@ -76,7 +77,7 @@ export default async function LandingPagesPage({
 
   if (!result.available) {
     return (
-      <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
+      <PageShell>
         {heading}
         <Alert>
           <TriangleAlertIcon />
@@ -86,7 +87,7 @@ export default async function LandingPagesPage({
             atualização for aplicada, as páginas aparecem aqui.
           </AlertDescription>
         </Alert>
-      </div>
+      </PageShell>
     )
   }
 
@@ -115,7 +116,7 @@ export default async function LandingPagesPage({
   }))
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
+    <PageShell>
       {heading}
 
       {items.length === 0 ? (
@@ -184,6 +185,6 @@ export default async function LandingPagesPage({
           )}
         </>
       )}
-    </div>
+    </PageShell>
   )
 }

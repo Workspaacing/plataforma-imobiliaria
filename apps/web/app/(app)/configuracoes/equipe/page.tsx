@@ -19,6 +19,7 @@ import {
 } from "@/components/configuracoes/pending-invitations"
 import { TeamMembersTable, type TeamMember } from "@/components/configuracoes/team-members-table"
 import { PageHeading } from "@/components/crm/page-placeholder"
+import { PageShell } from "@/components/shared/page-shell"
 import { TEAM_MANAGER_ROLES } from "@/lib/auth/roles"
 import { requireRole } from "@/lib/auth/session"
 import { todayInSaoPaulo } from "@/lib/configuracoes/dates"
@@ -111,12 +112,16 @@ export default async function EquipePage() {
   }))
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
-      <PageHeading
-        title="Equipe"
-        description={`Quem tem acesso à ${organizationName}, com papel e CRECI de cada pessoa.`}
-      />
-
+    <PageShell
+      variant="settings"
+      width="wide"
+      header={
+        <PageHeading
+          title="Equipe"
+          description={`Quem tem acesso à ${organizationName}, com papel e CRECI de cada pessoa.`}
+        />
+      }
+    >
       <Card>
         <CardHeader>
           <CardTitle>Membros</CardTitle>
@@ -169,6 +174,6 @@ export default async function EquipePage() {
           )}
         </CardContent>
       </Card>
-    </div>
+    </PageShell>
   )
 }

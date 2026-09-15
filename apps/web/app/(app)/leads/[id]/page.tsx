@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 
 import { LeadDetailView } from "@/components/leads/lead-detail-view"
 import { LeadViewLogger } from "@/components/leads/lead-view-logger"
+import { PageShell } from "@/components/shared/page-shell"
 import { requireMembership } from "@/lib/auth/session"
 import { getOrganizationMembers } from "@/lib/clientes/members"
 import { createLeadsClient } from "@/lib/leads/db"
@@ -33,19 +34,19 @@ export default async function LeadPage({ params }: LeadPageProps) {
     getLeadDetailExtras(supabase, organizationId, lead.clientId),
   ])
 
+  // Duas colunas (campos | atividades) dependem de separar LeadDetail em blocos: fica
+  // para o lote do módulo de leads. Por ora, o registro ocupa a largura toda.
   return (
-    <div className="flex flex-1 flex-col p-4 lg:p-6">
-      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-        <LeadViewLogger leadId={lead.id} />
-        <LeadDetailView
-          lead={lead}
-          members={members}
-          extras={extras}
-          currentUserId={user.id}
-          role={membership.role}
-          nowMs={now.getTime()}
-        />
-      </div>
-    </div>
+    <PageShell variant="record">
+      <LeadViewLogger leadId={lead.id} />
+      <LeadDetailView
+        lead={lead}
+        members={members}
+        extras={extras}
+        currentUserId={user.id}
+        role={membership.role}
+        nowMs={now.getTime()}
+      />
+    </PageShell>
   )
 }

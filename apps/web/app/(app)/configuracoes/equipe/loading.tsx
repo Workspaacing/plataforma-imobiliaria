@@ -1,13 +1,21 @@
 import { Card, CardContent, CardHeader } from "@workspace/ui/components/card"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 
+import { PageShell } from "@/components/shared/page-shell"
+
 export default function EquipeLoading() {
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6" aria-busy="true">
-      <div className="flex flex-col gap-2">
-        <Skeleton className="h-8 w-40" />
-        <Skeleton className="h-4 w-80" />
-      </div>
+    <PageShell
+      variant="settings"
+      width="wide"
+      aria-busy="true"
+      header={
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-8 w-40" />
+          <Skeleton className="h-4 w-80 max-w-full" />
+        </div>
+      }
+    >
       <Card>
         <CardHeader>
           <Skeleton className="h-5 w-32" />
@@ -37,6 +45,6 @@ export default function EquipeLoading() {
           <Skeleton className="h-14 w-full" />
         </CardContent>
       </Card>
-    </div>
+    </PageShell>
   )
 }
