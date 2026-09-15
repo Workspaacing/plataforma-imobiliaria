@@ -22,7 +22,9 @@ export function NavMain({ groups }: { groups: NavGroup[] }) {
     <>
       {groups.map((group) => (
         <SidebarGroup key={group.title}>
-          <SidebarGroupLabel>{group.title}</SidebarGroupLabel>
+          <SidebarGroupLabel render={group.url ? <Link href={group.url} /> : undefined}>
+            {group.title}
+          </SidebarGroupLabel>
           <SidebarMenu>
             {group.items.map((item) => (
               <SidebarMenuItem key={item.url}>

@@ -18,6 +18,7 @@ import {
   revalidatePropertyPaths,
 } from "@/lib/imoveis/server-context"
 import { propertyPhotoObjectPaths } from "@/lib/media/paths"
+import { photoLimitMessage } from "@/lib/media/upload-errors"
 
 const MAX_IMAGES_PER_CALL = 50
 const EXTENSIONS = new Set(Object.values(ACCEPTED_IMAGE_TYPES))
@@ -107,7 +108,10 @@ export async function registerPropertyImagesAction(
   if (images.length + paths.length > MAX_PROPERTY_PHOTOS) {
     return {
       ok: false,
-      error: `Cada imóvel aceita até ${MAX_PROPERTY_PHOTOS} fotos. Este já tem ${images.length}.`,
+      error:
+        images.length >= MAX_PROPERTY_PHOTOS
+          ? photoLimitMessage(MAX_PROPERTY_PHOTOS)
+          : `Este imóvel aceita até ${MAX_PROPERTY_PHOTOS} fotos e já tem ${images.length}. Envie no máximo ${MAX_PROPERTY_PHOTOS - images.length}.`,
     }
   }
 

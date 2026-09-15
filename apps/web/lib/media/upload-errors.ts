@@ -2,6 +2,11 @@
 export const UPLOADS_BLOCKED_MESSAGE =
   "Sua assinatura está em modo leitura: envie novos arquivos depois de regularizar."
 
+/** Mensagem única quando o imóvel atinge o limite de fotos (checagem prévia e erro do banco). */
+export function photoLimitMessage(limit: number) {
+  return `Este imóvel já tem ${limit} fotos, o máximo permitido. Remova uma foto para enviar outra.`
+}
+
 type StorageErrorLike = {
   message?: string
   statusCode?: string | number

@@ -1,4 +1,7 @@
+import { MAX_PROPERTY_PHOTOS } from "@workspace/core/media/limits"
+
 import { translateBillingError } from "@/lib/billing/errors"
+import { photoLimitMessage } from "@/lib/media/upload-errors"
 
 /**
  * Tradução dos erros do Supabase/PostgREST para mensagens pt-BR. O RLS e os
@@ -114,6 +117,41 @@ function isPortugueseAppMessage(message: string) {
   )
 }
 
+/** `{limit, usage}` que o trigger do limite de fotos manda em `details` (texto JSON). */
+function readPhotoLimitDetail(error: DbErrorLike): { limit: number; usage: number } | null {
+  const details = error.details ?? ""
+
+  if (!details) {
+    return null
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(details)
+
+    if (typeof parsed !== "object" || parsed === null) {
+      return null
+    }
+
+    const { limit, usage } = parsed as { limit?: unknown; usage?: unknown }
+
+    return typeof limit === "number" && typeof usage === "number" ? { limit, usage } : null
+  } catch {
+    return null
+  }
+}
+
+/** Trigger `limite_fotos_imovel`: a 21ª foto (padrão) é recusada com P0001. */
+function translatePhotoLimitError(error: DbErrorLike): string | null {
+  const context = `${error.message ?? ""} ${error.details ?? ""} ${error.hint ?? ""}`
+
+  if (!/\blimite_fotos_imovel\b/.test(context)) {
+    return null
+  }
+
+  const detail = readPhotoLimitDetail(error)
+  return photoLimitMessage(detail?.limit ?? MAX_PROPERTY_PHOTOS)
+}
+
 /**
  * @param action complemento de "Não foi possível ..." e "Você não tem
  *   permissão para ...", ex.: "salvar o imóvel".
@@ -123,6 +161,12 @@ export function translateDbError(error: DbErrorLike, action: string) {
 
   if (billingMessage) {
     return billingMessage
+  }
+
+  const photoLimit = translatePhotoLimitError(error)
+
+  if (photoLimit) {
+    return photoLimit
   }
 
   const message = error.message ?? ""

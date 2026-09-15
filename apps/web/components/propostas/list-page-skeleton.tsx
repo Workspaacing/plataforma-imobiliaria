@@ -1,9 +1,11 @@
 import { Skeleton } from "@workspace/ui/components/skeleton"
 
+import { PageShell } from "@/components/shared/page-shell"
+
 /** Carregamento das listas de chaves, propostas e captações. */
 export function ListPageSkeleton({ withSummary = false }: { withSummary?: boolean }) {
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6" aria-busy="true">
+    <PageShell aria-busy="true">
       <span className="sr-only">Carregando…</span>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex flex-col gap-2">
@@ -23,6 +25,6 @@ export function ListPageSkeleton({ withSummary = false }: { withSummary?: boolea
           <Skeleton key={index} className="h-12 w-full" />
         ))}
       </div>
-    </div>
+    </PageShell>
   )
 }

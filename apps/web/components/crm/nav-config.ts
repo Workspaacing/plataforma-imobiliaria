@@ -28,7 +28,14 @@ export type NavItem = {
 
 export type NavGroup = {
   title: string
+  /** Rota do índice do grupo (ex.: Configurações); com valor, o rótulo do grupo vira link. */
+  url?: string
   items: NavItem[]
+}
+
+export type NavMatch = {
+  group: NavGroup
+  item: { title: string; url: string }
 }
 
 export const NAV_GROUPS: NavGroup[] = [
@@ -76,6 +83,7 @@ export const NAV_GROUPS: NavGroup[] = [
   },
   {
     title: "Configurações",
+    url: "/configuracoes",
     items: [
       {
         title: "Equipe",
@@ -108,17 +116,27 @@ export function getNavGroupsForRole(role: Role) {
   return NAV_GROUPS.map((group) => ({
     ...group,
     items: group.items.filter((item) => !item.roles || item.roles.includes(role)),
-  })).filter((group) => group.items.length > 0)
+    // Com índice próprio (ex.: Configurações), o grupo fica no menu mesmo sem itens visíveis
+    // para o papel: é assim que esses papéis alcançam o índice.
+  })).filter((group) => group.items.length > 0 || group.url)
 }
 
 export function isNavItemActive(pathname: string, url: string) {
   return pathname === url || pathname.startsWith(`${url}/`)
 }
 
-export function findNavMatch(pathname: string) {
-  let match: { group: NavGroup; item: NavItem } | null = null
+export function findNavMatch(pathname: string): NavMatch | null {
+  let match: NavMatch | null = null
 
   for (const group of NAV_GROUPS) {
+    if (
+      group.url &&
+      isNavItemActive(pathname, group.url) &&
+      (!match || group.url.length > match.item.url.length)
+    ) {
+      match = { group, item: { title: group.title, url: group.url } }
+    }
+
     for (const item of group.items) {
       if (
         isNavItemActive(pathname, item.url) &&

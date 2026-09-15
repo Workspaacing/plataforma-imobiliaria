@@ -1,5 +1,7 @@
 import { Skeleton } from "@workspace/ui/components/skeleton"
 
+import { PageShell } from "@/components/shared/page-shell"
+
 function HeadingSkeleton({ withAction = false }: { withAction?: boolean }) {
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -15,7 +17,7 @@ function HeadingSkeleton({ withAction = false }: { withAction?: boolean }) {
 /** Lista de landing pages. */
 export function LandingListSkeleton() {
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6" aria-busy="true">
+    <PageShell aria-busy="true">
       <span className="sr-only">Carregando…</span>
       <HeadingSkeleton withAction />
       <Skeleton className="h-8 w-56" />
@@ -24,7 +26,7 @@ export function LandingListSkeleton() {
           <Skeleton key={index} className="h-14 w-full" />
         ))}
       </div>
-    </div>
+    </PageShell>
   )
 }
 
