@@ -61,6 +61,7 @@ import {
   type PreviewDevice,
 } from "@/components/marketing/landing-preview-frame"
 import { LandingStatusBadge } from "@/components/marketing/landing-status-badge"
+import { PageShell } from "@/components/shared/page-shell"
 import { LANDING_TEMPLATE_CATEGORY_LABELS, getLandingTemplate } from "@/lib/landing/templates"
 import type { LandingOrganization, LandingTemplateKey } from "@/lib/landing/types"
 import {
@@ -545,8 +546,9 @@ export function LandingEditor({
     watched.identity.backgroundPath ?? watched.identity.bannerPaths[0] ?? null
 
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4 lg:p-6">
-      <header className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+    // Tela cheia: sem gutter lateral na raiz; cada faixa define o seu e a prévia encosta na borda.
+    <PageShell bleed>
+      <header className="flex flex-col gap-3 px-4 lg:px-6 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex min-w-0 items-start gap-2">
           <Button
             variant="ghost"
@@ -623,20 +625,22 @@ export function LandingEditor({
       </header>
 
       {!canEdit ? (
-        <Alert>
-          <LockIcon />
-          <AlertTitle>Somente leitura</AlertTitle>
-          <AlertDescription>
-            Seu papel permite ver a configuração. Para editar, peça ao dono, ao gerente ou a um
-            assistente.
-          </AlertDescription>
-        </Alert>
+        <div className="px-4 lg:px-6">
+          <Alert>
+            <LockIcon />
+            <AlertTitle>Somente leitura</AlertTitle>
+            <AlertDescription>
+              Seu papel permite ver a configuração. Para editar, peça ao dono, ao gerente ou a um
+              assistente.
+            </AlertDescription>
+          </Alert>
+        </div>
       ) : null}
 
       <Tabs
         value={mobileView}
         onValueChange={(value) => setMobileView(value === "visualizar" ? "visualizar" : "editar")}
-        className="lg:hidden"
+        className="px-4 lg:hidden"
       >
         <TabsList className="w-full">
           <TabsTrigger value="editar">Editar</TabsTrigger>
@@ -644,7 +648,7 @@ export function LandingEditor({
         </TabsList>
       </Tabs>
 
-      <div className="grid flex-1 items-start gap-6 lg:grid-cols-[minmax(0,28rem)_minmax(0,1fr)]">
+      <div className="grid flex-1 items-start gap-6 px-4 lg:grid-cols-[minmax(0,28rem)_minmax(0,1fr)] lg:ps-6 lg:pe-0">
         <div
           className={cn(
             "min-w-0 flex-col gap-4",
@@ -782,7 +786,7 @@ export function LandingEditor({
             mobileView === "visualizar" ? "flex h-[calc(100svh-12rem)]" : "hidden"
           )}
         >
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center justify-between gap-2 lg:pe-6">
             <span className="text-sm font-medium">Pré-visualização ao vivo</span>
             <ToggleGroup
               value={[device]}
@@ -803,7 +807,7 @@ export function LandingEditor({
               </ToggleGroupItem>
             </ToggleGroup>
           </div>
-          <div className="min-h-0 flex-1 overflow-hidden rounded-xl border">
+          <div className="min-h-0 flex-1 overflow-hidden rounded-xl border lg:rounded-e-none lg:border-e-0">
             <LandingPreviewFrame device={device} title="Pré-visualização da landing page">
               <LandingTemplate mode="preview" payload={payload} leadForm={<InertLeadForm />} />
             </LandingPreviewFrame>
@@ -863,6 +867,6 @@ export function LandingEditor({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </PageShell>
   )
 }

@@ -9,6 +9,7 @@ import { LandingTemplate } from "@/components/landing/landing-template"
 import { PageHeading } from "@/components/crm/page-placeholder"
 import { InertLeadForm } from "@/components/marketing/inert-lead-form"
 import { TemplateGallery, type GalleryGroup } from "@/components/marketing/template-gallery"
+import { PageShell } from "@/components/shared/page-shell"
 import { requireMembership } from "@/lib/auth/session"
 import { LANDING_SAMPLE_NOTICE, getLandingSamplePayload } from "@/lib/landing/sample-payloads"
 import {
@@ -68,7 +69,7 @@ export default async function NewLandingPage() {
 
   if (!canEditLandingPages(membership.role)) {
     return (
-      <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
+      <PageShell>
         {heading}
         <Alert>
           <LockIcon />
@@ -77,7 +78,7 @@ export default async function NewLandingPage() {
             Somente o dono, o gerente ou um assistente da imobiliária cria e edita landing pages.
           </AlertDescription>
         </Alert>
-      </div>
+      </PageShell>
     )
   }
 
@@ -103,10 +104,10 @@ export default async function NewLandingPage() {
   }))
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
+    <PageShell>
       {heading}
       <p className="text-sm text-muted-foreground">{LANDING_SAMPLE_NOTICE}</p>
       <TemplateGallery groups={groups} />
-    </div>
+    </PageShell>
   )
 }

@@ -17,6 +17,10 @@ const fontTypeset = Geist({
   variable: "--font-geist",
 })
 
+// Pré-visualização ao vivo do tweakcn (editor de temas shadcn). Só em desenvolvimento:
+// em produção, nenhum script de terceiro roda nas telas com dados de clientes.
+const enableTweakcnPreview = process.env.NODE_ENV === "development"
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -35,6 +39,11 @@ export default function RootLayout({
         fontTypeset.variable
       )}
     >
+      {enableTweakcnPreview ? (
+        <head>
+          <script async crossOrigin="anonymous" src="https://tweakcn.com/live-preview.min.js" />
+        </head>
+      ) : null}
       {/* Extensões como ColorZilla injetam atributos no body antes da hidratação. */}
       <body suppressHydrationWarning>
         <DirectionProvider direction="ltr">

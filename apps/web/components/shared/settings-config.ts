@@ -59,8 +59,8 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     title: "Minha conta",
     items: [
       {
-        title: "Perfil",
-        navTitle: "Perfil",
+        title: "Meu perfil",
+        navTitle: "Meu perfil",
         description: "Nome, foto, telefone, CRECI e senha de acesso.",
         icon: UserRoundIcon,
         href: PROFILE_SETTINGS_PATH,
@@ -71,7 +71,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     title: "Imobiliária",
     items: [
       {
-        title: "Dados e marca",
+        title: "Imobiliária",
         navTitle: "Imobiliária",
         description: "Nome, CNPJ, CRECI, logo e cor usados no CRM e na captação.",
         icon: StoreIcon,
@@ -96,6 +96,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
       },
       {
         title: "Portais",
+        navTitle: "Portais",
         description: "Feed de anúncios para ZAP Imóveis, Viva Real e OLX.",
         icon: GlobeIcon,
         // A integração por feed já existe na página da imobiliária.
@@ -130,8 +131,9 @@ export type SettingsNavGroup = {
 }
 
 /**
- * Sub-navegação vertical: Imobiliária, Equipe, Assinatura e Perfil, na ordem da
- * imobiliária primeiro (é onde o gestor passa mais tempo).
+ * Sub-navegação vertical: Imobiliária, Equipe, Assinatura, Portais e Meu perfil, na
+ * ordem da imobiliária primeiro (é onde o gestor passa mais tempo) e, dentro de cada
+ * seção, na mesma ordem do índice.
  */
 export function getSettingsNavForRole(role: Role): SettingsNavGroup[] {
   const groups: SettingsNavGroup[] = [...SETTINGS_SECTIONS].reverse().map((section) => ({

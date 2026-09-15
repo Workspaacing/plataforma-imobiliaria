@@ -7,13 +7,17 @@ const nextConfig: NextConfig = {
     serverFunctions: false,
   },
   async headers() {
+    const isDevelopment = process.env.NODE_ENV === "development"
+    // Impede embutir o CRM em iframe de terceiros (clickjacking em convites, equipe e feed).
+    // Em desenvolvimento, só o editor do tweakcn pode embutir o app para pré-visualizar temas.
+    const frameAncestors = isDevelopment ? "'self' https://tweakcn.com" : "'none'"
+
     const securityHeaders = [
-      // Impede embutir o CRM em iframe de terceiros (clickjacking em convites, equipe e feed).
       {
         key: "Content-Security-Policy",
-        value: "frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'",
+        value: `frame-ancestors ${frameAncestors}; base-uri 'self'; form-action 'self'; object-src 'none'`,
       },
-      { key: "X-Frame-Options", value: "DENY" },
+      ...(isDevelopment ? [] : [{ key: "X-Frame-Options", value: "DENY" }]),
       { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
       { key: "X-Content-Type-Options", value: "nosniff" },
       {

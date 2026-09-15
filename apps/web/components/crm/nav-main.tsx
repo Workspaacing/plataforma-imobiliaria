@@ -12,7 +12,7 @@ import {
   useSidebar,
 } from "@workspace/ui/components/sidebar"
 
-import { isNavItemActive, type NavGroup } from "@/components/crm/nav-config"
+import { isNavItemActiveWithExtras, type NavGroup } from "@/components/crm/nav-config"
 
 export function NavMain({ groups }: { groups: NavGroup[] }) {
   const pathname = usePathname()
@@ -20,17 +20,19 @@ export function NavMain({ groups }: { groups: NavGroup[] }) {
 
   return (
     <>
-      {groups.map((group) => (
-        <SidebarGroup key={group.title}>
-          <SidebarGroupLabel render={group.url ? <Link href={group.url} /> : undefined}>
-            {group.title}
-          </SidebarGroupLabel>
+      {groups.map((group, index) => (
+        <SidebarGroup key={group.title || index}>
+          {group.title ? (
+            <SidebarGroupLabel render={group.url ? <Link href={group.url} /> : undefined}>
+              {group.title}
+            </SidebarGroupLabel>
+          ) : null}
           <SidebarMenu>
             {group.items.map((item) => (
               <SidebarMenuItem key={item.url}>
                 <SidebarMenuButton
                   render={<Link href={item.url} />}
-                  isActive={isNavItemActive(pathname, item.url)}
+                  isActive={isNavItemActiveWithExtras(pathname, item)}
                   tooltip={item.title}
                   onClick={() => {
                     if (isMobile) setOpenMobile(false)

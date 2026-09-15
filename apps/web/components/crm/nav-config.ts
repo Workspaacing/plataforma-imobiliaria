@@ -10,6 +10,7 @@ import {
   LayoutDashboardIcon,
   LayoutTemplateIcon,
   ListTodoIcon,
+  SettingsIcon,
   StoreIcon,
   UserCogIcon,
   UsersIcon,
@@ -24,6 +25,8 @@ export type NavItem = {
   icon: LucideIcon
   /** Papéis que veem o item. Sem valor: todos. A página também valida no servidor. */
   roles?: readonly Role[]
+  /** Rotas extras que também marcam o item como ativo (ex.: /perfil para Configurações). */
+  extraActivePaths?: readonly string[]
 }
 
 export type NavGroup = {
@@ -31,6 +34,11 @@ export type NavGroup = {
   /** Rota do índice do grupo (ex.: Configurações); com valor, o rótulo do grupo vira link. */
   url?: string
   items: NavItem[]
+  /**
+   * Grupo fora da sidebar (getNavGroupsForRole o remove), mas ainda usado pelo
+   * findNavMatch para o breadcrumb e pelo sidebarRoles do settings-config.
+   */
+  hidden?: boolean
 }
 
 export type NavMatch = {
@@ -82,8 +90,12 @@ export const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    // Fora da sidebar (ver NavGroup.hidden): o item único de Configurações abaixo já
+    // leva ao índice. Os itens seguem aqui só para o findNavMatch (breadcrumb) e para o
+    // sidebarRoles do settings-config, que leem os papéis de cada rota a partir daqui.
     title: "Configurações",
     url: "/configuracoes",
+    hidden: true,
     items: [
       {
         title: "Equipe",
@@ -105,6 +117,18 @@ export const NAV_GROUPS: NavGroup[] = [
       },
     ],
   },
+  {
+    // Sem título: um único item "Configurações", sem grupo duplicando o índice.
+    title: "",
+    items: [
+      {
+        title: "Configurações",
+        url: "/configuracoes",
+        icon: SettingsIcon,
+        extraActivePaths: ["/perfil"],
+      },
+    ],
+  },
 ]
 
 /** Títulos de rotas que não estão no menu lateral. */
@@ -113,16 +137,24 @@ export const EXTRA_PAGE_TITLES: Record<string, string> = {
 }
 
 export function getNavGroupsForRole(role: Role) {
-  return NAV_GROUPS.map((group) => ({
-    ...group,
-    items: group.items.filter((item) => !item.roles || item.roles.includes(role)),
-    // Com índice próprio (ex.: Configurações), o grupo fica no menu mesmo sem itens visíveis
-    // para o papel: é assim que esses papéis alcançam o índice.
-  })).filter((group) => group.items.length > 0 || group.url)
+  return NAV_GROUPS.filter((group) => !group.hidden)
+    .map((group) => ({
+      ...group,
+      items: group.items.filter((item) => !item.roles || item.roles.includes(role)),
+    }))
+    .filter((group) => group.items.length > 0 || group.url)
 }
 
 export function isNavItemActive(pathname: string, url: string) {
   return pathname === url || pathname.startsWith(`${url}/`)
+}
+
+/** Ativo em `item.url` e, quando houver, em qualquer rota de `item.extraActivePaths`. */
+export function isNavItemActiveWithExtras(pathname: string, item: NavItem) {
+  return (
+    isNavItemActive(pathname, item.url) ||
+    (item.extraActivePaths?.some((url) => isNavItemActive(pathname, url)) ?? false)
+  )
 }
 
 export function findNavMatch(pathname: string): NavMatch | null {

@@ -33,36 +33,42 @@ export function LandingListSkeleton() {
 /** Galeria de modelos. */
 export function TemplateGallerySkeleton() {
   return (
-    <div className="flex flex-1 flex-col gap-8 p-4 lg:p-6" aria-busy="true">
+    <PageShell aria-busy="true">
       <span className="sr-only">Carregando…</span>
-      <HeadingSkeleton />
-      {Array.from({ length: 2 }, (_, group) => (
-        <div key={group} className="flex flex-col gap-4">
-          <Skeleton className="h-6 w-40" />
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {Array.from({ length: 3 }, (_, index) => (
-              <div key={index} className="flex flex-col gap-3">
-                <Skeleton className="aspect-4/3 w-full" />
-                <Skeleton className="h-5 w-2/3" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-8 w-40" />
-              </div>
-            ))}
+      <HeadingSkeleton withAction />
+      <Skeleton className="h-4 w-80 max-w-full" />
+      <div className="flex flex-col gap-10">
+        {Array.from({ length: 2 }, (_, group) => (
+          <div key={group} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1">
+              <Skeleton className="h-6 w-40" />
+              <Skeleton className="h-4 w-96 max-w-full" />
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {Array.from({ length: 3 }, (_, index) => (
+                <div key={index} className="flex flex-col gap-3">
+                  <Skeleton className="aspect-4/3 w-full" />
+                  <Skeleton className="h-5 w-2/3" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-8 w-40" />
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+    </PageShell>
   )
 }
 
-/** Editor em duas colunas. */
+/** Editor em tela cheia: formulário à esquerda e prévia encostada na borda direita. */
 export function LandingEditorSkeleton() {
   return (
-    <div className="flex flex-1 flex-col gap-4 p-4 lg:p-6" aria-busy="true">
+    <PageShell bleed aria-busy="true">
       <span className="sr-only">Carregando…</span>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 px-4 lg:px-6 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-col gap-2">
-          <Skeleton className="h-7 w-64" />
+          <Skeleton className="h-7 w-64 max-w-full" />
           <Skeleton className="h-4 w-40" />
         </div>
         <div className="flex gap-2">
@@ -70,15 +76,16 @@ export function LandingEditorSkeleton() {
           <Skeleton className="h-8 w-28" />
         </div>
       </div>
-      <div className="grid flex-1 gap-6 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)]">
+      <Skeleton className="mx-4 h-8 lg:hidden" />
+      <div className="grid flex-1 gap-6 px-4 lg:grid-cols-[minmax(0,28rem)_minmax(0,1fr)] lg:ps-6 lg:pe-0">
         <div className="flex flex-col gap-4">
           {Array.from({ length: 5 }, (_, index) => (
             <Skeleton key={index} className="h-14 w-full" />
           ))}
         </div>
-        <Skeleton className="hidden min-h-[36rem] w-full lg:block" />
+        <Skeleton className="hidden min-h-[36rem] w-full lg:block lg:rounded-e-none" />
       </div>
-    </div>
+    </PageShell>
   )
 }
 
