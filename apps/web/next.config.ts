@@ -2,11 +2,12 @@ import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@workspace/ui", "@workspace/core", "@workspace/database"],
-  experimental: {
-    // No primeiro carregamento o CSS vai inline no <head>, sem a folha que bloqueava a
-    // renderização no celular (PageSpeed). Navegações pelo app continuam com <link>.
-    inlineCss: true,
-  },
+  // Sem experimental.inlineCss: com ele o CSS ia inline e repetido no payload do React
+  // (HTML de 871 KB a cada primeiro acesso, sem cache do CSS, e um script inline enorme
+  // apontado pelo PageSpeed). A folha externa fica em cache entre as páginas.
+  // Mapas de origem do JavaScript do navegador (o repositório já é público): erros
+  // legíveis no navegador e insights completos no Lighthouse.
+  productionBrowserSourceMaps: true,
   // Server Actions recebem senha, CPF e documentos: não imprimir argumentos no terminal.
   logging: {
     serverFunctions: false,
