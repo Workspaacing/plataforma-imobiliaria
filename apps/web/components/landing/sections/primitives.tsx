@@ -3,6 +3,8 @@ import type { ReactNode } from "react"
 
 import { cn } from "@workspace/ui/lib/utils"
 
+import { FallbackImage } from "@/components/media/fallback-image"
+
 /** Âncora do formulário de lead (CTAs e barra fixa rolam até aqui). */
 export const LEAD_FORM_ANCHOR = "lead-form"
 
@@ -210,8 +212,10 @@ export function Paragraphs({ text, className }: { text: string; className?: stri
 
 /**
  * <img> simples: o domínio do Storage não está em images.remotePatterns, então
- * next/image não pode ser usado. `priority` só na imagem principal do hero
- * (eager + fetchpriority high); `eager` para o logo do cabeçalho.
+ * next/image não pode ser usado (e o otimizador da Vercel custaria caro).
+ * `priority` só na imagem principal do hero (eager + fetchpriority high);
+ * `eager` para o logo do cabeçalho. `fallbackSrc`: URL usada se `src` falhar
+ * (miniatura `__thumb.webp` que não existe em fotos antigas).
  */
 export function LandingImage({
   src,
@@ -222,6 +226,7 @@ export function LandingImage({
   eager = false,
   fit = "cover",
   sizes,
+  fallbackSrc,
   className,
 }: {
   src: string
@@ -232,21 +237,28 @@ export function LandingImage({
   eager?: boolean
   fit?: "cover" | "contain"
   sizes?: string
+  fallbackSrc?: string | null
   className?: string
 }) {
+  const imageProps = {
+    src,
+    alt,
+    width,
+    height,
+    sizes,
+    loading: priority || eager ? ("eager" as const) : ("lazy" as const),
+    decoding: "async" as const,
+    fetchPriority: priority ? ("high" as const) : ("auto" as const),
+    className: cn(fit === "cover" ? "object-cover" : "object-contain", className),
+  }
+
+  if (fallbackSrc && fallbackSrc !== src) {
+    return <FallbackImage {...imageProps} fallbackSrc={fallbackSrc} />
+  }
+
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={src}
-      alt={alt}
-      width={width}
-      height={height}
-      sizes={sizes}
-      loading={priority || eager ? "eager" : "lazy"}
-      decoding="async"
-      fetchPriority={priority ? "high" : "auto"}
-      className={cn(fit === "cover" ? "object-cover" : "object-contain", className)}
-    />
+    <img {...imageProps} />
   )
 }
 

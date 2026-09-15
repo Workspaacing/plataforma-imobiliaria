@@ -1,6 +1,9 @@
 "use server"
 
+import { after } from "next/server"
+
 import { checkFormToken, issueFormToken } from "@/lib/captacao/anti-bot"
+import { sendNotificationEmail } from "@/lib/email"
 import {
   createRequestNonce,
   getVisitorClientKey,
@@ -169,6 +172,21 @@ export async function submitLandingLead(
     })
 
     if (!error) {
+      after(() =>
+        sendNotificationEmail("new_lead", {
+          organizationSlug: slugs.org,
+          eventId: payload.event_id,
+          lead: {
+            name: payload.name,
+            source: "landing_page",
+            landingPageSlug: slugs.page,
+            propertyId: payload.property_id ?? null,
+            interest: payload.interest ?? null,
+            phone: payload.phone ?? null,
+          },
+        })
+      )
+
       return { ok: true }
     }
 

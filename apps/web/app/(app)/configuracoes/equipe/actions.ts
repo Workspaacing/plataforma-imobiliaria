@@ -1,6 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { after } from "next/server"
 
 import type { AppRole } from "@workspace/core/properties/enums"
 
@@ -18,6 +19,7 @@ import {
   roleSchema,
   type InvitationValues,
 } from "@/lib/configuracoes/schemas"
+import { sendNotificationEmail } from "@/lib/email"
 import { createClient } from "@/lib/supabase/server"
 import { buildInvitationUrl } from "@/lib/tenant/urls"
 
@@ -113,6 +115,22 @@ export async function createInvitation(values: InvitationValues): Promise<Create
     }
   }
 
+  // Link no endereço da imobiliária que convida (lib/tenant/urls).
+  const invitationUrl = buildInvitationUrl(membership.organization.slug, invitation.token)
+
+  after(() =>
+    sendNotificationEmail("team_invitation", {
+      organizationSlug: membership.organization.slug,
+      invitationId: invitation.id,
+      to: invitation.email,
+      organizationName: membership.organization.name,
+      inviterName: auth.context.user.fullName,
+      role: invitation.role,
+      invitationUrl,
+      expiresAt: invitation.expires_at,
+    })
+  )
+
   revalidatePath(PAGE_PATH)
 
   return {
@@ -123,8 +141,7 @@ export async function createInvitation(values: InvitationValues): Promise<Create
       email: invitation.email,
       role: invitation.role,
       expiresAt: invitation.expires_at,
-      // Link no endereço da imobiliária que convida (lib/tenant/urls).
-      url: buildInvitationUrl(membership.organization.slug, invitation.token),
+      url: invitationUrl,
     },
   }
 }

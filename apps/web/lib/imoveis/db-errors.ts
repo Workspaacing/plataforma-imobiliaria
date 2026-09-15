@@ -1,3 +1,5 @@
+import { translateBillingError } from "@/lib/billing/errors"
+
 /**
  * Tradução dos erros do Supabase/PostgREST para mensagens pt-BR. O RLS e os
  * CHECKs do banco são a garantia final; aqui só explicamos o que aconteceu.
@@ -117,6 +119,12 @@ function isPortugueseAppMessage(message: string) {
  *   permissão para ...", ex.: "salvar o imóvel".
  */
 export function translateDbError(error: DbErrorLike, action: string) {
+  const billingMessage = translateBillingError(error)
+
+  if (billingMessage) {
+    return billingMessage
+  }
+
   const message = error.message ?? ""
   const constraint = findConstraint(error)
 

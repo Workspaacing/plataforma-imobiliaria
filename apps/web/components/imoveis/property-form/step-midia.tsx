@@ -31,6 +31,7 @@ export function StepMidia({
   property,
   media,
   canDeleteMedia,
+  uploadsBlocked,
   isSaving,
   onSaveDraft,
 }: {
@@ -39,6 +40,7 @@ export function StepMidia({
   property: PropertySummary | null
   media: readonly MediaSource[]
   canDeleteMedia: boolean
+  uploadsBlocked: boolean
   isSaving: boolean
   onSaveDraft: () => void
 }) {
@@ -52,6 +54,7 @@ export function StepMidia({
             propertyId={property.id}
             media={media}
             canDelete={canDeleteMedia}
+            uploadsBlocked={uploadsBlocked}
           />
         ) : (
           <Empty className="border">

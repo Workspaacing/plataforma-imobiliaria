@@ -193,6 +193,65 @@ export type Database = {
           },
         ]
       }
+      billing_accounts: {
+        Row: {
+          addon_keys: string[]
+          billing_interval: string | null
+          cancel_at_period_end: boolean
+          current_period_end: string | null
+          features: string[]
+          limits: Json
+          organization_id: string
+          plan_key: string
+          seats: number
+          status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          synced_at: string
+          trial_ends_at: string
+        }
+        Insert: {
+          addon_keys?: string[]
+          billing_interval?: string | null
+          cancel_at_period_end?: boolean
+          current_period_end?: string | null
+          features?: string[]
+          limits: Json
+          organization_id: string
+          plan_key?: string
+          seats?: number
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          synced_at?: string
+          trial_ends_at: string
+        }
+        Update: {
+          addon_keys?: string[]
+          billing_interval?: string | null
+          cancel_at_period_end?: boolean
+          current_period_end?: string | null
+          features?: string[]
+          limits?: Json
+          organization_id?: string
+          plan_key?: string
+          seats?: number
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          synced_at?: string
+          trial_ends_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_accounts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       capture_requests: {
         Row: {
           city: string | null
@@ -1646,8 +1705,32 @@ export type Database = {
         }
         Returns: string
       }
+      get_billing_account_ids: {
+        Args: { p_organization_id?: string; p_server_key?: string }
+        Returns: {
+          status: string
+          stripe_customer_id: string
+          stripe_subscription_id: string
+        }[]
+      }
+      get_billing_overview: {
+        Args: { p_organization_id: string }
+        Returns: Json
+      }
       get_feed_settings: { Args: { p_organization_id: string }; Returns: Json }
       get_invitation_preview: { Args: { p_token: string }; Returns: Json }
+      get_notification_recipients: {
+        Args: {
+          p_kind: string
+          p_organization_id: string
+          p_server_key: string
+          p_subject_id: string
+        }
+        Returns: {
+          email: string
+          full_name: string
+        }[]
+      }
       get_portal_feed: {
         Args: { p_org_slug: string; p_token: string }
         Returns: Json
@@ -1662,6 +1745,16 @@ export type Database = {
         Returns: {
           has_duplicate: boolean
           lead_id: string
+        }[]
+      }
+      list_billing_reminders: {
+        Args: { p_kind?: string; p_server_key?: string }
+        Returns: {
+          notice_date: string
+          organization_id: string
+          organization_name: string
+          organization_slug: string
+          owner_emails: string[]
         }[]
       }
       log_access_event: {
@@ -1689,6 +1782,14 @@ export type Database = {
           p_org_slug: string
           p_page_slug: string
           p_payload: Json
+          p_server_key?: string
+        }
+        Returns: undefined
+      }
+      sync_billing_account: {
+        Args: {
+          p_organization_id?: string
+          p_payload?: Json
           p_server_key?: string
         }
         Returns: undefined

@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { CircleAlertIcon } from "lucide-react"
 import { useForm } from "react-hook-form"
@@ -31,6 +32,8 @@ type OrganizationFormProps = {
   canEdit: boolean
   slug: string
   planLabel: string
+  /** Página da assinatura; sem ela, orienta a falar com o suporte. */
+  planHref?: string
 }
 
 export function OrganizationForm({
@@ -38,6 +41,7 @@ export function OrganizationForm({
   canEdit,
   slug,
   planLabel,
+  planHref,
 }: OrganizationFormProps) {
   const [isPending, startTransition] = React.useTransition()
   const [formError, setFormError] = React.useState<string | null>(null)
@@ -189,7 +193,16 @@ export function OrganizationForm({
             <Field>
               <FieldLabel htmlFor="org-plano">Plano</FieldLabel>
               <Input id="org-plano" value={planLabel} readOnly />
-              <FieldDescription>Para mudar de plano, fale com o suporte.</FieldDescription>
+              <FieldDescription>
+                {planHref ? (
+                  <>
+                    Uso, troca de plano e pagamento ficam na{" "}
+                    <Link href={planHref}>página de assinatura</Link>.
+                  </>
+                ) : (
+                  "Para mudar de plano, fale com o suporte."
+                )}
+              </FieldDescription>
             </Field>
           </div>
         </FieldSet>

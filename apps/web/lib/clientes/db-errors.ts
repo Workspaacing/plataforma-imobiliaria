@@ -1,3 +1,5 @@
+import { translateBillingError } from "@/lib/billing/errors"
+
 /**
  * Traduz erros do Supabase/PostgREST para mensagens em pt-BR. Usado pelas
  * Server Actions de clientes, agenda e tarefas. Nunca devolve o texto cru do
@@ -33,6 +35,12 @@ function includesAny(context: string, needles: string[]) {
 }
 
 export function translateDatabaseError(error: DatabaseErrorLike, action: string) {
+  const billingMessage = translateBillingError(error)
+
+  if (billingMessage) {
+    return billingMessage
+  }
+
   const context = `${error.message} ${error.details ?? ""} ${error.hint ?? ""}`.toLowerCase()
 
   switch (error.code) {

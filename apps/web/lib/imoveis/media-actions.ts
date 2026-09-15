@@ -1,5 +1,7 @@
 "use server"
 
+import { MAX_PROPERTY_PHOTOS } from "@workspace/core/media/limits"
+
 import type { ActionResult } from "@/lib/auth/action-result"
 import {
   ACCEPTED_IMAGE_TYPES,
@@ -15,6 +17,7 @@ import {
   refreshImobScore,
   revalidatePropertyPaths,
 } from "@/lib/imoveis/server-context"
+import { propertyPhotoObjectPaths } from "@/lib/media/paths"
 
 const MAX_IMAGES_PER_CALL = 50
 const EXTENSIONS = new Set(Object.values(ACCEPTED_IMAGE_TYPES))
@@ -98,6 +101,13 @@ export async function registerPropertyImagesAction(
     return {
       ok: false,
       error: translateDbError(loadError, "registrar as fotos"),
+    }
+  }
+
+  if (images.length + paths.length > MAX_PROPERTY_PHOTOS) {
+    return {
+      ok: false,
+      error: `Cada imóvel aceita até ${MAX_PROPERTY_PHOTOS} fotos. Este já tem ${images.length}.`,
     }
   }
 
@@ -325,9 +335,10 @@ export async function removeMediaAction(
   let warning: string | undefined
 
   if (row.storage_path) {
+    // Apaga também a miniatura `__thumb.webp` (fotos antigas não têm: remove ignora).
     const { error: storageError } = await supabase.storage
       .from(PROPERTY_MEDIA_BUCKET)
-      .remove([row.storage_path])
+      .remove(propertyPhotoObjectPaths(row.storage_path))
     if (storageError) {
       warning = "A foto saiu do anúncio, mas o arquivo não pôde ser apagado do armazenamento."
     }

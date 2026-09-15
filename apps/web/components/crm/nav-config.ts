@@ -1,6 +1,7 @@
 import {
   BuildingIcon,
   CalendarDaysIcon,
+  CreditCardIcon,
   HandshakeIcon,
   HouseIcon,
   HousePlusIcon,
@@ -86,6 +87,12 @@ export const NAV_GROUPS: NavGroup[] = [
         title: "Imobiliária",
         url: "/configuracoes/imobiliaria",
         icon: StoreIcon,
+        roles: ORGANIZATION_VIEWER_ROLES,
+      },
+      {
+        title: "Assinatura",
+        url: "/configuracoes/assinatura",
+        icon: CreditCardIcon,
         roles: ORGANIZATION_VIEWER_ROLES,
       },
     ],

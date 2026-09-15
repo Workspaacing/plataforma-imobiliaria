@@ -2,24 +2,33 @@ import { HouseIcon } from "lucide-react"
 
 import { cn } from "@workspace/ui/lib/utils"
 
-import { getPropertyMediaPublicUrl } from "@/lib/imoveis/media-url"
+import { FallbackImage } from "@/components/media/fallback-image"
+import { getPropertyPhotoUrls } from "@/lib/media/paths"
 
 /**
- * Foto de capa pela URL pública do bucket. Usa <img> simples: o domínio do
- * Storage não está em images.remotePatterns do next.config.
+ * Foto do imóvel pela URL pública do bucket, com <img> simples (sem next/image
+ * nem o otimizador da Vercel).
+ * - `thumb` (padrão): miniatura WebP de 400 px, para listas e cards.
+ * - `responsive`: `srcset` com miniatura e principal; o navegador escolhe pelo `sizes`.
+ * Fotos antigas sem miniatura caem para a principal.
  */
 export function PropertyCover({
   storagePath,
   alt,
   className,
+  variant = "thumb",
+  sizes = "100vw",
 }: {
   storagePath: string | null | undefined
   alt: string
   className?: string
+  variant?: "thumb" | "responsive"
+  /** Largura exibida, para o `srcset` da variante `responsive`. */
+  sizes?: string
 }) {
-  const url = getPropertyMediaPublicUrl(storagePath)
+  const photo = getPropertyPhotoUrls(storagePath)
 
-  if (!url) {
+  if (!photo.main || !photo.thumb) {
     return (
       <div
         className={cn(
@@ -33,10 +42,14 @@ export function PropertyCover({
     )
   }
 
+  const responsive = variant === "responsive"
+
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={url}
+    <FallbackImage
+      src={responsive ? photo.main : photo.thumb}
+      srcSet={responsive ? photo.srcSet : undefined}
+      sizes={responsive ? sizes : undefined}
+      fallbackSrc={photo.main}
       alt={alt}
       loading="lazy"
       decoding="async"

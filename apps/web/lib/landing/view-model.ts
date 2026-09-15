@@ -2,6 +2,8 @@
  * Payload público → dados prontos para os modelos (textos com fallback, URLs,
  * preços formatados, contatos). Os modelos só leem daqui, sem regra de negócio.
  */
+import { getThumbUrl } from "@workspace/core/media/paths"
+
 import {
   brokerCreciLabel,
   cityState,
@@ -52,6 +54,8 @@ export type LandingPropertyView = {
   specs: PropertySpec[]
   features: string[]
   coverUrl: string | null
+  /** Miniatura WebP de 400 px da capa (`__thumb.webp`), para cards. Pode não existir em fotos antigas. */
+  coverThumbUrl: string | null
   /** Capa primeiro, sem repetição. */
   mediaUrls: string[]
 }
@@ -142,6 +146,7 @@ function toPropertyView(property: LandingProperty, baseUrl: string | null): Land
     specs: propertySpecs(property),
     features: property.features,
     coverUrl,
+    coverThumbUrl: getThumbUrl(coverUrl),
     mediaUrls,
   }
 }

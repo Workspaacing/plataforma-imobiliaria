@@ -1,6 +1,8 @@
 // Tradução de erros do Supabase/PostgREST para mensagens em pt-BR.
 // Usado pelos módulos de chaves, propostas e captações.
 
+import { translateBillingError } from "@/lib/billing/errors"
+
 export type DbErrorLike = {
   code?: string
   message: string
@@ -17,6 +19,12 @@ export function translateDbError(
   permissionMessage: string,
   fallback: string = GENERIC_ERROR
 ) {
+  const billingMessage = translateBillingError(error)
+
+  if (billingMessage) {
+    return billingMessage
+  }
+
   switch (error.code) {
     case "42501":
       return permissionMessage

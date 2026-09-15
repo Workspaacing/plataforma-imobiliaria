@@ -18,7 +18,11 @@
         "CAPTURE_FORM_SECRET",
         "CAPTURE_SERVER_KEY",
         "LEAD_SERVER_KEY",
-        "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY"
+        "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+        "STRIPE_SECRET_KEY",
+        "STRIPE_WEBHOOK_SECRET",
+        "BILLING_SERVER_KEY",
+        "CRON_SECRET"
       ],
       "outputs": [".next/**", "!.next/cache/**"]
     },

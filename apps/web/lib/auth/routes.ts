@@ -34,6 +34,12 @@ export const SUBSCRIPTION_SETTINGS_PATH = "/configuracoes/assinatura"
  */
 export const WEBHOOKS_PATH_PREFIX = "/api/webhooks"
 
+/**
+ * Tarefas agendadas (Vercel Cron). Públicas e sem sessão em qualquer host: cada
+ * rota confere `Authorization: Bearer CRON_SECRET`.
+ */
+export const CRON_PATH_PREFIX = "/api/cron"
+
 const PUBLIC_PATHS = new Set([
   LOGIN_PATH,
   SIGN_UP_PATH,
@@ -43,7 +49,15 @@ const PUBLIC_PATHS = new Set([
 ])
 
 /** `/lp` são as landing pages públicas das imobiliárias (tráfego pago e redes sociais). */
-const PUBLIC_PREFIXES = ["/auth", "/captar", "/api/feeds", WEBHOOKS_PATH_PREFIX, "/convite", "/lp"]
+const PUBLIC_PREFIXES = [
+  "/auth",
+  "/captar",
+  "/api/feeds",
+  WEBHOOKS_PATH_PREFIX,
+  CRON_PATH_PREFIX,
+  "/convite",
+  "/lp",
+]
 
 /** Rotas que só fazem sentido para quem ainda não entrou. */
 const GUEST_ONLY_PATHS = new Set([LOGIN_PATH, SIGN_UP_PATH, RECOVER_PASSWORD_PATH])
@@ -62,6 +76,7 @@ const ROOT_HOST_PREFIXES = [
   "/convite",
   "/api/feeds",
   WEBHOOKS_PATH_PREFIX,
+  CRON_PATH_PREFIX,
   ...ROOT_ONLY_PREFIXES,
 ]
 
@@ -113,6 +128,11 @@ export function isPublicPath(pathname: string) {
 /** Webhooks: sem sessão, sem tenant e sem redirecionamentos, em qualquer host. */
 export function isWebhookPath(pathname: string) {
   return matchesPrefix(normalizePathname(pathname), WEBHOOKS_PATH_PREFIX)
+}
+
+/** Tarefas agendadas: sem sessão, sem tenant e sem redirecionamentos, em qualquer host. */
+export function isCronPath(pathname: string) {
+  return matchesPrefix(normalizePathname(pathname), CRON_PATH_PREFIX)
 }
 
 export function isGuestOnlyPath(pathname: string) {

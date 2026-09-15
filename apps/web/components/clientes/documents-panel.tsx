@@ -3,6 +3,10 @@
 import * as React from "react"
 import { DownloadIcon, FileTextIcon, LockIcon, UploadIcon } from "lucide-react"
 
+import { formatBytes, formatSizeChange } from "@workspace/core/media/format"
+import { detectFileKind } from "@workspace/core/media/image-type"
+import { CLIENT_DOCUMENT_PDF_MAX_BYTES } from "@workspace/core/media/limits"
+import { replaceExtension } from "@workspace/core/media/paths"
 import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -24,6 +28,7 @@ import {
 import { toast } from "@workspace/ui/components/toast"
 
 import { ConfirmDeleteButton } from "@/components/clientes/confirm-delete-button"
+import { UploadsBlockedNotice } from "@/components/media/uploads-blocked-notice"
 import { formatDateTime } from "@/lib/format"
 import {
   CLIENT_DOCUMENT_MAX_BYTES,
@@ -40,7 +45,10 @@ import {
   formatFileSize,
   getDocumentKindLabel,
   isAllowedDocumentMimeType,
+  type ClientDocumentMimeType,
 } from "@/lib/clientes/documents"
+import { getImagePreparationMessage, prepareImage } from "@/lib/media/compress-image"
+import { UPLOADS_BLOCKED_MESSAGE, isStorageForbiddenError } from "@/lib/media/upload-errors"
 import { createClient } from "@/lib/supabase/client"
 
 export type DocumentRowView = {
@@ -58,28 +66,89 @@ type DocumentsPanelProps = {
   documents: DocumentRowView[]
   canUpload: boolean
   canDelete: boolean
+  /** Assinatura em modo leitura: o Storage recusa novos arquivos. */
+  uploadsBlocked?: boolean
 }
 
-function describeStorageError(error: { message: string }) {
-  const message = error.message.toLowerCase()
+/** PDFs e imagens; HEIC do iPhone é aceito e convertido para JPEG. */
+const DOCUMENT_ACCEPT = [
+  ...CLIENT_DOCUMENT_MIME_TYPES,
+  "image/heic",
+  "image/heif",
+  ".heic",
+  ".heif",
+].join(",")
 
-  if (
-    message.includes("row-level security") ||
-    message.includes("unauthorized") ||
-    message.includes("403")
-  ) {
-    return "Você não tem permissão para enviar documentos deste cliente."
+type PreparedDocument = {
+  blob: Blob
+  name: string
+  mimeType: ClientDocumentMimeType
+  /** "3,1 MB → 540 KB" quando a imagem foi otimizada. */
+  sizeLabel: string | null
+}
+
+function describeStorageError(error: { message: string; statusCode?: string | number }) {
+  if (isStorageForbiddenError(error)) {
+    return UPLOADS_BLOCKED_MESSAGE
   }
 
+  const message = error.message.toLowerCase()
+
   if (message.includes("size") || message.includes("too large") || message.includes("413")) {
-    return "O arquivo passa do limite de 20 MB."
+    return "O arquivo passa do limite de tamanho do armazenamento."
   }
 
   if (message.includes("mime") || message.includes("type")) {
-    return "Formato não aceito. Envie PDF, JPG, PNG ou WebP."
+    return "Formato não aceito. Envie PDF, JPG, PNG, WebP ou HEIC."
   }
 
   return "Falha no envio. Verifique a conexão e tente de novo."
+}
+
+/**
+ * PDF passa sem alteração (até 10 MB). Imagem (foto de RG, comprovante) vira
+ * JPEG de até 2000 px com qualidade 0,85: continua legível, fica bem menor e
+ * perde EXIF/GPS no reencode (LGPD).
+ */
+async function prepareDocument(
+  file: File
+): Promise<{ ok: true; document: PreparedDocument } | { ok: false; error: string }> {
+  if (detectFileKind(file) === "pdf") {
+    if (file.size === 0) return { ok: false, error: "O arquivo está vazio." }
+    if (file.size > CLIENT_DOCUMENT_PDF_MAX_BYTES) {
+      return {
+        ok: false,
+        error: `O PDF tem ${formatBytes(file.size)}; o limite é ${formatBytes(CLIENT_DOCUMENT_PDF_MAX_BYTES)}. Gere uma versão reduzida (por exemplo, "Reduzir tamanho do arquivo" ou digitalização em tons de cinza) e envie de novo.`,
+      }
+    }
+    return {
+      ok: true,
+      document: { blob: file, name: file.name, mimeType: "application/pdf", sizeLabel: null },
+    }
+  }
+
+  try {
+    const { main } = await prepareImage(file, "clientDocumentImage")
+
+    if (!isAllowedDocumentMimeType(main.type) || main.bytes > CLIENT_DOCUMENT_MAX_BYTES) {
+      return {
+        ok: false,
+        error: "Não foi possível otimizar esta imagem. Salve-a em JPEG e tente de novo.",
+      }
+    }
+
+    return {
+      ok: true,
+      document: {
+        blob: main.blob,
+        name: replaceExtension(file.name, main.extension),
+        mimeType: main.type,
+        sizeLabel: formatSizeChange(file.size, main.bytes),
+      },
+    }
+  } catch (error) {
+    return { ok: false, error: getImagePreparationMessage(error) }
+  }
 }
 
 export function DocumentsPanel({
@@ -88,48 +157,41 @@ export function DocumentsPanel({
   documents,
   canUpload,
   canDelete,
+  uploadsBlocked = false,
 }: DocumentsPanelProps) {
   const inputRef = React.useRef<HTMLInputElement>(null)
   const [isUploading, startUpload] = React.useTransition()
+  const [progress, setProgress] = React.useState<string | null>(null)
   const [isDownloading, startDownload] = React.useTransition()
   const [downloadingId, setDownloadingId] = React.useState<string | null>(null)
 
   function uploadFiles(files: File[]) {
     startUpload(async () => {
       const supabase = createClient()
+      const optimized: string[] = []
       let uploaded = 0
 
+      // Um arquivo por vez: a otimização usa bastante memória no celular.
       for (const file of files) {
-        const mimeType = file.type
+        setProgress(`${file.name}: otimizando…`)
+        const prepared = await prepareDocument(file)
 
-        if (!isAllowedDocumentMimeType(mimeType)) {
+        if (!prepared.ok) {
           toast.add({
             title: `"${file.name}" não foi enviado`,
-            description: "Formato não aceito. Envie PDF, JPG, PNG ou WebP.",
+            description: prepared.error,
             type: "error",
           })
           continue
         }
 
-        if (file.size === 0 || file.size > CLIENT_DOCUMENT_MAX_BYTES) {
-          toast.add({
-            title: `"${file.name}" não foi enviado`,
-            description:
-              file.size === 0 ? "O arquivo está vazio." : "O arquivo passa do limite de 20 MB.",
-            type: "error",
-          })
-          continue
-        }
+        const { blob, name, mimeType, sizeLabel } = prepared.document
+        setProgress(`${name}: enviando…${sizeLabel ? ` (${sizeLabel})` : ""}`)
 
-        const path = buildClientDocumentPath(
-          organizationId,
-          clientId,
-          file.name,
-          crypto.randomUUID()
-        )
+        const path = buildClientDocumentPath(organizationId, clientId, name, crypto.randomUUID())
         const { error: uploadError } = await supabase.storage
           .from(CLIENT_DOCUMENTS_BUCKET)
-          .upload(path, file, { contentType: mimeType, upsert: false })
+          .upload(path, blob, { contentType: mimeType, upsert: false })
 
         if (uploadError) {
           toast.add({
@@ -137,15 +199,17 @@ export function DocumentsPanel({
             description: describeStorageError(uploadError),
             type: "error",
           })
+          // Modo leitura: os próximos arquivos seriam recusados do mesmo jeito.
+          if (isStorageForbiddenError(uploadError)) break
           continue
         }
 
         const result = await registerClientDocument({
           clientId,
           storagePath: path,
-          name: file.name.slice(0, 200),
+          name: name.slice(0, 200),
           mimeType,
-          sizeBytes: file.size,
+          sizeBytes: blob.size,
         })
 
         if (!result.ok) {
@@ -160,11 +224,16 @@ export function DocumentsPanel({
         }
 
         uploaded += 1
+        if (sizeLabel) optimized.push(`${name}: ${sizeLabel}`)
       }
+
+      setProgress(null)
 
       if (uploaded > 0) {
         toast.add({
           title: uploaded === 1 ? "Documento enviado." : `${uploaded} documentos enviados.`,
+          description:
+            optimized.length > 0 ? `Imagens otimizadas: ${optimized.join("; ")}` : undefined,
           type: "success",
         })
       }
@@ -199,31 +268,43 @@ export function DocumentsPanel({
         </AlertDescription>
       </Alert>
 
-      {canUpload ? (
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-muted-foreground">PDF, JPG, PNG ou WebP, até 20 MB cada.</p>
-          <input
-            ref={inputRef}
-            type="file"
-            multiple
-            accept={CLIENT_DOCUMENT_MIME_TYPES.join(",")}
-            className="sr-only"
-            tabIndex={-1}
-            aria-hidden="true"
-            onChange={(event) => {
-              const files = Array.from(event.target.files ?? [])
-              event.target.value = ""
-              if (files.length > 0) uploadFiles(files)
-            }}
-          />
-          <Button onClick={() => inputRef.current?.click()} disabled={isUploading}>
-            {isUploading ? (
-              <Spinner data-icon="inline-start" />
-            ) : (
-              <UploadIcon data-icon="inline-start" />
-            )}
-            {isUploading ? "Enviando…" : "Enviar documentos"}
-          </Button>
+      {canUpload && uploadsBlocked ? <UploadsBlockedNotice /> : null}
+
+      {canUpload && !uploadsBlocked ? (
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted-foreground">
+              PDF até 10 MB. Fotos (JPG, PNG, WebP ou HEIC) são otimizadas no navegador e perdem os
+              dados de localização antes do envio.
+            </p>
+            <input
+              ref={inputRef}
+              type="file"
+              multiple
+              accept={DOCUMENT_ACCEPT}
+              className="sr-only"
+              tabIndex={-1}
+              aria-hidden="true"
+              onChange={(event) => {
+                const files = Array.from(event.target.files ?? [])
+                event.target.value = ""
+                if (files.length > 0) uploadFiles(files)
+              }}
+            />
+            <Button onClick={() => inputRef.current?.click()} disabled={isUploading}>
+              {isUploading ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <UploadIcon data-icon="inline-start" />
+              )}
+              {isUploading ? "Enviando…" : "Enviar documentos"}
+            </Button>
+          </div>
+          {progress ? (
+            <p className="truncate text-sm text-muted-foreground" aria-live="polite">
+              {progress}
+            </p>
+          ) : null}
         </div>
       ) : null}
 

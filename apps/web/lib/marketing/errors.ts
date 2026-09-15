@@ -1,3 +1,5 @@
+import { translateBillingError } from "@/lib/billing/errors"
+
 /**
  * Erros do Supabase/PostgREST e do Storage traduzidos para pt-BR no módulo de
  * landing pages. O RLS e os CHECKs do banco são a garantia final.
@@ -37,6 +39,12 @@ function mentionsSlug(error: DbErrorLike) {
  * @param action complemento de "Não foi possível ...", ex.: "salvar a landing page".
  */
 export function translateLandingError(error: DbErrorLike, action: string) {
+  const billingMessage = translateBillingError(error)
+
+  if (billingMessage) {
+    return billingMessage
+  }
+
   const message = error.message ?? ""
 
   if (isMissingRelationError(error)) {

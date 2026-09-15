@@ -18,6 +18,7 @@ import { PropertyStatusBadge } from "@/components/imoveis/property-status-badge"
 import { PropertyForm } from "@/components/imoveis/property-form/property-form"
 import { toMemberOptions } from "@/components/imoveis/property-form/types"
 import { requireMembership } from "@/lib/auth/session"
+import { getBillingOverview } from "@/lib/billing/queries"
 import { isPropertyFormStepKey } from "@/lib/imoveis/form-steps"
 import { propertyRowToFormValues } from "@/lib/imoveis/form-values"
 import { summarizeMedia } from "@/lib/imoveis/mappers"
@@ -83,11 +84,12 @@ export default async function EditarImovelPage({ params, searchParams }: EditarI
     )
   }
 
-  const [media, authorizations, members, condominiums] = await Promise.all([
+  const [media, authorizations, members, condominiums, billing] = await Promise.all([
     getPropertyMediaRows(supabase, organizationId, property.id),
     getAuthorizationPeriods(supabase, organizationId, property.id),
     getOrganizationMembers(supabase, organizationId),
     getCondominiumOptions(supabase, organizationId),
+    getBillingOverview(organizationId),
   ])
 
   const rawStep = Array.isArray(query.etapa) ? query.etapa[0] : query.etapa
@@ -129,6 +131,7 @@ export default async function EditarImovelPage({ params, searchParams }: EditarI
         condominiums={condominiums}
         capture={null}
         canDeleteMedia={canDeletePropertyRecords(membership.role)}
+        uploadsBlocked={billing?.state === "read_only"}
       />
     </div>
   )

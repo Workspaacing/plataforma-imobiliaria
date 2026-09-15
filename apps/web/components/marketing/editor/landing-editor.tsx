@@ -166,6 +166,8 @@ export type LandingEditorProps = {
   organization: LandingOrganization
   organizationSlug: string
   canEdit: boolean
+  /** Assinatura em modo leitura: o Storage recusa novas imagens. */
+  uploadsBlocked?: boolean
 }
 
 export function LandingEditor({
@@ -178,6 +180,7 @@ export function LandingEditor({
   organization,
   organizationSlug,
   canEdit,
+  uploadsBlocked = false,
 }: LandingEditorProps) {
   const template = getLandingTemplate(page.template)
   const schema = React.useMemo(
@@ -534,7 +537,7 @@ export function LandingEditor({
     return { kind: "saved", at: savedAt }
   })()
 
-  const uploadTarget = { organizationId: page.organizationId, pageId: page.id }
+  const uploadTarget = { organizationId: page.organizationId, pageId: page.id, uploadsBlocked }
   const disabled = !canEdit
   const confirmCopy = confirmStatus ? STATUS_CONFIRM[confirmStatus] : null
   const maxProperties = maxPropertiesFor(template)

@@ -6,6 +6,7 @@ import type { Database } from "@workspace/database/types"
 import {
   ACCESS_DENIED_PATH,
   HOME_PATH,
+  isCronPath,
   isGuestOnlyPath,
   isPublicPath,
   isRootHostPath,
@@ -163,9 +164,10 @@ function redirectWithSession(
  * páginas e Server Actions, e no RLS do banco: o host só escolhe o tenant.
  */
 export async function updateSession(request: NextRequest) {
-  // Webhooks (ex.: Stripe): públicos e sem sessão em qualquer host, sem
-  // resolver tenant nem redirecionar. Headers internos forjados são removidos.
-  if (isWebhookPath(request.nextUrl.pathname)) {
+  // Webhooks (ex.: Stripe) e tarefas agendadas (Vercel Cron): públicos e sem
+  // sessão em qualquer host, sem resolver tenant nem redirecionar. Headers
+  // internos forjados são removidos.
+  if (isWebhookPath(request.nextUrl.pathname) || isCronPath(request.nextUrl.pathname)) {
     return NextResponse.next({ request: { headers: forwardedHeaders(request, null) } })
   }
 

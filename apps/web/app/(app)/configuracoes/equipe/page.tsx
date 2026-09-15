@@ -148,9 +148,9 @@ export default async function EquipePage() {
         <CardContent className="flex flex-col gap-4">
           <Alert>
             <MailWarningIcon />
-            <AlertTitle>O envio automático por e-mail ainda não está disponível</AlertTitle>
+            <AlertTitle>O convite também é enviado por e-mail quando configurado</AlertTitle>
             <AlertDescription>
-              Por enquanto, copie o link do convite e mande pelo WhatsApp ou pelo seu e-mail. A
+              Se preferir, copie o link do convite e mande pelo WhatsApp ou pelo seu e-mail. A
               pessoa precisa entrar ou criar a conta com o mesmo e-mail convidado.
             </AlertDescription>
           </Alert>

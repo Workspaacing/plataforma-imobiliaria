@@ -314,7 +314,7 @@ export function PublicationSection({
               <ImageField
                 id="lp-imagem-compartilhamento"
                 label="Imagem de compartilhamento"
-                description="Mostrada no WhatsApp, Facebook e LinkedIn. Ideal: 1200 × 630 px, até 5 MB."
+                description="Mostrada no WhatsApp, Facebook e LinkedIn. Ideal: 1200 × 630 px; a imagem é otimizada antes do envio."
                 path={field.value}
                 onChange={field.onChange}
                 target={uploadTarget}

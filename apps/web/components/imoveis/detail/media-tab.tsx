@@ -117,6 +117,8 @@ export function MediaTab({
                       <PropertyCover
                         storagePath={image.storage_path}
                         alt={image.caption || `Foto ${index + 1} do imóvel ${propertyCode}`}
+                        variant="responsive"
+                        sizes="(min-width: 1280px) 16rem, (min-width: 640px) 33vw, 50vw"
                         className="size-full"
                       />
                       {image.is_cover ? (

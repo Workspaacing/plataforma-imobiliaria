@@ -18,4 +18,9 @@ export const LANDING_EDITOR_SECTION_LABELS: Record<LandingEditorSection, string>
   publication: "Divulgação",
 }
 
-export type UploadTarget = { organizationId: string; pageId: string }
+export type UploadTarget = {
+  organizationId: string
+  pageId: string
+  /** Assinatura em modo leitura: os campos de imagem não enviam arquivos. */
+  uploadsBlocked?: boolean
+}

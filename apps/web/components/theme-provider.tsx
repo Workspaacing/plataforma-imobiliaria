@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { usePathname } from "next/navigation"
-import { ThemeProvider as NextThemesProvider, useTheme } from "next-themes"
+import { ThemeProvider as NextThemesProvider } from "next-themes"
 
 /**
  * Páginas públicas (landing pages e formulário de captação) sempre em tema
@@ -41,62 +41,10 @@ function ThemeProvider({ children, ...props }: React.ComponentProps<typeof NextT
       }}
       {...props}
     >
-      <ThemeHotkey disabled={forcedTheme !== undefined} />
+      {/* Sem atalho de tecla única para o tema (WCAG 2.1.4): a troca fica no botão do cabeçalho. */}
       {children}
     </NextThemesProvider>
   )
-}
-
-function isTypingTarget(target: EventTarget | null) {
-  if (!(target instanceof HTMLElement)) {
-    return false
-  }
-
-  return (
-    target.isContentEditable ||
-    target.tagName === "INPUT" ||
-    target.tagName === "TEXTAREA" ||
-    target.tagName === "SELECT"
-  )
-}
-
-function ThemeHotkey({ disabled }: { disabled: boolean }) {
-  const { resolvedTheme, setTheme } = useTheme()
-
-  React.useEffect(() => {
-    // Com tema forçado, o atalho mudaria a preferência do CRM sem efeito visível.
-    if (disabled) {
-      return
-    }
-
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.defaultPrevented || event.repeat) {
-        return
-      }
-
-      if (event.metaKey || event.ctrlKey || event.altKey) {
-        return
-      }
-
-      if (event.key.toLowerCase() !== "d") {
-        return
-      }
-
-      if (isTypingTarget(event.target)) {
-        return
-      }
-
-      setTheme(resolvedTheme === "dark" ? "light" : "dark")
-    }
-
-    window.addEventListener("keydown", onKeyDown)
-
-    return () => {
-      window.removeEventListener("keydown", onKeyDown)
-    }
-  }, [disabled, resolvedTheme, setTheme])
-
-  return null
 }
 
 export { ThemeProvider }

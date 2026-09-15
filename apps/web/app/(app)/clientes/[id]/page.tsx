@@ -20,6 +20,7 @@ import { MatchesPanel } from "@/components/clientes/matches-panel"
 import { SharesPanel } from "@/components/clientes/shares-panel"
 import { ROLE_LABELS } from "@/lib/auth/roles"
 import { requireMembership } from "@/lib/auth/session"
+import { getBillingOverview } from "@/lib/billing/queries"
 import { getClientDetailData } from "@/lib/clientes/detail-queries"
 import type { RawSearchParams } from "@/lib/clientes/filters"
 import { getOrganizationMembers } from "@/lib/clientes/members"
@@ -74,9 +75,10 @@ export default async function ClientePage({ params, searchParams }: ClientePageP
     notFound()
   }
 
-  const [members, detail] = await Promise.all([
+  const [members, detail, billing] = await Promise.all([
     getOrganizationMembers(organizationId),
     getClientDetailData(organizationId, client.id),
+    getBillingOverview(organizationId),
   ])
 
   const role = membership.role
@@ -222,6 +224,7 @@ export default async function ClientePage({ params, searchParams }: ClientePageP
               documents={documents}
               canUpload={canEdit}
               canDelete={canDelete}
+              uploadsBlocked={billing?.state === "read_only"}
             />
           )}
         </TabsContent>

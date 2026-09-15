@@ -1,5 +1,6 @@
 "use server"
 
+import { after } from "next/server"
 import { z } from "zod"
 
 import { lookupCep } from "@/lib/br/cep"
@@ -15,6 +16,7 @@ import {
   getVisitorClientKey,
   readServerKey,
 } from "@/lib/captacao/server-request"
+import { sendNotificationEmail } from "@/lib/email"
 
 export type CaptureFieldErrors = Partial<Record<keyof PublicCaptureValues, string>>
 
@@ -95,7 +97,7 @@ export async function submitCaptureRequest(
 
   const clientKey = await getVisitorClientKey()
   const supabase = createAnonClient()
-  const { error } = await supabase.rpc("submit_capture_request", {
+  const { data: captureId, error } = await supabase.rpc("submit_capture_request", {
     org_slug: slug,
     payload: toCapturePayload(parsed.data),
     p_server_key: serverKey,
@@ -133,6 +135,22 @@ export async function submitCaptureRequest(
         console.error(`[captar] submit_capture_request falhou: ${error.code ?? "erro"}`)
         return { ok: false, error: GENERIC_SUBMIT_ERROR }
     }
+  }
+
+  if (typeof captureId === "string") {
+    after(() =>
+      sendNotificationEmail("capture_request", {
+        organizationSlug: slug,
+        captureRequestId: captureId,
+        request: {
+          propertyType: parsed.data.type || null,
+          purpose: parsed.data.purpose,
+          neighborhood: parsed.data.neighborhood || null,
+          city: parsed.data.city || null,
+          state: parsed.data.state || null,
+        },
+      })
+    )
   }
 
   return { ok: true }

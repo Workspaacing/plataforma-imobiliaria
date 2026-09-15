@@ -1,7 +1,6 @@
 import type { Metadata } from "next"
 import { CircleAlertIcon, LockIcon } from "lucide-react"
 
-import type { Enums } from "@workspace/database/types"
 import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert"
 import {
   Card,
@@ -14,6 +13,8 @@ import {
 import { Field, FieldDescription, FieldLabel } from "@workspace/ui/components/field"
 import { Separator } from "@workspace/ui/components/separator"
 
+import { loadBillingOverview } from "@/components/billing/billing-data"
+import { BILLING_STATE_LABELS, planDisplayName } from "@/components/billing/overview-view"
 import { BrandForm } from "@/components/configuracoes/brand-form"
 import { CopyField } from "@/components/configuracoes/copy-field"
 import { FeedPreview } from "@/components/configuracoes/feed-preview"
@@ -21,6 +22,7 @@ import { OrganizationForm } from "@/components/configuracoes/organization-form"
 import { RotateFeedTokenButton } from "@/components/configuracoes/rotate-feed-token-button"
 import { PageHeading } from "@/components/crm/page-placeholder"
 import { ORGANIZATION_VIEWER_ROLES } from "@/lib/auth/roles"
+import { SUBSCRIPTION_SETTINGS_PATH } from "@/lib/auth/routes"
 import { requireRole } from "@/lib/auth/session"
 import { readOrganizationBrand } from "@/lib/configuracoes/brand"
 import { maskCnpj, maskPhoneBr } from "@/lib/configuracoes/masks"
@@ -33,12 +35,6 @@ export const metadata: Metadata = {
   title: "Imobiliária",
 }
 
-const PLAN_LABELS: Record<Enums<"organization_plan">, string> = {
-  small: "Pequeno",
-  medium: "Médio",
-  large: "Grande",
-}
-
 export default async function ImobiliariaPage() {
   const { membership } = await requireRole(ORGANIZATION_VIEWER_ROLES)
   const isOwner = membership.role === "owner"
@@ -47,13 +43,19 @@ export default async function ImobiliariaPage() {
   // feed_token não entra no SELECT (sem grant): só a RPC get_feed_settings o devolve.
   const { data: organization, error } = await supabase
     .from("organizations")
-    .select("id, slug, name, legal_name, cnpj, creci, phone, email, city, state, plan, brand")
+    .select("id, slug, name, legal_name, cnpj, creci, phone, email, city, state, brand")
     .eq("id", membership.organizationId)
     .maybeSingle()
 
   if (error || !organization) {
     throw new Error(`Não foi possível carregar a imobiliária (${error?.code ?? "sem-registro"}).`)
   }
+
+  // O plano vem da assinatura (billing_accounts); organizations.plan está obsoleta.
+  const billing = await loadBillingOverview(organization.id)
+  const planLabel = billing
+    ? `${planDisplayName(billing.planKey)} · ${BILLING_STATE_LABELS[billing.state]}`
+    : "Indisponível no momento"
 
   const feedSettings = await loadFeedSettings(supabase, organization.id, membership.role)
   const feedPreview =
@@ -92,7 +94,8 @@ export default async function ImobiliariaPage() {
             <OrganizationForm
               canEdit={isOwner}
               slug={organization.slug}
-              planLabel={PLAN_LABELS[organization.plan]}
+              planLabel={planLabel}
+              planHref={SUBSCRIPTION_SETTINGS_PATH}
               defaultValues={{
                 name: organization.name,
                 legalName: organization.legal_name ?? "",

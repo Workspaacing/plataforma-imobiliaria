@@ -24,10 +24,11 @@ import {
   ItemTitle,
 } from "@workspace/ui/components/item"
 
+import { FallbackImage } from "@/components/media/fallback-image"
 import { propertyPrices } from "@/lib/landing/format"
-import { getPropertyMediaPublicUrl } from "@/lib/imoveis/media-url"
 import { searchLandingPropertiesAction } from "@/lib/marketing/actions"
 import type { LandingPropertyOption, LandingPropertySnapshot } from "@/lib/marketing/payload"
+import { getPropertyPhotoUrls } from "@/lib/media/paths"
 
 const SEARCH_DEBOUNCE_MS = 250
 
@@ -36,13 +37,19 @@ function statusLabel(status: string) {
 }
 
 function PropertyThumb({ property }: { property: LandingPropertySnapshot }) {
-  const url = getPropertyMediaPublicUrl(property.cover_path)
+  const photo = getPropertyPhotoUrls(property.cover_path)
 
   return (
     <ItemMedia variant="image">
-      {url ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={url} alt="" loading="lazy" className="object-cover" />
+      {photo.main && photo.thumb ? (
+        <FallbackImage
+          src={photo.thumb}
+          fallbackSrc={photo.main}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          className="object-cover"
+        />
       ) : (
         <HomeIcon aria-hidden="true" />
       )}

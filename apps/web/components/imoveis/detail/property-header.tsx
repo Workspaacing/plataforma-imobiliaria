@@ -54,6 +54,8 @@ export function PropertyHeader({
           <PropertyCover
             storagePath={coverPath}
             alt={`Foto de capa do imóvel ${property.code}`}
+            variant="responsive"
+            sizes="(min-width: 640px) 12rem, 100vw"
             className="aspect-4/3 w-full shrink-0 sm:w-48"
           />
           <div className="flex min-w-0 flex-col gap-2">

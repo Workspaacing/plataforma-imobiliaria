@@ -1,3 +1,5 @@
+import { translateBillingError } from "@/lib/billing/errors"
+
 type DatabaseErrorLike = {
   code?: string
   message: string
@@ -20,6 +22,12 @@ export function translateDatabaseError(
   error: DatabaseErrorLike,
   fallback: string = DEFAULT_MESSAGE
 ) {
+  const billingMessage = translateBillingError(error)
+
+  if (billingMessage) {
+    return billingMessage
+  }
+
   const message = error.message ?? ""
   const isGenericPostgresMessage =
     /violates|constraint|relation|column|permission denied|syntax/i.test(message)

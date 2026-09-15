@@ -43,12 +43,13 @@ export function PropertyCard({
     <article className="flex w-full flex-col overflow-hidden rounded-(--lp-radius) border border-(--lp-line) bg-(--lp-surface) text-(--lp-ink)">
       <div className="relative aspect-4/3 overflow-hidden bg-(--lp-surface-alt)">
         {property.coverUrl ? (
+          // Miniatura WebP de 400 px; foto antiga sem miniatura cai para a principal.
           <LandingImage
-            src={property.coverUrl}
+            src={property.coverThumbUrl ?? property.coverUrl}
+            fallbackSrc={property.coverUrl}
             alt={`Foto do imóvel: ${property.title}`}
-            width={800}
-            height={600}
-            sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+            width={400}
+            height={300}
             className="size-full"
           />
         ) : (

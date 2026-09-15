@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 import { LandingEditor } from "@/components/marketing/editor/landing-editor"
 import { ROLE_LABELS, isRole } from "@/lib/auth/roles"
 import { requireMembership } from "@/lib/auth/session"
+import { getBillingOverview } from "@/lib/billing/queries"
 import { isUuid } from "@/lib/imoveis/ids"
 import { isLandingTemplateKey } from "@/lib/landing/types"
 import {
@@ -53,10 +54,11 @@ export default async function LandingEditorPage({ params }: LandingEditorPagePro
   // Página de outra imobiliária (ou removida) cai aqui: o RLS não devolve a linha.
   if (!row || !isLandingTemplateKey(row.template)) notFound()
 
-  const [organization, members, properties] = await Promise.all([
+  const [organization, members, properties, billing] = await Promise.all([
     getLandingOrganization(supabase, organizationId),
     getLandingMembers(supabase, organizationId),
     getLandingPropertiesByIds(supabase, organizationId, row.property_ids),
+    getBillingOverview(organizationId),
   ])
 
   const memberOptions: LandingMemberOption[] = members.map((member) => ({
@@ -88,6 +90,7 @@ export default async function LandingEditorPage({ params }: LandingEditorPagePro
       organization={toLandingOrganization(organization)}
       organizationSlug={organization.slug}
       canEdit={canEditLandingPages(membership.role)}
+      uploadsBlocked={billing?.state === "read_only"}
     />
   )
 }

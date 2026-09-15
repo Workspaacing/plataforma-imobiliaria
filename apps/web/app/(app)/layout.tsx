@@ -1,10 +1,12 @@
 import type { Metadata } from "next"
 import { cookies } from "next/headers"
 import { unstable_rethrow } from "next/navigation"
+import { Suspense } from "react"
 
 import { SidebarInset, SidebarProvider } from "@workspace/ui/components/sidebar"
 import { Toaster } from "@workspace/ui/components/toast"
 
+import { SubscriptionBanner } from "@/components/billing/subscription-banner"
 import { APP_NAME } from "@/components/crm/brand"
 import { CrmHeader } from "@/components/crm/crm-header"
 import { CrmLoadError } from "@/components/crm/crm-load-error"
@@ -88,6 +90,10 @@ export default async function AppLayout({
         />
         <SidebarInset>
           <CrmHeader />
+          {/* Aviso de assinatura: não bloqueia a página nem quebra se a RPC falhar. */}
+          <Suspense fallback={null}>
+            <SubscriptionBanner organizationId={membership.organizationId} role={membership.role} />
+          </Suspense>
           <div className="flex flex-1 flex-col">{children}</div>
         </SidebarInset>
       </SidebarProvider>

@@ -24,6 +24,8 @@ jobs:
       NEXT_PUBLIC_SITE_URL: https://seucrm.com.br
       NEXT_PUBLIC_ROOT_DOMAIN: seucrm.com.br
       NEXT_TELEMETRY_DISABLED: "1"
+      # Hooks de git (husky) são só para commits locais; o npm ci não os instala aqui.
+      HUSKY: "0"
     steps:
       - uses: actions/checkout@v7
 

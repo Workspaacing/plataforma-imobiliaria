@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
+import { CLIENT_DOCUMENT_PDF_MAX_BYTES } from "@workspace/core/media/limits"
+
 import type { ActionResult } from "@/lib/auth/action-result"
 import { requireMembership } from "@/lib/auth/session"
 import type { ActionResultWithData } from "@/lib/clientes/action-result"
@@ -19,19 +21,28 @@ import { createClient } from "@/lib/supabase/server"
 
 const idSchema = z.guid()
 
-const registerDocumentSchema = z.object({
-  clientId: z.guid(),
-  storagePath: z.string().min(1).max(512),
-  name: z.string().trim().min(1, "Arquivo sem nome.").max(200, "Nome de arquivo longo demais."),
-  mimeType: z.enum(CLIENT_DOCUMENT_MIME_TYPES, {
-    error: "Formato não aceito. Envie PDF, JPG, PNG ou WebP.",
-  }),
-  sizeBytes: z
-    .number()
-    .int()
-    .positive("Arquivo vazio.")
-    .max(CLIENT_DOCUMENT_MAX_BYTES, "O arquivo passa de 20 MB."),
-})
+const registerDocumentSchema = z
+  .object({
+    clientId: z.guid(),
+    storagePath: z.string().min(1).max(512),
+    name: z.string().trim().min(1, "Arquivo sem nome.").max(200, "Nome de arquivo longo demais."),
+    mimeType: z.enum(CLIENT_DOCUMENT_MIME_TYPES, {
+      error: "Formato não aceito. Envie PDF, JPG, PNG ou WebP.",
+    }),
+    sizeBytes: z
+      .number()
+      .int()
+      .positive("Arquivo vazio.")
+      .max(CLIENT_DOCUMENT_MAX_BYTES, "O arquivo passa de 20 MB."),
+  })
+  .refine(
+    (input) =>
+      input.mimeType !== "application/pdf" || input.sizeBytes <= CLIENT_DOCUMENT_PDF_MAX_BYTES,
+    {
+      message: "O PDF passa de 10 MB. Gere uma versão reduzida e envie de novo.",
+      path: ["sizeBytes"],
+    }
+  )
 
 export type RegisterClientDocumentInput = z.input<typeof registerDocumentSchema>
 

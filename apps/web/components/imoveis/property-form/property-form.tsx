@@ -60,6 +60,8 @@ type PropertyFormProps = {
   condominiums: CondominiumOption[]
   capture: CaptureSummary | null
   canDeleteMedia: boolean
+  /** Assinatura em modo leitura: o envio de fotos fica bloqueado. */
+  uploadsBlocked?: boolean
 }
 
 const ALL_FIELDS = PROPERTY_FORM_STEPS.flatMap((step) => [...step.fields]) as PropertyFormField[]
@@ -81,6 +83,7 @@ export function PropertyForm({
   condominiums,
   capture,
   canDeleteMedia,
+  uploadsBlocked = false,
 }: PropertyFormProps) {
   const router = useRouter()
   const [step, setStep] = React.useState<PropertyFormStepKey>(initialStep)
@@ -206,6 +209,7 @@ export function PropertyForm({
             property={property}
             media={media}
             canDeleteMedia={canDeleteMedia}
+            uploadsBlocked={uploadsBlocked}
             isSaving={isSaving}
             onSaveDraft={saveDraft}
           />

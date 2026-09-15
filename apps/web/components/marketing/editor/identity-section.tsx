@@ -178,7 +178,7 @@ export function IdentitySection({
           <ImageField
             id="lp-logo"
             label="Logo"
-            description="PNG com fundo transparente fica melhor. JPG, PNG ou WebP até 5 MB."
+            description="PNG com fundo transparente fica melhor. JPG, PNG, WebP ou HEIC; otimizamos para até 512 px, mantendo a transparência."
             path={field.value}
             onChange={field.onChange}
             target={uploadTarget}
@@ -203,7 +203,7 @@ export function IdentitySection({
             <ImageField
               id="lp-fundo"
               label="Imagem de fundo"
-              description="Aparece atrás do título principal. Use pelo menos 1920 × 1080 px, JPG ou WebP até 5 MB."
+              description="Aparece atrás do título principal. Use pelo menos 1920 × 1080 px; a imagem é otimizada para 1920 px antes do envio."
               path={field.value}
               onChange={field.onChange}
               target={uploadTarget}
@@ -228,7 +228,7 @@ export function IdentitySection({
               label={template.imageSlots.banners === 1 ? "Banner" : "Banners"}
               description={`Até ${template.imageSlots.banners} ${
                 template.imageSlots.banners === 1 ? "imagem" : "imagens, na ordem da lista"
-              }. JPG, PNG ou WebP até 5 MB.`}
+              }. JPG, PNG, WebP ou HEIC, otimizadas antes do envio.`}
               paths={field.value}
               max={template.imageSlots.banners}
               onChange={field.onChange}

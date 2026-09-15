@@ -11,6 +11,7 @@ import {
   UploadIcon,
 } from "lucide-react"
 
+import { SOURCE_IMAGE_ACCEPT } from "@workspace/core/media/image-type"
 import { Button } from "@workspace/ui/components/button"
 import {
   Field,
@@ -23,14 +24,30 @@ import { Spinner } from "@workspace/ui/components/spinner"
 import { toast } from "@workspace/ui/components/toast"
 import { cn } from "@workspace/ui/lib/utils"
 
-import { useLandingAssetUpload } from "@/components/marketing/use-landing-asset-upload"
+import type { UploadTarget } from "@/components/marketing/editor/types"
+import {
+  useLandingAssetUpload,
+  type LandingUploadPhase,
+} from "@/components/marketing/use-landing-asset-upload"
+import { UploadsBlockedNotice } from "@/components/media/uploads-blocked-notice"
 import { getLandingAssetPublicUrl } from "@/lib/marketing/asset-url"
-import { LANDING_ACCEPTED_IMAGE_ACCEPT_ATTR } from "@/lib/marketing/constants"
-
-type UploadTarget = { organizationId: string; pageId: string }
 
 function notifyUploadError(error: string) {
   toast.add({ type: "error", title: "Imagem não enviada", description: error })
+}
+
+function uploadingLabel(phase: LandingUploadPhase | null) {
+  return phase === "uploading" ? "Enviando…" : "Otimizando…"
+}
+
+/** Antes e depois da otimização, em texto discreto. */
+function SizeNote({ sizeLabel }: { sizeLabel: string | null }) {
+  if (!sizeLabel) return null
+  return (
+    <span className="text-xs text-muted-foreground tabular-nums" aria-live="polite">
+      Imagem otimizada: {sizeLabel}
+    </span>
+  )
 }
 
 function HiddenFileInput({
@@ -46,7 +63,7 @@ function HiddenFileInput({
     <input
       ref={inputRef}
       type="file"
-      accept={LANDING_ACCEPTED_IMAGE_ACCEPT_ATTR}
+      accept={SOURCE_IMAGE_ACCEPT}
       className="sr-only"
       tabIndex={-1}
       aria-label={label}
@@ -84,6 +101,8 @@ function Thumbnail({
         <img
           src={url}
           alt={alt}
+          loading="lazy"
+          decoding="async"
           className={cn("size-full", fit === "contain" ? "object-contain p-1" : "object-cover")}
         />
       ) : (
@@ -123,14 +142,21 @@ export function ImageField({
   disabled?: boolean
 }) {
   const inputRef = React.useRef<HTMLInputElement>(null)
-  const { upload, isUploading } = useLandingAssetUpload(target)
+  const { upload, isUploading, phase } = useLandingAssetUpload(target)
+  const [sizeLabel, setSizeLabel] = React.useState<string | null>(null)
+  const blocked = Boolean(target.uploadsBlocked)
   const url = getLandingAssetPublicUrl(path)
   const shownUrl = url ?? fallbackUrl ?? null
 
   async function handleFile(file: File) {
-    const result = await upload(file)
-    if (result.ok) onChange(result.path)
-    else notifyUploadError(result.error)
+    // Logo: até 512 px preservando transparência. Demais: JPEG até 1920 px.
+    const result = await upload(file, aspect === "logo" ? "logo" : "banner")
+    if (result.ok) {
+      onChange(result.path)
+      setSizeLabel(result.sizeLabel)
+    } else {
+      notifyUploadError(result.error)
+    }
   }
 
   return (
@@ -145,7 +171,7 @@ export function ImageField({
               type="button"
               variant="outline"
               size="sm"
-              disabled={disabled || isUploading}
+              disabled={disabled || isUploading || blocked}
               onClick={() => inputRef.current?.click()}
             >
               {isUploading ? (
@@ -155,7 +181,7 @@ export function ImageField({
               ) : (
                 <UploadIcon data-icon="inline-start" />
               )}
-              {isUploading ? "Enviando..." : path ? "Substituir" : "Enviar imagem"}
+              {isUploading ? uploadingLabel(phase) : path ? "Substituir" : "Enviar imagem"}
             </Button>
             {path ? (
               <Button
@@ -163,7 +189,10 @@ export function ImageField({
                 variant="ghost"
                 size="sm"
                 disabled={disabled || isUploading}
-                onClick={() => onChange(null)}
+                onClick={() => {
+                  setSizeLabel(null)
+                  onChange(null)
+                }}
               >
                 <Trash2Icon data-icon="inline-start" />
                 Remover
@@ -173,6 +202,7 @@ export function ImageField({
           {!path && fallbackNote ? (
             <span className="text-xs text-muted-foreground">{fallbackNote}</span>
           ) : null}
+          {path ? <SizeNote sizeLabel={sizeLabel} /> : null}
         </div>
       </div>
       <HiddenFileInput
@@ -180,6 +210,7 @@ export function ImageField({
         label={`Arquivo para ${label.toLowerCase()}`}
         onFile={handleFile}
       />
+      {blocked && !disabled ? <UploadsBlockedNotice compact /> : null}
       {error ? (
         <FieldError>{error}</FieldError>
       ) : (
@@ -209,19 +240,22 @@ export function ImageListField({
 }) {
   const inputRef = React.useRef<HTMLInputElement>(null)
   const replaceIndexRef = React.useRef<number | null>(null)
-  const { upload, isUploading } = useLandingAssetUpload(target)
+  const { upload, isUploading, phase } = useLandingAssetUpload(target)
+  const [sizeLabel, setSizeLabel] = React.useState<string | null>(null)
+  const blocked = Boolean(target.uploadsBlocked)
   const canAdd = paths.length < max
 
   async function handleFile(file: File) {
     const replaceIndex = replaceIndexRef.current
     replaceIndexRef.current = null
 
-    const result = await upload(file)
+    const result = await upload(file, "banner")
     if (!result.ok) {
       notifyUploadError(result.error)
       return
     }
 
+    setSizeLabel(result.sizeLabel)
     if (replaceIndex != null && replaceIndex < paths.length) {
       onChange(paths.map((path, index) => (index === replaceIndex ? result.path : path)))
     } else if (paths.length < max) {
@@ -288,7 +322,7 @@ export function ImageListField({
                   type="button"
                   variant="ghost"
                   size="icon-sm"
-                  disabled={disabled || isUploading}
+                  disabled={disabled || isUploading || blocked}
                   onClick={() => pick(index)}
                 >
                   <RefreshCwIcon />
@@ -315,7 +349,7 @@ export function ImageListField({
           variant="outline"
           size="sm"
           className="self-start"
-          disabled={disabled || isUploading}
+          disabled={disabled || isUploading || blocked}
           onClick={() => pick(null)}
         >
           {isUploading ? (
@@ -323,14 +357,16 @@ export function ImageListField({
           ) : (
             <ImagePlusIcon data-icon="inline-start" />
           )}
-          {isUploading ? "Enviando..." : "Adicionar imagem"}
+          {isUploading ? uploadingLabel(phase) : "Adicionar imagem"}
         </Button>
       ) : null}
+      <SizeNote sizeLabel={sizeLabel} />
       <HiddenFileInput
         inputRef={inputRef}
         label={`Arquivo para ${label.toLowerCase()}`}
         onFile={handleFile}
       />
+      {blocked && !disabled ? <UploadsBlockedNotice compact /> : null}
       <FieldDescription>{description}</FieldDescription>
     </Field>
   )
