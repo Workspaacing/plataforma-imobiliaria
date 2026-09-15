@@ -139,13 +139,12 @@ function rewriteToTenantNotFound(request: NextRequest) {
   })
 }
 
-function redirectWithSession(
-  url: URL,
+/** Copia para `response` os cookies e headers da renovação da sessão. */
+function withSessionState(
+  response: NextResponse,
   sessionResponse: NextResponse,
   sessionHeaders: Record<string, string>
 ) {
-  const response = NextResponse.redirect(url)
-
   for (const cookie of sessionResponse.cookies.getAll()) {
     response.cookies.set(cookie)
   }
@@ -155,6 +154,14 @@ function redirectWithSession(
   }
 
   return response
+}
+
+function redirectWithSession(
+  url: URL,
+  sessionResponse: NextResponse,
+  sessionHeaders: Record<string, string>
+) {
+  return withSessionState(NextResponse.redirect(url), sessionResponse, sessionHeaders)
 }
 
 /**
@@ -298,6 +305,21 @@ async function withSession(request: NextRequest, context: RouteContext) {
   }
 
   if (!isAuthenticated && !isPublicPath(pathname)) {
+    // Visitante na raiz: o login aparece no próprio "/" (rewrite), sem o
+    // redirecionamento extra que custava ~0,8 s no celular (PageSpeed).
+    if (normalizePathname(pathname) === "/") {
+      const rewriteUrl = request.nextUrl.clone()
+      rewriteUrl.pathname = LOGIN_PATH
+
+      return withSessionState(
+        NextResponse.rewrite(rewriteUrl, {
+          request: { headers: forwardedHeaders(request, context.tenantSlug) },
+        }),
+        response,
+        sessionHeaders
+      )
+    }
+
     const loginUrl = new URL(LOGIN_PATH, context.origin)
 
     if (pathname !== "/") {

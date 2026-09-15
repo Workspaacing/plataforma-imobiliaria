@@ -2,6 +2,11 @@ import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
   transpilePackages: ["@workspace/ui", "@workspace/core", "@workspace/database"],
+  experimental: {
+    // No primeiro carregamento o CSS vai inline no <head>, sem a folha que bloqueava a
+    // renderização no celular (PageSpeed). Navegações pelo app continuam com <link>.
+    inlineCss: true,
+  },
   // Server Actions recebem senha, CPF e documentos: não imprimir argumentos no terminal.
   logging: {
     serverFunctions: false,

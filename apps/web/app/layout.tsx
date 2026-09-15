@@ -1,13 +1,25 @@
 // Geist oficial da Vercel (pacote `geist`, woff2 variável servido pelo próprio app via
 // next/font/local): nenhuma requisição ao Google, nem no build nem no navegador.
+import type { Metadata } from "next"
 import { GeistMono } from "geist/font/mono"
 import { GeistSans } from "geist/font/sans"
 
 import "@workspace/ui/globals.css"
 import { DirectionProvider } from "@workspace/ui/components/direction"
+import { APP_NAME } from "@/components/crm/brand"
 import { ThemeProvider } from "@/components/theme-provider"
 import { VercelObservability } from "@/components/vercel-observability"
 import { cn } from "@workspace/ui/lib/utils"
+
+export const metadata: Metadata = {
+  applicationName: APP_NAME,
+  title: {
+    template: `%s · ${APP_NAME}`,
+    default: APP_NAME,
+  },
+  description:
+    "CRM para corretores e imobiliárias: imóveis, clientes, funil de leads, agenda, propostas e landing pages num só lugar.",
+}
 
 // Pré-visualização ao vivo do tweakcn (editor de temas shadcn). Só em desenvolvimento:
 // em produção, nenhum script de terceiro roda nas telas com dados de clientes.
