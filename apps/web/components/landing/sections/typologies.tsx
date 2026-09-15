@@ -71,7 +71,7 @@ function PriceValue({ typology, size }: { typology: LandingTypology; size: "md" 
     <span
       className={cn(
         lpDisplayFont,
-        "leading-tight font-bold font-stretch-semi-condensed tabular-nums",
+        "leading-tight font-bold tracking-tight tabular-nums",
         size === "lg" ? "text-[1.75rem]" : "text-[1.5rem]"
       )}
     >

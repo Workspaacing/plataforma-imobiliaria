@@ -21,7 +21,7 @@ import { DISCLAIMERS, launchFacts, type LandingTemplateRenderProps } from "./sha
 
 /**
  * Lançamento completo — o book da incorporadora em forma de página.
- * O nome do empreendimento em Bodoni Moda de corpo grande é a assinatura;
+ * O nome do empreendimento em corpo grande é a assinatura;
  * logo abaixo, a ficha técnica numa faixa escura (entrega, construtora,
  * localização, plantas). Galeria, tipologias, localização e o pedido do book
  * numa faixa escura com o formulário.

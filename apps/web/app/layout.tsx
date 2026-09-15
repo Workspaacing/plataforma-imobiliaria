@@ -1,21 +1,12 @@
-import { Geist, Geist_Mono } from "next/font/google"
+// Geist oficial da Vercel (pacote `geist`, woff2 variável servido pelo próprio app via
+// next/font/local): nenhuma requisição ao Google, nem no build nem no navegador.
+import { GeistMono } from "geist/font/mono"
+import { GeistSans } from "geist/font/sans"
 
 import "@workspace/ui/globals.css"
 import { DirectionProvider } from "@workspace/ui/components/direction"
 import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@workspace/ui/lib/utils"
-
-const geist = Geist({ subsets: ["latin"], variable: "--font-sans" })
-
-const fontMono = Geist_Mono({
-  subsets: ["latin"],
-  variable: "--font-mono",
-})
-
-const fontTypeset = Geist({
-  subsets: ["latin"],
-  variable: "--font-geist",
-})
 
 // Pré-visualização ao vivo do tweakcn (editor de temas shadcn). Só em desenvolvimento:
 // em produção, nenhum script de terceiro roda nas telas com dados de clientes.
@@ -31,13 +22,7 @@ export default function RootLayout({
       lang="pt-BR"
       dir="ltr"
       suppressHydrationWarning
-      className={cn(
-        "antialiased",
-        fontMono.variable,
-        "font-sans",
-        geist.variable,
-        fontTypeset.variable
-      )}
+      className={cn("antialiased", "font-sans", GeistSans.variable, GeistMono.variable)}
     >
       {enableTweakcnPreview ? (
         <head>

@@ -49,7 +49,7 @@ export function PortfolioGridTemplate({
               id={id("hero-title")}
               className={cn(
                 lpDisplayFont,
-                "max-w-[22ch] text-[2.25rem] leading-[1.02] font-bold text-balance font-stretch-semi-condensed @xl:text-[3rem]"
+                "max-w-[22ch] text-[2.25rem] leading-[1.02] font-bold tracking-tight text-balance @xl:text-[3rem]"
               )}
             >
               {vm.copy.headline}

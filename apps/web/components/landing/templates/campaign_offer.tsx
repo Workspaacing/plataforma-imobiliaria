@@ -71,7 +71,7 @@ export function CampaignOfferTemplate({
                   id={id("hero-title")}
                   className={cn(
                     lpDisplayFont,
-                    "text-[2.375rem] leading-none font-extrabold text-balance font-stretch-condensed @xl:text-[3.25rem]"
+                    "text-[2.375rem] leading-none font-extrabold tracking-tight text-balance @xl:text-[3.25rem]"
                   )}
                 >
                   {vm.copy.headline}

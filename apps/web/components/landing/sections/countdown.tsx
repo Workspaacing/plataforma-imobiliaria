@@ -91,7 +91,7 @@ export function Countdown({
             <span
               className={cn(
                 lpDisplayFont,
-                "leading-none font-extrabold font-stretch-condensed tabular-nums",
+                "leading-none font-extrabold tracking-tight tabular-nums",
                 size === "lg"
                   ? "text-[2.75rem] @xl:text-[4.25rem]"
                   : "text-[2rem] @xl:text-[2.5rem]"

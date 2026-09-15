@@ -21,7 +21,7 @@ import { DISCLAIMERS, launchFacts, type LandingTemplateRenderProps } from "./sha
  * Tabela de unidades — uma ficha técnica que convida a comparar.
  * As tipologias ficam lado a lado com atributos alinhados linha a linha
  * (área, quartos, valor), cada coluna com "Quero esta planta", que leva a
- * tipologia ao formulário. Hero curto com o nome em Bodoni e a ficha resumida.
+ * tipologia ao formulário. Hero curto com o nome em destaque e a ficha resumida.
  */
 export function LaunchUnitsTemplate({
   vm,

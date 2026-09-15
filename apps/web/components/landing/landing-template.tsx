@@ -19,7 +19,6 @@ import type { ReactNode } from "react"
 
 import { cn } from "@workspace/ui/lib/utils"
 
-import { landingFontVariables } from "@/components/landing/fonts"
 import { LandingLeadInterestProvider } from "@/components/landing/lead-interest"
 import type { LandingLeadFormSize } from "@/lib/landing/templates"
 import type { LandingPublicPayload, LandingTemplateKey } from "@/lib/landing/types"
@@ -130,7 +129,6 @@ export function LandingTemplate({
       data-landing-mode={mode}
       style={vm.theme.style}
       className={cn(
-        landingFontVariables,
         RADIUS_BY_CATEGORY[vm.template.category],
         "@container relative isolate flex w-full min-w-0 flex-col bg-(--lp-surface) text-base text-(--lp-ink) antialiased",
         className

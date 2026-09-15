@@ -15,7 +15,7 @@ import { DISCLAIMERS, PreviewHint, type LandingTemplateRenderProps } from "./sha
 
 /**
  * Lista VIP — uma tela, uma ação.
- * Fundo escuro, nome do empreendimento em Bodoni, e a contagem regressiva em
+ * Fundo escuro, nome do empreendimento em destaque, e a contagem regressiva em
  * dígitos condensados enormes como peça central. Formulário curto na mesma
  * dobra. Abaixo, só as vantagens de entrar primeiro.
  */
@@ -56,7 +56,7 @@ export function LaunchWaitlistTemplate({
                 id={id("hero-title")}
                 className={cn(
                   lpDisplayFont,
-                  "max-w-[20ch] text-[2.25rem] leading-[1.02] font-bold text-balance font-stretch-condensed @xl:text-[3rem] @5xl:text-[3.5rem]"
+                  "max-w-[20ch] text-[2.25rem] leading-[1.02] font-bold tracking-tight text-balance @xl:text-[3rem] @5xl:text-[3.5rem]"
                 )}
               >
                 {vm.copy.headline}

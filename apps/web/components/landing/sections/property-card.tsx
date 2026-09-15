@@ -74,7 +74,7 @@ export function PropertyCard({
               <span
                 className={cn(
                   lpDisplayFont,
-                  "text-[1.625rem] leading-none font-bold font-stretch-semi-condensed tabular-nums"
+                  "text-[1.625rem] leading-none font-bold tracking-tight tabular-nums"
                 )}
               >
                 {mainPrice.amount}

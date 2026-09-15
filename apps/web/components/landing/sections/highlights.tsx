@@ -44,7 +44,7 @@ export function HighlightList({
             className={cn(
               "border-t py-5 text-[1.375rem] leading-snug font-semibold text-balance @3xl:text-[1.625rem]",
               lpDisplayFont,
-              "font-stretch-semi-condensed",
+              "tracking-tight",
               ruleColor[tone]
             )}
           >

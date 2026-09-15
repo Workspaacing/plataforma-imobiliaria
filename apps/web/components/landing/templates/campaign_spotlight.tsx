@@ -124,7 +124,7 @@ export function CampaignSpotlightTemplate({
                 id={id("hero-title")}
                 className={cn(
                   lpDisplayFont,
-                  "max-w-[18ch] text-[2.5rem] leading-[0.98] font-bold text-balance font-stretch-condensed @xl:text-[3.25rem] @5xl:text-[4.25rem]"
+                  "max-w-[18ch] text-[2.5rem] leading-[0.98] font-bold tracking-tight text-balance @xl:text-[3.25rem] @5xl:text-[4.25rem]"
                 )}
               >
                 {vm.copy.headline}
@@ -137,7 +137,7 @@ export function CampaignSpotlightTemplate({
                   <p
                     className={cn(
                       lpDisplayFont,
-                      "text-[2.75rem] leading-none font-extrabold font-stretch-condensed tabular-nums @xl:text-[3.75rem]"
+                      "text-[2.75rem] leading-none font-extrabold tracking-tight tabular-nums @xl:text-[3.75rem]"
                     )}
                   >
                     {price.amount}

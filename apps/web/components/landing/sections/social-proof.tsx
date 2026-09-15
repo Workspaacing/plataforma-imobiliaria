@@ -41,7 +41,7 @@ export function StatsRow({
           <dd
             className={cn(
               lpDisplayFont,
-              "text-[2.25rem] leading-none font-bold font-stretch-condensed tabular-nums @3xl:text-[2.75rem]"
+              "text-[2.25rem] leading-none font-bold tracking-tight tabular-nums @3xl:text-[2.75rem]"
             )}
           >
             {stat.stat_value}

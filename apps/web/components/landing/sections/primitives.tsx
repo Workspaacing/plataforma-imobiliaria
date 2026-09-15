@@ -90,8 +90,8 @@ export function lpButtonClass({
   )
 }
 
-export const lpDisplayFont = "font-(family-name:--font-lp-display)"
-export const lpSerifFont = "font-(family-name:--font-lp-serif)"
+export const lpDisplayFont = "font-sans"
+export const lpSerifFont = "font-sans"
 
 // ---------------------------------------------------------------------------
 // Estrutura
@@ -173,7 +173,7 @@ export function SectionHeading({
         id={id}
         className={cn(
           "text-[1.75rem] leading-[1.12] font-semibold tracking-tight text-balance @3xl:text-[2.375rem]",
-          font === "display" && cn(lpDisplayFont, "font-bold font-stretch-semi-condensed"),
+          font === "display" && cn(lpDisplayFont, "font-bold tracking-tight"),
           font === "serif" && cn(lpSerifFont, "leading-[1.05] font-medium tracking-normal")
         )}
       >

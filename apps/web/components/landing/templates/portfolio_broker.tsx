@@ -67,9 +67,7 @@ export function PortfolioBrokerTemplate({
                   aria-hidden="true"
                   className="flex size-full items-center justify-center text-(--lp-on-primary)"
                 >
-                  <span
-                    className={cn(lpDisplayFont, "text-[5.5rem] font-bold font-stretch-condensed")}
-                  >
+                  <span className={cn(lpDisplayFont, "text-[5.5rem] font-bold tracking-tight")}>
                     {initials}
                   </span>
                 </div>
@@ -85,7 +83,7 @@ export function PortfolioBrokerTemplate({
                 id={id("hero-title")}
                 className={cn(
                   lpDisplayFont,
-                  "text-[2.5rem] leading-none font-bold text-balance font-stretch-semi-condensed @xl:text-[3.5rem]"
+                  "text-[2.5rem] leading-none font-bold tracking-tight text-balance @xl:text-[3.5rem]"
                 )}
               >
                 {name}
