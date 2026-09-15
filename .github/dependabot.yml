@@ -70,10 +70,10 @@ updates:
     # Versões principais (major) chegam em PRs separados, um por pacote,
     # para cada quebra ser revisada com typecheck, lint, testes e build.
     ignore:
-      # TypeScript 7 (compilador nativo) ainda quebra o typescript-eslint
-      # (peer typescript < 6.1). Remover quando o typescript-eslint suportar o TS 7.
+      # TypeScript >= 6.1 (e o 7 nativo) ainda quebra o typescript-eslint
+      # (peer typescript < 6.1). Remover quando o typescript-eslint aceitar versões novas.
       - dependency-name: typescript
-        versions: [">=7.0.0"]
+        versions: [">=6.1.0"]
 
   # Versões das GitHub Actions usadas nos workflows.
   - package-ecosystem: github-actions
