@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, useForm } from "react-hook-form"
 
 import { Button } from "@workspace/ui/components/button"
@@ -18,14 +17,14 @@ import { Spinner } from "@workspace/ui/components/spinner"
 import { AuthHeading } from "@/app/(auth)/_components/auth-heading"
 import { updatePassword } from "@/app/(auth)/actions"
 import { FormFeedback, type FormFeedbackState } from "@/components/crm/form-feedback"
-import { resetPasswordSchema, type ResetPasswordValues } from "@/lib/auth/schemas"
+import { validateConfirmPassword, validateNewPassword } from "@/lib/auth/form-rules"
+import type { ResetPasswordValues } from "@/lib/auth/schemas"
 
 export function ResetPasswordForm({ email }: { email: string | null }) {
   const [isPending, startTransition] = React.useTransition()
   const [feedback, setFeedback] = React.useState<FormFeedbackState>(null)
 
   const form = useForm<ResetPasswordValues>({
-    resolver: zodResolver(resetPasswordSchema),
     defaultValues: { password: "", confirmPassword: "" },
   })
 
@@ -54,6 +53,7 @@ export function ResetPasswordForm({ email }: { email: string | null }) {
         <Controller
           name="password"
           control={form.control}
+          rules={{ validate: validateNewPassword }}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
               <FieldLabel htmlFor="nova-senha">Nova senha</FieldLabel>
@@ -75,6 +75,7 @@ export function ResetPasswordForm({ email }: { email: string | null }) {
         <Controller
           name="confirmPassword"
           control={form.control}
+          rules={{ validate: validateConfirmPassword }}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
               <FieldLabel htmlFor="confirmar-senha">Repita a nova senha</FieldLabel>

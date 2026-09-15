@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { zodResolver } from "@hookform/resolvers/zod"
 import { MailIcon } from "lucide-react"
 import { Controller, useForm } from "react-hook-form"
 
@@ -21,8 +20,9 @@ import { Spinner } from "@workspace/ui/components/spinner"
 import { AuthHeading } from "@/app/(auth)/_components/auth-heading"
 import { sendMagicLink, signInWithPassword } from "@/app/(auth)/actions"
 import { FormFeedback, type FormFeedbackState } from "@/components/crm/form-feedback"
+import { validateCurrentPassword, validateEmail } from "@/lib/auth/form-rules"
 import { appendNextParam, SIGN_UP_PATH } from "@/lib/auth/routes"
-import { signInSchema, type SignInValues } from "@/lib/auth/schemas"
+import type { SignInValues } from "@/lib/auth/schemas"
 
 type PendingAction = "password" | "magic-link" | null
 
@@ -38,7 +38,6 @@ export function LoginForm({
   const [feedback, setFeedback] = React.useState<FormFeedbackState>(initialFeedback)
 
   const form = useForm<SignInValues>({
-    resolver: zodResolver(signInSchema),
     defaultValues: { email: "", password: "" },
   })
 
@@ -98,6 +97,7 @@ export function LoginForm({
         <Controller
           name="email"
           control={form.control}
+          rules={{ validate: validateEmail }}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
               <FieldLabel htmlFor="entrar-email">E-mail</FieldLabel>
@@ -116,6 +116,7 @@ export function LoginForm({
         <Controller
           name="password"
           control={form.control}
+          rules={{ validate: validateCurrentPassword }}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
               <div className="flex items-center">

@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, useForm } from "react-hook-form"
 
 import { Button } from "@workspace/ui/components/button"
@@ -19,14 +18,14 @@ import { Spinner } from "@workspace/ui/components/spinner"
 import { AuthHeading } from "@/app/(auth)/_components/auth-heading"
 import { requestPasswordReset } from "@/app/(auth)/actions"
 import { FormFeedback, type FormFeedbackState } from "@/components/crm/form-feedback"
-import { recoverPasswordSchema, type RecoverPasswordValues } from "@/lib/auth/schemas"
+import { validateEmail } from "@/lib/auth/form-rules"
+import type { RecoverPasswordValues } from "@/lib/auth/schemas"
 
 export function RecoverPasswordForm() {
   const [isPending, startTransition] = React.useTransition()
   const [feedback, setFeedback] = React.useState<FormFeedbackState>(null)
 
   const form = useForm<RecoverPasswordValues>({
-    resolver: zodResolver(recoverPasswordSchema),
     defaultValues: { email: "" },
   })
 
@@ -63,6 +62,7 @@ export function RecoverPasswordForm() {
         <Controller
           name="email"
           control={form.control}
+          rules={{ validate: validateEmail }}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
               <FieldLabel htmlFor="recuperar-email">E-mail</FieldLabel>

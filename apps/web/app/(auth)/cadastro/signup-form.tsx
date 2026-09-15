@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, useForm } from "react-hook-form"
 
 import { Button } from "@workspace/ui/components/button"
@@ -19,8 +18,9 @@ import { Spinner } from "@workspace/ui/components/spinner"
 import { AuthHeading } from "@/app/(auth)/_components/auth-heading"
 import { signUp } from "@/app/(auth)/actions"
 import { FormFeedback, type FormFeedbackState } from "@/components/crm/form-feedback"
+import { validateEmail, validateFullName, validateNewPassword } from "@/lib/auth/form-rules"
 import { appendNextParam, LOGIN_PATH } from "@/lib/auth/routes"
-import { signUpSchema, type SignUpValues } from "@/lib/auth/schemas"
+import type { SignUpValues } from "@/lib/auth/schemas"
 
 export function SignUpForm({ next }: { next: string | null }) {
   const [isPending, startTransition] = React.useTransition()
@@ -28,7 +28,6 @@ export function SignUpForm({ next }: { next: string | null }) {
   const [confirmationMessage, setConfirmationMessage] = React.useState<string | null>(null)
 
   const form = useForm<SignUpValues>({
-    resolver: zodResolver(signUpSchema),
     defaultValues: { fullName: "", email: "", password: "" },
   })
 
@@ -74,6 +73,7 @@ export function SignUpForm({ next }: { next: string | null }) {
         <Controller
           name="fullName"
           control={form.control}
+          rules={{ validate: validateFullName }}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
               <FieldLabel htmlFor="cadastro-nome">Nome completo</FieldLabel>
@@ -91,6 +91,7 @@ export function SignUpForm({ next }: { next: string | null }) {
         <Controller
           name="email"
           control={form.control}
+          rules={{ validate: validateEmail }}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
               <FieldLabel htmlFor="cadastro-email">E-mail</FieldLabel>
@@ -113,6 +114,7 @@ export function SignUpForm({ next }: { next: string | null }) {
         <Controller
           name="password"
           control={form.control}
+          rules={{ validate: validateNewPassword }}
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
               <FieldLabel htmlFor="cadastro-senha">Senha</FieldLabel>
