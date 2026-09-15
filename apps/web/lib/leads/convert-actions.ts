@@ -303,7 +303,7 @@ export async function convertLeadToClient(
 
   let clientId: string
   let clientName: string
-  let clientKind: Enums<"client_kind"> = "pf"
+  let clientKind: Enums<"client_kind">
   let created = false
 
   if (parsed.data.clientId) {

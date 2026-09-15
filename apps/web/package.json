@@ -18,6 +18,8 @@
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.116.0",
     "@tanstack/react-table": "^9.2.4",
+    "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.0.0",
     "@workspace/core": "*",
     "@workspace/database": "*",
     "@workspace/ui": "*",
@@ -47,7 +49,7 @@
     "@types/react-dom": "^19",
     "@workspace/eslint-config": "*",
     "@workspace/typescript-config": "*",
-    "eslint": "^9",
+    "eslint": "^10.10.0",
     "typescript": "^6"
   }
 }

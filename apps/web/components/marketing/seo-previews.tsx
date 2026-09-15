@@ -67,7 +67,7 @@ export function SharePreview({
   description: string
   imageUrl: string | null
 }) {
-  let host = url
+  let host: string
   try {
     host = new URL(url).host
   } catch {

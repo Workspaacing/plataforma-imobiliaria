@@ -6,11 +6,16 @@ import { GeistSans } from "geist/font/sans"
 import "@workspace/ui/globals.css"
 import { DirectionProvider } from "@workspace/ui/components/direction"
 import { ThemeProvider } from "@/components/theme-provider"
+import { VercelObservability } from "@/components/vercel-observability"
 import { cn } from "@workspace/ui/lib/utils"
 
 // Pré-visualização ao vivo do tweakcn (editor de temas shadcn). Só em desenvolvimento:
 // em produção, nenhum script de terceiro roda nas telas com dados de clientes.
 const enableTweakcnPreview = process.env.NODE_ENV === "development"
+
+// Web Analytics e Speed Insights da Vercel só no build de produção. Os scripts vêm do
+// próprio domínio (/_vercel/...) e só respondem na Vercel com os recursos ativados no painel.
+const enableVercelObservability = process.env.NODE_ENV === "production"
 
 export default function RootLayout({
   children,
@@ -34,6 +39,7 @@ export default function RootLayout({
         <DirectionProvider direction="ltr">
           <ThemeProvider>{children}</ThemeProvider>
         </DirectionProvider>
+        {enableVercelObservability ? <VercelObservability /> : null}
       </body>
     </html>
   )

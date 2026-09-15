@@ -54,7 +54,7 @@ const organizationSchema = z.object({
 })
 
 export function normalizeSlug(value: string) {
-  let decoded = value
+  let decoded: string
 
   try {
     decoded = decodeURIComponent(value)

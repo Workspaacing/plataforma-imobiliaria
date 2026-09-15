@@ -288,7 +288,7 @@ async function withSession(request: NextRequest, context: RouteContext) {
 
   // Importante: nada entre createServerClient e getClaims. getClaims valida o
   // JWT e dispara a renovação do token quando ele está perto de expirar.
-  let isAuthenticated = false
+  let isAuthenticated: boolean
 
   try {
     const { data } = await supabase.auth.getClaims()

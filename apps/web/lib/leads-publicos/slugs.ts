@@ -4,7 +4,7 @@
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
 function normalizeSlug(value: string, minLength: number, maxLength: number) {
-  let decoded = value
+  let decoded: string
 
   try {
     decoded = decodeURIComponent(value)
