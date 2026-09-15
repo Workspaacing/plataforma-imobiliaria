@@ -16,6 +16,7 @@ import {
 
 import { SUBSCRIPTION_SETTINGS_PATH } from "@/lib/auth/routes"
 import { requireMembership, type MembershipContext } from "@/lib/auth/session"
+import { couponIdsByDiscount, phaseDiscountParams } from "@/lib/billing/discounts"
 import {
   describeBillingError,
   isPortalNotConfiguredError,
@@ -23,6 +24,7 @@ import {
   translateBillingError,
 } from "@/lib/billing/errors"
 import { getBillingOverview } from "@/lib/billing/queries"
+import { referralCouponForCheckout } from "@/lib/billing/referrals"
 import { getBillingAccountIds, syncBillingAccount } from "@/lib/billing/rpc"
 import { getStripe, isStripeError, isStripeResourceMissing } from "@/lib/billing/stripe"
 import {
@@ -152,7 +154,8 @@ async function retrieveSubscription(
   subscriptionId: string
 ): Promise<Stripe.Subscription | null> {
   try {
-    return await stripe.subscriptions.retrieve(subscriptionId)
+    // `discounts` expandido: o downgrade agendado copia os descontos para as fases.
+    return await stripe.subscriptions.retrieve(subscriptionId, { expand: ["discounts"] })
   } catch (error) {
     if (isStripeResourceMissing(error)) {
       return null
@@ -340,6 +343,16 @@ async function scheduleChangeAtPeriodEnd(
     nextItems.push({ price: prices.seat.id, quantity: choice.extraSeats })
   }
 
+  // Fases sem `discounts` ficam sem desconto: copia os atuais (inclusive o cupom
+  // de indicação) nas duas. Na fase atual reaproveita os descontos; na seguinte, pelo cupom.
+  const couponsByDiscount = couponIdsByDiscount(subscription)
+  const currentDiscounts = phaseDiscountParams(currentPhase.discounts, couponsByDiscount, {
+    preferCoupon: false,
+  })
+  const nextDiscounts = phaseDiscountParams(currentPhase.discounts, couponsByDiscount, {
+    preferCoupon: true,
+  })
+
   await stripe.subscriptionSchedules.update(
     schedule.id,
     {
@@ -353,11 +366,13 @@ async function scheduleChangeAtPeriodEnd(
             const price = idOf(item.price)
             return price ? [{ price, quantity: item.quantity ?? undefined }] : []
           }),
+          ...(currentDiscounts.length > 0 ? { discounts: currentDiscounts } : {}),
         },
         {
           items: nextItems,
           proration_behavior: "none",
           duration: { interval: choice.interval, interval_count: 1 },
+          ...(nextDiscounts.length > 0 ? { discounts: nextDiscounts } : {}),
         },
       ],
     },
@@ -400,6 +415,25 @@ async function createPortalUrl(
     }
 
     throw error
+  }
+}
+
+/**
+ * Cupom de indicação para o Checkout (desconto já na 1ª fatura). Falha não
+ * impede a contratação: o webhook aplica o cupom na assinatura depois.
+ */
+async function findReferralCoupon(
+  stripe: Stripe,
+  organizationId: string,
+  choice: { planKey: PlanKey; interval: BillingInterval }
+): Promise<string | null> {
+  try {
+    return await referralCouponForCheckout(stripe, organizationId, choice)
+  } catch (error) {
+    console.error(
+      `[billing] cupom de indicação indisponível no Checkout (${describeBillingError(error)})`
+    )
+    return null
   }
 }
 
@@ -450,6 +484,7 @@ export async function startCheckout(input: SubscriptionChoice): Promise<BillingA
     }
 
     const customerId = await ensureCustomer(stripe, owner.context, account.stripeCustomerId)
+    const referralCoupon = await findReferralCoupon(stripe, organizationId, { planKey, interval })
     const lineItems: CheckoutLineItem[] = [{ price: prices.plan.id, quantity: 1 }]
 
     if (extraSeats > 0 && prices.seat) {
@@ -463,7 +498,11 @@ export async function startCheckout(input: SubscriptionChoice): Promise<BillingA
         client_reference_id: organizationId,
         line_items: lineItems,
         locale: "pt-BR",
-        allow_promotion_codes: true,
+        // Desconto por indicações já na 1ª fatura. A Stripe não aceita cupom e
+        // campo de código promocional na mesma sessão.
+        ...(referralCoupon
+          ? { discounts: [{ coupon: referralCoupon }] }
+          : { allow_promotion_codes: true }),
         billing_address_collection: "auto",
         tax_id_collection: { enabled: true },
         customer_update: { name: "auto", address: "auto" },
@@ -473,7 +512,7 @@ export async function startCheckout(input: SubscriptionChoice): Promise<BillingA
         cancel_url: `${settingsUrl}?checkout=cancelado`,
       },
       {
-        idempotencyKey: `crm-checkout-${organizationId}-${planKey}-${interval}-${extraSeats}-${idempotencyWindow()}`,
+        idempotencyKey: `crm-checkout-${organizationId}-${planKey}-${interval}-${extraSeats}-${referralCoupon ?? "sem-cupom"}-${idempotencyWindow()}`,
       }
     )
 

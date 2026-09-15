@@ -1,5 +1,6 @@
 import {
   CreditCardIcon,
+  GiftIcon,
   GlobeIcon,
   PlugIcon,
   StoreIcon,
@@ -10,7 +11,7 @@ import {
 
 import { NAV_GROUPS } from "@/components/crm/nav-config"
 import { ORGANIZATION_VIEWER_ROLES, TEAM_MANAGER_ROLES, type Role } from "@/lib/auth/roles"
-import { SUBSCRIPTION_SETTINGS_PATH } from "@/lib/auth/routes"
+import { REFERRALS_SETTINGS_PATH, SUBSCRIPTION_SETTINGS_PATH } from "@/lib/auth/routes"
 
 /** Índice de configurações (estilo Stripe). */
 export const SETTINGS_INDEX_PATH = "/configuracoes"
@@ -92,6 +93,15 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
         description: "Plano, uso, forma de pagamento e faturas.",
         icon: CreditCardIcon,
         href: SUBSCRIPTION_SETTINGS_PATH,
+        roles: sidebarRoles(SUBSCRIPTION_SETTINGS_PATH, ORGANIZATION_VIEWER_ROLES),
+      },
+      {
+        title: "Indique e ganhe",
+        navTitle: "Indicações",
+        description: "Seu link de indicação e o desconto acumulado na mensalidade.",
+        icon: GiftIcon,
+        href: REFERRALS_SETTINGS_PATH,
+        // Mesmos papéis de Assinatura.
         roles: sidebarRoles(SUBSCRIPTION_SETTINGS_PATH, ORGANIZATION_VIEWER_ROLES),
       },
       {

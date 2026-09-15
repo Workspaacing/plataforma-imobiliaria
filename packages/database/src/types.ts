@@ -200,9 +200,17 @@ export type Database = {
           cancel_at_period_end: boolean
           current_period_end: string | null
           features: string[]
+          first_paid_at: string | null
           limits: Json
           organization_id: string
           plan_key: string
+          plan_net_invoice_at: string | null
+          plan_net_monthly_cents: number | null
+          referral_confirmed_notified_at: string | null
+          referral_counted_at: string | null
+          referral_discount_percent: number
+          referral_ineligible_at: string | null
+          referral_ineligible_reason: string | null
           seats: number
           status: string
           stripe_customer_id: string | null
@@ -216,9 +224,17 @@ export type Database = {
           cancel_at_period_end?: boolean
           current_period_end?: string | null
           features?: string[]
+          first_paid_at?: string | null
           limits: Json
           organization_id: string
           plan_key?: string
+          plan_net_invoice_at?: string | null
+          plan_net_monthly_cents?: number | null
+          referral_confirmed_notified_at?: string | null
+          referral_counted_at?: string | null
+          referral_discount_percent?: number
+          referral_ineligible_at?: string | null
+          referral_ineligible_reason?: string | null
           seats?: number
           status?: string
           stripe_customer_id?: string | null
@@ -232,9 +248,17 @@ export type Database = {
           cancel_at_period_end?: boolean
           current_period_end?: string | null
           features?: string[]
+          first_paid_at?: string | null
           limits?: Json
           organization_id?: string
           plan_key?: string
+          plan_net_invoice_at?: string | null
+          plan_net_monthly_cents?: number | null
+          referral_confirmed_notified_at?: string | null
+          referral_counted_at?: string | null
+          referral_discount_percent?: number
+          referral_ineligible_at?: string | null
+          referral_ineligible_reason?: string | null
           seats?: number
           status?: string
           stripe_customer_id?: string | null
@@ -1142,6 +1166,8 @@ export type Database = {
           name: string
           phone: string | null
           plan: Database["public"]["Enums"]["organization_plan"]
+          referral_code: string
+          referred_by_organization_id: string | null
           slug: string
           state: string | null
           updated_at: string
@@ -1160,6 +1186,8 @@ export type Database = {
           name: string
           phone?: string | null
           plan?: Database["public"]["Enums"]["organization_plan"]
+          referral_code?: string
+          referred_by_organization_id?: string | null
           slug: string
           state?: string | null
           updated_at?: string
@@ -1178,11 +1206,21 @@ export type Database = {
           name?: string
           phone?: string | null
           plan?: Database["public"]["Enums"]["organization_plan"]
+          referral_code?: string
+          referred_by_organization_id?: string | null
           slug?: string
           state?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "organizations_referred_by_organization_id_fkey"
+            columns: ["referred_by_organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -1693,6 +1731,17 @@ export type Database = {
     }
     Functions: {
       accept_invitation: { Args: { p_token: string }; Returns: string }
+      apply_referral_recalculation: {
+        Args: {
+          p_count?: string[]
+          p_expected_percent?: number
+          p_organization_id?: string
+          p_percent?: number
+          p_server_key?: string
+          p_uncount?: string[]
+        }
+        Returns: Json
+      }
       create_organization: {
         Args: {
           p_city?: string
@@ -1700,6 +1749,7 @@ export type Database = {
           p_creci?: string
           p_legal_name?: string
           p_name: string
+          p_referral_code?: string
           p_slug: string
           p_state?: string
         }
@@ -1740,6 +1790,10 @@ export type Database = {
         Returns: Json
       }
       get_public_organization: { Args: { p_slug: string }; Returns: Json }
+      get_referral_state: {
+        Args: { p_organization_id?: string; p_server_key?: string }
+        Returns: Json
+      }
       lead_duplicate_flags: {
         Args: { p_lead_ids: string[] }
         Returns: {
@@ -1757,13 +1811,68 @@ export type Database = {
           owner_emails: string[]
         }[]
       }
+      list_referral_grace_completions: {
+        Args: {
+          p_cursor_organization_id?: string
+          p_cursor_paid_at?: string
+          p_limit?: number
+          p_paid_after?: string
+          p_paid_until?: string
+          p_server_key?: string
+        }
+        Returns: {
+          first_paid_at: string
+          referred_organization_id: string
+          referrer_organization_id: string
+        }[]
+      }
+      list_referral_referrers: {
+        Args: {
+          p_after?: string
+          p_limit?: number
+          p_seed?: string
+          p_server_key?: string
+        }
+        Returns: {
+          organization_id: string
+          sort_key: string
+        }[]
+      }
       log_access_event: {
         Args: { p_action?: string; p_entity: string; p_entity_id: string }
         Returns: undefined
       }
+      record_billing_invoice_paid: {
+        Args: {
+          p_amount_paid_cents?: number
+          p_invoice_created_at?: string
+          p_organization_id?: string
+          p_paid_at?: string
+          p_plan_net_monthly_cents?: number
+          p_server_key?: string
+        }
+        Returns: boolean
+      }
       rotate_feed_token: {
         Args: { p_organization_id: string }
         Returns: string
+      }
+      set_referral_confirmation_notice: {
+        Args: {
+          p_claim?: boolean
+          p_referred_organization_id?: string
+          p_referrer_organization_id?: string
+          p_server_key?: string
+        }
+        Returns: boolean
+      }
+      set_referral_ineligibility: {
+        Args: {
+          p_organization_id?: string
+          p_reason?: string
+          p_server_key?: string
+        }
+        Returns: boolean
       }
       submit_capture_request: {
         Args: {

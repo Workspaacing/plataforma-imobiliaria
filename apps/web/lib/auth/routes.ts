@@ -1,5 +1,7 @@
 // Rotas e regras de redirecionamento compartilhadas entre proxy, páginas e actions.
 
+import { REFERRAL_LINK_PATH_PREFIX } from "@workspace/core/billing/referrals"
+
 export const LOGIN_PATH = "/entrar"
 export const SIGN_UP_PATH = "/cadastro"
 export const RECOVER_PASSWORD_PATH = "/recuperar-senha"
@@ -40,6 +42,15 @@ export const WEBHOOKS_PATH_PREFIX = "/api/webhooks"
  */
 export const CRON_PATH_PREFIX = "/api/cron"
 
+/** Programa Indique e ganhe (dentro de configurações). */
+export const REFERRALS_SETTINGS_PATH = "/configuracoes/indicacoes"
+
+/**
+ * Link público de indicação (/i/{código}, definido no core): grava o cookie
+ * `ref` e leva ao cadastro.
+ */
+export { REFERRAL_LINK_PATH_PREFIX }
+
 const PUBLIC_PATHS = new Set([
   LOGIN_PATH,
   SIGN_UP_PATH,
@@ -57,6 +68,7 @@ const PUBLIC_PREFIXES = [
   CRON_PATH_PREFIX,
   "/convite",
   "/lp",
+  REFERRAL_LINK_PATH_PREFIX,
 ]
 
 /** Rotas que só fazem sentido para quem ainda não entrou. */
@@ -77,6 +89,7 @@ const ROOT_HOST_PREFIXES = [
   "/api/feeds",
   WEBHOOKS_PATH_PREFIX,
   CRON_PATH_PREFIX,
+  REFERRAL_LINK_PATH_PREFIX,
   ...ROOT_ONLY_PREFIXES,
 ]
 

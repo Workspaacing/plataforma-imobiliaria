@@ -7,6 +7,7 @@ export {
   type NotificationKind,
   type NotificationParams,
   type NotificationSummary,
+  type ReferralNoticeNotification,
   type SubscriptionNoticeNotification,
   type TeamInvitationNotification,
 } from "@/lib/email/notifications"

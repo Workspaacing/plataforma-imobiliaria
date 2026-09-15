@@ -4,8 +4,10 @@ import { normalizeEmailAddress, isUuid } from "@workspace/core/email/sanitize"
 import {
   captureRequestEmail,
   newLeadEmail,
+  referralNoticeEmail,
   subscriptionNoticeEmail,
   teamInvitationEmail,
+  type ReferralNoticeKind,
   type RenderedEmail,
   type SubscriptionNoticeKind,
 } from "@workspace/core/email/templates"
@@ -36,7 +38,7 @@ import { buildTenantOrigin } from "@/lib/tenant/urls"
  */
 
 export type NotificationKind =
-  "new_lead" | "capture_request" | "team_invitation" | "subscription_notice"
+  "new_lead" | "capture_request" | "team_invitation" | "subscription_notice" | "referral_notice"
 
 /** Evita a consulta às RPCs públicas quando quem chama já tem nome e cor. */
 export type NotificationBrand = { name?: string | null; primaryColor?: string | null }
@@ -104,11 +106,31 @@ export type SubscriptionNoticeNotification = {
   brand?: NotificationBrand | null
 }
 
+export type ReferralNoticeNotification = {
+  /** Imobiliária indicadora (quem recebe o aviso). */
+  organizationSlug: string
+  organizationName: string
+  notice: ReferralNoticeKind
+  /** Imobiliária indicada: só entra na chave de idempotência. */
+  referredOrganizationId: string
+  /** Marca da transição (ex.: quando passou a contar ou fim da carência): idempotência por evento. */
+  marker: string
+  /** Nome já mascarado pelo banco (ex.: "Imobiliária J."). */
+  referredName?: string | null
+  /** Desconto acumulado depois da mudança (0 a 100). */
+  discountPercent: number
+  discountApplied: boolean
+  /** Donos da imobiliária indicadora. */
+  to: readonly EmailAddress[]
+  brand?: NotificationBrand | null
+}
+
 export type NotificationParams = {
   new_lead: NewLeadNotification
   capture_request: CaptureRequestNotification
   team_invitation: TeamInvitationNotification
   subscription_notice: SubscriptionNoticeNotification
+  referral_notice: ReferralNoticeNotification
 }
 
 export type NotificationSummary = {
@@ -339,6 +361,45 @@ async function notifySubscription(
   )
 }
 
+async function notifyReferral(params: ReferralNoticeNotification): Promise<NotificationSummary> {
+  const recipients = params.to.flatMap((address) => {
+    const normalized = normalizeRecipient(address)
+    return normalized ? [normalized] : []
+  })
+
+  if (recipients.length === 0 || !isUuid(params.referredOrganizationId)) {
+    return invalidInput("referral_notice")
+  }
+
+  const origin = buildTenantOrigin(params.organizationSlug)
+
+  return deliver(
+    "referral_notice",
+    recipients.map((recipient) => ({
+      to: recipient,
+      email: referralNoticeEmail({
+        origin,
+        // Aviso da plataforma: marca padrão, a menos que quem chama informe outra.
+        brand: params.brand ?? null,
+        recipientName: recipient.name,
+        kind: params.notice,
+        organizationName: params.organizationName,
+        referredName: params.referredName,
+        discountPercent: params.discountPercent,
+        discountApplied: params.discountApplied,
+      }),
+      // Uma vez por transição (marker), não por percentual.
+      idempotencyKey: deriveIdempotencyKey(
+        "referral_notice",
+        params.notice,
+        params.referredOrganizationId,
+        params.marker,
+        recipient.email
+      ),
+    }))
+  )
+}
+
 const HANDLERS: {
   [K in NotificationKind]: (params: NotificationParams[K]) => Promise<NotificationSummary>
 } = {
@@ -346,6 +407,7 @@ const HANDLERS: {
   capture_request: notifyCaptureRequest,
   team_invitation: notifyTeamInvitation,
   subscription_notice: notifySubscription,
+  referral_notice: notifyReferral,
 }
 
 function logSummary(summary: NotificationSummary) {

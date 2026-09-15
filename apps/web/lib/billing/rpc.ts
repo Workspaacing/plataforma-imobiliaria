@@ -2,7 +2,7 @@ import "server-only"
 
 import { createClient } from "@supabase/supabase-js"
 
-import type { BillingInterval, BillingPlanKey } from "@workspace/core/billing"
+import { PLAN_KEYS, type BillingInterval, type BillingPlanKey } from "@workspace/core/billing"
 import type { Database } from "@workspace/database/types"
 
 import { getSupabaseEnv } from "@/lib/supabase/env"
@@ -13,7 +13,8 @@ import { createClient as createSessionClient } from "@/lib/supabase/server"
  *
  * - Sem sessão, com a chave publishable + BILLING_SERVER_KEY (segredo
  *   `billing_server_key` do Vault): get_billing_account_ids,
- *   sync_billing_account e list_billing_reminders. Nunca service_role.
+ *   sync_billing_account, list_billing_reminders e as RPCs do Indique e ganhe.
+ *   Nunca service_role.
  * - Com sessão (RLS): get_billing_overview.
  *
  * As respostas são validadas antes de sair deste arquivo.
@@ -229,6 +230,404 @@ export async function listBillingReminders(
   }
 
   return reminders
+}
+
+// ---------------------------------------------------------------------------
+// Indique e ganhe (chave do servidor)
+
+export type ReferralIneligibleReason =
+  "refund" | "dispute" | "dispute_lost" | "shared_members" | "same_cnpj"
+
+const INELIGIBLE_REASONS: readonly string[] = [
+  "refund",
+  "dispute",
+  "dispute_lost",
+  "shared_members",
+  "same_cnpj",
+]
+
+export type ReferralStateOrganization = {
+  id: string
+  slug: string
+  name: string
+  referralCode: string
+  referredByOrganizationId: string | null
+  status: string | null
+  planKey: BillingPlanKey | null
+  interval: BillingInterval | null
+  stripeSubscriptionId: string | null
+  firstPaidAt: string | null
+  referralDiscountPercent: number
+  ownerEmails: string[]
+  /** Total de indicadas (a lista traz no máximo REFERRAL_STATE_MAX_REFERRALS). */
+  referralTotal: number
+  referralsTruncated: boolean
+}
+
+export type ReferralStateReferral = {
+  organizationId: string
+  /** Nome mascarado pelo banco (iniciais ou primeira palavra + inicial). */
+  displayName: string
+  createdAt: string | null
+  status: string | null
+  planKey: BillingPlanKey | null
+  interval: BillingInterval | null
+  firstPaidAt: string | null
+  referralDiscountPercent: number
+  /** Valor líquido mensal do plano na última fatura paga (trava do desconto). */
+  netMonthlyCents: number | null
+  countedAt: string | null
+  confirmedNotifiedAt: string | null
+  ineligibleReason: ReferralIneligibleReason | null
+}
+
+export type ReferralState = {
+  organization: ReferralStateOrganization
+  referrals: ReferralStateReferral[]
+}
+
+export type ReferralGraceCompletion = {
+  referrerOrganizationId: string
+  referredOrganizationId: string
+  firstPaidAt: string
+}
+
+export type ReferralApplyResult =
+  | {
+      status: "ok"
+      previous: number
+      /** Indicadas marcadas como contando nesta chamada. */
+      counted: string[]
+      /** Indicadas que deixaram de contar nesta chamada (com a marca anterior). */
+      uncounted: { organizationId: string; countedAt: string }[]
+    }
+  | { status: "conflict"; previous: number }
+
+export type ReferralChargeIssue = "refund" | "dispute" | "dispute_lost" | "dispute_won"
+
+const BILLING_PLAN_KEYS: readonly string[] = ["trial", ...PLAN_KEYS]
+
+function readPlanKey(value: unknown): BillingPlanKey | null {
+  return typeof value === "string" && BILLING_PLAN_KEYS.includes(value)
+    ? (value as BillingPlanKey)
+    : null
+}
+
+function readInterval(value: unknown): BillingInterval | null {
+  return value === "month" || value === "year" ? value : null
+}
+
+function readPercent(value: unknown): number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= 100
+    ? value
+    : 0
+}
+
+function readCents(value: unknown): number | null {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : null
+}
+
+function readUuidList(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.map(readString).filter((item): item is string => item !== null)
+    : []
+}
+
+function toReferralReferral(row: unknown): ReferralStateReferral | null {
+  if (!isRecord(row)) {
+    return null
+  }
+
+  const organizationId = readString(row.organization_id)
+
+  if (!organizationId) {
+    return null
+  }
+
+  const reason = readString(row.ineligible_reason)
+
+  return {
+    organizationId,
+    displayName: readString(row.display_name) ?? "Imobiliária",
+    createdAt: readString(row.created_at),
+    status: readString(row.status),
+    planKey: readPlanKey(row.plan_key),
+    interval: readInterval(row.billing_interval),
+    firstPaidAt: readString(row.first_paid_at),
+    referralDiscountPercent: readPercent(row.referral_discount_percent),
+    netMonthlyCents: readCents(row.net_monthly_cents),
+    countedAt: readString(row.counted_at),
+    confirmedNotifiedAt: readString(row.confirmed_notified_at),
+    ineligibleReason:
+      reason && INELIGIBLE_REASONS.includes(reason) ? (reason as ReferralIneligibleReason) : null,
+  }
+}
+
+function toReferralState(raw: unknown): ReferralState | null {
+  if (!isRecord(raw) || !isRecord(raw.organization)) {
+    return null
+  }
+
+  const organization = raw.organization
+  const id = readString(organization.id)
+  const slug = readString(organization.slug)
+  const referralCode = readString(organization.referral_code)
+
+  if (!id || !slug || !referralCode) {
+    return null
+  }
+
+  const ownerEmails = Array.isArray(organization.owner_emails)
+    ? [...new Set(organization.owner_emails.map(readString).filter((email) => email !== null))]
+    : []
+  const referrals = Array.isArray(raw.referrals)
+    ? raw.referrals.map(toReferralReferral).filter((item) => item !== null)
+    : []
+
+  return {
+    organization: {
+      id,
+      slug,
+      name: readString(organization.name) ?? "sua imobiliária",
+      referralCode,
+      referredByOrganizationId: readString(organization.referred_by_organization_id),
+      status: readString(organization.status),
+      planKey: readPlanKey(organization.plan_key),
+      interval: readInterval(organization.billing_interval),
+      stripeSubscriptionId: readString(organization.stripe_subscription_id),
+      firstPaidAt: readString(organization.first_paid_at),
+      referralDiscountPercent: readPercent(organization.referral_discount_percent),
+      ownerEmails,
+      referralTotal:
+        typeof organization.referral_total === "number"
+          ? organization.referral_total
+          : referrals.length,
+      referralsTruncated: organization.referrals_truncated === true,
+    },
+    referrals,
+  }
+}
+
+/** Imobiliária (código, cobrança, donos) e as indicadas por ela; null se não existir. */
+export async function getReferralState(organizationId: string): Promise<ReferralState | null> {
+  const operation = "get_referral_state"
+  const { supabase, serverKey } = requireServerKeyClient(operation)
+  const { data, error } = await supabase.rpc(operation, {
+    p_server_key: serverKey,
+    p_organization_id: organizationId,
+  })
+
+  if (error) {
+    if (error.code === "P0002") {
+      return null
+    }
+
+    throw toRpcError(operation, error)
+  }
+
+  const state = toReferralState(data)
+
+  if (!state) {
+    throw new BillingRpcError(operation, "unexpected_response", null)
+  }
+
+  return state
+}
+
+/**
+ * Fatura paga de criação ou renovação: grava a 1ª fatura paga (valor > 0, só
+ * se ainda não houver) e o valor líquido mensal do plano. true = 1º pagamento agora.
+ */
+export async function recordBillingInvoicePaid(
+  organizationId: string,
+  invoice: {
+    paidAt: Date
+    invoiceCreatedAt: Date
+    amountPaidCents: number
+    planNetMonthlyCents: number | null
+  }
+): Promise<boolean> {
+  const operation = "record_billing_invoice_paid"
+  const { supabase, serverKey } = requireServerKeyClient(operation)
+  const { data, error } = await supabase.rpc(operation, {
+    p_server_key: serverKey,
+    p_organization_id: organizationId,
+    p_paid_at: invoice.paidAt.toISOString(),
+    p_invoice_created_at: invoice.invoiceCreatedAt.toISOString(),
+    p_amount_paid_cents: invoice.amountPaidCents,
+    p_plan_net_monthly_cents: invoice.planNetMonthlyCents ?? undefined,
+  })
+
+  if (error) {
+    throw toRpcError(operation, error)
+  }
+
+  return data === true
+}
+
+/**
+ * Grava o resultado do recálculo se o percentual gravado ainda for o esperado
+ * (senão devolve conflito), com as transições das indicadas.
+ */
+export async function applyReferralRecalculation(
+  organizationId: string,
+  input: { expectedPercent: number; percent: number; count: string[]; uncount: string[] }
+): Promise<ReferralApplyResult> {
+  const operation = "apply_referral_recalculation"
+  const { supabase, serverKey } = requireServerKeyClient(operation)
+  const { data, error } = await supabase.rpc(operation, {
+    p_server_key: serverKey,
+    p_organization_id: organizationId,
+    p_expected_percent: input.expectedPercent,
+    p_percent: input.percent,
+    p_count: input.count,
+    p_uncount: input.uncount,
+  })
+
+  if (error) {
+    throw toRpcError(operation, error)
+  }
+
+  if (!isRecord(data)) {
+    throw new BillingRpcError(operation, "unexpected_response", null)
+  }
+
+  const previous = readPercent(data.previous)
+
+  if (data.status === "conflict") {
+    return { status: "conflict", previous }
+  }
+
+  if (data.status !== "ok") {
+    throw new BillingRpcError(operation, "unexpected_response", null)
+  }
+
+  const uncounted = Array.isArray(data.uncounted)
+    ? data.uncounted.flatMap((item) => {
+        if (!isRecord(item)) {
+          return []
+        }
+
+        const referredId = readString(item.organization_id)
+        const countedAt = readString(item.counted_at)
+        return referredId && countedAt ? [{ organizationId: referredId, countedAt }] : []
+      })
+    : []
+
+  return { status: "ok", previous, counted: readUuidList(data.counted), uncounted }
+}
+
+/** Reserva (true) ou libera (false) o aviso de confirmação. true = mudou. */
+export async function setReferralConfirmationNotice(
+  referrerOrganizationId: string,
+  referredOrganizationId: string,
+  claim: boolean
+): Promise<boolean> {
+  const operation = "set_referral_confirmation_notice"
+  const { supabase, serverKey } = requireServerKeyClient(operation)
+  const { data, error } = await supabase.rpc(operation, {
+    p_server_key: serverKey,
+    p_referrer_organization_id: referrerOrganizationId,
+    p_referred_organization_id: referredOrganizationId,
+    p_claim: claim,
+  })
+
+  if (error) {
+    throw toRpcError(operation, error)
+  }
+
+  return data === true
+}
+
+/** Estorno ou disputa na imobiliária (indicada): true = mudou a elegibilidade. */
+export async function setReferralIneligibility(
+  organizationId: string,
+  issue: ReferralChargeIssue
+): Promise<boolean> {
+  const operation = "set_referral_ineligibility"
+  const { supabase, serverKey } = requireServerKeyClient(operation)
+  const { data, error } = await supabase.rpc(operation, {
+    p_server_key: serverKey,
+    p_organization_id: organizationId,
+    p_reason: issue,
+  })
+
+  if (error) {
+    throw toRpcError(operation, error)
+  }
+
+  return data === true
+}
+
+/** Uma página das indicadas com a 1ª fatura paga em (paidAfter, paidUntil]. */
+export async function listReferralGraceCompletions(input: {
+  paidAfter: Date
+  paidUntil: Date
+  cursor: { paidAt: string; organizationId: string } | null
+  limit: number
+}): Promise<ReferralGraceCompletion[]> {
+  const operation = "list_referral_grace_completions"
+  const { supabase, serverKey } = requireServerKeyClient(operation)
+  const { data, error } = await supabase.rpc(operation, {
+    p_server_key: serverKey,
+    p_paid_after: input.paidAfter.toISOString(),
+    p_paid_until: input.paidUntil.toISOString(),
+    p_cursor_paid_at: input.cursor?.paidAt,
+    p_cursor_organization_id: input.cursor?.organizationId,
+    p_limit: input.limit,
+  })
+
+  if (error) {
+    throw toRpcError(operation, error)
+  }
+
+  const rows: unknown[] = Array.isArray(data) ? data : []
+
+  return rows.flatMap((row) => {
+    if (!isRecord(row)) {
+      return []
+    }
+
+    const referrerOrganizationId = readString(row.referrer_organization_id)
+    const referredOrganizationId = readString(row.referred_organization_id)
+    const firstPaidAt = readString(row.first_paid_at)
+
+    return referrerOrganizationId && referredOrganizationId && firstPaidAt
+      ? [{ referrerOrganizationId, referredOrganizationId, firstPaidAt }]
+      : []
+  })
+}
+
+/** Uma página de indicadores para a reconciliação (ordem estável por semente). */
+export async function listReferralReferrers(input: {
+  seed: string
+  after: string | null
+  limit: number
+}): Promise<{ organizationId: string; sortKey: string }[]> {
+  const operation = "list_referral_referrers"
+  const { supabase, serverKey } = requireServerKeyClient(operation)
+  const { data, error } = await supabase.rpc(operation, {
+    p_server_key: serverKey,
+    p_seed: input.seed,
+    p_after: input.after ?? undefined,
+    p_limit: input.limit,
+  })
+
+  if (error) {
+    throw toRpcError(operation, error)
+  }
+
+  const rows: unknown[] = Array.isArray(data) ? data : []
+
+  return rows.flatMap((row) => {
+    if (!isRecord(row)) {
+      return []
+    }
+
+    const organizationId = readString(row.organization_id)
+    const sortKey = readString(row.sort_key)
+    return organizationId && sortKey ? [{ organizationId, sortKey }] : []
+  })
 }
 
 /** Resposta crua de get_billing_overview (validada em queries.ts). Usa a sessão. */

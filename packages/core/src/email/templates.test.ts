@@ -5,6 +5,7 @@ import {
   captureRequestEmail,
   EmailTemplateError,
   newLeadEmail,
+  referralNoticeEmail,
   subscriptionNoticeEmail,
   teamInvitationEmail,
 } from "./templates"
@@ -251,5 +252,58 @@ describe("aviso de assinatura", () => {
     expect(() =>
       subscriptionNoticeEmail({ ...base, kind: "refund" as unknown as "canceled" })
     ).toThrow(EmailTemplateError)
+  })
+})
+
+describe("aviso de indicação", () => {
+  const base = {
+    origin: ORIGIN,
+    recipientName: "Carla Souza",
+    organizationName: "Imobiliária Teste",
+    referredName: "Imobiliária J.",
+    discountPercent: 30,
+    discountApplied: true,
+  }
+
+  it("confirmada: informa a indicada, o novo desconto e o link das indicações", () => {
+    const { subject, html, text } = referralNoticeEmail({ ...base, kind: "confirmed" })
+
+    expect(subject).toBe("Indicação confirmada: seu desconto agora é de 30%")
+    expect(text).toContain("Imobiliária J. completou 30 dias de assinatura paga")
+    expect(text).toContain("Seu desconto por indicações agora é de 30%")
+    expect(text).toContain(`Ver minhas indicações: ${ORIGIN}/configuracoes/indicacoes`)
+    expect(html).toContain(`href="${ORIGIN}/configuracoes/indicacoes"`)
+  })
+
+  it("perdida: explica que o desconto diminuiu e fica a aplicar sem assinatura ativa", () => {
+    const { subject, text } = referralNoticeEmail({
+      ...base,
+      kind: "lost",
+      discountPercent: 10,
+      discountApplied: false,
+    })
+
+    expect(subject).toBe("Uma indicação deixou de contar: seu desconto agora é de 10%")
+    expect(text).toContain("não está mais com a assinatura ativa")
+    expect(text).toContain("passa a valer quando a assinatura de Imobiliária Teste estiver ativa")
+    expect(text).toContain("A aplicar")
+  })
+
+  it("limita o percentual e usa texto padrão sem o nome da indicada", () => {
+    const { subject, text } = referralNoticeEmail({
+      ...base,
+      kind: "confirmed",
+      referredName: null,
+      discountPercent: 250,
+    })
+
+    expect(subject).toContain("100%")
+    expect(text).toContain("Uma imobiliária indicada completou")
+  })
+
+  it("tipo inválido lança erro", () => {
+    expect(() => referralNoticeEmail({ ...base, kind: "bonus" as unknown as "confirmed" })).toThrow(
+      EmailTemplateError
+    )
   })
 })

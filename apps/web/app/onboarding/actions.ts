@@ -1,9 +1,11 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { cookies } from "next/headers"
+import { cookies, headers } from "next/headers"
 import { redirect } from "next/navigation"
 import { z } from "zod"
+
+import { normalizeReferralCode } from "@workspace/core/billing"
 
 import {
   isBrazilianState,
@@ -20,6 +22,7 @@ import {
 } from "@/lib/auth/organization-cookie"
 import { HOME_PATH, LOGIN_PATH, ONBOARDING_PATH } from "@/lib/auth/routes"
 import { getCurrentUser } from "@/lib/auth/session"
+import { getReferralCookieOptions, REFERRAL_COOKIE_NAME } from "@/lib/billing/referral-cookie"
 import { createClient } from "@/lib/supabase/server"
 import { buildTenantUrl, isSubdomainTenancy, isValidTenantSlug } from "@/lib/tenant/urls"
 
@@ -120,6 +123,17 @@ export async function createOrganization(
 
   const { name, slug, legalName, cnpj, creci, city, state } = parsed.data
   const supabase = await createClient()
+  const cookieStore = await cookies()
+  // Indique e ganhe: só o formato é conferido aqui; existência e antifraude
+  // (membros em comum, cliente que já assinou) ficam no banco, sem erro visível.
+  // Vale primeiro o código gravado no cadastro (user_metadata, first-touch), que
+  // funciona mesmo se a confirmação abriu em outro navegador; depois o cookie.
+  const { data: authData } = await supabase.auth.getClaims()
+  const metadata = (authData?.claims?.user_metadata ?? {}) as Record<string, unknown>
+  const referralCode =
+    normalizeReferralCode(
+      typeof metadata.referral_code === "string" ? metadata.referral_code : undefined
+    ) ?? normalizeReferralCode(cookieStore.get(REFERRAL_COOKIE_NAME)?.value)
 
   // A função cria a organização e a membership de dono na mesma transação.
   const { data: organizationId, error } = await supabase.rpc("create_organization", {
@@ -131,6 +145,7 @@ export async function createOrganization(
     p_creci: creci,
     p_city: city,
     p_state: state,
+    p_referral_code: referralCode ?? undefined,
   })
 
   if (error) {
@@ -144,9 +159,17 @@ export async function createOrganization(
     }
   }
 
+  // A atribuição vale uma única vez (na criação): o cookie de indicação sai.
+  if (cookieStore.has(REFERRAL_COOKIE_NAME)) {
+    const requestHeaders = await headers()
+    cookieStore.set(REFERRAL_COOKIE_NAME, "", {
+      ...getReferralCookieOptions(requestHeaders.get("host")),
+      maxAge: 0,
+    })
+  }
+
   // Host único: a nova imobiliária vira a escolha do cookie (validado a cada requisição).
   if (!isSubdomainTenancy()) {
-    const cookieStore = await cookies()
     cookieStore.set(ORGANIZATION_COOKIE_NAME, organizationId, ORGANIZATION_COOKIE_OPTIONS)
 
     revalidatePath("/", "layout")

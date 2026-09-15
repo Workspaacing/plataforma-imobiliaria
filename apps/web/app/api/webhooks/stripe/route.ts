@@ -1,8 +1,22 @@
+import { after } from "next/server"
 import type Stripe from "stripe"
 
 import { describeBillingError } from "@/lib/billing/errors"
+import {
+  handleReferralBillingChange,
+  recordReferralChargeIssue,
+  recordReferralInvoicePaid,
+  ReferralConflictError,
+  sendReferralNotice,
+  type ReferralNotice,
+} from "@/lib/billing/referrals"
 import { BillingRpcError } from "@/lib/billing/rpc"
-import { getStripe, isTransientStripeError, readWebhookSecret } from "@/lib/billing/stripe"
+import {
+  getStripe,
+  isStripeResourceMissing,
+  isTransientStripeError,
+  readWebhookSecret,
+} from "@/lib/billing/stripe"
 import {
   parseOrganizationId,
   StripeNotConfiguredError,
@@ -15,7 +29,8 @@ import {
  * Webhook da Stripe (pagamentos e assinatura). Público e sem sessão: a
  * autenticidade vem da assinatura `stripe-signature` sobre o corpo cru.
  * O payload do evento só aponta QUAL objeto mudou; o estado é relido na API
- * (lib/billing/sync.ts) e gravado com upsert idempotente.
+ * (lib/billing/sync.ts) e gravado com upsert idempotente. Depois, o Indique e
+ * ganhe registra fatura paga, estorno e disputa e recalcula os descontos.
  *
  * Respostas: 400 assinatura inválida; 500 falha transitória (a Stripe reenvia);
  * 200 nos demais casos, inclusive eventos ignorados. Logs sem dados pessoais.
@@ -35,6 +50,23 @@ const HANDLED_EVENT_TYPES = new Set<string>([
   "customer.subscription.resumed",
   "invoice.paid",
   "invoice.payment_failed",
+  "charge.refunded",
+  "charge.dispute.created",
+  "charge.dispute.closed",
+])
+
+/** Eventos em que muda a cobrança de uma imobiliária indicada ou indicadora. */
+const REFERRAL_EVENT_TYPES = new Set<string>([
+  "customer.subscription.created",
+  "customer.subscription.updated",
+  "customer.subscription.deleted",
+  "customer.subscription.paused",
+  "customer.subscription.resumed",
+  "invoice.paid",
+  "invoice.payment_failed",
+  "charge.refunded",
+  "charge.dispute.created",
+  "charge.dispute.closed",
 ])
 
 /** Erros de validação do payload no banco: repetir não resolve. */
@@ -52,7 +84,25 @@ function idOf(value: string | { id: string } | null | undefined): string | null 
   return typeof value === "string" ? value : value.id
 }
 
-async function handleEvent(event: Stripe.Event): Promise<SyncResult | null> {
+/** Customer da cobrança contestada (a disputa aponta só a cobrança). */
+async function disputeCustomerId(stripe: Stripe, dispute: Stripe.Dispute): Promise<string | null> {
+  if (typeof dispute.charge !== "string") {
+    return idOf(dispute.charge.customer)
+  }
+
+  try {
+    const charge = await stripe.charges.retrieve(dispute.charge)
+    return idOf(charge.customer)
+  } catch (error) {
+    if (isStripeResourceMissing(error)) {
+      return null
+    }
+
+    throw error
+  }
+}
+
+async function handleEvent(stripe: Stripe, event: Stripe.Event): Promise<SyncResult | null> {
   switch (event.type) {
     case "checkout.session.completed":
     case "checkout.session.async_payment_succeeded":
@@ -85,8 +135,18 @@ async function handleEvent(event: Stripe.Event): Promise<SyncResult | null> {
       return syncSubscriptionFromStripe(event.data.object.id)
     case "invoice.paid":
     case "invoice.payment_failed": {
+      // A imobiliária sai da assinatura da fatura (nunca do customer sozinho).
       const subscriptionId = idOf(event.data.object.parent?.subscription_details?.subscription)
       return subscriptionId ? syncSubscriptionFromStripe(subscriptionId) : null
+    }
+    case "charge.refunded": {
+      const customerId = idOf(event.data.object.customer)
+      return customerId ? syncCustomerWithoutSubscription(customerId) : null
+    }
+    case "charge.dispute.created":
+    case "charge.dispute.closed": {
+      const customerId = await disputeCustomerId(stripe, event.data.object)
+      return customerId ? syncCustomerWithoutSubscription(customerId) : null
     }
     default:
       return null
@@ -94,7 +154,7 @@ async function handleEvent(event: Stripe.Event): Promise<SyncResult | null> {
 }
 
 function isTransientFailure(error: unknown) {
-  if (error instanceof StripeNotConfiguredError) {
+  if (error instanceof StripeNotConfiguredError || error instanceof ReferralConflictError) {
     return true
   }
 
@@ -103,6 +163,82 @@ function isTransientFailure(error: unknown) {
   }
 
   return isTransientStripeError(error)
+}
+
+/** Avisos por e-mail depois da resposta (o envio nunca lança). */
+function scheduleReferralNotices(notices: ReferralNotice[]) {
+  if (notices.length === 0) {
+    return
+  }
+
+  after(async () => {
+    for (const notice of notices) {
+      await sendReferralNotice(notice)
+    }
+  })
+}
+
+/** Fatura paga (1º pagamento e valor líquido do plano), estorno e disputa. */
+async function recordReferralFacts(stripe: Stripe, event: Stripe.Event, organizationId: string) {
+  switch (event.type) {
+    case "invoice.paid":
+      await recordReferralInvoicePaid(stripe, event.data.object, organizationId)
+      return
+    case "charge.refunded":
+      if (event.data.object.amount_refunded > 0) {
+        await recordReferralChargeIssue(organizationId, "refund")
+      }
+      return
+    case "charge.dispute.created":
+      await recordReferralChargeIssue(organizationId, "dispute")
+      return
+    case "charge.dispute.closed":
+      await recordReferralChargeIssue(
+        organizationId,
+        event.data.object.status === "lost" ? "dispute_lost" : "dispute_won"
+      )
+      return
+    default:
+      return
+  }
+}
+
+/**
+ * Indique e ganhe, depois da sincronização: registra os fatos de cobrança e
+ * recalcula a imobiliária e quem a indicou. Falha transitória lança (a Stripe
+ * reenvia; tudo é idempotente e os avisos saem de transições já gravadas);
+ * falha permanente só é registrada, sem travar a sincronização da assinatura.
+ */
+async function applyReferralEffects(
+  stripe: Stripe,
+  event: Stripe.Event,
+  result: SyncResult | null
+) {
+  if (result?.outcome !== "synced" || !REFERRAL_EVENT_TYPES.has(event.type)) {
+    return
+  }
+
+  try {
+    await recordReferralFacts(stripe, event, result.organizationId)
+
+    const { notices, error } = await handleReferralBillingChange({
+      organizationId: result.organizationId,
+    })
+
+    scheduleReferralNotices(notices)
+
+    if (error) {
+      throw error
+    }
+  } catch (error) {
+    if (isTransientFailure(error)) {
+      throw error
+    }
+
+    console.error(
+      `[billing/webhook] ${event.id} ${event.type}: indicações não recalculadas (${describeBillingError(error)})`
+    )
+  }
 }
 
 function describeResult(result: SyncResult | null) {
@@ -150,7 +286,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await handleEvent(event)
+    const result = await handleEvent(stripe, event)
+    await applyReferralEffects(stripe, event, result)
     console.info(`[billing/webhook] ${event.id} ${event.type}: ${describeResult(result)}`)
     return reply(200, { received: true })
   } catch (error) {

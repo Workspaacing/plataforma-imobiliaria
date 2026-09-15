@@ -3,6 +3,7 @@
 // tratado como não confiável: limpo e escapado em layout.ts; links só https (ou
 // http em localhost) e caminhos relativos presos à origem recebida.
 
+import { REFERRAL_GRACE_DAYS } from "../billing/referrals"
 import { APP_ROLE_LABELS, LISTING_PURPOSE_LABELS, PROPERTY_TYPE_LABELS } from "../properties/enums"
 import { renderEmail, resolveBrand, type EmailBrand, type RenderedEmail } from "./layout"
 import {
@@ -352,5 +353,83 @@ export function subscriptionNoticeEmail(params: SubscriptionNoticeEmailParams): 
       })
     default:
       throw new EmailTemplateError("Tipo de aviso de assinatura inválido.")
+  }
+}
+
+// (e) Indique e ganhe --------------------------------------------------------------
+
+export type ReferralNoticeKind = "confirmed" | "lost"
+
+export const REFERRAL_NOTICE_KINDS: readonly ReferralNoticeKind[] = ["confirmed", "lost"]
+
+export type ReferralNoticeEmailParams = {
+  origin: string
+  brand?: EmailBrand | null
+  recipientName?: string | null
+  kind: ReferralNoticeKind
+  organizationName: string
+  /** Nome já mascarado da imobiliária indicada (ex.: "Imobiliária J."). */
+  referredName?: string | null
+  /** Desconto acumulado depois da mudança (0 a 100). */
+  discountPercent: number
+  /** A assinatura da indicadora está ativa (senão o desconto fica "a aplicar"). */
+  discountApplied: boolean
+}
+
+function percentLabel(value: unknown) {
+  const percent =
+    typeof value === "number" && Number.isFinite(value)
+      ? Math.min(100, Math.max(0, Math.floor(value)))
+      : 0
+  return `${percent}%`
+}
+
+export function referralNoticeEmail(params: ReferralNoticeEmailParams): RenderedEmail {
+  const origin = requireOrigin(params.origin)
+  const url = requireLink("/configuracoes/indicacoes", origin)
+  const organization = cleanText(params.organizationName, { maxLength: 80 }) || "sua imobiliária"
+  const referred = cleanText(params.referredName, { maxLength: 60 }) || "Uma imobiliária indicada"
+  const discount = percentLabel(params.discountPercent)
+  const discountLine = params.discountApplied
+    ? `Seu desconto por indicações agora é de ${discount} na mensalidade do plano.`
+    : `Seu desconto acumulado agora é de ${discount}; ele passa a valer quando a assinatura de ${organization} estiver ativa.`
+  const common = {
+    greeting: greetingFor(params.recipientName),
+    details: [
+      { label: "Imobiliária indicada", value: referred },
+      { label: "Desconto acumulado", value: discount },
+      { label: "Situação do desconto", value: params.discountApplied ? "Aplicado" : "A aplicar" },
+    ],
+    action: { label: "Ver minhas indicações", url },
+    footer: `Você recebeu este e-mail porque é responsável pela assinatura de ${organization} no CRM e participa do programa Indique e ganhe.`,
+  }
+
+  switch (params.kind) {
+    case "confirmed":
+      return renderEmail(params.brand, {
+        ...common,
+        subject: `Indicação confirmada: seu desconto agora é de ${discount}`,
+        preheader: `Uma imobiliária que você indicou completou ${REFERRAL_GRACE_DAYS} dias de assinatura paga.`,
+        heading: "Indicação confirmada",
+        paragraphs: [
+          `${referred} completou ${REFERRAL_GRACE_DAYS} dias de assinatura paga e passou a contar como indicação ativa.`,
+          discountLine,
+        ],
+        highlight: "Cada indicação ativa soma desconto até a mensalidade sair de graça.",
+      })
+    case "lost":
+      return renderEmail(params.brand, {
+        ...common,
+        subject: `Uma indicação deixou de contar: seu desconto agora é de ${discount}`,
+        preheader: "Uma imobiliária que você indicou não está mais com a assinatura ativa.",
+        heading: "Uma indicação deixou de contar",
+        paragraphs: [
+          `${referred} não está mais com a assinatura ativa, então deixou de contar no seu desconto.`,
+          discountLine,
+          "Se a assinatura dela voltar a ficar ativa, a indicação volta a contar.",
+        ],
+      })
+    default:
+      throw new EmailTemplateError("Tipo de aviso de indicação inválido.")
   }
 }

@@ -1,6 +1,9 @@
 "use server"
 
+import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
+
+import { normalizeReferralCode } from "@workspace/core/billing"
 
 import type { ActionResult } from "@/lib/auth/action-result"
 import { isAccountEnumerationError, translateAuthError } from "@/lib/auth/errors"
@@ -27,6 +30,7 @@ import {
   type SignUpValues,
 } from "@/lib/auth/schemas"
 import { buildAuthCallbackUrl } from "@/lib/auth/site-url"
+import { REFERRAL_COOKIE_NAME } from "@/lib/billing/referral-cookie"
 import { isSupabaseConfigured } from "@/lib/supabase/env"
 import { createClient } from "@/lib/supabase/server"
 import { getCurrentOrigin, getDefaultRedirectPath } from "@/lib/tenant/server"
@@ -126,14 +130,21 @@ export async function signUp(values: SignUpValues, next?: string | null): Promis
   const redirectNext = sanitizeRedirectPath(next, ONBOARDING_PATH)
   const isInvitationNext = redirectNext.startsWith(INVITATION_PATH_PREFIX)
 
+  // Indique e ganhe: o código do link (cookie `ref`) vai para os metadados da
+  // conta, e a atribuição funciona mesmo se a confirmação abrir em outro
+  // navegador. Só o formato é conferido; o onboarding e o banco fazem o resto.
+  const cookieStore = await cookies()
+  const referralCode = normalizeReferralCode(cookieStore.get(REFERRAL_COOKIE_NAME)?.value)
+
   const { email, password, fullName } = parsed.data
   const supabase = await createClient()
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      // Lido pelo trigger que cria a linha em `profiles`.
-      data: { full_name: fullName },
+      // full_name é lido pelo trigger que cria a linha em `profiles`;
+      // referral_code, pelo onboarding ao criar a imobiliária.
+      data: { full_name: fullName, ...(referralCode ? { referral_code: referralCode } : {}) },
       // `tipo=cadastro` só escolhe o aviso em /entrar quando o link abre em
       // outro navegador; o tipo do fluxo é conferido pelo `amr` da sessão.
       emailRedirectTo: buildAuthCallbackUrl(await getCurrentOrigin(), redirectNext, {

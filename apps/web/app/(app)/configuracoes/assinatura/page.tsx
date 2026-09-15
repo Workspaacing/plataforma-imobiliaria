@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 import { CircleAlertIcon, LockIcon, SettingsIcon } from "lucide-react"
 
 import { BILLING_INTERVAL_LABELS } from "@workspace/core/billing"
@@ -38,8 +39,10 @@ import { UsageMeters } from "@/components/billing/usage-meters"
 import { PageHeading } from "@/components/crm/page-placeholder"
 import { PageShell } from "@/components/shared/page-shell"
 import { ORGANIZATION_VIEWER_ROLES } from "@/lib/auth/roles"
+import { REFERRALS_SETTINGS_PATH } from "@/lib/auth/routes"
 import { requireRole } from "@/lib/auth/session"
 import { isStripeConfigured, type BillingOverview } from "@/lib/billing/queries"
+import { getStoredReferralDiscountPercent } from "@/lib/billing/referrals"
 import { formatDate } from "@/lib/format"
 
 export const metadata: Metadata = {
@@ -97,10 +100,11 @@ export default async function AssinaturaPage({ searchParams }: AssinaturaPagePro
   const checkoutStatus = readCheckoutStatus(checkout)
   const stripeConfigured = isStripeConfigured()
 
-  const [overview, prices, invoicesResult] = await Promise.all([
+  const [overview, prices, invoicesResult, referralPercent] = await Promise.all([
     loadBillingOverview(membership.organizationId),
     loadCatalogPrices(),
     loadRecentInvoices(membership.organizationId),
+    getStoredReferralDiscountPercent(membership.organizationId),
   ])
 
   const stateMessage = overview ? describeBillingState(overview) : null
@@ -203,6 +207,22 @@ export default async function AssinaturaPage({ searchParams }: AssinaturaPagePro
                   )}
                   <dt className="text-muted-foreground">Próxima cobrança</dt>
                   <dd>{nextChargeLabel(overview)}</dd>
+                  {referralPercent !== null ? (
+                    <>
+                      <dt className="text-muted-foreground">Desconto por indicações</dt>
+                      <dd>
+                        <Link
+                          href={REFERRALS_SETTINGS_PATH}
+                          className="underline-offset-4 hover:underline"
+                        >
+                          {referralPercent}%
+                        </Link>
+                        {referralPercent > 0 && overview.status !== "active" ? (
+                          <span className="text-muted-foreground"> (a aplicar)</span>
+                        ) : null}
+                      </dd>
+                    </>
+                  ) : null}
                 </dl>
               </CardContent>
               {isOwner ? (
