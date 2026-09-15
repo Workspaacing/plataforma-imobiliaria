@@ -58,7 +58,7 @@ jobs:
           ls -lh "backup-${stamp}.dump.age"
 
       - name: Guardar artefato cifrado
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: backup-banco-${{ env.STAMP }}
           path: backup-*.dump.age
