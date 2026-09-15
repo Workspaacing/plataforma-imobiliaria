@@ -1,0 +1,210 @@
+import type { Metadata } from "next"
+import Link from "next/link"
+import { CircleAlertIcon, LockIcon } from "lucide-react"
+
+import type { Enums } from "@workspace/database/types"
+import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert"
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@workspace/ui/components/card"
+import { Field, FieldDescription, FieldLabel } from "@workspace/ui/components/field"
+import { Separator } from "@workspace/ui/components/separator"
+
+import { BrandForm } from "@/components/configuracoes/brand-form"
+import { CopyField } from "@/components/configuracoes/copy-field"
+import { FeedPreview } from "@/components/configuracoes/feed-preview"
+import { OrganizationForm } from "@/components/configuracoes/organization-form"
+import { RotateFeedTokenButton } from "@/components/configuracoes/rotate-feed-token-button"
+import { PageHeading } from "@/components/crm/page-placeholder"
+import { ORGANIZATION_VIEWER_ROLES } from "@/lib/auth/roles"
+import { requireRole } from "@/lib/auth/session"
+import { getSiteUrl } from "@/lib/auth/site-url"
+import { readOrganizationBrand } from "@/lib/configuracoes/brand"
+import { maskCnpj, maskPhoneBr } from "@/lib/configuracoes/masks"
+import { loadFeedPreview } from "@/lib/portais/feed-preview"
+import { loadFeedSettings } from "@/lib/portais/feed-settings"
+import { buildFeedUrl } from "@/lib/portais/feed-url"
+import { createClient } from "@/lib/supabase/server"
+
+export const metadata: Metadata = {
+  title: "Imobiliária",
+}
+
+const PLAN_LABELS: Record<Enums<"organization_plan">, string> = {
+  small: "Pequeno",
+  medium: "Médio",
+  large: "Grande",
+}
+
+export default async function ImobiliariaPage() {
+  const { membership } = await requireRole(ORGANIZATION_VIEWER_ROLES)
+  const isOwner = membership.role === "owner"
+  const supabase = await createClient()
+
+  // feed_token não entra no SELECT (sem grant): só a RPC get_feed_settings o devolve.
+  const { data: organization, error } = await supabase
+    .from("organizations")
+    .select("id, slug, name, legal_name, cnpj, creci, phone, email, city, state, plan, brand")
+    .eq("id", membership.organizationId)
+    .maybeSingle()
+
+  if (error || !organization) {
+    throw new Error(
+      `Não foi possível carregar a imobiliária (${error?.code ?? "sem-registro"}).`
+    )
+  }
+
+  const feedSettings = await loadFeedSettings(supabase, organization.id, membership.role)
+  const [siteUrl, feedPreview] = await Promise.all([
+    getSiteUrl(),
+    feedSettings.status === "ok"
+      ? loadFeedPreview(supabase, feedSettings.slug, feedSettings.feedToken)
+      : null,
+  ])
+
+  const feed =
+    feedSettings.status === "ok" && feedPreview
+      ? {
+          url: buildFeedUrl(siteUrl, feedSettings.slug, feedSettings.feedToken),
+          preview: feedPreview,
+        }
+      : null
+  const brand = readOrganizationBrand(organization.brand)
+  const capturePath = `/captar/${organization.slug}`
+
+  return (
+    <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
+      <PageHeading
+        title="Imobiliária"
+        description="Dados cadastrais, marca e integração com os portais."
+      />
+      <div className="flex w-full max-w-4xl flex-col gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Dados cadastrais</CardTitle>
+            <CardDescription>
+              {isOwner
+                ? "Aparecem para a equipe e no cabeçalho do feed dos portais."
+                : "Somente o dono da imobiliária pode editar estes dados."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <OrganizationForm
+              canEdit={isOwner}
+              slug={organization.slug}
+              planLabel={PLAN_LABELS[organization.plan]}
+              defaultValues={{
+                name: organization.name,
+                legalName: organization.legal_name ?? "",
+                cnpj: maskCnpj(organization.cnpj ?? ""),
+                creci: organization.creci ?? "",
+                phone: maskPhoneBr(organization.phone ?? ""),
+                email: organization.email ?? "",
+                city: organization.city ?? "",
+                state: organization.state ?? "",
+              }}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Marca</CardTitle>
+            <CardDescription>
+              Cor e logo usados no formulário público de captação (
+              <Link href={capturePath} className="underline underline-offset-4">
+                {capturePath}
+              </Link>
+              ).
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <BrandForm
+              canEdit={isOwner}
+              organizationName={organization.name}
+              defaultValues={{
+                primaryColor: brand.primaryColor ?? "",
+                logoUrl: brand.logoUrl ?? "",
+              }}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Portais: ZAP Imóveis, Viva Real e OLX</CardTitle>
+            <CardDescription>
+              Um único feed no padrão VRSync atende os três portais do Grupo OLX.
+            </CardDescription>
+            {isOwner ? (
+              <CardAction>
+                <RotateFeedTokenButton />
+              </CardAction>
+            ) : null}
+          </CardHeader>
+          <CardContent className="flex flex-col gap-6">
+            {feed ? (
+              <>
+                <Field>
+                  <FieldLabel htmlFor="feed-url">URL do feed</FieldLabel>
+                  <CopyField id="feed-url" value={feed.url} successMessage="URL do feed copiada." />
+                  <FieldDescription>
+                    Quem tem esta URL consegue ler os anúncios publicados. Não divulgue fora do
+                    Canal Pro.
+                  </FieldDescription>
+                </Field>
+
+                <ol className="flex list-decimal flex-col gap-1 ps-5 text-sm text-muted-foreground">
+                  <li>Copie a URL acima.</li>
+                  <li>
+                    No Canal Pro do Grupo OLX, cadastre-a como integração por feed (formato
+                    VRSync).
+                  </li>
+                  <li>
+                    O portal lê o arquivo duas vezes ao dia: mudanças nos imóveis aparecem na
+                    leitura seguinte.
+                  </li>
+                </ol>
+
+                <Separator />
+
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-col gap-1">
+                    <h2 className="font-medium">Prévia do feed</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Imóveis ativos com a publicação nos portais marcada. Os que não cumprem
+                      as regras do VRSync ficam de fora até serem corrigidos, sem afetar os
+                      demais.
+                    </p>
+                  </div>
+                  <FeedPreview preview={feed.preview} />
+                </div>
+              </>
+            ) : feedSettings.status === "error" ? (
+              <Alert variant="destructive">
+                <CircleAlertIcon />
+                <AlertTitle>URL do feed indisponível</AlertTitle>
+                <AlertDescription>{feedSettings.message}</AlertDescription>
+              </Alert>
+            ) : (
+              <Alert>
+                <LockIcon />
+                <AlertTitle>Só o dono e o gerente veem a URL do feed</AlertTitle>
+                <AlertDescription>
+                  A URL dá acesso aos anúncios enviados aos portais, por isso fica restrita ao
+                  dono e ao gerente da imobiliária. Se precisar dela ou da prévia do feed, peça
+                  a um deles.
+                </AlertDescription>
+              </Alert>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
