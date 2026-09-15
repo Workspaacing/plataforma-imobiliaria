@@ -21,14 +21,35 @@ export type TenantHost =
 
 type HostParts = { hostname: string; port: string | null }
 
-const HOST_PATTERN = /^([^\s:/?#[\]@]+?)\.?(?::(\d{1,5}))?$/
+/**
+ * Host tem no máximo 253 caracteres, mais ":porta". Entradas maiores são
+ * recusadas antes de qualquer regex (sem custo com valores forjados enormes).
+ */
+const MAX_HOST_LENGTH = 300
+
+/** Espaço extra para "https://" e barras finais em normalizeRootDomain. */
+const MAX_ROOT_DOMAIN_INPUT_LENGTH = MAX_HOST_LENGTH + 20
+
+// Quantificador guloso e classe sem ":", então sem retrocesso: tempo linear.
+const HOST_PATTERN = /^([^\s:/?#[\]@]+)(?::(\d{1,5}))?$/
 const IPV4_PATTERN = /^\d{1,3}(?:\.\d{1,3}){3}$/
 
 function parseHost(value: string | null | undefined): HostParts | null {
   if (typeof value !== "string") return null
 
-  const match = HOST_PATTERN.exec(value.trim().toLowerCase())
-  const hostname = match?.[1]
+  const input = value.trim().toLowerCase()
+
+  if (input.length === 0 || input.length > MAX_HOST_LENGTH) return null
+
+  const match = HOST_PATTERN.exec(input)
+  let hostname = match?.[1]
+
+  if (!match || !hostname) return null
+
+  // Ponto final do FQDN ("seucrm.com.br.") vale como o mesmo host.
+  if (hostname.endsWith(".")) {
+    hostname = hostname.slice(0, -1)
+  }
 
   if (!hostname || hostname.startsWith(".") || hostname.includes("..")) return null
 
@@ -42,11 +63,20 @@ function parseHost(value: string | null | undefined): HostParts | null {
 export function normalizeRootDomain(value: string | null | undefined): string | null {
   if (typeof value !== "string") return null
 
-  const cleaned = value
-    .trim()
-    .toLowerCase()
-    .replace(/^https?:\/\//, "")
-    .replace(/\/+$/, "")
+  let cleaned = value.trim().toLowerCase()
+
+  if (cleaned.length === 0 || cleaned.length > MAX_ROOT_DOMAIN_INPUT_LENGTH) return null
+
+  // Sem regex: prefixo de protocolo e barras finais removidos com startsWith/endsWith.
+  if (cleaned.startsWith("https://")) {
+    cleaned = cleaned.slice("https://".length)
+  } else if (cleaned.startsWith("http://")) {
+    cleaned = cleaned.slice("http://".length)
+  }
+
+  while (cleaned.endsWith("/")) {
+    cleaned = cleaned.slice(0, -1)
+  }
 
   const parts = parseHost(cleaned)
 

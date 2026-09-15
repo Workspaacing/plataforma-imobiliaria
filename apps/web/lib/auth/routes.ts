@@ -22,16 +22,34 @@ export const CONFIRM_LINK_PATH = "/auth/confirmar"
 /** Prefixo das páginas públicas de convite (ver lib/configuracoes/invitations.ts). */
 export const INVITATION_PATH_PREFIX = "/convite/"
 
-const PUBLIC_PATHS = new Set([LOGIN_PATH, SIGN_UP_PATH, RECOVER_PASSWORD_PATH, RESET_PASSWORD_PATH])
+/** Página pública de planos (Pagamentos/Assinatura): domínio raiz e host único. */
+export const PLANS_PATH = "/planos"
+
+/** Assinatura da imobiliária no CRM (rota normal, com membership). */
+export const SUBSCRIPTION_SETTINGS_PATH = "/configuracoes/assinatura"
+
+/**
+ * Webhooks de serviços externos (ex.: Stripe). Públicos e sem sessão em
+ * qualquer host: a autenticidade é conferida pela assinatura do provedor.
+ */
+export const WEBHOOKS_PATH_PREFIX = "/api/webhooks"
+
+const PUBLIC_PATHS = new Set([
+  LOGIN_PATH,
+  SIGN_UP_PATH,
+  RECOVER_PASSWORD_PATH,
+  RESET_PASSWORD_PATH,
+  PLANS_PATH,
+])
 
 /** `/lp` são as landing pages públicas das imobiliárias (tráfego pago e redes sociais). */
-const PUBLIC_PREFIXES = ["/auth", "/captar", "/api/feeds", "/convite", "/lp"]
+const PUBLIC_PREFIXES = ["/auth", "/captar", "/api/feeds", WEBHOOKS_PATH_PREFIX, "/convite", "/lp"]
 
 /** Rotas que só fazem sentido para quem ainda não entrou. */
 const GUEST_ONLY_PATHS = new Set([LOGIN_PATH, SIGN_UP_PATH, RECOVER_PASSWORD_PATH])
 
 /** Rotas atendidas só no domínio raiz: no subdomínio, redirecionam para a raiz. */
-const ROOT_ONLY_PREFIXES = [ONBOARDING_PATH, TENANT_PICKER_PATH]
+const ROOT_ONLY_PREFIXES = [ONBOARDING_PATH, TENANT_PICKER_PATH, PLANS_PATH]
 
 /**
  * Rotas que o domínio raiz atende. As demais (CRM) levam à escolha de
@@ -43,13 +61,15 @@ const ROOT_HOST_PREFIXES = [
   "/auth",
   "/convite",
   "/api/feeds",
+  WEBHOOKS_PATH_PREFIX,
   ...ROOT_ONLY_PREFIXES,
 ]
 
 /**
  * Primeiro segmento aceito em `next` (allowlist): seções do CRM e fluxos de
  * conta. Ao criar uma seção nova no topo do app, inclua-a aqui; fora da lista,
- * o login leva ao destino padrão.
+ * o login leva ao destino padrão. Subpáginas herdam a seção (ex.:
+ * /configuracoes/assinatura entra por "configuracoes").
  */
 const REDIRECT_ALLOWED_SECTIONS = new Set([
   "agenda",
@@ -88,6 +108,11 @@ export function isPublicPath(pathname: string) {
   const path = normalizePathname(pathname)
 
   return PUBLIC_PATHS.has(path) || PUBLIC_PREFIXES.some((prefix) => matchesPrefix(path, prefix))
+}
+
+/** Webhooks: sem sessão, sem tenant e sem redirecionamentos, em qualquer host. */
+export function isWebhookPath(pathname: string) {
+  return matchesPrefix(normalizePathname(pathname), WEBHOOKS_PATH_PREFIX)
 }
 
 export function isGuestOnlyPath(pathname: string) {

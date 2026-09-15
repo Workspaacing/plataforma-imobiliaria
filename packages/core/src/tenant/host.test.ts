@@ -133,6 +133,53 @@ describe("getProtocolForRootDomain", () => {
   })
 })
 
+describe("entradas enormes ou repetitivas (sem ReDoS)", () => {
+  // Folga generosa para máquinas lentas de CI; o esperado é bem abaixo de 1 ms.
+  const FAST_MS = 50
+
+  function timed<T>(run: () => T) {
+    const start = performance.now()
+    const result = run()
+    return { result, elapsed: performance.now() - start }
+  }
+
+  it("recusa rápido muitas barras seguidas", () => {
+    const { result, elapsed } = timed(() => normalizeRootDomain("/".repeat(50_000) + "x"))
+    expect(result).toBeNull()
+    expect(elapsed).toBeLessThan(FAST_MS)
+  })
+
+  it("recusa rápido domínio com barras finais em excesso", () => {
+    const { result, elapsed } = timed(() =>
+      normalizeRootDomain(`https://seucrm.com.br${"/".repeat(50_000)}`)
+    )
+    expect(result).toBeNull()
+    expect(elapsed).toBeLessThan(FAST_MS)
+  })
+
+  it("trata rápido host com 10 mil pontos", () => {
+    const { result, elapsed } = timed(() => classifyHost(".".repeat(10_000), PROD))
+    expect(result).toEqual({ kind: "external" })
+    expect(elapsed).toBeLessThan(FAST_MS)
+  })
+
+  it("recusa host acima do limite de tamanho", () => {
+    const long = `${"a".repeat(320)}.seucrm.com.br`
+    const { result, elapsed } = timed(() => classifyHost(long, PROD))
+    expect(result).toEqual({ kind: "external" })
+    expect(elapsed).toBeLessThan(FAST_MS)
+    expect(normalizeRootDomain(long)).toBeNull()
+  })
+
+  it("mantém os casos comuns", () => {
+    expect(normalizeRootDomain("https://seucrm.com.br///")).toBe("seucrm.com.br")
+    expect(normalizeRootDomain("http://localhost:3000/")).toBe("localhost:3000")
+    expect(classifyHost("seucrm.com.br.", PROD)).toEqual({ kind: "root" })
+    expect(classifyHost("teste.seucrm.com.br.", PROD)).toEqual({ kind: "tenant", slug: "teste" })
+    expect(classifyHost("seucrm.com.br..", PROD)).toEqual({ kind: "external" })
+  })
+})
+
 describe("getSharedCookieDomain", () => {
   it("compartilha o cookie entre subdomínios em domínio real", () => {
     expect(getSharedCookieDomain(PROD)).toBe(".seucrm.com.br")

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 
+import { ROOT_REDIRECT_PATH_HEADER, ROOT_REDIRECT_STATUS_HEADER } from "@/lib/tenant/headers"
 import { getAppOrigin } from "@/lib/tenant/urls"
 
 /**
@@ -9,14 +10,15 @@ import { getAppOrigin } from "@/lib/tenant/urls"
  * de proxy cuja origem coincide com a dele (em desenvolvimento a raiz é
  * http://localhost:3000), e o navegador continuaria no subdomínio, em loop.
  *
- * A origem vem sempre do env (getAppOrigin); da URL só é aceito um caminho
- * relativo, e o destino é conferido contra essa origem (sem open redirect).
+ * Caminho e status chegam por headers internos definidos pelo proxy (ele
+ * descarta os valores vindos do cliente). A origem vem sempre do env
+ * (getAppOrigin); só é aceito um caminho relativo, e o destino é conferido
+ * contra essa origem (sem open redirect).
  */
 function redirectToRoot(request: NextRequest) {
-  const { searchParams } = request.nextUrl
   const origin = getAppOrigin()
-  const status = searchParams.get("status") === "308" ? 308 : 307
-  const requested = searchParams.get("destino") ?? "/"
+  const status = request.headers.get(ROOT_REDIRECT_STATUS_HEADER) === "308" ? 308 : 307
+  const requested = request.headers.get(ROOT_REDIRECT_PATH_HEADER) ?? "/"
 
   const isRelativePath =
     requested.startsWith("/") && !requested.startsWith("//") && !requested.includes("\\")

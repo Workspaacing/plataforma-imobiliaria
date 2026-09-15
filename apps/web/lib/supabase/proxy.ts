@@ -10,13 +10,20 @@ import {
   isPublicPath,
   isRootHostPath,
   isRootOnlyPath,
+  isWebhookPath,
   LOGIN_PATH,
   sanitizeRedirectPath,
   TENANT_PICKER_PATH,
+  WEBHOOKS_PATH_PREFIX,
 } from "@/lib/auth/routes"
 import { getSessionCookieOptions } from "@/lib/supabase/cookie-options"
 import { getSupabaseEnv } from "@/lib/supabase/env"
-import { TENANT_SLUG_HEADER } from "@/lib/tenant/headers"
+import {
+  INTERNAL_PROXY_HEADERS,
+  ROOT_REDIRECT_PATH_HEADER,
+  ROOT_REDIRECT_STATUS_HEADER,
+  TENANT_SLUG_HEADER,
+} from "@/lib/tenant/headers"
 import { tenantExists } from "@/lib/tenant/lookup"
 import {
   getLegacyPublicRedirect,
@@ -34,12 +41,12 @@ import {
 } from "@/lib/tenant/urls"
 
 /**
- * Rotas públicas que nunca usam a sessão: landing pages e feed dos portais
- * (URLs curtas do subdomínio e rotas longas têm o mesmo prefixo). Pular a
- * renovação evita uma chamada ao Auth por visita e Set-Cookie que impediria o
- * cache dessas respostas.
+ * Rotas públicas que nunca usam a sessão: landing pages, feed dos portais e
+ * webhooks (URLs curtas do subdomínio e rotas longas têm o mesmo prefixo).
+ * Pular a renovação evita uma chamada ao Auth por visita e Set-Cookie que
+ * impediria o cache dessas respostas.
  */
-const SESSIONLESS_PREFIXES = ["/lp", "/api/feeds"]
+const SESSIONLESS_PREFIXES = ["/lp", "/api/feeds", WEBHOOKS_PATH_PREFIX]
 
 function isSessionlessPath(pathname: string) {
   return SESSIONLESS_PREFIXES.some(
@@ -67,13 +74,16 @@ type RouteContext = {
 }
 
 /**
- * Headers repassados ao app. Remove qualquer x-tenant-slug vindo do cliente
- * antes de gravar o do proxy. Montado na hora: a renovação da sessão atualiza
- * o header Cookie da requisição.
+ * Headers repassados ao app. Remove os headers internos vindos do cliente
+ * (x-tenant-slug e os do redirecionamento para a raiz) antes de gravar os do
+ * proxy. Montado na hora: a renovação da sessão atualiza o header Cookie.
  */
 function forwardedHeaders(request: NextRequest, tenantSlug: string | null) {
   const headers = new Headers(request.headers)
-  headers.delete(TENANT_SLUG_HEADER)
+
+  for (const name of INTERNAL_PROXY_HEADERS) {
+    headers.delete(name)
+  }
 
   if (tenantSlug) {
     headers.set(TENANT_SLUG_HEADER, tenantSlug)
@@ -101,19 +111,20 @@ function continueRequest(request: NextRequest, context: RouteContext) {
  * Redireciona para o mesmo caminho no domínio raiz. Vai por um route handler
  * (rewrite) porque o servidor Node do Next torna relativo o Location de proxy
  * com a origem dele; em dev essa origem é a própria raiz (localhost:3000).
+ * Caminho e status seguem por headers internos: route handlers enxergam a URL
+ * original, não a query do rewrite.
  */
 function redirectToRootHost(request: NextRequest, status: 307 | 308) {
   const { pathname, search } = request.nextUrl
   const url = request.nextUrl.clone()
   url.pathname = ROOT_REDIRECT_INTERNAL_PATH
-  url.search = new URLSearchParams({
-    destino: `${pathname}${search}`,
-    status: String(status),
-  }).toString()
+  url.search = ""
 
-  return NextResponse.rewrite(url, {
-    request: { headers: forwardedHeaders(request, null) },
-  })
+  const headers = forwardedHeaders(request, null)
+  headers.set(ROOT_REDIRECT_PATH_HEADER, `${pathname}${search}`)
+  headers.set(ROOT_REDIRECT_STATUS_HEADER, String(status))
+
+  return NextResponse.rewrite(url, { request: { headers } })
 }
 
 /** 404 "Imobiliária não encontrada", sem revelar dados. */
@@ -152,6 +163,12 @@ function redirectWithSession(
  * páginas e Server Actions, e no RLS do banco: o host só escolhe o tenant.
  */
 export async function updateSession(request: NextRequest) {
+  // Webhooks (ex.: Stripe): públicos e sem sessão em qualquer host, sem
+  // resolver tenant nem redirecionar. Headers internos forjados são removidos.
+  if (isWebhookPath(request.nextUrl.pathname)) {
+    return NextResponse.next({ request: { headers: forwardedHeaders(request, null) } })
+  }
+
   const tenancy = classifyRequestHost(request.headers.get("host"))
 
   switch (tenancy.kind) {
