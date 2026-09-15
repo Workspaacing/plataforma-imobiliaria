@@ -22,7 +22,12 @@
         "STRIPE_SECRET_KEY",
         "STRIPE_WEBHOOK_SECRET",
         "BILLING_SERVER_KEY",
-        "CRON_SECRET"
+        "NOTIFICATION_SERVER_KEY",
+        "CRON_SECRET",
+        "BREVO_API_KEY",
+        "EMAIL_FROM_ADDRESS",
+        "EMAIL_FROM_NAME",
+        "EMAIL_REPLY_TO"
       ],
       "outputs": [".next/**", "!.next/cache/**"]
     },
