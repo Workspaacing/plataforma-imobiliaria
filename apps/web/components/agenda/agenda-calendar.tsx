@@ -26,7 +26,7 @@ type AgendaCalendarProps = {
 
 // Ponto sob o número do dia; acima do botão para aparecer também no dia selecionado.
 const DOT_CLASS =
-  "after:pointer-events-none after:absolute after:bottom-1 after:start-1/2 after:z-20 after:size-1 after:-translate-x-1/2 after:rounded-full data-[selected=true]:after:bg-primary-foreground"
+  "after:pointer-events-none after:absolute after:bottom-1 after:inset-s-1/2 after:z-20 after:size-1 after:-translate-x-1/2 after:rounded-full data-[selected=true]:after:bg-primary-foreground"
 
 /** Calendário do mês: trocar dia ou mês atualiza a URL (?dia=&mes=). */
 export function AgendaCalendar({

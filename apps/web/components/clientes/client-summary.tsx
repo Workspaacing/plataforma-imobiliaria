@@ -22,7 +22,7 @@ function DetailList({ items }: { items: DetailItem[] }) {
       {items.map((item) => (
         <div key={item.label} className="contents">
           <dt className="text-muted-foreground">{item.label}</dt>
-          <dd className="min-w-0 break-words">{item.value}</dd>
+          <dd className="min-w-0 wrap-break-word">{item.value}</dd>
         </div>
       ))}
     </dl>
@@ -118,7 +118,7 @@ export function ClientSummary({ client }: { client: Tables<"clients"> }) {
             <CardTitle>Observações</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm break-words whitespace-pre-wrap">{client.notes}</p>
+            <p className="text-sm wrap-break-word whitespace-pre-wrap">{client.notes}</p>
           </CardContent>
         </Card>
       ) : null}

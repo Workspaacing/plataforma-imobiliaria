@@ -105,7 +105,7 @@ export function InterestsPanel({ clientId, interests, canEdit, canDelete }: Inte
                   {interest.notes ? (
                     <>
                       <dt className="text-muted-foreground">Observações</dt>
-                      <dd className="break-words whitespace-pre-wrap">{interest.notes}</dd>
+                      <dd className="wrap-break-word whitespace-pre-wrap">{interest.notes}</dd>
                     </>
                   ) : null}
                 </dl>

@@ -122,7 +122,7 @@ export function AppointmentCard({
                 <MapPinIcon aria-hidden className="size-4" />
                 <span className="sr-only">Ponto de encontro</span>
               </dt>
-              <dd className="break-words">{appointment.meetingPoint}</dd>
+              <dd className="wrap-break-word">{appointment.meetingPoint}</dd>
             </>
           ) : null}
         </dl>
@@ -136,7 +136,7 @@ export function AppointmentCard({
             </Badge>
           ) : null}
           {appointment.feedback ? (
-            <p className="break-words whitespace-pre-line text-muted-foreground">
+            <p className="wrap-break-word whitespace-pre-line text-muted-foreground">
               {appointment.feedback}
             </p>
           ) : null}

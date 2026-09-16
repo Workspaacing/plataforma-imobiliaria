@@ -54,7 +54,7 @@ export default async function PerfilPage() {
                 <dt className="text-muted-foreground">E-mail</dt>
                 <dd className="break-all">{user.email ?? "Não informado"}</dd>
                 <dt className="text-muted-foreground">Imobiliária</dt>
-                <dd className="break-words">{membership.organization.name}</dd>
+                <dd className="wrap-break-word">{membership.organization.name}</dd>
                 <dt className="text-muted-foreground">Papel</dt>
                 <dd>{ROLE_LABELS[membership.role]}</dd>
               </dl>

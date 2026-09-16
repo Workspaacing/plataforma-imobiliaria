@@ -69,7 +69,7 @@ export function PropertyHeader({
                 <Badge variant="secondary">Nos portais</Badge>
               ) : null}
             </div>
-            <h1 className="text-2xl font-semibold tracking-tight text-balance break-words">
+            <h1 className="text-2xl font-semibold tracking-tight text-balance wrap-break-word">
               {property.title}
             </h1>
             {location ? (

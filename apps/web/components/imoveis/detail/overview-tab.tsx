@@ -165,7 +165,7 @@ export function OverviewTab({
           </CardHeader>
           <CardContent>
             {property.description?.trim() ? (
-              <p className="text-sm leading-relaxed break-words whitespace-pre-line">
+              <p className="text-sm leading-relaxed wrap-break-word whitespace-pre-line">
                 {property.description}
               </p>
             ) : (

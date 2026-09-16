@@ -74,6 +74,11 @@ updates:
       # (peer typescript < 6.1). Remover quando o typescript-eslint aceitar versões novas.
       - dependency-name: typescript
         versions: [">=6.1.0"]
+      # Os tipos do Node acompanham o runtime de produção (Node 24 na Vercel,
+      # .node-version e CI). Tipos de uma major mais nova deixariam o código usar
+      # API que não existe em produção. Subir junto com o runtime.
+      - dependency-name: "@types/node"
+        versions: [">=25.0.0"]
 
   # Versões das GitHub Actions usadas nos workflows.
   - package-ecosystem: github-actions

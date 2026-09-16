@@ -122,7 +122,7 @@ export function MediaTab({
                         className="size-full"
                       />
                       {image.is_cover ? (
-                        <Badge className="absolute start-2 top-2">Capa</Badge>
+                        <Badge className="absolute inset-s-2 top-2">Capa</Badge>
                       ) : null}
                     </AspectRatio>
                     {image.caption ? (

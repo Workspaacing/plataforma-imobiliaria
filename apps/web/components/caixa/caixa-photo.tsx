@@ -72,7 +72,7 @@ export function CaixaPhoto({
           onUnavailable?.()
         }}
       />
-      <span className="absolute end-1 bottom-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] leading-4 font-medium text-white">
+      <span className="absolute inset-e-1 bottom-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] leading-4 font-medium text-white">
         {CAIXA_PHOTO_CREDIT}
       </span>
     </div>

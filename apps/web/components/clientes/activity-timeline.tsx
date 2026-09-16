@@ -73,7 +73,7 @@ export function ActivityTimeline({
                 </span>
               </ItemTitle>
               {activity.body ? (
-                <p className="text-sm break-words whitespace-pre-wrap">{activity.body}</p>
+                <p className="text-sm wrap-break-word whitespace-pre-wrap">{activity.body}</p>
               ) : null}
               {activity.property ? (
                 <Link

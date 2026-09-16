@@ -192,7 +192,7 @@ export default async function CondominioPage({ params }: CondominioPageProps) {
         </CardHeader>
         {condominium.notes ? (
           <CardContent>
-            <p className="break-words whitespace-pre-line">{condominium.notes}</p>
+            <p className="wrap-break-word whitespace-pre-line">{condominium.notes}</p>
           </CardContent>
         ) : null}
       </Card>

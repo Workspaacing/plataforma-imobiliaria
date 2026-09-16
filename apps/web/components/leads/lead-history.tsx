@@ -40,7 +40,7 @@ export function LeadHistoryTimeline({
         return (
           <li key={`${event.kind}-${event.id}`} className="flex items-start gap-2">
             <Icon aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-            <span className="min-w-0 break-words">
+            <span className="min-w-0 wrap-break-word">
               {title}
               <span className="text-muted-foreground">
                 {event.reasonLabel ? ` · ${event.reasonLabel}` : ""} · por {event.actorName} ·{" "}

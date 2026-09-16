@@ -77,7 +77,7 @@ export default async function PlanosPage() {
     <div className="flex min-h-svh flex-col bg-background">
       <a
         href="#conteudo"
-        className="sr-only rounded-lg bg-background px-3 py-2 text-sm font-medium focus:not-sr-only focus:fixed focus:start-4 focus:top-4 focus:ring-3 focus:ring-ring/50"
+        className="sr-only rounded-lg bg-background px-3 py-2 text-sm font-medium focus:not-sr-only focus:fixed focus:inset-s-4 focus:top-4 focus:ring-3 focus:ring-ring/50"
       >
         Pular para o conteúdo
       </a>

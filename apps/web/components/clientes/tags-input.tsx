@@ -126,7 +126,7 @@ export function TagsInput({
                 {item}
                 <button
                   type="button"
-                  className="-me-1 inline-flex rounded-full opacity-60 outline-none hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none [&>svg]:size-3"
+                  className="-me-1 inline-flex rounded-full opacity-60 outline-hidden hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none [&>svg]:size-3"
                   onClick={() => onChange(value.filter((current) => current !== item))}
                   disabled={disabled}
                   aria-label={`Remover ${itemName} ${item}`}

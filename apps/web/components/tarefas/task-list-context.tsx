@@ -20,11 +20,7 @@ export function TaskListProvider({
   role,
   children,
 }: TaskListContextValue & { children: React.ReactNode }) {
-  return (
-    <TaskListContext.Provider value={{ members, currentUserId, role }}>
-      {children}
-    </TaskListContext.Provider>
-  )
+  return <TaskListContext value={{ members, currentUserId, role }}>{children}</TaskListContext>
 }
 
 export function useTaskListContext() {

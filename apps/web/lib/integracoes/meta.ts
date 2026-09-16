@@ -3,6 +3,7 @@ import "server-only"
 import { createHmac, timingSafeEqual } from "node:crypto"
 
 import { parseMetaSignatureHeader } from "@workspace/core/leads/ingest"
+import { WHATSAPP_GRAPH_BASE_URL, WHATSAPP_GRAPH_VERSION } from "@workspace/core/whatsapp"
 
 /**
  * Conversa com a Meta (Facebook e Instagram) para o Lead Ads.
@@ -19,12 +20,12 @@ import { parseMetaSignatureHeader } from "@workspace/core/leads/ingest"
  */
 
 /**
- * Versão do Graph API. A Meta mantém cada versão por pelo menos 2 anos; a v26.0
- * saiu em 29/07/2026. Sem versão no caminho, a chamada usaria a versão do
- * painel do app — e mudaria sozinha.
+ * Versão do Graph API: a mesma do WhatsApp, definida uma vez só no core. A Meta
+ * mantém cada versão por pelo menos 2 anos. Sem versão no caminho, a chamada
+ * usaria a versão do painel do app — e mudaria sozinha.
  */
-export const GRAPH_API_VERSION = "v26.0"
-const GRAPH_API_BASE = `https://graph.facebook.com/${GRAPH_API_VERSION}`
+export const GRAPH_API_VERSION = WHATSAPP_GRAPH_VERSION
+const GRAPH_API_BASE = `${WHATSAPP_GRAPH_BASE_URL}/${GRAPH_API_VERSION}`
 
 /** Orçamento por chamada: o webhook precisa responder rápido. */
 const REQUEST_TIMEOUT_MS = 8000

@@ -439,7 +439,7 @@ export function LeadDetail({
           </dd>
         </dl>
         {lead.message ? (
-          <p className="rounded-lg bg-muted/50 p-3 text-sm break-words whitespace-pre-wrap">
+          <p className="rounded-lg bg-muted/50 p-3 text-sm wrap-break-word whitespace-pre-wrap">
             {lead.message}
           </p>
         ) : (
@@ -458,7 +458,7 @@ export function LeadDetail({
           {lead.landingPageId ? (
             <>
               <dt>Landing page</dt>
-              <dd className="min-w-0 break-words">
+              <dd className="min-w-0 wrap-break-word">
                 {lead.landingPage ? (
                   <>
                     {lead.landingPage.name}{" "}
@@ -857,7 +857,7 @@ function LeadActivities({
                 </span>
               </ItemTitle>
               {activity.body ? (
-                <p className="text-sm break-words whitespace-pre-wrap">{activity.body}</p>
+                <p className="text-sm wrap-break-word whitespace-pre-wrap">{activity.body}</p>
               ) : null}
               {activity.property ? (
                 <Link

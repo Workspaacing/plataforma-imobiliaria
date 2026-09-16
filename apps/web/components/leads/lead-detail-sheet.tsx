@@ -33,7 +33,7 @@ export function LeadDetailSheet({ lead, open, onOpenChange, ...detail }: LeadDet
           <>
             <LeadViewLogger leadId={lead.id} />
             <SheetHeader className="pe-12">
-              <SheetTitle className="break-words">{lead.name}</SheetTitle>
+              <SheetTitle className="wrap-break-word">{lead.name}</SheetTitle>
               <SheetDescription className="flex flex-wrap items-center gap-1.5">
                 <LeadStageBadge stage={lead.stage} />
                 <LeadSourceBadge lead={lead} />

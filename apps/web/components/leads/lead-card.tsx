@@ -125,7 +125,7 @@ export function LeadCard({
             onKeyDown={handleKeyDown}
             onFocus={onFocused}
             aria-describedby={canMove ? hintId : undefined}
-            className="min-w-0 truncate rounded-sm text-start underline-offset-4 outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="min-w-0 truncate rounded-sm text-start underline-offset-4 outline-hidden hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             {lead.name}
           </button>

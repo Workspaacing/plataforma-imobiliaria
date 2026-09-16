@@ -19,7 +19,7 @@ export function DetailItem({
   return (
     <div className={cn("flex min-w-0 flex-col gap-0.5", className)}>
       <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="text-sm font-medium break-words">{children}</dd>
+      <dd className="text-sm font-medium wrap-break-word">{children}</dd>
     </div>
   )
 }

@@ -29,7 +29,7 @@ export function ClientHeader({ client, members, canEdit, canDelete }: ClientHead
         </Avatar>
         <div className="flex min-w-0 flex-col gap-3">
           <div className="flex flex-col gap-1.5">
-            <h1 className="text-2xl font-semibold tracking-tight break-words">{client.name}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight wrap-break-word">{client.name}</h1>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
               <Badge variant="outline">{CLIENT_KIND_LABELS[client.kind]}</Badge>
               {client.kind === "pj" && client.trade_name ? <span>{client.trade_name}</span> : null}
