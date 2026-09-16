@@ -2,7 +2,6 @@ import type { Metadata } from "next"
 
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -10,7 +9,6 @@ import {
 } from "@workspace/ui/components/card"
 
 import { PageHeading } from "@/components/crm/page-placeholder"
-import { ThemeToggle } from "@/components/crm/theme-toggle"
 import { PasswordForm } from "@/components/perfil/password-form"
 import { ProfileForm } from "@/components/perfil/profile-form"
 import { PageShell } from "@/components/shared/page-shell"
@@ -46,15 +44,6 @@ export default async function PerfilPage() {
       header={<PageHeading title="Meu perfil" description="Seus dados, telefone, CRECI e senha." />}
       rail={
         <>
-          <Card>
-            <CardHeader>
-              <CardTitle>Aparência</CardTitle>
-              <CardDescription>Tema claro ou escuro neste dispositivo.</CardDescription>
-              <CardAction>
-                <ThemeToggle />
-              </CardAction>
-            </CardHeader>
-          </Card>
           <Card>
             <CardHeader>
               <CardTitle>Acesso</CardTitle>

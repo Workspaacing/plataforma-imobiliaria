@@ -16,7 +16,6 @@ import { Separator } from "@workspace/ui/components/separator"
 import { SidebarTrigger } from "@workspace/ui/components/sidebar"
 
 import { EXTRA_PAGE_TITLES, findNavMatch } from "@/components/crm/nav-config"
-import { ThemeToggle } from "@/components/crm/theme-toggle"
 
 const SEGMENT_LABELS: Record<string, string> = {
   novo: "Novo",
@@ -116,9 +115,6 @@ export function CrmHeader() {
           className="me-2 data-vertical:h-4 data-vertical:self-auto"
         />
         <HeaderBreadcrumb />
-      </div>
-      <div className="flex items-center gap-2 px-4">
-        <ThemeToggle />
       </div>
     </header>
   )

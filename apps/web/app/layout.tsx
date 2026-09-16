@@ -7,7 +7,6 @@ import { GeistSans } from "geist/font/sans"
 import "@workspace/ui/globals.css"
 import { DirectionProvider } from "@workspace/ui/components/direction"
 import { APP_NAME } from "@/components/crm/brand"
-import { ThemeProvider } from "@/components/theme-provider"
 import { VercelObservability } from "@/components/vercel-observability"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -48,9 +47,7 @@ export default function RootLayout({
       ) : null}
       {/* Extensões como ColorZilla injetam atributos no body antes da hidratação. */}
       <body suppressHydrationWarning>
-        <DirectionProvider direction="ltr">
-          <ThemeProvider>{children}</ThemeProvider>
-        </DirectionProvider>
+        <DirectionProvider direction="ltr">{children}</DirectionProvider>
         {enableVercelObservability ? <VercelObservability /> : null}
       </body>
     </html>
