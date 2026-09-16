@@ -338,6 +338,54 @@ export type LeadListResult = {
 }
 
 /** Leads visíveis (RLS) com os filtros da URL, dos mais recentes aos mais antigos. */
+/**
+ * Filtros do quadro de leads. A lista e as contagens usam esta mesma função:
+ * se cada uma montasse os filtros por conta própria, os números da tela
+ * deixariam de bater com as linhas mostradas.
+ */
+type LeadsQueryLike<Q> = {
+  eq(column: string, value: string): Q
+  is(column: string, value: null): Q
+  filter(column: string, operator: string, value: string): Q
+  gte(column: string, value: string): Q
+}
+
+function applyLeadFilters<Q extends LeadsQueryLike<Q>>(
+  query: Q,
+  params: { userId: string; filters: LeadListFilters; now: Date }
+): Q {
+  const { userId, filters, now } = params
+  let filtered = query
+
+  if (filters.responsavel === MINE_FILTER) {
+    filtered = filtered.eq("assigned_to", userId)
+  } else if (filters.responsavel === UNASSIGNED_FILTER) {
+    filtered = filtered.is("assigned_to", null)
+  } else if (filters.responsavel) {
+    filtered = filtered.eq("assigned_to", filters.responsavel)
+  }
+
+  if (filters.origem) {
+    filtered = filtered.eq("source", filters.origem)
+  }
+
+  if (filters.pagina) {
+    filtered = filtered.eq("landing_page_id", filters.pagina)
+  }
+
+  if (filters.campanha) {
+    filtered = filtered.filter("utm->>campaign", "eq", filters.campanha)
+  }
+
+  const periodStart = getPeriodStartIso(filters.periodo, now)
+
+  if (periodStart) {
+    filtered = filtered.gte("created_at", periodStart)
+  }
+
+  return filtered
+}
+
 export async function listLeads(
   supabase: LeadsServerClient,
   params: {
@@ -351,33 +399,10 @@ export async function listLeads(
 ): Promise<LeadListResult> {
   const { organizationId, userId, filters, now, landingPages, options } = params
 
-  let query = supabase.from("leads").select("*").eq("organization_id", organizationId)
-
-  if (filters.responsavel === MINE_FILTER) {
-    query = query.eq("assigned_to", userId)
-  } else if (filters.responsavel === UNASSIGNED_FILTER) {
-    query = query.is("assigned_to", null)
-  } else if (filters.responsavel) {
-    query = query.eq("assigned_to", filters.responsavel)
-  }
-
-  if (filters.origem) {
-    query = query.eq("source", filters.origem)
-  }
-
-  if (filters.pagina) {
-    query = query.eq("landing_page_id", filters.pagina)
-  }
-
-  if (filters.campanha) {
-    query = query.filter("utm->>campaign", "eq", filters.campanha)
-  }
-
-  const periodStart = getPeriodStartIso(filters.periodo, now)
-
-  if (periodStart) {
-    query = query.gte("created_at", periodStart)
-  }
+  const query = applyLeadFilters(
+    supabase.from("leads").select("*").eq("organization_id", organizationId),
+    { userId, filters, now }
+  )
 
   const { data, error } = await query
     .order("created_at", { ascending: false })
@@ -402,6 +427,34 @@ export async function listLeads(
     truncated: data.length > LEADS_LIST_LIMIT,
     failed: false,
   }
+}
+
+export type LeadFilteredCounts = { total: number; won: number; failed: boolean }
+
+/**
+ * Conta no banco os leads que batem com os filtros atuais. A lista para em
+ * LEADS_LIST_LIMIT, então contar as linhas carregadas daria taxa de conversão
+ * errada em quem tem mais leads que o teto.
+ */
+export async function countLeads(
+  supabase: LeadsServerClient,
+  params: { organizationId: string; userId: string; filters: LeadListFilters; now: Date }
+): Promise<LeadFilteredCounts> {
+  const { organizationId, userId, filters, now } = params
+
+  const base = () =>
+    applyLeadFilters(
+      supabase
+        .from("leads")
+        .select("id", { count: "exact", head: true })
+        .eq("organization_id", organizationId),
+      { userId, filters, now }
+    )
+
+  const [total, won] = await Promise.all([base(), base().eq("stage", "won")])
+  const failed = [total, won].some((result) => result.error || result.count === null)
+
+  return { total: total.count ?? 0, won: won.count ?? 0, failed }
 }
 
 /** Campanhas UTM já recebidas (para o filtro). */

@@ -29,7 +29,13 @@ import {
   type RawSearchParams,
 } from "@/lib/leads/filters"
 import { canCreateLeads, canSeeLeadTrackingIds, canViewAllLeads } from "@/lib/leads/permissions"
-import { getLeadSummary, listLandingPages, listLeadCampaigns, listLeads } from "@/lib/leads/queries"
+import {
+  countLeads,
+  getLeadSummary,
+  listLandingPages,
+  listLeadCampaigns,
+  listLeads,
+} from "@/lib/leads/queries"
 
 export const metadata: Metadata = {
   title: "Leads",
@@ -54,17 +60,19 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
     getLeadSummary(supabase, organizationId, now),
   ])
 
-  const result = await listLeads(supabase, {
-    organizationId,
-    userId: user.id,
-    filters,
-    now,
-    landingPages,
-    options: { showTrackingIds: canSeeLeadTrackingIds(role) },
-  })
+  const [result, filteredCounts] = await Promise.all([
+    listLeads(supabase, {
+      organizationId,
+      userId: user.id,
+      filters,
+      now,
+      landingPages,
+      options: { showTrackingIds: canSeeLeadTrackingIds(role) },
+    }),
+    countLeads(supabase, { organizationId, userId: user.id, filters, now }),
+  ])
 
   const canCreate = canCreateLeads(role)
-  const wonCount = result.leads.filter((lead) => lead.stage === "won").length
   const isFiltered = hasActiveLeadFilters(filters)
 
   const description =
@@ -90,8 +98,8 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
 
       <LeadsSummary
         counts={summary}
-        wonCount={wonCount}
-        totalCount={result.leads.length}
+        wonCount={filteredCounts.won}
+        totalCount={filteredCounts.total}
         periodLabel={LEAD_PERIOD_LABELS[filters.periodo]}
       />
 
