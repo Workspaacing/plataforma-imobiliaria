@@ -79,6 +79,77 @@ export type Database = {
           },
         ]
       }
+      ai_usage_periods: {
+        Row: {
+          cache_read_tokens: number
+          cache_write_tokens: number
+          conversations: number
+          cost_millicents: number
+          created_at: string
+          day_cost_millicents: number
+          day_start: string | null
+          input_tokens: number
+          notified_100_at: string | null
+          notified_80_at: string | null
+          organization_id: string
+          output_tokens: number
+          period_end: string
+          period_start: string
+          requests: number
+          updated_at: string
+          week_cost_millicents: number
+          week_start: string | null
+        }
+        Insert: {
+          cache_read_tokens?: number
+          cache_write_tokens?: number
+          conversations?: number
+          cost_millicents?: number
+          created_at?: string
+          day_cost_millicents?: number
+          day_start?: string | null
+          input_tokens?: number
+          notified_100_at?: string | null
+          notified_80_at?: string | null
+          organization_id: string
+          output_tokens?: number
+          period_end: string
+          period_start: string
+          requests?: number
+          updated_at?: string
+          week_cost_millicents?: number
+          week_start?: string | null
+        }
+        Update: {
+          cache_read_tokens?: number
+          cache_write_tokens?: number
+          conversations?: number
+          cost_millicents?: number
+          created_at?: string
+          day_cost_millicents?: number
+          day_start?: string | null
+          input_tokens?: number
+          notified_100_at?: string | null
+          notified_80_at?: string | null
+          organization_id?: string
+          output_tokens?: number
+          period_end?: string
+          period_start?: string
+          requests?: number
+          updated_at?: string
+          week_cost_millicents?: number
+          week_start?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_periods_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appointments: {
         Row: {
           broker_id: string | null
@@ -196,6 +267,7 @@ export type Database = {
       billing_accounts: {
         Row: {
           addon_keys: string[]
+          ai_overage_cap_cents: number
           billing_interval: string | null
           cancel_at_period_end: boolean
           current_period_end: string | null
@@ -220,6 +292,7 @@ export type Database = {
         }
         Insert: {
           addon_keys?: string[]
+          ai_overage_cap_cents?: number
           billing_interval?: string | null
           cancel_at_period_end?: boolean
           current_period_end?: string | null
@@ -244,6 +317,7 @@ export type Database = {
         }
         Update: {
           addon_keys?: string[]
+          ai_overage_cap_cents?: number
           billing_interval?: string | null
           cancel_at_period_end?: boolean
           current_period_end?: string | null
@@ -1734,6 +1808,7 @@ export type Database = {
       apply_referral_recalculation: {
         Args: {
           p_count?: string[]
+          p_expected_fingerprint?: string
           p_expected_percent?: number
           p_organization_id?: string
           p_percent?: number
@@ -1778,6 +1853,10 @@ export type Database = {
           status: Database["public"]["Enums"]["property_status"]
           total: number
         }[]
+      }
+      get_ai_usage_overview: {
+        Args: { p_organization_id: string }
+        Returns: Json
       }
       get_billing_account_ids: {
         Args: { p_organization_id?: string; p_server_key?: string }
@@ -1877,9 +1956,29 @@ export type Database = {
         }
         Returns: boolean
       }
+      reserve_ai_usage: {
+        Args: {
+          p_cache_read_tokens?: number
+          p_cache_write_tokens?: number
+          p_contact_key?: string
+          p_digest?: string
+          p_input_tokens?: number
+          p_kind?: string
+          p_organization_id?: string
+          p_output_tokens?: number
+          p_server_key?: string
+          p_units?: number
+          p_user_id?: string
+        }
+        Returns: Json
+      }
       rotate_feed_token: {
         Args: { p_organization_id: string }
         Returns: string
+      }
+      set_ai_overage_cap: {
+        Args: { p_cents: number; p_organization_id: string }
+        Returns: number
       }
       set_referral_confirmation_notice: {
         Args: {
@@ -1897,6 +1996,20 @@ export type Database = {
           p_server_key?: string
         }
         Returns: boolean
+      }
+      settle_ai_usage: {
+        Args: {
+          p_cache_read_tokens?: number
+          p_cache_write_tokens?: number
+          p_input_tokens?: number
+          p_organization_id?: string
+          p_output_tokens?: number
+          p_reservation_id?: string
+          p_response?: string
+          p_server_key?: string
+          p_status?: string
+        }
+        Returns: Json
       }
       submit_capture_request: {
         Args: {

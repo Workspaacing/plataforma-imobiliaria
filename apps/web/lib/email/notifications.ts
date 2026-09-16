@@ -2,11 +2,13 @@ import "server-only"
 
 import { normalizeEmailAddress, isUuid } from "@workspace/core/email/sanitize"
 import {
+  aiQuotaNoticeEmail,
   captureRequestEmail,
   newLeadEmail,
   referralNoticeEmail,
   subscriptionNoticeEmail,
   teamInvitationEmail,
+  type AiQuotaNoticeKind,
   type ReferralNoticeKind,
   type RenderedEmail,
   type SubscriptionNoticeKind,
@@ -38,7 +40,12 @@ import { buildTenantOrigin } from "@/lib/tenant/urls"
  */
 
 export type NotificationKind =
-  "new_lead" | "capture_request" | "team_invitation" | "subscription_notice" | "referral_notice"
+  | "new_lead"
+  | "capture_request"
+  | "team_invitation"
+  | "subscription_notice"
+  | "referral_notice"
+  | "ai_quota_notice"
 
 /** Evita a consulta às RPCs públicas quando quem chama já tem nome e cor. */
 export type NotificationBrand = { name?: string | null; primaryColor?: string | null }
@@ -125,12 +132,32 @@ export type ReferralNoticeNotification = {
   brand?: NotificationBrand | null
 }
 
+/** Aviso de franquia de IA (80% e 100%), reservado pelo banco: 1 de cada por ciclo. */
+export type AiQuotaNoticeNotification = {
+  organizationSlug: string
+  organizationName: string
+  notice: AiQuotaNoticeKind
+  /** Início do ciclo de IA: entra na chave de idempotência (1 aviso por ciclo). */
+  periodStart: string
+  /** Fim do ciclo, para o e-mail dizer quando a franquia vira. */
+  periodEnd?: Date | string | null
+  conversationsUsed: number
+  conversationsLimit: number
+  costCents: number
+  capCents: number
+  overageCapCents: number
+  /** Responsáveis pela assinatura. */
+  to: readonly EmailAddress[]
+  brand?: NotificationBrand | null
+}
+
 export type NotificationParams = {
   new_lead: NewLeadNotification
   capture_request: CaptureRequestNotification
   team_invitation: TeamInvitationNotification
   subscription_notice: SubscriptionNoticeNotification
   referral_notice: ReferralNoticeNotification
+  ai_quota_notice: AiQuotaNoticeNotification
 }
 
 export type NotificationSummary = {
@@ -400,6 +427,48 @@ async function notifyReferral(params: ReferralNoticeNotification): Promise<Notif
   )
 }
 
+async function notifyAiQuota(params: AiQuotaNoticeNotification): Promise<NotificationSummary> {
+  const recipients = params.to.flatMap((address) => {
+    const normalized = normalizeRecipient(address)
+    return normalized ? [normalized] : []
+  })
+
+  if (recipients.length === 0) {
+    return invalidInput("ai_quota_notice")
+  }
+
+  const origin = buildTenantOrigin(params.organizationSlug)
+
+  return deliver(
+    "ai_quota_notice",
+    recipients.map((recipient) => ({
+      to: recipient,
+      email: aiQuotaNoticeEmail({
+        origin,
+        // Aviso da plataforma: marca padrão, a menos que quem chama informe outra.
+        brand: params.brand ?? null,
+        recipientName: recipient.name,
+        kind: params.notice,
+        organizationName: params.organizationName,
+        conversationsUsed: params.conversationsUsed,
+        conversationsLimit: params.conversationsLimit,
+        costCents: params.costCents,
+        capCents: params.capCents,
+        overageCapCents: params.overageCapCents,
+        periodEnd: params.periodEnd,
+      }),
+      // Uma vez por ciclo e por nível (o banco já reserva o aviso).
+      idempotencyKey: deriveIdempotencyKey(
+        "ai_quota_notice",
+        params.notice,
+        params.organizationSlug,
+        params.periodStart,
+        recipient.email
+      ),
+    }))
+  )
+}
+
 const HANDLERS: {
   [K in NotificationKind]: (params: NotificationParams[K]) => Promise<NotificationSummary>
 } = {
@@ -408,6 +477,7 @@ const HANDLERS: {
   team_invitation: notifyTeamInvitation,
   subscription_notice: notifySubscription,
   referral_notice: notifyReferral,
+  ai_quota_notice: notifyAiQuota,
 }
 
 function logSummary(summary: NotificationSummary) {

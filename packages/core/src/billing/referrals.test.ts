@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest"
 
-import { isBillingInterval, isPlanKey, PLANS, priceLookupKey } from "./plans"
+import {
+  BILLING_INTERVALS,
+  isBillingInterval,
+  isPlanKey,
+  PLAN_KEYS,
+  PLANS,
+  priceLookupKey,
+} from "./plans"
 import {
   computeReferralDiscount,
   isReferralConfirmationPending,
@@ -568,5 +575,76 @@ describe("janelas do cron e reconciliação", () => {
     expect(referralReconcileSeed(NOW)).toBe("2026-09-15")
     expect(referralReconcileSeed(new Date("2026-09-15T23:59:59Z"))).toBe("2026-09-15")
     expect(referralReconcileSeed(new Date("2026-09-16T00:00:00Z"))).toBe("2026-09-16")
+  })
+})
+
+// A trava de valor é o que torna a autoindicação (segundo e-mail, sem vínculo
+// nenhum com a indicadora — o banco não bloqueia esse caso) um mau negócio: o
+// desconto que o indicador ganha em reais nunca passa de
+// REFERRAL_VALUE_CAP_PERCENT% do que as indicadas pagam de fato. Estes testes
+// travam essa propriedade em toda a grade de planos e ciclos.
+describe("antifraude: o desconto vale no máximo metade do que a indicada paga", () => {
+  /** Valor anual, em centavos, do desconto que o indicador recebe. */
+  function discountValueAnnualCents(
+    referrer: ReferrerAccount,
+    referrals: readonly ReferredAccount[]
+  ): number {
+    const { percent } = computeReferralDiscount({ referrer, referrals, now: NOW })
+
+    if (!isPlanKey(referrer.planKey) || !isBillingInterval(referrer.interval)) {
+      throw new Error("indicador sem plano pago")
+    }
+
+    return (planAnnualCents(referrer.planKey, referrer.interval) * percent) / 100
+  }
+
+  function paidAnnualCents(referrals: readonly ReferredAccount[]): number {
+    return referrals.reduce((total, item) => total + (item.netMonthlyCents ?? 0) * 12, 0)
+  }
+
+  it("vale para toda combinação de plano e ciclo do indicador e da indicada", () => {
+    for (const referrerPlan of PLAN_KEYS) {
+      for (const referrerInterval of BILLING_INTERVALS) {
+        for (const referredPlan of PLAN_KEYS) {
+          for (const referredInterval of BILLING_INTERVALS) {
+            const referrer: ReferrerAccount = {
+              billingStatus: "active",
+              planKey: referrerPlan,
+              interval: referrerInterval,
+            }
+            const referrals = [referred({ planKey: referredPlan, interval: referredInterval })]
+            const cap = (paidAnnualCents(referrals) * REFERRAL_VALUE_CAP_PERCENT) / 100
+
+            expect(discountValueAnnualCents(referrer, referrals)).toBeLessThanOrEqual(cap)
+          }
+        }
+      }
+    }
+  })
+
+  it("continua valendo com várias indicadas, inclusive até o teto de 100%", () => {
+    for (const count of [1, 3, 10, 25]) {
+      const referrals = Array.from({ length: count }, () => referred({ planKey: "corretor" }))
+      const cap = (paidAnnualCents(referrals) * REFERRAL_VALUE_CAP_PERCENT) / 100
+
+      expect(discountValueAnnualCents(ACTIVE_REFERRER, referrals)).toBeLessThanOrEqual(cap)
+    }
+  })
+
+  it("vale também quando a indicada já paga com desconto de indicações", () => {
+    const monthly = catalogMonthly("imobiliaria", "month") ?? 0
+    const referrals = [
+      // 60% de desconto na mensalidade dela: a fatura líquida cai junto.
+      referred({ discountPercent: 60, netMonthlyCents: Math.floor(monthly * 0.4) }),
+    ]
+    const cap = (paidAnnualCents(referrals) * REFERRAL_VALUE_CAP_PERCENT) / 100
+
+    expect(discountValueAnnualCents(ACTIVE_REFERRER, referrals)).toBeLessThanOrEqual(cap)
+  })
+
+  it("indicada inelegível não rende nada, por mais que pague", () => {
+    const referrals = [referred({ planKey: "rede", interval: "year", ineligible: true })]
+
+    expect(discountValueAnnualCents(ACTIVE_REFERRER, referrals)).toBe(0)
   })
 })

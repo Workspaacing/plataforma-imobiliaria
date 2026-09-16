@@ -236,7 +236,7 @@ export async function listBillingReminders(
 // Indique e ganhe (chave do servidor)
 
 export type ReferralIneligibleReason =
-  "refund" | "dispute" | "dispute_lost" | "shared_members" | "same_cnpj"
+  "refund" | "dispute" | "dispute_lost" | "shared_members" | "same_cnpj" | "duplicate_owner"
 
 const INELIGIBLE_REASONS: readonly string[] = [
   "refund",
@@ -244,6 +244,7 @@ const INELIGIBLE_REASONS: readonly string[] = [
   "dispute_lost",
   "shared_members",
   "same_cnpj",
+  "duplicate_owner",
 ]
 
 export type ReferralStateOrganization = {
@@ -262,6 +263,13 @@ export type ReferralStateOrganization = {
   /** Total de indicadas (a lista traz no máximo REFERRAL_STATE_MAX_REFERRALS). */
   referralTotal: number
   referralsTruncated: boolean
+  /**
+   * Impressão do estado que entra no cálculo (md5 do banco). Devolvida a
+   * apply_referral_recalculation: se algum fato de cobrança mudou desde esta
+   * leitura, a gravação é recusada (conflito) em vez de sobrescrever um
+   * recálculo mais novo. null só com um banco anterior à migração.
+   */
+  stateFingerprint: string | null
 }
 
 export type ReferralStateReferral = {
@@ -325,6 +333,11 @@ function readPercent(value: unknown): number {
 
 function readCents(value: unknown): number | null {
   return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : null
+}
+
+/** md5 em hex (o banco recusa qualquer outro formato). */
+function readFingerprint(value: unknown): string | null {
+  return typeof value === "string" && /^[0-9a-f]{32}$/.test(value) ? value : null
 }
 
 function readUuidList(value: unknown): string[] {
@@ -403,6 +416,7 @@ function toReferralState(raw: unknown): ReferralState | null {
           ? organization.referral_total
           : referrals.length,
       referralsTruncated: organization.referrals_truncated === true,
+      stateFingerprint: readFingerprint(organization.state_fingerprint),
     },
     referrals,
   }
@@ -466,12 +480,20 @@ export async function recordBillingInvoicePaid(
 }
 
 /**
- * Grava o resultado do recálculo se o percentual gravado ainda for o esperado
- * (senão devolve conflito), com as transições das indicadas.
+ * Grava o resultado do recálculo se o percentual gravado ainda for o esperado E
+ * o estado lido não tiver mudado (senão devolve conflito), com as transições
+ * das indicadas.
  */
 export async function applyReferralRecalculation(
   organizationId: string,
-  input: { expectedPercent: number; percent: number; count: string[]; uncount: string[] }
+  input: {
+    expectedPercent: number
+    percent: number
+    count: string[]
+    uncount: string[]
+    /** state_fingerprint da leitura que gerou este recálculo. */
+    stateFingerprint: string | null
+  }
 ): Promise<ReferralApplyResult> {
   const operation = "apply_referral_recalculation"
   const { supabase, serverKey } = requireServerKeyClient(operation)
@@ -482,6 +504,7 @@ export async function applyReferralRecalculation(
     p_percent: input.percent,
     p_count: input.count,
     p_uncount: input.uncount,
+    p_expected_fingerprint: input.stateFingerprint ?? undefined,
   })
 
   if (error) {

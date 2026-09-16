@@ -591,6 +591,9 @@ export async function recalculateReferralDiscount(
       percent: plan.targetPercent,
       count: plan.toCount,
       uncount: plan.toUncount,
+      // Recusa gravar se algum fato de cobrança mudou depois desta leitura
+      // (ex.: estorno registrado enquanto a Stripe respondia).
+      stateFingerprint: state.organization.stateFingerprint,
     })
 
     if (applied.status === "conflict") {

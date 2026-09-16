@@ -168,6 +168,23 @@ export async function createOrganization(
     })
   }
 
+  // O código também sai dos metadados da conta (gravados no cadastro): senão
+  // uma segunda imobiliária da mesma conta seria atribuída de novo ao mesmo
+  // indicador. A trava de verdade é do banco (private.referral_attribution_blocked
+  // recusa quem já é dono de outra imobiliária indicada); aqui é só higiene, e
+  // falhar não pode impedir a criação que já foi concluída.
+  if (typeof metadata.referral_code === "string") {
+    try {
+      await supabase.auth.updateUser({ data: { referral_code: null } })
+    } catch (metadataError) {
+      console.error(
+        `[onboarding] código de indicação não saiu dos metadados (${
+          metadataError instanceof Error ? metadataError.name : "erro"
+        })`
+      )
+    }
+  }
+
   // Host único: a nova imobiliária vira a escolha do cookie (validado a cada requisição).
   if (!isSubdomainTenancy()) {
     cookieStore.set(ORGANIZATION_COOKIE_NAME, organizationId, ORGANIZATION_COOKIE_OPTIONS)

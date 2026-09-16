@@ -3,6 +3,7 @@
 // tratado como não confiável: limpo e escapado em layout.ts; links só https (ou
 // http em localhost) e caminhos relativos presos à origem recebida.
 
+import { formatBRL } from "../billing/format"
 import { REFERRAL_GRACE_DAYS } from "../billing/referrals"
 import { APP_ROLE_LABELS, LISTING_PURPOSE_LABELS, PROPERTY_TYPE_LABELS } from "../properties/enums"
 import { renderEmail, resolveBrand, type EmailBrand, type RenderedEmail } from "./layout"
@@ -431,5 +432,100 @@ export function referralNoticeEmail(params: ReferralNoticeEmailParams): Rendered
       })
     default:
       throw new EmailTemplateError("Tipo de aviso de indicação inválido.")
+  }
+}
+
+// (f) Franquia de IA ---------------------------------------------------------------
+
+export type AiQuotaNoticeKind = "ai_quota_80" | "ai_quota_100"
+
+export const AI_QUOTA_NOTICE_KINDS: readonly AiQuotaNoticeKind[] = ["ai_quota_80", "ai_quota_100"]
+
+export type AiQuotaNoticeEmailParams = {
+  origin: string
+  brand?: EmailBrand | null
+  recipientName?: string | null
+  kind: AiQuotaNoticeKind
+  organizationName: string
+  /** Unidades consumidas e franquia do ciclo (-1 = ilimitada). */
+  conversationsUsed: number
+  conversationsLimit: number
+  /** Custo do ciclo e teto efetivo (plano + excedente), em centavos. */
+  costCents: number
+  capCents: number
+  /** Teto de excedente ligado pela imobiliária, em centavos (0 = desligado). */
+  overageCapCents: number
+  /** Quando a franquia vira (fim do ciclo de IA). */
+  periodEnd?: Date | string | null
+}
+
+function safeCount(value: unknown) {
+  return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0
+}
+
+export function aiQuotaNoticeEmail(params: AiQuotaNoticeEmailParams): RenderedEmail {
+  const origin = requireOrigin(params.origin)
+  const url = requireLink("/configuracoes/assinatura", origin)
+  const organization = cleanText(params.organizationName, { maxLength: 80 }) || "sua imobiliária"
+  const used = safeCount(params.conversationsUsed)
+  const limit = params.conversationsLimit
+  const usage = limit > 0 ? `${used} de ${limit}` : String(used)
+  const renewal = formatEmailDate(params.periodEnd)
+  const overageOn = safeCount(params.overageCapCents) > 0
+  const common = {
+    greeting: greetingFor(params.recipientName),
+    details: [
+      { label: "Imobiliária", value: organization },
+      { label: "Conversas de IA no ciclo", value: usage },
+      {
+        label: "Custo de IA no ciclo",
+        value: `${formatBRL(safeCount(params.costCents))} de ${formatBRL(safeCount(params.capCents))}`,
+      },
+      { label: "A franquia vira em", value: renewal },
+      {
+        label: "Excedente",
+        value: overageOn
+          ? `Liberado até ${formatBRL(safeCount(params.overageCapCents))} por ciclo`
+          : "Desligado",
+      },
+    ],
+    action: { label: "Ver uso de IA", url },
+    footer: `Você recebeu este e-mail porque é responsável pela assinatura de ${organization} no CRM.`,
+  }
+
+  switch (params.kind) {
+    case "ai_quota_80":
+      return renderEmail(params.brand, {
+        ...common,
+        subject: `A franquia de IA de ${organization} chegou a 80%`,
+        preheader: "Ainda dá tempo de ajustar o teto de excedente antes de a IA parar.",
+        heading: "Sua franquia de IA está em 80%",
+        paragraphs: [
+          `A imobiliária ${organization} já usou 80% da franquia de IA deste ciclo (${usage}).`,
+          overageOn
+            ? "Quando a franquia acabar, a IA continua até o teto de excedente que você definiu, e depois para."
+            : "Quando a franquia acabar, a IA para até o próximo ciclo. Para não parar, defina um teto de excedente em reais na página de assinatura.",
+        ],
+        highlight: renewal ? `A franquia vira em ${renewal}.` : null,
+      })
+    case "ai_quota_100":
+      return renderEmail(params.brand, {
+        ...common,
+        subject: `A franquia de IA de ${organization} acabou`,
+        preheader: overageOn
+          ? "A IA segue no excedente que você autorizou."
+          : "A IA fica pausada até o próximo ciclo ou até você liberar um excedente.",
+        heading: "A franquia de IA acabou",
+        paragraphs: [
+          `A imobiliária ${organization} usou toda a franquia de IA deste ciclo (${usage}).`,
+          overageOn
+            ? `A IA continua funcionando dentro do teto de excedente de ${formatBRL(safeCount(params.overageCapCents))} que você autorizou. Quando esse teto acabar, ela para até o próximo ciclo.`
+            : "A IA fica pausada até o próximo ciclo. Para voltar a usar agora, defina um teto de excedente em reais na página de assinatura ou mude de plano.",
+          "O restante do CRM continua funcionando normalmente.",
+        ],
+        highlight: renewal ? `A franquia volta em ${renewal}.` : null,
+      })
+    default:
+      throw new EmailTemplateError("Tipo de aviso de IA inválido.")
   }
 }

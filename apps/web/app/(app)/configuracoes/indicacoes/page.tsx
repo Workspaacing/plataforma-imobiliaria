@@ -70,6 +70,7 @@ const INELIGIBLE_REASON_LABELS: Record<ReferralIneligibleReason, string> = {
   dispute_lost: "pagamento contestado",
   shared_members: "pessoas em comum com a sua equipe",
   same_cnpj: "mesmo CNPJ da sua imobiliária",
+  duplicate_owner: "mesmo dono de outra indicação sua",
 }
 
 const HOW_IT_WORKS = [
@@ -92,7 +93,7 @@ const RULES = [
   `A indicação conta ${REFERRAL_GRACE_DAYS} dias depois da primeira fatura paga e enquanto a assinatura dela estiver ativa. Se ela cancelar ou deixar de pagar, o desconto diminui.`,
   `Cada indicação rende no máximo ${REFERRAL_VALUE_CAP_PERCENT}% do valor que a indicada paga de fato pelo plano (já com descontos); o total é arredondado para baixo em degraus de ${REFERRAL_PERCENT_STEP}%.`,
   "O desconto vale só para o plano (usuários extras não entram) e só com a sua assinatura ativa.",
-  "Não contam: a própria imobiliária, imobiliárias com pessoas em comum com a sua equipe, clientes que já assinaram antes e pagamentos estornados ou contestados. Vale a primeira indicação de cada conta.",
+  "Não contam: a própria imobiliária, imobiliárias com pessoas em comum com a sua equipe, clientes que já assinaram antes e pagamentos estornados ou contestados. Vale uma indicação por conta: outras imobiliárias do mesmo dono não somam.",
 ]
 
 function discountNote(data: ReferralPageData) {

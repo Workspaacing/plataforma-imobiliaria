@@ -16,6 +16,7 @@ import {
 } from "@workspace/ui/components/card"
 
 import { AddonsList } from "@/components/billing/addons-list"
+import { AiUsageCard } from "@/components/billing/ai-usage-card"
 import {
   loadBillingOverview,
   loadCatalogPrices,
@@ -38,7 +39,8 @@ import { PlanSwitcher } from "@/components/billing/plan-switcher"
 import { UsageMeters } from "@/components/billing/usage-meters"
 import { PageHeading } from "@/components/crm/page-placeholder"
 import { PageShell } from "@/components/shared/page-shell"
-import { ORGANIZATION_VIEWER_ROLES } from "@/lib/auth/roles"
+import { loadAiUsageOverview } from "@/lib/ai/queries"
+import { hasRole, ORGANIZATION_VIEWER_ROLES, TEAM_MANAGER_ROLES } from "@/lib/auth/roles"
 import { REFERRALS_SETTINGS_PATH } from "@/lib/auth/routes"
 import { requireRole } from "@/lib/auth/session"
 import { isStripeConfigured, type BillingOverview } from "@/lib/billing/queries"
@@ -96,15 +98,18 @@ function ReadOnlyDetails() {
 export default async function AssinaturaPage({ searchParams }: AssinaturaPageProps) {
   const { membership } = await requireRole(ORGANIZATION_VIEWER_ROLES)
   const isOwner = membership.role === "owner"
+  // O teto de excedente de IA é uma trava de gasto: dono e gerente definem.
+  const canManageAi = hasRole(membership.role, TEAM_MANAGER_ROLES)
   const { checkout } = await searchParams
   const checkoutStatus = readCheckoutStatus(checkout)
   const stripeConfigured = isStripeConfigured()
 
-  const [overview, prices, invoicesResult, referralPercent] = await Promise.all([
+  const [overview, prices, invoicesResult, referralPercent, aiUsage] = await Promise.all([
     loadBillingOverview(membership.organizationId),
     loadCatalogPrices(),
     loadRecentInvoices(membership.organizationId),
     getStoredReferralDiscountPercent(membership.organizationId),
+    loadAiUsageOverview(membership.organizationId),
   ])
 
   const stateMessage = overview ? describeBillingState(overview) : null
@@ -265,6 +270,8 @@ export default async function AssinaturaPage({ searchParams }: AssinaturaPagePro
               </CardContent>
             </Card>
           </div>
+
+          {aiUsage ? <AiUsageCard overview={aiUsage} canManage={canManageAi} /> : null}
 
           <Card id="planos" className="scroll-mt-4">
             <CardHeader>

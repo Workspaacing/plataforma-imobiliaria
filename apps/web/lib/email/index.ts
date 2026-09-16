@@ -2,6 +2,7 @@ import "server-only"
 
 export {
   sendNotificationEmail,
+  type AiQuotaNoticeNotification,
   type CaptureRequestNotification,
   type NewLeadNotification,
   type NotificationKind,
