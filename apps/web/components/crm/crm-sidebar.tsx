@@ -40,7 +40,7 @@ export function CrmSidebar({
   const groups = React.useMemo(() => getNavGroupsForRole(role), [role])
 
   return (
-    <Sidebar collapsible="icon" {...props}>
+    <Sidebar collapsible="icon" variant="inset" {...props}>
       <SidebarHeader>
         <OrganizationSwitcher
           organizations={organizations}
