@@ -1755,6 +1755,30 @@ export type Database = {
         }
         Returns: string
       }
+      dashboard_leads_by_stage: {
+        Args: { p_days?: number; p_organization_id: string }
+        Returns: {
+          stage: Database["public"]["Enums"]["lead_stage"]
+          total: number
+        }[]
+      }
+      dashboard_leads_by_week: {
+        Args: { p_organization_id: string; p_weeks?: number }
+        Returns: {
+          source: Database["public"]["Enums"]["lead_source"]
+          total: number
+          week_start: string
+        }[]
+      }
+      dashboard_properties_by_status: {
+        Args: { p_organization_id: string }
+        Returns: {
+          rent_value: number
+          sale_value: number
+          status: Database["public"]["Enums"]["property_status"]
+          total: number
+        }[]
+      }
       get_billing_account_ids: {
         Args: { p_organization_id?: string; p_server_key?: string }
         Returns: {

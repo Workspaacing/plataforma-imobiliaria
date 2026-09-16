@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import type { Metadata } from "next"
 import Link from "next/link"
 import {
@@ -32,6 +33,12 @@ import {
 } from "@workspace/ui/components/empty"
 
 import { getFirstName } from "@/components/crm/utils"
+import {
+  LeadsFunnelCard,
+  LeadsWeeklyCard,
+  PainelChartSkeleton,
+  PropertiesStatusCard,
+} from "@/components/painel/painel-charts"
 import { requireMembership } from "@/lib/auth/session"
 import { createClient } from "@/lib/supabase/server"
 
@@ -262,6 +269,24 @@ export default async function PainelPage({ searchParams }: PainelPageProps) {
           ) : null}
         </div>
       ) : null}
+
+      {/* Cada gráfico carrega sozinho: uma consulta lenta não segura o painel. */}
+      <section
+        aria-label="Indicadores em gráfico"
+        className="grid grid-cols-1 gap-4 px-4 lg:px-6 @4xl/main:grid-cols-2"
+      >
+        <div className="@4xl/main:col-span-2">
+          <Suspense fallback={<PainelChartSkeleton title="os leads por semana" />}>
+            <LeadsWeeklyCard organizationId={organizationId} />
+          </Suspense>
+        </div>
+        <Suspense fallback={<PainelChartSkeleton title="o funil de leads" />}>
+          <LeadsFunnelCard organizationId={organizationId} />
+        </Suspense>
+        <Suspense fallback={<PainelChartSkeleton title="os imóveis por status" />}>
+          <PropertiesStatusCard organizationId={organizationId} />
+        </Suspense>
+      </section>
     </div>
   )
 }
