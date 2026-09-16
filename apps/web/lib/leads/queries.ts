@@ -3,6 +3,8 @@ import "server-only"
 import { cache } from "react"
 import { z } from "zod"
 
+import { clampSlaMinutes } from "@workspace/core/leads/routing"
+
 import { toDateKey, zonedToIso } from "@/lib/agenda/datetime"
 import {
   LEAD_DUPLICATE_WINDOW_DAYS,
@@ -12,6 +14,7 @@ import {
 } from "@/lib/leads/constants"
 import { createLeadsClient, type LeadsServerClient } from "@/lib/leads/db"
 import type { LeadRow } from "@/lib/leads/db-types"
+import { getLeadHistory } from "@/lib/leads/history"
 import {
   getPeriodStartIso,
   MINE_FILTER,
@@ -399,6 +402,8 @@ export async function listLeads(
 ): Promise<LeadListResult> {
   const { organizationId, userId, filters, now, landingPages, options } = params
 
+  // `*` já traz as colunas de rodízio/SLA (assigned_at, first_response_due_at,
+  // sla_warned_at, sla_reassignments, routing_due_at) que os selos precisam.
   const query = applyLeadFilters(
     supabase.from("leads").select("*").eq("organization_id", organizationId),
     { userId, filters, now }
@@ -480,15 +485,22 @@ export async function listLeadCampaigns(supabase: LeadsServerClient, organizatio
   return [...campaigns].sort((a, b) => a.localeCompare(b, "pt-BR"))
 }
 
-/** Contadores do topo (independentes dos filtros; o RLS limita ao que o usuário vê). */
+/**
+ * Contadores do topo (independentes dos filtros; o RLS limita ao que o usuário vê).
+ *
+ * "Fora do prazo" prefere `first_response_due_at`, que o banco calcula com o
+ * prazo da imobiliária a partir de quando o responsável recebeu o lead; só quem
+ * ainda não tem prazo correndo (lead sem responsável ou na fila do plantão) cai
+ * na conta pela data de entrada. A contagem continua sendo feita no banco.
+ */
 export async function getLeadSummary(
   supabase: LeadsServerClient,
   organizationId: string,
-  now: Date
+  now: Date,
+  slaMinutes: number = LEAD_RESPONSE_TARGET_MINUTES
 ): Promise<LeadSummaryCounts> {
-  const overdueBefore = new Date(
-    now.getTime() - LEAD_RESPONSE_TARGET_MINUTES * 60_000
-  ).toISOString()
+  const nowIso = now.toISOString()
+  const overdueBefore = new Date(now.getTime() - clampSlaMinutes(slaMinutes) * 60_000).toISOString()
   const todayStart = zonedToIso(toDateKey(now))
 
   const base = () =>
@@ -499,7 +511,12 @@ export async function getLeadSummary(
 
   const [waiting, overdue, today] = await Promise.all([
     base().eq("stage", "new").is("last_contact_at", null),
-    base().eq("stage", "new").is("last_contact_at", null).lt("created_at", overdueBefore),
+    base()
+      .eq("stage", "new")
+      .is("last_contact_at", null)
+      .or(
+        `first_response_due_at.lte."${nowIso}",and(first_response_due_at.is.null,created_at.lt."${overdueBefore}")`
+      ),
     base().gte("created_at", todayStart),
   ])
 
@@ -563,17 +580,26 @@ export const getLead = cache(
   }
 )
 
-/** Cliente vinculado e histórico (activities) — só existem após a conversão. */
+/**
+ * Carregado quando o detalhe do lead abre: a linha do tempo do próprio lead
+ * (etapas e responsáveis, que existe desde a criação) mais o cliente vinculado
+ * e o histórico dele, que só existem depois da conversão.
+ */
 export async function getLeadDetailExtras(
   supabase: LeadsServerClient,
   organizationId: string,
+  leadId: string,
   clientId: string | null
 ): Promise<LeadDetailExtras> {
+  const historyPromise = getLeadHistory(supabase, organizationId, leadId)
+
   if (!clientId) {
-    return EMPTY_LEAD_DETAIL_EXTRAS
+    const history = await historyPromise
+    return { ...EMPTY_LEAD_DETAIL_EXTRAS, history: history.events, historyFailed: history.failed }
   }
 
-  const [clientResult, activitiesResult] = await Promise.all([
+  const [history, clientResult, activitiesResult] = await Promise.all([
+    historyPromise,
     supabase
       .from("clients")
       .select("id, name, kind")
@@ -607,5 +633,7 @@ export async function getLeadDetailExtras(
       property: row.property_id ? (properties.get(row.property_id) ?? null) : null,
     })),
     activitiesFailed: Boolean(activitiesResult.error),
+    history: history.events,
+    historyFailed: history.failed,
   }
 }

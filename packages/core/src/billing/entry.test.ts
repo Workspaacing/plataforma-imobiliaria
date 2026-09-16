@@ -11,7 +11,7 @@ describe("@workspace/core/billing", () => {
     const limit: LimitKey = "users"
     const state: BillingState = "grace"
 
-    expect(billing.PLANS[plan].limits[limit]).toBe(8)
+    expect(billing.PLANS[plan].limits[limit]).toBe(5)
     expect(billing.FEATURES[feature].status).toBe("available")
     expect(billing.BILLING_STATE_LABELS[state]).toBe("Em carência")
     expect(billing.TRIAL_DAYS).toBe(14)

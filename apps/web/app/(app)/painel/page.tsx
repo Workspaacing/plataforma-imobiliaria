@@ -32,6 +32,10 @@ import {
   EmptyTitle,
 } from "@workspace/ui/components/empty"
 
+import {
+  PainelCommissionCard,
+  PainelCommissionCardSkeleton,
+} from "@/components/comissoes/painel-commission-card"
 import { getFirstName } from "@/components/crm/utils"
 import {
   LeadsFunnelCard,
@@ -39,6 +43,8 @@ import {
   PainelChartSkeleton,
   PropertiesStatusCard,
 } from "@/components/painel/painel-charts"
+import { ROLE_PERMISSIONS_SETTINGS_PATH } from "@/components/shared/settings-config"
+import { ROLE_LABELS } from "@/lib/auth/roles"
 import { requireMembership } from "@/lib/auth/session"
 import { createClient } from "@/lib/supabase/server"
 
@@ -181,7 +187,12 @@ export default async function PainelPage({ searchParams }: PainelPageProps) {
             <ShieldAlertIcon />
             <AlertTitle>Acesso restrito</AlertTitle>
             <AlertDescription>
-              Seu papel nesta imobiliária não permite abrir aquela área.
+              <p>
+                Seu papel nesta imobiliária ({ROLE_LABELS[membership.role]}) não permite abrir
+                aquela área. Veja{" "}
+                <Link href={ROLE_PERMISSIONS_SETTINGS_PATH}>o que cada papel pode fazer</Link> ou
+                peça ao dono ou ao gerente da imobiliária.
+              </p>
             </AlertDescription>
           </Alert>
         </div>
@@ -222,6 +233,13 @@ export default async function PainelPage({ searchParams }: PainelPageProps) {
             <CardFooter className="text-muted-foreground">{metric.hint}</CardFooter>
           </Card>
         ))}
+      </div>
+
+      {/* Comissão onde o corretor já olha: carrega sozinha, sem segurar o painel. */}
+      <div className="px-4 lg:px-6">
+        <Suspense fallback={<PainelCommissionCardSkeleton />}>
+          <PainelCommissionCard userId={user.id} role={membership.role} />
+        </Suspense>
       </div>
 
       {activeProperties === 0 || clientCount === 0 ? (

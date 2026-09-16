@@ -9,8 +9,8 @@ import {
 } from "@workspace/ui/components/sheet"
 
 import {
-  LeadContactTimerBadge,
   LeadDuplicateBadge,
+  LeadRoutingBadges,
   LeadSourceBadge,
   LeadStageBadge,
 } from "@/components/leads/lead-badges"
@@ -37,7 +37,7 @@ export function LeadDetailSheet({ lead, open, onOpenChange, ...detail }: LeadDet
               <SheetDescription className="flex flex-wrap items-center gap-1.5">
                 <LeadStageBadge stage={lead.stage} />
                 <LeadSourceBadge lead={lead} />
-                <LeadContactTimerBadge lead={lead} nowMs={detail.nowMs} />
+                <LeadRoutingBadges lead={lead} nowMs={detail.nowMs} sla={detail.sla} />
                 <LeadDuplicateBadge hasDuplicate={lead.hasDuplicate} />
               </SheetDescription>
             </SheetHeader>

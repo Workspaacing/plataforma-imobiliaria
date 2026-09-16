@@ -27,7 +27,6 @@ const RESEARCH_FEATURE_KEYS = [
   "feature_portal_feed_vrsync",
   "feature_team_roles_invites",
   "feature_tenant_subdomain",
-  "feature_custom_domain",
   "feature_multi_branch",
   "feature_data_export",
   "feature_assisted_migration",
@@ -129,7 +128,6 @@ describe("FEATURES", () => {
       "feature_dimob",
       "feature_nfse",
       "feature_multiple_pipelines",
-      "feature_custom_domain",
       "feature_multi_branch",
       "feature_data_export",
     ]

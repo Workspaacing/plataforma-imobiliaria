@@ -7,7 +7,7 @@
 // - "available": o módulo já existe no app, ou é serviço humano (ex.: migração assistida);
 // - "soon": planejado. Aparece como "em breve" e não pode ser vendido como pronto
 //   (oferta vincula, CDC art. 30). Onde a pesquisa diz "incluso" mas o módulo ainda
-//   não existe no código (vários funis, domínio próprio, filiais, exportação e o
+//   não existe no código (vários funis, filiais, exportação e o
 //   crédito automático de SLA), o status é "soon".
 
 import type { BillingPlanKey, PlanKey } from "./plans"
@@ -78,7 +78,6 @@ export const FEATURE_KEYS = [
   // Equipe e conta
   "feature_team_roles_invites",
   "feature_tenant_subdomain",
-  "feature_custom_domain",
   "feature_multi_branch",
   "feature_data_export",
   "feature_assisted_migration",
@@ -234,16 +233,19 @@ export const FEATURES: Record<FeatureKey, FeatureDefinition> = {
     plans: FROM_IMOBILIARIA,
   },
   feature_ai_whatsapp: {
+    // Fora do Corretor: esse plano não tem franquia de IA (ai_conversations = 0),
+    // então prometer o agente lá seria vender o que o plano não entrega.
     label: "Agente de IA no WhatsApp",
     description:
       "Responde o lead no WhatsApp oficial em segundos, 24 horas por dia, e chama um corretor quando precisa.",
     status: "soon",
     group: "Atendimento e WhatsApp",
-    plans: ALL,
+    plans: FROM_IMOBILIARIA,
   },
   feature_whatsapp_official_inbox: {
     label: "Caixa de WhatsApp da empresa",
-    description: "Vários atendentes no mesmo número, com o histórico sempre na imobiliária.",
+    description:
+      "Vários atendentes no mesmo número, com o histórico sempre na imobiliária. O número fica na conta da própria imobiliária na Meta.",
     status: "soon",
     group: "Atendimento e WhatsApp",
     plans: ALL,
@@ -413,13 +415,6 @@ export const FEATURES: Record<FeatureKey, FeatureDefinition> = {
     label: "Subdomínio próprio",
     description: "Endereço exclusivo da imobiliária para o CRM e as páginas públicas.",
     status: "available",
-    group: "Equipe e conta",
-    plans: ALL,
-  },
-  feature_custom_domain: {
-    label: "Domínio próprio",
-    description: "Conecte o domínio que já é seu, com SSL, sem custo extra.",
-    status: "soon",
     group: "Equipe e conta",
     plans: ALL,
   },

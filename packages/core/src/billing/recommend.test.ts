@@ -16,7 +16,7 @@ describe("recommendPlan: tamanho da equipe", () => {
     })
   })
 
-  it("2 a 5 pessoas → Imobiliária, com extras acima de 3", () => {
+  it("2 a 5 pessoas → Imobiliária, com extras acima de 3 usuários", () => {
     expect(recommendPlan({ ...base, teamSize: 2 })).toMatchObject({
       plan: "imobiliaria",
       extraSeats: 0,
@@ -26,41 +26,41 @@ describe("recommendPlan: tamanho da equipe", () => {
     expect(recommendPlan({ ...base, teamSize: 5 })).toMatchObject({
       plan: "imobiliaria",
       extraSeats: 2,
-      monthlyTotal: 32700,
-      yearlyTotal: 327000,
-      yearlySavings: 65400,
+      monthlyTotal: 36700,
+      yearlyTotal: 367000,
+      yearlySavings: 73400,
     })
   })
 
-  it("6 a 15 pessoas → Equipe, com extras acima de 8", () => {
+  it("6 a 15 pessoas → Equipe, com extras acima de 5 usuários", () => {
     expect(recommendPlan({ ...base, teamSize: 6 })).toMatchObject({
       plan: "equipe",
-      extraSeats: 0,
-      monthlyTotal: 59900,
-      yearlyTotal: 599000,
-      yearlySavings: 119800,
+      extraSeats: 1,
+      monthlyTotal: 66800,
+      yearlyTotal: 668000,
+      yearlySavings: 133600,
     })
     expect(recommendPlan({ ...base, teamSize: 15 })).toMatchObject({
       plan: "equipe",
-      extraSeats: 7,
-      monthlyTotal: 84400,
-      yearlyTotal: 844000,
-      yearlySavings: 168800,
+      extraSeats: 10,
+      monthlyTotal: 128900,
+      yearlyTotal: 1289000,
+      yearlySavings: 257800,
     })
   })
 
-  it("16+ pessoas → Rede, com extras acima de 20", () => {
+  it("16+ pessoas → Rede, com extras acima de 10 usuários", () => {
     expect(recommendPlan({ ...base, teamSize: 16 })).toMatchObject({
       plan: "rede",
-      extraSeats: 0,
-      monthlyTotal: 149000,
+      extraSeats: 6,
+      monthlyTotal: 196400,
     })
     expect(recommendPlan({ ...base, teamSize: 25 })).toMatchObject({
       plan: "rede",
-      extraSeats: 5,
-      monthlyTotal: 163500,
-      yearlyTotal: 1635000,
-      yearlySavings: 327000,
+      extraSeats: 15,
+      monthlyTotal: 267500,
+      yearlyTotal: 2675000,
+      yearlySavings: 535000,
     })
   })
 
@@ -70,7 +70,7 @@ describe("recommendPlan: tamanho da equipe", () => {
     expect(recommendPlan({ ...base, teamSize: Number.NaN }).plan).toBe("corretor")
     expect(recommendPlan({ ...base, teamSize: 5.2 })).toMatchObject({
       plan: "equipe",
-      extraSeats: 0,
+      extraSeats: 1,
     })
   })
 })

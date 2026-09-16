@@ -6,6 +6,7 @@ import { ClipboardListIcon } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert"
 import { TabsContent } from "@workspace/ui/components/tabs"
 
+import { AuditTimeline } from "@/components/auditoria/audit-timeline"
 import { AuthorizationsPanel } from "@/components/imoveis/detail/authorizations-panel"
 import {
   PropertyDetailTabs,
@@ -18,6 +19,8 @@ import { OverviewTab } from "@/components/imoveis/detail/overview-tab"
 import { OwnersPanel } from "@/components/imoveis/detail/owners-panel"
 import { PropertyHeader } from "@/components/imoveis/detail/property-header"
 import { PROPERTY_DETAIL_TABS, type PropertyDetailTab } from "@/components/imoveis/detail/tabs"
+import { canViewAuditTrail } from "@/lib/auditoria/permissions"
+import { getPropertyAuditEvents } from "@/lib/auditoria/queries"
 import { requireMembership } from "@/lib/auth/session"
 import {
   getCondominiumSummary,
@@ -81,21 +84,35 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
 
   const supabase = await createClient()
   const role = membership.role
+  const canViewHistory = canViewAuditTrail(role)
 
-  const [media, owners, authorizations, members, condominium, matches, keys, proposals, capture] =
-    await Promise.all([
-      getPropertyMediaRows(supabase, organizationId, property.id),
-      getPropertyOwners(supabase, organizationId, property.id),
-      getPropertyAuthorizations(supabase, organizationId, property.id),
-      getOrganizationMembers(supabase, organizationId),
-      getCondominiumSummary(supabase, organizationId, property.condominium_id),
-      getPropertyMatches(supabase, organizationId, property),
-      getPropertyKeys(supabase, organizationId, property.id),
-      getPropertyProposals(supabase, organizationId, property.id),
-      canReadCaptureRequests(role)
-        ? getConvertedCapture(supabase, organizationId, property.id)
-        : Promise.resolve(null),
-    ])
+  const [
+    media,
+    owners,
+    authorizations,
+    members,
+    condominium,
+    matches,
+    keys,
+    proposals,
+    capture,
+    auditEvents,
+  ] = await Promise.all([
+    getPropertyMediaRows(supabase, organizationId, property.id),
+    getPropertyOwners(supabase, organizationId, property.id),
+    getPropertyAuthorizations(supabase, organizationId, property.id),
+    getOrganizationMembers(supabase, organizationId),
+    getCondominiumSummary(supabase, organizationId, property.condominium_id),
+    getPropertyMatches(supabase, organizationId, property),
+    getPropertyKeys(supabase, organizationId, property.id),
+    getPropertyProposals(supabase, organizationId, property.id),
+    canReadCaptureRequests(role)
+      ? getConvertedCapture(supabase, organizationId, property.id)
+      : Promise.resolve(null),
+    canViewHistory
+      ? getPropertyAuditEvents(supabase, organizationId, property.id)
+      : Promise.resolve(null),
+  ])
 
   const canEdit = canEditProperty(role, user.id, property)
   const canDelete = canDeletePropertyRecords(role)
@@ -133,7 +150,9 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
     compativeis: matches.length,
     "chaves-propostas": keys.length + proposals.length,
   }
-  const tabs: PropertyDetailTabItem[] = PROPERTY_DETAIL_TABS.map((tab) => ({
+  const tabs: PropertyDetailTabItem[] = PROPERTY_DETAIL_TABS.filter(
+    (tab) => tab.value !== "historico" || canViewHistory
+  ).map((tab) => ({
     value: tab.value,
     label: tab.label,
     count: counts[tab.value],
@@ -206,6 +225,14 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
         <TabsContent value="chaves-propostas">
           <KeysProposalsTab propertyId={property.id} keys={keys} proposals={proposals} />
         </TabsContent>
+        {auditEvents ? (
+          <TabsContent value="historico">
+            <AuditTimeline
+              result={auditEvents}
+              emptyDescription="Quem cadastrou, quem editou e o que mudou neste imóvel aparece aqui."
+            />
+          </TabsContent>
+        ) : null}
       </PropertyDetailTabs>
     </div>
   )

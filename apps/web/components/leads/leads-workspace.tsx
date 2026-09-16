@@ -12,7 +12,7 @@ import type { Role } from "@/lib/auth/roles"
 import type { MemberOption } from "@/lib/clientes/options"
 import { loadLeadDetailExtras } from "@/lib/leads/actions"
 import type { LeadView } from "@/lib/leads/filters"
-import { EMPTY_LEAD_DETAIL_EXTRAS, type LeadDetailExtras, type LeadItem } from "@/lib/leads/types"
+import type { LeadDetailExtras, LeadItem, LeadSlaSettings } from "@/lib/leads/types"
 
 type ExtrasState = {
   leadId: string
@@ -26,6 +26,7 @@ type LeadsWorkspaceProps = {
   currentUserId: string
   role: Role
   nowMs: number
+  sla: LeadSlaSettings
   view: LeadView
 }
 
@@ -36,6 +37,7 @@ export function LeadsWorkspace({
   currentUserId,
   role,
   nowMs,
+  sla,
   view,
 }: LeadsWorkspaceProps) {
   const now = useNow(nowMs)
@@ -50,14 +52,12 @@ export function LeadsWorkspace({
     : null
   const selectedExtras = extras && extras.leadId === selectedId ? extras : null
 
-  /** Cliente vinculado e histórico; sem cliente não há o que buscar (a menos que `force`). */
-  function loadExtras(leadId: string, clientId: string | null, force = false) {
+  /**
+   * Linha do tempo, cliente vinculado e histórico dele. Sempre vai ao servidor:
+   * a linha do tempo existe desde a criação, mesmo sem cliente vinculado.
+   */
+  function loadExtras(leadId: string) {
     const requestId = ++requestRef.current
-
-    if (!clientId && !force) {
-      setExtras({ leadId, data: EMPTY_LEAD_DETAIL_EXTRAS, error: null })
-      return
-    }
 
     setExtras((current) =>
       current?.leadId === leadId && current.data ? current : { leadId, data: null, error: null }
@@ -82,7 +82,7 @@ export function LeadsWorkspace({
     if (!lead) return
 
     setSelectedId(leadId)
-    loadExtras(leadId, lead.clientId)
+    loadExtras(leadId)
   }
 
   return (
@@ -92,6 +92,7 @@ export function LeadsWorkspace({
           leads={mutations.leads}
           members={members}
           nowMs={now}
+          sla={sla}
           currentUserId={currentUserId}
           role={role}
           onOpenLead={openLead}
@@ -102,6 +103,7 @@ export function LeadsWorkspace({
           leads={mutations.leads}
           members={members}
           nowMs={now}
+          sla={sla}
           currentUserId={currentUserId}
           role={role}
           onOpenLead={openLead}
@@ -119,6 +121,7 @@ export function LeadsWorkspace({
         currentUserId={currentUserId}
         role={role}
         nowMs={now}
+        sla={sla}
         extras={selectedExtras?.data ?? null}
         extrasError={selectedExtras?.error ?? null}
         isPending={mutations.isPending}
@@ -132,10 +135,10 @@ export function LeadsWorkspace({
           if (selectedLead) mutations.markContacted(selectedLead.id)
         }}
         onConverted={() => {
-          if (selectedLead) loadExtras(selectedLead.id, null, true)
+          if (selectedLead) loadExtras(selectedLead.id)
         }}
         onActivityAdded={() => {
-          if (selectedLead) loadExtras(selectedLead.id, selectedLead.clientId, true)
+          if (selectedLead) loadExtras(selectedLead.id)
         }}
         onDeleted={() => setSelectedId(null)}
       />

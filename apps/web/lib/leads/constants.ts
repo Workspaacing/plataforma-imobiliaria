@@ -1,3 +1,5 @@
+import { LEAD_SLA_DEFAULT_MINUTES } from "@workspace/core/leads/routing"
+
 import type { ClientSource } from "@/lib/clientes/constants"
 import type { LeadInterest, LeadSource, LeadStage } from "@/lib/leads/db-types"
 
@@ -7,10 +9,21 @@ export const LEADS_PATH = "/leads"
 export const LEADS_LIST_LIMIT = 1000
 
 /**
- * Meta de primeiro contato: lead em "Novo" sem contato além disto fica fora do
- * prazo (responder em até 5 min converte muito mais que a média de horas).
+ * Meta de primeiro contato PADRÃO, só para quem ainda não configurou: cada
+ * imobiliária define a sua em `lead_routing_settings.sla_minutes` (1..1440) e
+ * o valor chega à tela por props (ver `lib/leads/sla.ts`). Nada na interface
+ * deve assumir 5 min fixos.
  */
-export const LEAD_RESPONSE_TARGET_MINUTES = 5
+export const LEAD_RESPONSE_TARGET_MINUTES = LEAD_SLA_DEFAULT_MINUTES
+
+/** Limites do prazo e do aviso, iguais aos CHECKs da migração `lead_roulette_sla`. */
+export {
+  LEAD_SLA_DEFAULT_WARNING_PERCENT,
+  LEAD_SLA_MAX_MINUTES,
+  LEAD_SLA_MAX_WARNING_PERCENT,
+  LEAD_SLA_MIN_MINUTES,
+  LEAD_SLA_MIN_WARNING_PERCENT,
+} from "@workspace/core/leads/routing"
 
 /** Janela para apontar possível duplicado (mesmo telefone ou e-mail). */
 export const LEAD_DUPLICATE_WINDOW_DAYS = 90

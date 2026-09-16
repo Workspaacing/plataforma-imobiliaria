@@ -9,7 +9,9 @@
 // feed dos portais     https://{slug}.raiz/api/feeds/vrsync.xml?token=...
 //                                                             https://site/api/feeds/{slug}/vrsync.xml?token=...
 // convite              https://{slug}.raiz/convite/{token}    https://site/convite/{token}
+// proposta (link)      https://{slug}.raiz/proposta/{token}   https://site/proposta/{token}
 
+import { buildProposalSharePath } from "../proposals/share"
 import { getProtocolForRootDomain } from "./host"
 import type { TenancyConfig } from "./mode"
 import { isValidTenantSlug } from "./slug"
@@ -97,6 +99,18 @@ export function buildPortalFeedUrlFor(
       : `/api/feeds/${encodeURIComponent(orgSlug)}/vrsync.xml`
 
   return `${buildTenantOriginFor(config, orgSlug)}${path}?token=${encodeURIComponent(feedToken)}`
+}
+
+/**
+ * Link público da proposta, no endereço da imobiliária. O token já identifica
+ * a proposta: o caminho é o mesmo nos dois modos, sem slug.
+ */
+export function buildProposalShareUrlFor(
+  config: TenancyConfig,
+  orgSlug: string,
+  token: string
+): string {
+  return `${buildTenantOriginFor(config, orgSlug)}${buildProposalSharePath(token)}`
 }
 
 export function buildInvitationUrlFor(

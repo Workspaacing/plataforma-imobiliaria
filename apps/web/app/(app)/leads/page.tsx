@@ -36,6 +36,7 @@ import {
   listLeadCampaigns,
   listLeads,
 } from "@/lib/leads/queries"
+import { getLeadSlaSettings } from "@/lib/leads/sla"
 
 export const metadata: Metadata = {
   title: "Leads",
@@ -53,11 +54,15 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
   const now = new Date()
   const supabase = await createLeadsClient()
 
+  // O prazo de 1º contato é configurável por imobiliária: vem antes do resumo,
+  // que conta "fora do prazo" com ele.
+  const sla = await getLeadSlaSettings(supabase, organizationId)
+
   const [landingPages, members, campaigns, summary] = await Promise.all([
     listLandingPages(supabase, organizationId),
     getOrganizationMembers(organizationId),
     listLeadCampaigns(supabase, organizationId),
-    getLeadSummary(supabase, organizationId, now),
+    getLeadSummary(supabase, organizationId, now, sla.slaMinutes),
   ])
 
   const [result, filteredCounts] = await Promise.all([
@@ -101,6 +106,7 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
         wonCount={filteredCounts.won}
         totalCount={filteredCounts.total}
         periodLabel={LEAD_PERIOD_LABELS[filters.periodo]}
+        slaMinutes={sla.slaMinutes}
       />
 
       <LeadFilters
@@ -169,6 +175,7 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
             currentUserId={user.id}
             role={role}
             nowMs={now.getTime()}
+            sla={sla}
             view={filters.visao}
           />
         </div>

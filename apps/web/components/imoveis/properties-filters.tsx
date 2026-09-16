@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { FilterIcon, SearchIcon, XIcon } from "lucide-react"
+import { SearchIcon, XIcon } from "lucide-react"
 
 import {
   LISTING_PURPOSE_LABELS,
@@ -18,6 +18,7 @@ import {
   InputGroupInput,
   InputGroupText,
 } from "@workspace/ui/components/input-group"
+import { Kbd } from "@workspace/ui/components/kbd"
 import {
   Select,
   SelectContent,
@@ -29,6 +30,7 @@ import {
 import { Spinner } from "@workspace/ui/components/spinner"
 
 import { LISTING_PURPOSES, PROPERTY_STATUSES, PROPERTY_TYPES } from "@/lib/imoveis/constants"
+import { PROPERTY_SEARCH_INPUT_ID } from "@/lib/imoveis/list-shortcuts"
 
 export type PropertyFilterDefaults = {
   q: string
@@ -41,6 +43,9 @@ export type PropertyFilterDefaults = {
 }
 
 type Option = { label: string; value: string | null }
+
+/** Tempo entre a última tecla e a busca: dá para digitar "jardim" inteiro antes. */
+const TYPING_DELAY_MS = 350
 
 const STATUS_ITEMS: Option[] = [
   { label: "Todos", value: null },
@@ -71,23 +76,37 @@ const BEDROOM_ITEMS: Option[] = [
   ...["1", "2", "3", "4", "5"].map((value) => ({ label: `${value}+`, value })),
 ]
 
+/** Mesma ordem sempre: a string serve para comparar o que está na URL. */
+function toQuery(values: PropertyFilterDefaults) {
+  const params = new URLSearchParams()
+  for (const [key, value] of Object.entries(values)) {
+    const text = value.trim()
+    if (text) params.set(key, text)
+  }
+  return params.toString()
+}
+
 function FilterSelect({
   id,
-  name,
   label,
   items,
-  defaultValue,
+  value,
+  onValueChange,
 }: {
   id: string
-  name: string
   label: string
   items: Option[]
-  defaultValue: string
+  value: string
+  onValueChange: (value: string) => void
 }) {
   return (
     <Field>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
-      <Select name={name} items={items} defaultValue={defaultValue || null}>
+      <Select
+        items={items}
+        value={value || null}
+        onValueChange={(next: string | null) => onValueChange(next ?? "")}
+      >
         <SelectTrigger id={id} className="w-full">
           <SelectValue />
         </SelectTrigger>
@@ -105,66 +124,110 @@ function FilterSelect({
   )
 }
 
-/** Filtros da lista: viram searchParams e a consulta roda no servidor. */
+/**
+ * Filtros da lista: viram searchParams e a consulta roda no servidor.
+ *
+ * Não existe botão "Filtrar": escolher uma opção aplica na hora e digitar
+ * aplica depois de uma pausa curta, para a busca não disparar a cada tecla. A
+ * URL é reescrita com `replace`, então o botão Voltar do navegador não passa
+ * por cada letra digitada.
+ */
 export function PropertiesFilters({ defaults }: { defaults: PropertyFilterDefaults }) {
   const router = useRouter()
   const [isPending, startTransition] = React.useTransition()
-  const hasFilters = Object.values(defaults).some(Boolean)
+  const [values, setValues] = React.useState(defaults)
+  /** Última query que este componente mandou para a URL. */
+  const appliedQuery = React.useRef(toQuery(defaults))
+  const delay = React.useRef(TYPING_DELAY_MS)
 
-  function onSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const params = new URLSearchParams()
-
-    for (const [key, value] of new FormData(event.currentTarget).entries()) {
-      if (typeof value === "string" && value.trim()) {
-        params.set(key, value.trim())
-      }
+  // Filtros vindos de fora (Limpar, Voltar do navegador, link colado).
+  React.useEffect(() => {
+    const incoming = toQuery(defaults)
+    if (incoming !== appliedQuery.current) {
+      appliedQuery.current = incoming
+      setValues(defaults)
     }
+  }, [defaults])
 
-    const query = params.toString()
-    startTransition(() => router.push(query ? `/imoveis?${query}` : "/imoveis"))
+  React.useEffect(() => {
+    const query = toQuery(values)
+    if (query === appliedQuery.current) return
+
+    const timer = setTimeout(() => {
+      appliedQuery.current = query
+      startTransition(() => {
+        router.replace(query ? `/imoveis?${query}` : "/imoveis", { scroll: false })
+      })
+    }, delay.current)
+
+    return () => clearTimeout(timer)
+  }, [values, router])
+
+  function update(patch: Partial<PropertyFilterDefaults>, options?: { immediate?: boolean }) {
+    delay.current = options?.immediate ? 0 : TYPING_DELAY_MS
+    setValues((current) => ({ ...current, ...patch }))
   }
 
+  const hasFilters = Object.values(values).some(Boolean)
+
   return (
-    <form onSubmit={onSubmit} role="search" aria-label="Filtrar imóveis">
+    <form
+      role="search"
+      aria-label="Filtrar imóveis"
+      onSubmit={(event) => {
+        // Enter no campo de busca: aplica sem esperar a pausa.
+        event.preventDefault()
+        delay.current = 0
+        setValues((current) => ({ ...current }))
+      }}
+    >
       <FieldGroup className="gap-3">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,2fr)_repeat(3,minmax(0,1fr))]">
           <Field>
-            <FieldLabel htmlFor="filtro-busca">Buscar</FieldLabel>
+            <FieldLabel htmlFor={PROPERTY_SEARCH_INPUT_ID}>Buscar</FieldLabel>
             <InputGroup>
-              <InputGroupAddon>
-                <SearchIcon />
-              </InputGroupAddon>
+              <InputGroupAddon>{isPending ? <Spinner /> : <SearchIcon />}</InputGroupAddon>
               <InputGroupInput
-                id="filtro-busca"
+                id={PROPERTY_SEARCH_INPUT_ID}
                 name="q"
                 type="search"
-                defaultValue={defaults.q}
+                value={values.q}
                 maxLength={100}
-                placeholder="Código, título ou bairro"
+                autoComplete="off"
+                aria-keyshortcuts="/"
+                aria-describedby="filtro-busca-ajuda"
+                placeholder="Código, endereço, bairro, título ou proprietário"
+                onChange={(event) => update({ q: event.target.value })}
               />
+              <InputGroupAddon align="inline-end" className="hidden sm:flex">
+                <Kbd>/</Kbd>
+              </InputGroupAddon>
             </InputGroup>
           </Field>
+          {/* Sem botão visível de filtrar; este existe para o Enter submeter o formulário. */}
+          <button type="submit" className="sr-only">
+            Buscar agora
+          </button>
           <FilterSelect
             id="filtro-status"
-            name="status"
             label="Status"
             items={STATUS_ITEMS}
-            defaultValue={defaults.status}
+            value={values.status}
+            onValueChange={(status) => update({ status }, { immediate: true })}
           />
           <FilterSelect
             id="filtro-finalidade"
-            name="finalidade"
             label="Finalidade"
             items={PURPOSE_ITEMS}
-            defaultValue={defaults.finalidade}
+            value={values.finalidade}
+            onValueChange={(finalidade) => update({ finalidade }, { immediate: true })}
           />
           <FilterSelect
             id="filtro-tipo"
-            name="tipo"
             label="Tipo"
             items={TYPE_ITEMS}
-            defaultValue={defaults.tipo}
+            value={values.tipo}
+            onValueChange={(tipo) => update({ tipo }, { immediate: true })}
           />
         </div>
         <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-3 xl:grid-cols-[repeat(3,minmax(0,1fr))_auto]">
@@ -178,8 +241,9 @@ export function PropertiesFilters({ defaults }: { defaults: PropertyFilterDefaul
                 id="filtro-preco-min"
                 name="precoMin"
                 inputMode="numeric"
-                defaultValue={defaults.precoMin}
+                value={values.precoMin}
                 placeholder="0"
+                onChange={(event) => update({ precoMin: event.target.value })}
               />
             </InputGroup>
           </Field>
@@ -193,35 +257,37 @@ export function PropertiesFilters({ defaults }: { defaults: PropertyFilterDefaul
                 id="filtro-preco-max"
                 name="precoMax"
                 inputMode="numeric"
-                defaultValue={defaults.precoMax}
+                value={values.precoMax}
                 placeholder="Sem limite"
+                onChange={(event) => update({ precoMax: event.target.value })}
               />
             </InputGroup>
           </Field>
           <FilterSelect
             id="filtro-quartos"
-            name="quartos"
             label="Quartos (mínimo)"
             items={BEDROOM_ITEMS}
-            defaultValue={defaults.quartos}
+            value={values.quartos}
+            onValueChange={(quartos) => update({ quartos }, { immediate: true })}
           />
-          <div className="flex gap-2 sm:col-span-3 xl:col-span-1">
-            <Button type="submit" disabled={isPending} className="flex-1 xl:flex-none">
-              {isPending ? (
-                <Spinner data-icon="inline-start" />
-              ) : (
-                <FilterIcon data-icon="inline-start" />
-              )}
-              Filtrar
-            </Button>
-            {hasFilters ? (
-              <Button variant="ghost" render={<Link href="/imoveis" />} nativeButton={false}>
+          {hasFilters ? (
+            <div className="flex sm:col-span-3 xl:col-span-1">
+              <Button
+                variant="ghost"
+                render={<Link href="/imoveis" scroll={false} />}
+                nativeButton={false}
+                className="flex-1 xl:flex-none"
+              >
                 <XIcon data-icon="inline-start" />
-                Limpar
+                Limpar filtros
               </Button>
-            ) : null}
-          </div>
+            </div>
+          ) : null}
         </div>
+        <p id="filtro-busca-ajuda" className="text-xs text-muted-foreground">
+          A busca acontece sozinha enquanto você digita, por código (IMV-000123 ou só 123), título,
+          rua, bairro, cidade e nome do proprietário.
+        </p>
       </FieldGroup>
     </form>
   )

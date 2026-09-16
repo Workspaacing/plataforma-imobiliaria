@@ -29,8 +29,13 @@ export const AI_MODEL_CONTEXT_TOKENS = 1_000_000
 export const AI_PRICING_CHECKED_AT = "2026-09-16"
 
 /**
- * Preço oficial em US$ por milhão de tokens (Sonnet 5, 2026-09-16):
- * entrada 2,00; saída 10,00; leitura de cache ~10% da entrada; escrita de cache 1,25x a entrada.
+ * Preço oficial em US$ por milhão de tokens (Sonnet 5, conferido em 2026-09-16 em
+ * platform.claude.com/docs/en/about-claude/pricing): entrada 2,00; saída 10,00;
+ * leitura de cache 0,20 (10% da entrada); escrita de cache de 5 min 2,50 (1,25x).
+ *
+ * O banco guarda um único preço de escrita (o de 5 min). A escrita de 1 hora
+ * custa 4,00 (2x a entrada) e por isso NUNCA vai direto para `cacheWriteTokens`:
+ * passe o `usage` da API por `aiUsageFromApi`, que converte.
  */
 export const AI_PRICE_USD_PER_MTOK = {
   input: 2,
@@ -39,12 +44,26 @@ export const AI_PRICE_USD_PER_MTOK = {
   cacheWrite: 2.5,
 } as const
 
+/** Escrita de cache de 1 hora (US$ por milhão). Só usada na conversão de `aiUsageFromApi`. */
+export const AI_PRICE_CACHE_WRITE_1H_USD_PER_MTOK = 4
+
 /**
  * Câmbio configurável. `ptax` é a cotação oficial do dia consultado; `card` é o
  * dólar efetivo de cartão (com IOF e spread), que é o que a empresa paga de fato.
  * O padrão é o `card`: superestimar o câmbio protege a margem.
  */
-export const AI_EXCHANGE_RATES = { ptax: 5.149, card: 5.6 } as const
+export const AI_EXCHANGE_RATES = { ptax: 5.1523, card: 5.6675 } as const
+/**
+ * Política de câmbio: o valor usado na medição é sempre **10% acima da cotação
+ * oficial do dia em que foi conferido**. Não é palpite — um pagamento
+ * internacional em cartão embute IOF e spread, que juntos dão ~8,8%; os 10%
+ * cobrem isso e deixam 1,2% de folga.
+ *
+ * Subestimar o câmbio é a forma mais silenciosa de ter prejuízo com IA: o corte
+ * acontece em reais, então um dólar mais caro que o previsto significa gastar
+ * mais dólares do que o teto autorizava. Ao atualizar `ptax`, recalcule `card`
+ * como ptax × 1,10 e ajuste AI_PRICING_CHECKED_AT.
+ */
 export const AI_EXCHANGE_RATE_DEFAULT: number = AI_EXCHANGE_RATES.card
 
 // ---------------------------------------------------------------------------
@@ -53,12 +72,21 @@ export const AI_EXCHANGE_RATE_DEFAULT: number = AI_EXCHANGE_RATES.card
 
 /**
  * Fatia do preço de tabela do plano que pode virar custo de IA num ciclo.
- * Comece em 15% e ajuste aqui (um número só) se a margem mudar.
+ *
+ * Era 15%. Subiu para 20% em 16/09/2026 (decisão do dono) quando a conversa
+ * típica foi recalculada com o comportamento real do Sonnet 5: com 15%, Equipe e
+ * Rede batiam o teto antes de entregar a franquia anunciada (~159 de 200 e ~396
+ * de 500). Com 20% as três franquias cabem e todo plano segue com lucro no pior
+ * caso. Ajuste aqui (um número só) e em private.ai_cost_cap_cents() no SQL.
  */
-export const AI_COST_CAP_PCT = 0.15
+export const AI_COST_CAP_PCT = 0.2
 
-/** Teto do teste grátis em centavos (o trial não paga nada: valor fixo e pequeno). */
-export const AI_TRIAL_COST_CAP_CENTS = 300
+/**
+ * Teto do teste grátis em centavos (o trial não paga nada: valor fixo e pequeno).
+ * R$ 6,00 desde 16/09/2026: é o que as 10 conversas prometidas no teste custam
+ * na conversa típica recalculada (antes, R$ 3,00 pagava só ~5).
+ */
+export const AI_TRIAL_COST_CAP_CENTS = 600
 
 /** O teto do ciclo também vale por dia (1/N) e por semana (1/M): ninguém queima o mês num dia. */
 export const AI_DAILY_CAP_DIVISOR = 15
@@ -70,7 +98,7 @@ export const AI_WEEKLY_CAP_DIVISOR = 4
  * viraria o corte real. O piso só afrouxa o ritmo: nunca passa do teto do
  * ciclo, que continua sendo o limite de gasto.
  */
-export const AI_MIN_DAILY_CAP_CENTS = 50
+export const AI_MIN_DAILY_CAP_CENTS = 100
 export const AI_MIN_WEEKLY_CAP_CENTS = 150
 
 /**
@@ -85,8 +113,14 @@ export const AI_MIN_WEEKLY_CAP_CENTS = 150
  *    ancorado no dia da assinatura), então o teto também é mensal.
  */
 export function aiCostCapCents(plan: BillingPlanKey): number {
-  return plan === "trial"
-    ? AI_TRIAL_COST_CAP_CENTS
+  if (plan === "trial") {
+    return AI_TRIAL_COST_CAP_CENTS
+  }
+
+  // Plano sem franquia de IA (Corretor) não tem teto a autorizar: nada pode ser
+  // gasto. A franquia 0 já bloqueia antes, mas o teto zero fecha a segunda porta.
+  return PLANS[plan].limits.ai_conversations === 0
+    ? 0
     : Math.round(PLANS[plan].prices.month * AI_COST_CAP_PCT)
 }
 
@@ -124,11 +158,27 @@ export const AI_RATE_LIMIT = { perOrganizationPerMinute: 10, perUserPerMinute: 4
 export const AI_DEDUPE_WINDOW_MINUTES = 10
 
 /**
- * Maior teto de excedente que a imobiliária pode definir por ciclo, em centavos
- * (R$ 5.000,00). Trava contra erro de digitação; o mesmo número está no CHECK de
- * billing_accounts.ai_overage_cap_cents.
+ * O excedente de IA só pode existir quando houver como COBRÁ-LO. Hoje os
+ * add-ons de conversa extra estão como "em breve" (ADDONS em plans.ts) e não há
+ * preço na Stripe, então autorizar excedente significaria a imobiliária
+ * autorizar **a nossa empresa** a gastar por ela — dinheiro saindo sem nota
+ * entrando. Enquanto esta constante for false, o teto de excedente é zero e a
+ * IA para exatamente no teto do plano.
+ *
+ * Para ligar: crie os preços na Stripe, implemente a cobrança do excedente no
+ * fechamento do ciclo e só então mude para true.
  */
-export const AI_MAX_OVERAGE_CAP_CENTS = 500_000
+export const AI_OVERAGE_BILLING_AVAILABLE = false
+
+/**
+ * Maior teto de excedente que a imobiliária pode definir por ciclo, em centavos.
+ * R$ 5.000,00 é a trava contra erro de digitação, mas ela só vale quando a
+ * cobrança existir — sem isso o máximo é zero.
+ */
+export const AI_MAX_OVERAGE_CAP_LIMIT_CENTS = 500_000
+export const AI_MAX_OVERAGE_CAP_CENTS = AI_OVERAGE_BILLING_AVAILABLE
+  ? AI_MAX_OVERAGE_CAP_LIMIT_CENTS
+  : 0
 
 /** "Conversa" = janela com o mesmo contato. Padrão do WhatsApp (sessão de 24 h). */
 export const AI_CONVERSATION_WINDOW_HOURS = 24
@@ -170,6 +220,69 @@ export const AI_UNIT_WEIGHTS: Record<AiUsageKind, number> = {
   listing_copy: 1,
   conversation_summary: 1,
   reply_suggestion: 1,
+}
+
+/**
+ * Como cada tipo de uso chama o modelo. Conferido em 2026-09-16 nas páginas
+ * oficiais de effort, thinking e prompt caching (platform.claude.com/docs).
+ *
+ * Três fatos do Sonnet 5 que mandam aqui:
+ *  - Sem o campo `thinking`, o raciocínio adaptativo LIGA sozinho, e o effort
+ *    padrão é `high` ("almost always thinks"). Raciocínio é cobrado como saída
+ *    (US$ 10/milhão) mesmo quando não aparece. Por isso o effort é sempre
+ *    explícito: omitir é pagar o nível mais caro por padrão.
+ *  - A documentação recomenda `low` para "chat and non-coding use cases" de alto
+ *    volume, e `medium` como degrau de economia quando a qualidade pesa mais.
+ *  - Trocar o effort no meio da conversa invalida o cache: o nível é por tipo de
+ *    uso e fica fixo durante a conversa inteira.
+ *
+ * `maxTokens` é o teto de saída TOTAL da chamada (raciocínio + texto). Se a
+ * resposta vier com `stop_reason: "max_tokens"`, o texto veio cortado: não envie
+ * ao cliente; registre e devolva para o corretor.
+ *
+ * `temperature`, `top_p` e `top_k` não entram: no Sonnet 5 qualquer valor fora do
+ * padrão devolve erro 400.
+ */
+export type AiRequestProfile = {
+  effort: "low" | "medium" | "high"
+  maxTokens: number
+  /**
+   * `1h` quando o intervalo entre chamadas costuma passar de 5 minutos (cliente
+   * respondendo no WhatsApp). Escrita de 1 h custa 2x a entrada e se paga a
+   * partir da segunda leitura; `5m` custa 1,25x e se paga na primeira.
+   */
+  cacheTtl: "5m" | "1h"
+  /** Pode ir pela Batch API (50% de desconto, resposta em até 24 h) quando for em lote. */
+  batchable: boolean
+}
+
+export const AI_REQUEST_PROFILES: Record<AiUsageKind, AiRequestProfile> = {
+  // Atendimento no WhatsApp: alto volume, resposta curta, precisa ser rápido.
+  conversation: {
+    effort: "low",
+    maxTokens: AI_MAX_OUTPUT_TOKENS,
+    cacheTtl: "1h",
+    batchable: false,
+  },
+  // Texto de anúncio é vitrine: um degrau acima, e em lote (imóveis importados) vai pela Batch API.
+  listing_copy: {
+    effort: "medium",
+    maxTokens: AI_MAX_OUTPUT_TOKENS,
+    cacheTtl: "5m",
+    batchable: true,
+  },
+  conversation_summary: {
+    effort: "low",
+    maxTokens: AI_MAX_OUTPUT_TOKENS,
+    cacheTtl: "5m",
+    batchable: true,
+  },
+  reply_suggestion: {
+    effort: "low",
+    maxTokens: AI_MAX_OUTPUT_TOKENS,
+    cacheTtl: "5m",
+    batchable: false,
+  },
 }
 
 export function isAiUsageKind(value: unknown): value is AiUsageKind {
@@ -221,6 +334,51 @@ export function aiCostMillicents(usage: AiTokenUsage, rate = AI_EXCHANGE_RATE_DE
   return Math.ceil(aiCostUsd(usage) * safeRate * 100 * AI_MILLICENTS_PER_CENT)
 }
 
+/**
+ * Campo `usage` da resposta da Messages API, só com o que a medição lê.
+ * `output_tokens` já inclui os tokens de raciocínio (thinking), que são cobrados
+ * como saída mesmo quando não aparecem na resposta.
+ */
+export type AnthropicUsage = {
+  input_tokens?: number | null
+  output_tokens?: number | null
+  cache_read_input_tokens?: number | null
+  cache_creation_input_tokens?: number | null
+  cache_creation?: {
+    ephemeral_5m_input_tokens?: number | null
+    ephemeral_1h_input_tokens?: number | null
+  } | null
+}
+
+/**
+ * Converte o `usage` da API para o formato que o banco mede.
+ *
+ * O banco tem um preço só de escrita de cache (5 min). A escrita de 1 hora custa
+ * 1,6x isso, então ela entra convertida em tokens equivalentes de 5 min,
+ * arredondando para cima. Quando a API não detalha a escrita por duração, tudo é
+ * tratado como 1 hora: na dúvida, medir a mais, nunca a menos.
+ */
+export function aiUsageFromApi(usage: AnthropicUsage | null | undefined): Required<AiTokenUsage> {
+  const written = tokens(usage?.cache_creation_input_tokens ?? undefined)
+  const detail = usage?.cache_creation
+  const fiveMinutes = detail ? tokens(detail.ephemeral_5m_input_tokens ?? undefined) : 0
+  // Sem detalhe, ou detalhe que não fecha com o total: o que sobra conta como 1 h.
+  const oneHour = Math.max(
+    detail ? tokens(detail.ephemeral_1h_input_tokens ?? undefined) : 0,
+    written - fiveMinutes
+  )
+  const oneHourAsFiveMinutes = Math.ceil(
+    (oneHour * AI_PRICE_CACHE_WRITE_1H_USD_PER_MTOK) / AI_PRICE_USD_PER_MTOK.cacheWrite
+  )
+
+  return {
+    inputTokens: tokens(usage?.input_tokens ?? undefined),
+    outputTokens: tokens(usage?.output_tokens ?? undefined),
+    cacheReadTokens: tokens(usage?.cache_read_input_tokens ?? undefined),
+    cacheWriteTokens: fiveMinutes + oneHourAsFiveMinutes,
+  }
+}
+
 /** Millicents → centavos, para exibir. */
 export function millicentsToCents(millicents: number): number {
   return Number.isFinite(millicents) ? Math.round(millicents / AI_MILLICENTS_PER_CENT) : 0
@@ -231,30 +389,50 @@ export function centsToMillicents(cents: number): number {
 }
 
 /**
- * Conversa típica assumida para projeção e para a tabela de planos: 8 idas e
- * vindas, com o prompt de sistema e a ficha do imóvel em cache (escrito uma vez,
- * lido nas demais), mais o histórico curto de cada turno.
+ * Conversa típica assumida para projeção e para a tabela de planos (ESTIMATIVA
+ * conservadora, recalculada em 16/09/2026 — troque por média medida assim que
+ * houver tráfego real em `ai_usage_periods`). 8 idas e vindas no perfil
+ * `AI_REQUEST_PROFILES.conversation`, em tokens já convertidos para a régua do
+ * banco (escrita de 1 h vira equivalente de 5 min, ver `aiUsageFromApi`):
+ *
+ *  - 1ª mensagem grava em cache de 1 h ferramentas, instruções e ficha do imóvel
+ *    (~3.400 tokens reais → 5.400 equivalentes);
+ *  - a cada mensagem seguinte o HISTÓRICO inteiro é reenviado: o que já estava
+ *    em cache é lido (10% do preço) e o que entrou de novo é gravado. Uma em cada
+ *    dez respostas do cliente chega depois de 1 h e regrava tudo;
+ *  - saída = texto (~325) + raciocínio em effort `low` (~120). Raciocínio é
+ *    cobrado como saída mesmo sem aparecer.
+ *
+ * Os números antigos (600 de entrada, 250 de saída, R$ 0,21) ignoravam três
+ * coisas documentadas do Sonnet 5: raciocínio ligado por padrão, tokenizador que
+ * gera ~30% mais tokens e o histórico que cresce a cada turno.
  */
 export const AI_TYPICAL_CONVERSATION = {
   turns: 8,
-  cacheWriteTokens: 2_000,
-  cacheReadTokensPerTurn: 2_000,
-  inputTokensPerTurn: 600,
-  outputTokensPerTurn: 250,
+  cacheWriteTokens: 5_400,
+  cacheWriteTokensPerTurn: 2_200,
+  cacheReadTokensPerTurn: 5_400,
+  inputTokensPerTurn: 150,
+  outputTokensPerTurn: 445,
 } as const
 
-/** Requisição avulsa típica (redigir anúncio, resumir conversa, sugerir resposta). */
-export const AI_TYPICAL_REQUEST = { inputTokens: 1_500, outputTokens: 500 } as const
+/**
+ * Requisição avulsa típica (redigir anúncio, resumir conversa, sugerir resposta),
+ * com o tokenizador do Sonnet 5 e o raciocínio do perfil incluídos. Estimativa.
+ */
+export const AI_TYPICAL_REQUEST = { inputTokens: 2_000, outputTokens: 900 } as const
 
 export function typicalConversationTokens(): Required<AiTokenUsage> {
   const t = AI_TYPICAL_CONVERSATION
+  const laterTurns = Math.max(0, t.turns - 1)
 
   return {
     inputTokens: t.inputTokensPerTurn * t.turns,
     outputTokens: t.outputTokensPerTurn * t.turns,
-    // O primeiro turno escreve o cache; os demais leem.
-    cacheWriteTokens: t.cacheWriteTokens,
-    cacheReadTokens: t.cacheReadTokensPerTurn * Math.max(0, t.turns - 1),
+    // O primeiro turno grava o prefixo fixo; os seguintes leem o que já está em
+    // cache e gravam o que entrou de novo.
+    cacheWriteTokens: t.cacheWriteTokens + t.cacheWriteTokensPerTurn * laterTurns,
+    cacheReadTokens: t.cacheReadTokensPerTurn * laterTurns,
   }
 }
 
@@ -368,7 +546,11 @@ export function isAiRequestTooLarge(usage: AiTokenUsage): boolean {
  */
 export function resolveAiQuota(state: AiQuotaState, request: AiQuotaRequest): AiQuotaDecision {
   const planCap = centsToMillicents(aiCostCapCents(state.planKey))
-  const overageCap = centsToMillicents(Math.max(0, state.overageCapCents))
+  // Excedente gravado antes de a cobrança existir não vale: sem preço na Stripe
+  // ele seria gasto nosso sem receita. A trava é aqui e também no banco.
+  const overageCap = AI_OVERAGE_BILLING_AVAILABLE
+    ? centsToMillicents(Math.max(0, state.overageCapCents))
+    : 0
   const effectiveCap = planCap + overageCap
   const dayCap = centsToMillicents(aiDailyCapCents(millicentsToCents(effectiveCap)))
   const weekCap = centsToMillicents(aiWeeklyCapCents(millicentsToCents(effectiveCap)))

@@ -15,7 +15,7 @@ import type { ActionResult } from "@/lib/auth/action-result"
 import { requireMembership } from "@/lib/auth/session"
 import { translateDbError } from "@/lib/imoveis/db-errors"
 import { isUuid } from "@/lib/imoveis/ids"
-import { canDeletePropertyRecords } from "@/lib/imoveis/permissions"
+import { REMOVE_OWNER_DENIED_MESSAGE, canDeletePropertyRecords } from "@/lib/imoveis/permissions"
 import { getPropertyActionContext, revalidatePropertyPaths } from "@/lib/imoveis/server-context"
 import { createClient } from "@/lib/supabase/server"
 
@@ -207,7 +207,7 @@ export async function removePropertyOwnerAction(
   if (!canDeletePropertyRecords(role)) {
     return {
       ok: false,
-      error: "Somente o dono ou o gerente podem remover proprietários.",
+      error: REMOVE_OWNER_DENIED_MESSAGE,
     }
   }
 

@@ -14,6 +14,9 @@ export type DbErrorLike = {
 export const LANDING_PERMISSION_MESSAGE =
   "Seu papel nesta imobiliária não permite editar landing pages. Peça ao dono, ao gerente ou a um assistente."
 
+/** Fim das recusas do Storage: quem resolve é o mesmo trio. */
+const LANDING_EDITORS_HINT = "Peça ao dono, ao gerente ou a um assistente da imobiliária."
+
 export const LANDING_SLUG_TAKEN_MESSAGE =
   "Já existe uma landing page com este endereço nesta imobiliária. Escolha outro."
 
@@ -95,7 +98,7 @@ export function translateLandingStorageError(
   const status = String(error?.statusCode ?? "")
 
   if (status === "403" || text.includes("row-level security") || text.includes("unauthorized")) {
-    return `Você não tem permissão para ${action}.`
+    return `Você não tem permissão para ${action}. ${LANDING_EDITORS_HINT}`
   }
   if (status === "413" || text.includes("maximum allowed size") || text.includes("too large")) {
     return "O arquivo passa de 5 MB."

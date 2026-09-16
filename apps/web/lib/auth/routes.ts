@@ -1,6 +1,7 @@
 // Rotas e regras de redirecionamento compartilhadas entre proxy, páginas e actions.
 
 import { REFERRAL_LINK_PATH_PREFIX } from "@workspace/core/billing/referrals"
+import { PROPOSAL_SHARE_PATH_PREFIX } from "@workspace/core/proposals/share"
 
 export const LOGIN_PATH = "/entrar"
 export const SIGN_UP_PATH = "/cadastro"
@@ -51,6 +52,13 @@ export const REFERRALS_SETTINGS_PATH = "/configuracoes/indicacoes"
  */
 export { REFERRAL_LINK_PATH_PREFIX }
 
+/**
+ * Link público da proposta (/proposta/{token}, definido no core): o corretor
+ * manda no WhatsApp e o cliente abre sem login. O token identifica a proposta,
+ * então o caminho é o mesmo na raiz, no subdomínio e no host único.
+ */
+export { PROPOSAL_SHARE_PATH_PREFIX }
+
 const PUBLIC_PATHS = new Set([
   LOGIN_PATH,
   SIGN_UP_PATH,
@@ -69,6 +77,7 @@ const PUBLIC_PREFIXES = [
   "/convite",
   "/lp",
   REFERRAL_LINK_PATH_PREFIX,
+  PROPOSAL_SHARE_PATH_PREFIX,
 ]
 
 /** Rotas que só fazem sentido para quem ainda não entrou. */
@@ -90,6 +99,7 @@ const ROOT_HOST_PREFIXES = [
   WEBHOOKS_PATH_PREFIX,
   CRON_PATH_PREFIX,
   REFERRAL_LINK_PATH_PREFIX,
+  PROPOSAL_SHARE_PATH_PREFIX,
   ...ROOT_ONLY_PREFIXES,
 ]
 
@@ -104,6 +114,7 @@ const REDIRECT_ALLOWED_SECTIONS = new Set([
   "captacao",
   "chaves",
   "clientes",
+  "comissoes",
   "condominios",
   "configuracoes",
   "imoveis",

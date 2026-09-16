@@ -1,0 +1,521 @@
+import "server-only"
+
+import {
+  CLIENT_KIND_LABELS,
+  LISTING_PURPOSE_LABELS,
+  PROPERTY_STATUS_LABELS,
+  PROPERTY_TYPE_LABELS,
+  PROPOSAL_STATUS_LABELS,
+  type ClientKind,
+  type ListingPurpose,
+  type PropertyStatus,
+  type PropertyType,
+  type ProposalStatus,
+} from "@workspace/core/properties/enums"
+import type { CsvValue } from "@workspace/core/reports/csv"
+import { formatHours, formatMinutes, ratePercent } from "@workspace/core/reports/rates"
+
+import { ROLE_LABELS } from "@/lib/auth/roles"
+import { LEAD_SOURCE_LABELS, LEAD_STAGE_LABELS } from "@/lib/leads/constants"
+import type { LeadSource, LeadStage } from "@/lib/leads/db-types"
+import {
+  createPagedCsvStream,
+  createSingleCsvStream,
+  EXPORT_PAGE_SIZE,
+  type ExportCursor,
+} from "@/lib/relatorios/export"
+import {
+  loadBrokerReport,
+  loadFunnelReport,
+  loadLostReasonReport,
+  loadSourceReport,
+  NO_LOST_REASON_LABEL,
+  type ReportScope,
+} from "@/lib/relatorios/queries"
+import { createClient } from "@/lib/supabase/server"
+
+/**
+ * O que a tela /relatorios exporta em CSV.
+ *
+ * Dois tipos de arquivo:
+ *
+ * - **relatório** (corretores, funil, origens, motivos de perda): a mesma RPC
+ *   agregada que a tela usa. São poucas linhas, então saem numa consulta só —
+ *   e o número da planilha é exatamente o número da tela;
+ * - **base** (leads, imóveis, clientes, propostas): a lista, paginada no banco
+ *   por `(created_at, id)` e transmitida página a página.
+ *
+ * Em todos, quem decide as LINHAS é o RLS da sessão (corretor exporta só o que
+ * já enxerga) e quem decide as COLUNAS SENSÍVEIS é o papel, dentro da própria
+ * RPC: CPF/CNPJ e data de nascimento do cliente e os ids de clique do lead só
+ * saem para dono e gerente.
+ */
+
+export const REPORT_DATASETS = [
+  "corretores",
+  "funil",
+  "origens",
+  "motivos-perda",
+  "leads",
+  "imoveis",
+  "clientes",
+  "propostas",
+] as const
+
+export type ReportDataset = (typeof REPORT_DATASETS)[number]
+
+export function isReportDataset(value: unknown): value is ReportDataset {
+  return typeof value === "string" && (REPORT_DATASETS as readonly string[]).includes(value)
+}
+
+export const REPORT_DATASET_LABELS: Record<ReportDataset, string> = {
+  corretores: "Desempenho por corretor",
+  funil: "Funil por etapa",
+  origens: "Origem do lead",
+  "motivos-perda": "Motivos de perda",
+  leads: "Leads",
+  imoveis: "Imóveis",
+  clientes: "Clientes",
+  propostas: "Propostas",
+}
+
+/** Prefixo do arquivo baixado (csvFileName acrescenta o período e a extensão). */
+const DATASET_FILE_PREFIX: Record<ReportDataset, string> = {
+  corretores: "relatorio-corretores",
+  funil: "relatorio-funil",
+  origens: "relatorio-origens",
+  "motivos-perda": "relatorio-motivos-perda",
+  leads: "base-leads",
+  imoveis: "base-imoveis",
+  clientes: "base-clientes",
+  propostas: "base-propostas",
+}
+
+export function reportDatasetFilePrefix(dataset: ReportDataset) {
+  return DATASET_FILE_PREFIX[dataset]
+}
+
+// -----------------------------------------------------------------------------
+// Formatação das células
+// -----------------------------------------------------------------------------
+
+const DATE_TIME = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: "America/Sao_Paulo",
+  dateStyle: "short",
+  timeStyle: "short",
+})
+
+const DATE = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: "America/Sao_Paulo",
+  dateStyle: "short",
+})
+
+function cellDateTime(value: string | null | undefined): CsvValue {
+  if (!value) return null
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? null : DATE_TIME.format(date)
+}
+
+/** Data pura (`date` do Postgres) é dia civil: lida em UTC, sem deslocar o fuso. */
+function cellDate(value: string | null | undefined): CsvValue {
+  if (!value) return null
+  const date = new Date(`${value}T00:00:00Z`)
+  return Number.isNaN(date.getTime()) ? null : DATE.format(date)
+}
+
+function cellNumber(value: unknown): CsvValue {
+  const parsed = typeof value === "number" ? value : Number(value)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+function labelOf<T extends string>(
+  labels: Record<T, string>,
+  value: string | null | undefined
+): CsvValue {
+  if (!value) return null
+  return value in labels ? labels[value as T] : value
+}
+
+// -----------------------------------------------------------------------------
+// Definição de cada exportação
+// -----------------------------------------------------------------------------
+
+export type ReportCsvDataset = {
+  columns: readonly string[]
+  stream(scope: ReportScope): ReadableStream<Uint8Array>
+}
+
+const brokersDataset: ReportCsvDataset = {
+  columns: [
+    "Corretor",
+    "Papel",
+    "Ativo",
+    "Leads recebidos",
+    "Leads atendidos",
+    "Atendidos no prazo",
+    "Atendimento (%)",
+    "SLA cumprido (%)",
+    "1º contato (mediana)",
+    "Ganhos",
+    "Perdidos",
+    "Em aberto",
+    "Fechamento (%)",
+    "Tirados por estouro de prazo",
+    "Imóveis captados",
+    "Propostas feitas",
+    "Propostas fechadas",
+    "Valor fechado (R$)",
+  ],
+  stream(scope) {
+    return createSingleCsvStream(this.columns, async () => {
+      const report = await loadBrokerReport(scope)
+
+      return report.rows.map((row) => [
+        row.name,
+        row.role ? ROLE_LABELS[row.role] : null,
+        row.active,
+        row.leadsReceived,
+        row.leadsAnswered,
+        row.leadsInSla,
+        ratePercent(row.rates.answerRate),
+        ratePercent(row.rates.slaRate),
+        formatMinutes(row.firstResponseMedianMinutes),
+        row.leadsWon,
+        row.leadsLost,
+        row.leadsOpen,
+        ratePercent(row.rates.winRate),
+        row.leadsTakenBySla,
+        row.propertiesCaptured,
+        row.proposalsMade,
+        row.proposalsClosed,
+        row.proposalsClosedAmount,
+      ])
+    })
+  },
+}
+
+const funnelDataset: ReportCsvDataset = {
+  columns: [
+    "Etapa",
+    "Entradas",
+    "Avançaram",
+    "Conversão para a etapa seguinte (%)",
+    "Foram perdidos",
+    "Perda (%)",
+    "Ainda nesta etapa",
+    "Tempo na etapa (mediana)",
+    "Tempo na etapa (média)",
+    "Mediana em horas",
+    "Média em horas",
+  ],
+  stream(scope) {
+    return createSingleCsvStream(this.columns, async () => {
+      const report = await loadFunnelReport(scope)
+
+      return report.stages.map((stage) => [
+        stage.label,
+        stage.entered,
+        stage.advanced,
+        ratePercent(stage.rates.advanceRate),
+        stage.lostAfter,
+        ratePercent(stage.rates.lossRate),
+        stage.stillThere,
+        formatHours(stage.medianHours),
+        formatHours(stage.avgHours),
+        stage.medianHours,
+        stage.avgHours,
+      ])
+    })
+  },
+}
+
+const sourcesDataset: ReportCsvDataset = {
+  columns: [
+    "Canal",
+    "Landing page",
+    "utm_source",
+    "utm_medium",
+    "utm_campaign",
+    "Leads",
+    "Atendidos",
+    "Ganhos",
+    "Perdidos",
+    "Em aberto",
+    "Conversão (%)",
+  ],
+  stream(scope) {
+    return createSingleCsvStream(this.columns, async () => {
+      const report = await loadSourceReport(scope)
+
+      return report.rows.map((row) => [
+        row.sourceLabel,
+        row.landingPageName,
+        row.utmSource,
+        row.utmMedium,
+        row.utmCampaign,
+        row.leads,
+        row.answered,
+        row.won,
+        row.lost,
+        row.openLeads,
+        ratePercent(row.winRate),
+      ])
+    })
+  },
+}
+
+const lostReasonsDataset: ReportCsvDataset = {
+  columns: ["Motivo da perda", "Leads perdidos", "Fatia das perdas (%)"],
+  stream(scope) {
+    return createSingleCsvStream(this.columns, async () => {
+      const report = await loadLostReasonReport(scope)
+
+      return report.rows.map((row) => [
+        row.reason ?? NO_LOST_REASON_LABEL,
+        row.total,
+        ratePercent(row.share),
+      ])
+    })
+  },
+}
+
+/** Parâmetros comuns das RPCs de exportação paginada. */
+function pageArgs(scope: ReportScope, cursor: ExportCursor | null) {
+  return {
+    p_organization_id: scope.organizationId,
+    p_from: scope.period.from,
+    p_to: scope.period.to,
+    p_limit: EXPORT_PAGE_SIZE,
+    ...(scope.broker ? { p_user_id: scope.broker } : {}),
+    ...(cursor ? { p_after_created_at: cursor.createdAt, p_after_id: cursor.id } : {}),
+  }
+}
+
+/** Onde continuar: a última linha da página, ou `null` quando ela veio curta. */
+function nextCursor(rows: readonly { created_at: string; id: string }[]): ExportCursor | null {
+  const last = rows.length === EXPORT_PAGE_SIZE ? rows[rows.length - 1] : undefined
+  return last ? { createdAt: last.created_at, id: last.id } : null
+}
+
+const leadsDataset: ReportCsvDataset = {
+  columns: [
+    "Criado em",
+    "Nome",
+    "E-mail",
+    "Telefone",
+    "Etapa",
+    "Canal",
+    "Interesse",
+    "Landing page",
+    "utm_source",
+    "utm_medium",
+    "utm_campaign",
+    "Responsável",
+    "Recebido em",
+    "1º contato em",
+    "Motivo da perda",
+    "Ids de clique",
+  ],
+  stream(scope) {
+    return createPagedCsvStream(this.columns, async (cursor) => {
+      const supabase = await createClient()
+      const { data, error } = await supabase.rpc("export_leads_rows", pageArgs(scope, cursor))
+
+      if (error) {
+        throw new Error(`export_leads_rows: ${error.code ?? "erro"}`)
+      }
+
+      const rows = data ?? []
+
+      return {
+        rows: rows.map((row) => [
+          cellDateTime(row.created_at),
+          row.name,
+          row.email,
+          row.phone,
+          labelOf<LeadStage>(LEAD_STAGE_LABELS, row.stage),
+          labelOf<LeadSource>(LEAD_SOURCE_LABELS, row.source),
+          row.interest,
+          row.landing_page_name,
+          row.utm_source,
+          row.utm_medium,
+          row.utm_campaign,
+          row.assigned_to_name,
+          cellDateTime(row.assigned_at),
+          cellDateTime(row.first_contact_at),
+          row.lost_reason,
+          row.tracking_ids,
+        ]),
+        cursor: nextCursor(rows),
+      }
+    })
+  },
+}
+
+const propertiesDataset: ReportCsvDataset = {
+  columns: [
+    "Criado em",
+    "Código",
+    "Título",
+    "Tipo",
+    "Finalidade",
+    "Situação",
+    "Venda (R$)",
+    "Aluguel (R$)",
+    "Condomínio (R$)",
+    "Bairro",
+    "Cidade",
+    "UF",
+    "Quartos",
+    "Vagas",
+    "Área útil (m²)",
+    "Captador",
+    "Corretor",
+    "ImobScore",
+    "Nos portais",
+  ],
+  stream(scope) {
+    return createPagedCsvStream(this.columns, async (cursor) => {
+      const supabase = await createClient()
+      const { data, error } = await supabase.rpc("export_properties_rows", pageArgs(scope, cursor))
+
+      if (error) {
+        throw new Error(`export_properties_rows: ${error.code ?? "erro"}`)
+      }
+
+      const rows = data ?? []
+
+      return {
+        rows: rows.map((row) => [
+          cellDateTime(row.created_at),
+          row.code,
+          row.title,
+          labelOf<PropertyType>(PROPERTY_TYPE_LABELS, row.type),
+          labelOf<ListingPurpose>(LISTING_PURPOSE_LABELS, row.purpose),
+          labelOf<PropertyStatus>(PROPERTY_STATUS_LABELS, row.status),
+          cellNumber(row.sale_price),
+          cellNumber(row.rent_price),
+          cellNumber(row.condo_fee),
+          row.neighborhood,
+          row.city,
+          row.state,
+          cellNumber(row.bedrooms),
+          cellNumber(row.parking_spaces),
+          cellNumber(row.living_area),
+          row.captured_by_name,
+          row.broker_name,
+          cellNumber(row.imob_score),
+          row.published_to_portals === true,
+        ]),
+        cursor: nextCursor(rows),
+      }
+    })
+  },
+}
+
+const clientsDataset: ReportCsvDataset = {
+  columns: [
+    "Criado em",
+    "Nome",
+    "Tipo",
+    "CPF/CNPJ",
+    "Nascimento",
+    "E-mail",
+    "Telefone",
+    "WhatsApp",
+    "Bairro",
+    "Cidade",
+    "UF",
+    "Origem",
+    "Etiquetas",
+    "Responsável",
+    "Consentimento LGPD em",
+  ],
+  stream(scope) {
+    return createPagedCsvStream(this.columns, async (cursor) => {
+      const supabase = await createClient()
+      const { data, error } = await supabase.rpc("export_clients_rows", pageArgs(scope, cursor))
+
+      if (error) {
+        throw new Error(`export_clients_rows: ${error.code ?? "erro"}`)
+      }
+
+      const rows = data ?? []
+
+      return {
+        rows: rows.map((row) => [
+          cellDateTime(row.created_at),
+          row.name,
+          labelOf<ClientKind>(CLIENT_KIND_LABELS, row.kind),
+          row.document,
+          cellDate(row.birth_date),
+          row.email,
+          row.phone,
+          row.whatsapp,
+          row.neighborhood,
+          row.city,
+          row.state,
+          row.source,
+          Array.isArray(row.tags) ? row.tags.join(", ") : null,
+          row.assigned_to_name,
+          cellDateTime(row.lgpd_consent_at),
+        ]),
+        cursor: nextCursor(rows),
+      }
+    })
+  },
+}
+
+const proposalsDataset: ReportCsvDataset = {
+  columns: [
+    "Criada em",
+    "Imóvel (código)",
+    "Imóvel",
+    "Cliente",
+    "Corretor",
+    "Finalidade",
+    "Valor (R$)",
+    "Situação",
+    "Válida até",
+    "Decidida em",
+  ],
+  stream(scope) {
+    return createPagedCsvStream(this.columns, async (cursor) => {
+      const supabase = await createClient()
+      const { data, error } = await supabase.rpc("export_proposals_rows", pageArgs(scope, cursor))
+
+      if (error) {
+        throw new Error(`export_proposals_rows: ${error.code ?? "erro"}`)
+      }
+
+      const rows = data ?? []
+
+      return {
+        rows: rows.map((row) => [
+          cellDateTime(row.created_at),
+          row.property_code,
+          row.property_title,
+          row.client_name,
+          row.broker_name,
+          labelOf<ListingPurpose>(LISTING_PURPOSE_LABELS, row.purpose),
+          cellNumber(row.amount),
+          labelOf<ProposalStatus>(PROPOSAL_STATUS_LABELS, row.status),
+          cellDate(row.valid_until),
+          cellDateTime(row.decided_at),
+        ]),
+        cursor: nextCursor(rows),
+      }
+    })
+  },
+}
+
+export const REPORT_CSV_DATASETS: Record<ReportDataset, ReportCsvDataset> = {
+  corretores: brokersDataset,
+  funil: funnelDataset,
+  origens: sourcesDataset,
+  "motivos-perda": lostReasonsDataset,
+  leads: leadsDataset,
+  imoveis: propertiesDataset,
+  clientes: clientsDataset,
+  propostas: proposalsDataset,
+}

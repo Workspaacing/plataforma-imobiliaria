@@ -11,8 +11,8 @@ import {
 
 import {
   LeadAdPlatformBadges,
-  LeadContactTimerBadge,
   LeadDuplicateBadge,
+  LeadRoutingBadges,
   LeadSourceBadge,
   LeadStageBadge,
 } from "@/components/leads/lead-badges"
@@ -24,12 +24,13 @@ import { getLeadInterestLabel } from "@/lib/leads/constants"
 import type { LeadStage } from "@/lib/leads/db-types"
 import { formatRelativeShort, maskLeadPhone } from "@/lib/leads/format"
 import { canEditLead } from "@/lib/leads/permissions"
-import type { LeadItem } from "@/lib/leads/types"
+import type { LeadItem, LeadSlaSettings } from "@/lib/leads/types"
 
 type LeadsTableProps = {
   leads: LeadItem[]
   members: MemberOption[]
   nowMs: number
+  sla: LeadSlaSettings
   currentUserId: string
   role: Role
   onOpenLead: (leadId: string) => void
@@ -41,6 +42,7 @@ export function LeadsTable({
   leads,
   members,
   nowMs,
+  sla,
   currentUserId,
   role,
   onOpenLead,
@@ -79,7 +81,7 @@ export function LeadsTable({
                       {lead.name}
                     </button>
                     <div className="flex flex-wrap gap-1 empty:hidden">
-                      <LeadContactTimerBadge lead={lead} nowMs={nowMs} />
+                      <LeadRoutingBadges lead={lead} nowMs={nowMs} sla={sla} />
                       <LeadDuplicateBadge hasDuplicate={lead.hasDuplicate} />
                     </div>
                   </div>

@@ -33,8 +33,8 @@ import {
 
 import {
   LeadAdPlatformBadges,
-  LeadContactTimerBadge,
   LeadDuplicateBadge,
+  LeadRoutingBadges,
   LeadSourceBadge,
 } from "@/components/leads/lead-badges"
 import { getInitials } from "@/components/crm/utils"
@@ -48,12 +48,13 @@ import {
 } from "@/lib/leads/constants"
 import type { LeadStage } from "@/lib/leads/db-types"
 import { formatRelativeShort } from "@/lib/leads/format"
-import type { LeadItem } from "@/lib/leads/types"
+import type { LeadItem, LeadSlaSettings } from "@/lib/leads/types"
 
 export type LeadCardProps = {
   lead: LeadItem
   member: MemberOption | null
   nowMs: number
+  sla: LeadSlaSettings
   canMove: boolean
   isFirst: boolean
   isLast: boolean
@@ -71,6 +72,7 @@ export function LeadCard({
   lead,
   member,
   nowMs,
+  sla,
   canMove,
   isFirst,
   isLast,
@@ -182,12 +184,11 @@ export function LeadCard({
       </CardHeader>
 
       <CardContent className="flex flex-col gap-2 text-xs">
-        {lead.hasDuplicate || lead.stage === "new" ? (
-          <div className="flex flex-wrap gap-1 empty:hidden">
-            <LeadContactTimerBadge lead={lead} nowMs={nowMs} />
-            <LeadDuplicateBadge hasDuplicate={lead.hasDuplicate} />
-          </div>
-        ) : null}
+        {/* `empty:hidden` some com a linha quando nenhum selo tem o que mostrar. */}
+        <div className="flex flex-wrap gap-1 empty:hidden">
+          <LeadRoutingBadges lead={lead} nowMs={nowMs} sla={sla} />
+          <LeadDuplicateBadge hasDuplicate={lead.hasDuplicate} />
+        </div>
 
         {lead.property || interest || lead.utm.campaign ? (
           <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-muted-foreground">

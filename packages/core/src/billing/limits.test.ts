@@ -23,7 +23,7 @@ describe("LIMITS", () => {
 describe("computeLimits", () => {
   it("soma os extras aos usuários incluídos", () => {
     expect(computeLimits("imobiliaria", 2)).toEqual({ ...PLANS.imobiliaria.limits, users: 5 })
-    expect(computeLimits("rede", 100).users).toBe(120)
+    expect(computeLimits("rede", 100).users).toBe(110)
     expect(computeLimits("equipe", 0)).toEqual(PLANS.equipe.limits)
   })
 
@@ -33,9 +33,9 @@ describe("computeLimits", () => {
   })
 
   it("ignora extras inválidos", () => {
-    expect(computeLimits("equipe", -2).users).toBe(8)
-    expect(computeLimits("equipe", Number.NaN).users).toBe(8)
-    expect(computeLimits("equipe", 1.8).users).toBe(9)
+    expect(computeLimits("equipe", -2).users).toBe(5)
+    expect(computeLimits("equipe", Number.NaN).users).toBe(5)
+    expect(computeLimits("equipe", 1.8).users).toBe(6)
   })
 
   it("não altera o catálogo", () => {

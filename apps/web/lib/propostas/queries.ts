@@ -2,6 +2,7 @@ import "server-only"
 
 import type { Enums } from "@workspace/database/types"
 
+import type { ProposalDiscountRequest } from "@/lib/propostas/discount"
 import { getProfileNames } from "@/lib/propostas/options"
 import type { ProposalStatus } from "@/lib/propostas/status"
 import type { createClient } from "@/lib/supabase/server"
@@ -15,6 +16,16 @@ export type ProposalFilters = {
   propertyId: string | null
   brokerId: string | null
   purpose: ProposalPurpose | null
+}
+
+/** Estado do link público da proposta (tabela proposal_shares). */
+export type ProposalShareInfo = {
+  /** null quando o link foi revogado (o histórico de leitura continua). */
+  token: string | null
+  expiresAt: string | null
+  firstViewedAt: string | null
+  lastViewedAt: string | null
+  viewCount: number
 }
 
 export type ProposalRow = {
@@ -38,11 +49,53 @@ export type ProposalRow = {
     status: Enums<"property_status">
     capturedBy: string | null
     brokerId: string | null
+    /** Preço anunciado: base da conta de desconto (aprovação do gerente). */
+    salePrice: number | null
+    rentPrice: number | null
   } | null
   client: { id: string; name: string } | null
+  share: ProposalShareInfo | null
 }
 
 export type ProposalCounts = Record<ProposalStatus | "all", number>
+
+/**
+ * Links públicos das propostas listadas, por proposta. Consulta à parte (como
+ * os nomes da equipe) para não depender de join embutido do PostgREST.
+ */
+async function listProposalShares(
+  supabase: ServerClient,
+  organizationId: string,
+  proposalIds: string[]
+): Promise<Map<string, ProposalShareInfo>> {
+  const shares = new Map<string, ProposalShareInfo>()
+
+  if (proposalIds.length === 0) {
+    return shares
+  }
+
+  const { data, error } = await supabase
+    .from("proposal_shares")
+    .select("proposal_id, token, expires_at, first_viewed_at, last_viewed_at, view_count")
+    .eq("organization_id", organizationId)
+    .in("proposal_id", proposalIds)
+
+  if (error) {
+    throw new Error(`Não foi possível carregar os links das propostas (${error.code ?? "erro"}).`)
+  }
+
+  for (const row of data) {
+    shares.set(row.proposal_id, {
+      token: row.token,
+      expiresAt: row.expires_at,
+      firstViewedAt: row.first_viewed_at,
+      lastViewedAt: row.last_viewed_at,
+      viewCount: row.view_count,
+    })
+  }
+
+  return shares
+}
 
 export async function listProposals(
   supabase: ServerClient,
@@ -52,7 +105,7 @@ export async function listProposals(
   let rowsQuery = supabase
     .from("proposals")
     .select(
-      "id, status, purpose, amount, payment_terms, conditions, valid_until, decided_at, created_at, broker_id, property_id, client_id, property:properties!proposals_property_fkey(id, code, title, status, captured_by, broker_id), client:clients!proposals_client_fkey(id, name)"
+      "id, status, purpose, amount, payment_terms, conditions, valid_until, decided_at, created_at, broker_id, property_id, client_id, property:properties!proposals_property_fkey(id, code, title, status, captured_by, broker_id, sale_price, rent_price), client:clients!proposals_client_fkey(id, name)"
     )
     .eq("organization_id", organizationId)
     .order("created_at", { ascending: false })
@@ -109,10 +162,17 @@ export async function listProposals(
     counts[row.status] += 1
   }
 
-  const names = await getProfileNames(
-    supabase,
-    rowsResult.data.flatMap((row) => (row.broker_id ? [row.broker_id] : []))
-  )
+  const [names, shares] = await Promise.all([
+    getProfileNames(
+      supabase,
+      rowsResult.data.flatMap((row) => (row.broker_id ? [row.broker_id] : []))
+    ),
+    listProposalShares(
+      supabase,
+      organizationId,
+      rowsResult.data.map((row) => row.id)
+    ),
+  ])
 
   const rows: ProposalRow[] = rowsResult.data.map((row) => ({
     id: row.id,
@@ -136,10 +196,62 @@ export async function listProposals(
           status: row.property.status,
           capturedBy: row.property.captured_by,
           brokerId: row.property.broker_id,
+          salePrice: row.property.sale_price,
+          rentPrice: row.property.rent_price,
         }
       : null,
     client: row.client ? { id: row.client.id, name: row.client.name } : null,
+    share: shares.get(row.id) ?? null,
   }))
 
   return { rows, counts }
+}
+
+/**
+ * Pedidos de aprovação de desconto das propostas informadas, por proposta e do
+ * mais recente para o mais antigo. Vem da RPC list_proposal_discount_requests:
+ * entram as propostas que a pessoa edita (corretor da proposta, quem edita o
+ * imóvel) e, para dono, gerente e financeiro, todas. Justificativa e resposta do
+ * gerente chegam só para a gestão e para quem pediu.
+ */
+export async function listProposalDiscountRequests(
+  supabase: ServerClient,
+  organizationId: string,
+  proposalIds: string[]
+): Promise<Map<string, ProposalDiscountRequest[]>> {
+  const requests = new Map<string, ProposalDiscountRequest[]>()
+
+  if (proposalIds.length === 0) {
+    return requests
+  }
+
+  const { data, error } = await supabase.rpc("list_proposal_discount_requests", {
+    p_organization_id: organizationId,
+    p_proposal_ids: proposalIds,
+  })
+
+  if (error) {
+    throw new Error(`Não foi possível carregar os pedidos de desconto (${error.code ?? "erro"}).`)
+  }
+
+  for (const row of data) {
+    const list = requests.get(row.proposal_id) ?? []
+
+    list.push({
+      id: row.id,
+      proposalId: row.proposal_id,
+      status: row.status,
+      amountCents: Number(row.amount_cents),
+      referenceCents: Number(row.reference_cents),
+      // O gerador tipa como string, mas a RPC devolve null para quem não pode ler.
+      reason: row.reason as string | null,
+      reviewNote: row.review_note as string | null,
+      requestedByMe: row.requested_by_me,
+      createdAt: row.created_at,
+      reviewedAt: row.reviewed_at,
+    })
+    requests.set(row.proposal_id, list)
+  }
+
+  return requests
 }

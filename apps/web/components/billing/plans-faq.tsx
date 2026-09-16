@@ -2,9 +2,10 @@ import {
   AI_OVERAGE_NOTE,
   ANNUAL_BOLETO_NOTE,
   GRACE_DAYS,
+  IMPORTED_LISTINGS_NOTE,
+  OWNED_LISTINGS_NOTE,
   PLAN_KEYS,
   PLANS,
-  STORAGE_FAIR_USE_NOTE,
   TRIAL_AI_CONVERSATIONS,
   TRIAL_BASE_PLAN,
   TRIAL_DAYS,
@@ -62,10 +63,19 @@ const QUESTIONS: ReadonlyArray<{ id: string; question: string; answer: string[] 
   },
   {
     id: "armazenamento",
-    question: "Quanto espaço tenho para fotos e documentos?",
+    question: "Quantos imóveis posso cadastrar com foto?",
     answer: [
-      `De ${SMALLEST_PLAN.limits.storage_gb} GB no ${SMALLEST_PLAN.name} a ${LARGEST_PLAN.limits.storage_gb} GB no ${LARGEST_PLAN.name}, sem limite de imóveis.`,
-      `${STORAGE_FAIR_USE_NOTE}.`,
+      "A carteira em si é ilimitada em todos os planos: imóvel, condomínio e cliente você cadastra à vontade.",
+      `O limite é só de imóvel próprio, que é aquele cujas fotos ficam hospedadas por nós: de ${SMALLEST_PLAN.limits.owned_listings} com até ${SMALLEST_PLAN.limits.photos_per_listing} fotos no ${SMALLEST_PLAN.name} a ${LARGEST_PLAN.limits.owned_listings} com até ${LARGEST_PLAN.limits.photos_per_listing} fotos no ${LARGEST_PLAN.name}.`,
+      `${IMPORTED_LISTINGS_NOTE}. ${OWNED_LISTINGS_NOTE}.`,
+    ],
+  },
+  {
+    id: "endereco",
+    question: "Qual é o endereço do meu CRM?",
+    answer: [
+      "Cada imobiliária ganha um endereço exclusivo dentro da nossa plataforma, no ar assim que a conta é criada, com certificado de segurança e sem custo nenhum.",
+      "É o mesmo endereço para a equipe usar o CRM e para as landing pages que você publica.",
     ],
   },
   {

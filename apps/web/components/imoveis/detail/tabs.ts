@@ -6,6 +6,7 @@ export const PROPERTY_DETAIL_TABS = [
   { value: "autorizacao", label: "Autorização" },
   { value: "compativeis", label: "Clientes compatíveis" },
   { value: "chaves-propostas", label: "Chaves e propostas" },
+  { value: "historico", label: "Histórico" },
 ] as const
 
 export type PropertyDetailTab = (typeof PROPERTY_DETAIL_TABS)[number]["value"]

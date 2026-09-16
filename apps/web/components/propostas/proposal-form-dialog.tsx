@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { CircleAlertIcon } from "lucide-react"
+import { BadgePercentIcon, CircleAlertIcon } from "lucide-react"
 import { Controller, useForm, useWatch } from "react-hook-form"
 
 import { LISTING_PURPOSE_LABELS } from "@workspace/core/properties/enums"
@@ -46,7 +46,7 @@ import { toast } from "@workspace/ui/components/toast"
 import { ToggleGroup, ToggleGroupItem } from "@workspace/ui/components/toggle-group"
 
 import { OptionCombobox, type ComboboxOption } from "@/components/propostas/option-combobox"
-import { createProposal, updateProposal } from "@/lib/propostas/actions"
+import { changeProposalStatus, createProposal, updateProposal } from "@/lib/propostas/actions"
 import { maskBrlInput } from "@/lib/propostas/money"
 import { proposalFormSchema, type ProposalFormValues } from "@/lib/propostas/schemas"
 
@@ -94,6 +94,8 @@ type ProposalFormProps = {
    * usuário (`defaultBrokerId`), sem opção de troca.
    */
   lockBroker?: boolean
+  /** Depois de salvar um valor que depende da aprovação do gerente. */
+  onDiscountApprovalNeeded?: (proposalId: string) => void
 }
 
 type ProposalFormDialogProps = ProposalFormProps & {
@@ -137,9 +139,14 @@ function getInitialValues({
 }
 
 function ProposalForm({ onDone, ...props }: ProposalFormProps & { onDone: () => void }) {
-  const { properties, clients, brokers, editing } = props
+  const { properties, clients, brokers, editing, onDiscountApprovalNeeded } = props
   const [isSubmitting, startSubmit] = React.useTransition()
   const [formError, setFormError] = React.useState<string | null>(null)
+  // Recusa do gatilho de desconto, amarrada ao valor que foi barrado.
+  const [discountBlock, setDiscountBlock] = React.useState<{
+    message: string
+    amount: string
+  } | null>(null)
   const readOnly = editing?.readOnly ?? false
   const brokerLocked = !editing && Boolean(props.lockBroker)
 
@@ -150,6 +157,9 @@ function ProposalForm({ onDone, ...props }: ProposalFormProps & { onDone: () => 
   })
 
   const propertyId = useWatch({ control: form.control, name: "propertyId" })
+  const amount = useWatch({ control: form.control, name: "amount" })
+  // Mudou o valor depois da recusa: vale tentar salvar do jeito normal de novo.
+  const blockedDiscount = discountBlock?.amount === amount ? discountBlock : null
 
   const propertyOptions = React.useMemo(
     () => withFallback(properties, editing?.values.propertyId, editing?.propertyLabel ?? ""),
@@ -187,6 +197,7 @@ function ProposalForm({ onDone, ...props }: ProposalFormProps & { onDone: () => 
     if (readOnly) return
 
     setFormError(null)
+    setDiscountBlock(null)
 
     startSubmit(async () => {
       const result = editing
@@ -194,12 +205,55 @@ function ProposalForm({ onDone, ...props }: ProposalFormProps & { onDone: () => 
         : await createProposal(values)
 
       if (!result.ok) {
+        if ("needsDiscountApproval" in result && result.needsDiscountApproval) {
+          setDiscountBlock({ message: result.error, amount: values.amount })
+          return
+        }
+
         setFormError(result.error)
         return
       }
 
       toast.add({ title: result.message ?? "Proposta salva.", type: "success" })
       onDone()
+    })
+  }
+
+  // O gatilho só barra a edição de proposta ENVIADA (rascunho e contraproposta
+  // mudam de valor livremente). E a RPC de pedido mede o valor já gravado, então
+  // não dá para pedir antes de salvar: o caminho é registrar a contraproposta,
+  // salvar o valor novo e pedir a aprovação antes de reenviar.
+  function saveAsCounterOffer(values: ProposalFormValues) {
+    if (!editing || readOnly) return
+
+    setFormError(null)
+
+    startSubmit(async () => {
+      const countered = await changeProposalStatus(editing.id, "countered")
+
+      if (!countered.ok) {
+        // Ex.: alguém já registrou a contraproposta. Sem o bloqueio, o botão volta
+        // a ser o "Salvar" normal, que em contraproposta não trava.
+        setDiscountBlock(null)
+        setFormError(countered.error)
+        return
+      }
+
+      const saved = await updateProposal(editing.id, values)
+
+      if (!saved.ok) {
+        setDiscountBlock(null)
+        setFormError(`A contraproposta foi registrada, mas o valor não foi salvo: ${saved.error}`)
+        return
+      }
+
+      toast.add({
+        title: "Contraproposta registrada com o valor novo.",
+        description: "Peça a aprovação do gerente antes de reenviar a proposta.",
+        type: "success",
+      })
+      onDone()
+      onDiscountApprovalNeeded?.(editing.id)
     })
   }
 
@@ -221,6 +275,16 @@ function ProposalForm({ onDone, ...props }: ProposalFormProps & { onDone: () => 
               <CircleAlertIcon />
               <AlertTitle>Não foi possível salvar</AlertTitle>
               <AlertDescription>{formError}</AlertDescription>
+            </Alert>
+          ) : null}
+          {blockedDiscount ? (
+            <Alert variant="destructive">
+              <BadgePercentIcon />
+              <AlertTitle>Este valor precisa da aprovação do gerente</AlertTitle>
+              <AlertDescription>
+                {blockedDiscount.message} Como a proposta já foi enviada, o valor novo entra como
+                contraproposta; depois é só pedir a aprovação e reenviar.
+              </AlertDescription>
             </Alert>
           ) : null}
           <Controller
@@ -444,7 +508,20 @@ function ProposalForm({ onDone, ...props }: ProposalFormProps & { onDone: () => 
           <DialogClose render={<Button type="button" variant="outline" />}>
             {readOnly ? "Fechar" : "Cancelar"}
           </DialogClose>
-          {readOnly ? null : (
+          {readOnly ? null : blockedDiscount && editing ? (
+            <Button
+              type="button"
+              disabled={isSubmitting}
+              onClick={() => void form.handleSubmit(saveAsCounterOffer)()}
+            >
+              {isSubmitting ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <BadgePercentIcon data-icon="inline-start" />
+              )}
+              Registrar contraproposta e salvar
+            </Button>
+          ) : (
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting ? <Spinner data-icon="inline-start" /> : null}
               {editing ? "Salvar alterações" : "Criar proposta"}

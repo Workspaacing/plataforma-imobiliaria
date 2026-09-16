@@ -1,6 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { after } from "next/server"
 import { z } from "zod"
 
 import type { ActionResult } from "@/lib/auth/action-result"
@@ -10,11 +11,19 @@ import {
   toFieldErrors,
   type ActionResultWithData,
 } from "@/lib/clientes/action-result"
-import { permissionDeniedMessage, translateDatabaseError } from "@/lib/clientes/db-errors"
+import {
+  GENERIC_ERROR_MESSAGE,
+  permissionDeniedMessage,
+  translateDatabaseError,
+} from "@/lib/clientes/db-errors"
+import { getOrganizationMembers } from "@/lib/clientes/members"
+import { getMemberName } from "@/lib/clientes/options"
+import { sendNotificationEmail } from "@/lib/email"
 import { LEAD_STAGE_LABELS, LEADS_PATH } from "@/lib/leads/constants"
 import { createLeadsClient, type LeadsServerClient } from "@/lib/leads/db"
 import type { LeadUpdate } from "@/lib/leads/db-types"
 import {
+  canAssignFromRoulette,
   canChooseLeadAssignee,
   canCreateLeads,
   canDeleteLeads,
@@ -51,6 +60,56 @@ async function isActiveMember(supabase: LeadsServerClient, organizationId: strin
     .maybeSingle()
 
   return Boolean(data)
+}
+
+/** Colunas que o aviso de novo lead precisa (e o responsável que ficou de fato). */
+const ASSIGNED_LEAD_COLUMNS = "id, name, source, interest, phone, assigned_to"
+
+type AssignedLeadRow = {
+  id: string
+  name: string
+  source: string
+  interest: string | null
+  phone: string | null
+  assigned_to: string | null
+}
+
+/**
+ * Avisa por e-mail o corretor que ficou com o lead, quando não foi ele próprio
+ * quem mexeu. O destinatário não vai no payload: o handler o descobre pela RPC
+ * `get_notification_recipients`, que lê o responsável atual do lead. Enviar
+ * depois da resposta (`after`) e engolir a falha — e-mail nunca derruba a ação.
+ */
+function notifyLeadAssignee(params: {
+  organizationSlug: string
+  organizationId: string
+  lead: AssignedLeadRow
+  actorId: string
+}) {
+  const { lead, actorId } = params
+
+  if (!lead.assigned_to || lead.assigned_to === actorId) {
+    return
+  }
+
+  after(async () => {
+    try {
+      await sendNotificationEmail("new_lead", {
+        organizationSlug: params.organizationSlug,
+        organizationId: params.organizationId,
+        leadId: lead.id,
+        lead: {
+          name: lead.name,
+          source: lead.source,
+          interest: lead.interest,
+          phone: lead.phone,
+        },
+      })
+    } catch {
+      // Sem detalhes no log: o payload leva nome e telefone do lead.
+      console.error("[leads] aviso de novo lead não enviado ao responsável.")
+    }
+  })
 }
 
 /** Registra no histórico do cliente (quando o lead já foi convertido). Falha não bloqueia. */
@@ -109,6 +168,8 @@ export async function createLead(
     return { ok: false, error: message, fieldErrors: { assignedTo: message } }
   }
 
+  // O responsável de volta pode não ser o pedido: com o rodízio ligado, quem
+  // decide é o trigger da roleta (private.leads_apply_roulette).
   const { data, error } = await supabase
     .from("leads")
     .insert({
@@ -116,7 +177,7 @@ export async function createLead(
       organization_id: membership.organizationId,
       assigned_to: assignedTo,
     })
-    .select("id")
+    .select(ASSIGNED_LEAD_COLUMNS)
     .single()
 
   if (error) {
@@ -131,6 +192,13 @@ export async function createLead(
 
     return { ok: false, error: translateDatabaseError(error, action) }
   }
+
+  notifyLeadAssignee({
+    organizationSlug: membership.organization.slug,
+    organizationId: membership.organizationId,
+    lead: data,
+    actorId: user.id,
+  })
 
   revalidateLeads()
 
@@ -307,13 +375,15 @@ export async function assignLead(leadId: string, assigneeId: string | null): Pro
     query = query.is("assigned_to", null)
   }
 
-  const { data, error } = await query.select("id")
+  const { data, error } = await query.select(ASSIGNED_LEAD_COLUMNS)
 
   if (error) {
     return { ok: false, error: translateDatabaseError(error, action) }
   }
 
-  if (data.length === 0) {
+  const updated = data[0]
+
+  if (!updated) {
     return {
       ok: false,
       error: isClaim
@@ -321,6 +391,13 @@ export async function assignLead(leadId: string, assigneeId: string | null): Pro
         : permissionDeniedMessage(action),
     }
   }
+
+  notifyLeadAssignee({
+    organizationSlug: membership.organization.slug,
+    organizationId: membership.organizationId,
+    lead: updated,
+    actorId: user.id,
+  })
 
   revalidateLeads(leadId)
 
@@ -332,6 +409,79 @@ export async function assignLead(leadId: string, assigneeId: string | null): Pro
         ? "Responsável atualizado."
         : "Lead sem responsável.",
   }
+}
+
+// -----------------------------------------------------------------------------
+// Rodízio (roleta)
+// -----------------------------------------------------------------------------
+
+/**
+ * Resposta de `public.assign_lead_from_roulette`: `{ ok, assigned_to,
+ * queued_until }` na entrega/fila e `{ ok: false, reason }` quando não há para
+ * quem mandar. Campos desconhecidos são ignorados.
+ */
+const rouletteResultSchema = z.object({
+  ok: z.boolean(),
+  assigned_to: z.guid().nullish(),
+  queued_until: z.string().nullish(),
+  reason: z.string().nullish(),
+})
+
+/** Manda o lead para o próximo corretor da roleta (dono, gerente e assistente). */
+export async function assignLeadFromRoulette(leadId: string): Promise<ActionResult> {
+  if (!leadIdSchema.safeParse(leadId).success) {
+    return { ok: false, error: "Lead inválido." }
+  }
+
+  const { membership } = await requireMembership()
+  const action = "distribuir leads pelo rodízio"
+
+  if (!canAssignFromRoulette(membership.role)) {
+    return { ok: false, error: permissionDeniedMessage(action) }
+  }
+
+  const supabase = await createLeadsClient()
+  const { data, error } = await supabase.rpc("assign_lead_from_roulette", {
+    p_organization_id: membership.organizationId,
+    p_lead_id: leadId,
+  })
+
+  if (error) {
+    // 22023 (rodízio desligado) e P0002 (lead sumiu) já vêm em pt-BR do banco.
+    return { ok: false, error: translateDatabaseError(error, action) }
+  }
+
+  const parsed = rouletteResultSchema.safeParse(data)
+
+  if (!parsed.success) {
+    console.error("[leads] resposta inesperada do rodízio.")
+    return { ok: false, error: GENERIC_ERROR_MESSAGE }
+  }
+
+  const result = parsed.data
+
+  if (!result.ok) {
+    return {
+      ok: false,
+      error:
+        result.reason === "empty_queue"
+          ? "Nenhum corretor na fila do rodízio."
+          : "Lead não encontrado. Ele pode ter sido removido.",
+    }
+  }
+
+  revalidateLeads(leadId)
+
+  if (!result.assigned_to) {
+    return {
+      ok: true,
+      message: "Ninguém de plantão agora. O lead entra na fila da próxima janela.",
+    }
+  }
+
+  const members = await getOrganizationMembers(membership.organizationId)
+
+  return { ok: true, message: `Lead enviado para ${getMemberName(members, result.assigned_to)}.` }
 }
 
 // -----------------------------------------------------------------------------
@@ -442,7 +592,7 @@ export async function deleteLead(leadId: string): Promise<ActionResult> {
 // Leitura sob demanda (painel lateral)
 // -----------------------------------------------------------------------------
 
-/** Cliente vinculado e histórico, carregados quando o painel do lead abre. */
+/** Linha do tempo, cliente vinculado e histórico dele, quando o painel do lead abre. */
 export async function loadLeadDetailExtras(
   leadId: string
 ): Promise<ActionResultWithData<LeadDetailExtras>> {
@@ -473,7 +623,7 @@ export async function loadLeadDetailExtras(
 
   return {
     ok: true,
-    data: await getLeadDetailExtras(supabase, membership.organizationId, lead.client_id),
+    data: await getLeadDetailExtras(supabase, membership.organizationId, leadId, lead.client_id),
   }
 }
 

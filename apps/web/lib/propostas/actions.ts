@@ -4,10 +4,16 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
 import { LISTING_PURPOSE_LABELS, PROPOSAL_STATUS_VALUES } from "@workspace/core/properties/enums"
+import {
+  clampProposalShareDays,
+  isProposalShareToken,
+  PROPOSAL_SHARE_DEFAULT_DAYS,
+} from "@workspace/core/proposals/share"
 
 import type { ActionResult } from "@/lib/auth/action-result"
 import { requireMembership } from "@/lib/auth/session"
-import { translateDbError } from "@/lib/propostas/db-errors"
+import { translateDbError, type DbErrorLike } from "@/lib/propostas/db-errors"
+import { discountApprovalMessage, isDiscountApprovalError } from "@/lib/propostas/discount"
 import { parseBrlInput } from "@/lib/propostas/money"
 import { canEditProperty, COMMERCIAL_ROLES, isSelfBrokerRole } from "@/lib/propostas/permissions"
 import {
@@ -23,6 +29,7 @@ import {
   type ProposalStatus,
 } from "@/lib/propostas/status"
 import { createClient } from "@/lib/supabase/server"
+import { buildProposalShareUrl } from "@/lib/tenant/urls"
 
 function revalidateProposals() {
   revalidatePath("/propostas")
@@ -33,6 +40,22 @@ const NO_UPDATE_PERMISSION =
   "Você não tem permissão para alterar esta proposta. Só o corretor da proposta ou quem edita o imóvel pode fazer isso."
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>
+
+/**
+ * Falha de uma action de proposta. `needsDiscountApproval` avisa que quem barrou
+ * foi o gatilho de desconto: a tela oferece pedir a aprovação do gerente.
+ */
+export type ProposalFailure = { ok: false; error: string; needsDiscountApproval?: boolean }
+
+export type ProposalSaveResult = { ok: true; message?: string } | ProposalFailure
+
+function toProposalFailure(error: DbErrorLike): ProposalFailure {
+  if (isDiscountApprovalError(error)) {
+    return { ok: false, error: discountApprovalMessage(error), needsDiscountApproval: true }
+  }
+
+  return { ok: false, error: translateDbError(error, NO_UPDATE_PERMISSION) }
+}
 
 /** Confere se o imóvel existe e aceita a finalidade da proposta. */
 async function checkPropertyPurpose(
@@ -124,7 +147,7 @@ export async function createProposal(values: ProposalFormValues): Promise<Action
 export async function updateProposal(
   proposalId: string,
   values: ProposalFormValues
-): Promise<ActionResult> {
+): Promise<ProposalSaveResult> {
   const id = proposalIdSchema.safeParse(proposalId)
   const parsed = proposalFormSchema.safeParse(values)
 
@@ -169,7 +192,8 @@ export async function updateProposal(
     .in("status", [...OPEN_PROPOSAL_STATUSES])
     .select("id")
 
-  if (error) return { ok: false, error: translateDbError(error, NO_UPDATE_PERMISSION) }
+  // Baixar o valor de proposta enviada além do limite também passa pelo gatilho.
+  if (error) return toProposalFailure(error)
   if (data.length === 0) return { ok: false, error: NO_UPDATE_PERMISSION }
 
   revalidateProposals()
@@ -183,7 +207,7 @@ export type ProposalStatusResult =
       /** Ao aceitar: oferece reservar o imóvel, se o usuário puder editá-lo. */
       reserveOffer: { propertyId: string; propertyLabel: string } | null
     }
-  | { ok: false; error: string }
+  | ProposalFailure
 
 const statusSchema = z.enum(PROPOSAL_STATUS_VALUES as [ProposalStatus, ...ProposalStatus[]])
 
@@ -235,7 +259,7 @@ export async function changeProposalStatus(
     .eq("status", proposal.status)
     .select("id")
 
-  if (error) return { ok: false, error: translateDbError(error, NO_UPDATE_PERMISSION) }
+  if (error) return toProposalFailure(error)
 
   if (data.length === 0) {
     const { data: latest } = await supabase
@@ -313,4 +337,92 @@ export async function reserveProperty(propertyId: string): Promise<ActionResult>
   revalidateProposals()
   revalidatePath("/painel")
   return { ok: true, message: "Imóvel marcado como reservado." }
+}
+
+// Link público da proposta -----------------------------------------------------
+
+const NO_SHARE_PERMISSION =
+  "Só o corretor da proposta ou quem edita o imóvel pode gerar o link da proposta."
+
+export type ProposalShareResult =
+  { ok: true; message: string; url: string; expiresAt: string } | { ok: false; error: string }
+
+const shareSchema = z.object({
+  token: z.string().refine(isProposalShareToken, "Link inválido."),
+  expires_at: z.string(),
+  slug: z.string().min(1),
+})
+
+/**
+ * Cria (ou renova) o link público da proposta. `rotate` troca o token e derruba
+ * o endereço que já foi enviado ao cliente.
+ */
+export async function createProposalShare(
+  proposalId: string,
+  days: number = PROPOSAL_SHARE_DEFAULT_DAYS,
+  rotate = false
+): Promise<ProposalShareResult> {
+  const id = proposalIdSchema.safeParse(proposalId)
+
+  if (!id.success) return { ok: false, error: "Proposta inválida." }
+
+  await requireMembership()
+
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc("share_proposal", {
+    p_proposal_id: id.data,
+    p_days: clampProposalShareDays(days),
+    p_rotate: rotate,
+  })
+
+  if (error) return { ok: false, error: translateDbError(error, NO_SHARE_PERMISSION) }
+
+  const share = shareSchema.safeParse(data)
+
+  if (!share.success) {
+    return { ok: false, error: "Não foi possível gerar o link agora. Tente novamente." }
+  }
+
+  let url: string
+
+  try {
+    url = buildProposalShareUrl(share.data.slug, share.data.token)
+  } catch {
+    return {
+      ok: false,
+      error: "O endereço público do app não está configurado. Fale com o suporte.",
+    }
+  }
+
+  revalidateProposals()
+
+  return {
+    ok: true,
+    message: rotate ? "Novo link gerado. O anterior deixou de valer." : "Link pronto para enviar.",
+    url,
+    expiresAt: share.data.expires_at,
+  }
+}
+
+/** Derruba o link sem apagar o registro de quando o cliente abriu a proposta. */
+export async function revokeProposalShare(proposalId: string): Promise<ActionResult> {
+  const id = proposalIdSchema.safeParse(proposalId)
+
+  if (!id.success) return { ok: false, error: "Proposta inválida." }
+
+  await requireMembership()
+
+  const supabase = await createClient()
+  const { data, error } = await supabase.rpc("revoke_proposal_share", {
+    p_proposal_id: id.data,
+  })
+
+  if (error) return { ok: false, error: translateDbError(error, NO_SHARE_PERMISSION) }
+
+  revalidateProposals()
+
+  return {
+    ok: true,
+    message: data ? "Link desativado." : "Esta proposta não tinha link ativo.",
+  }
 }

@@ -13,6 +13,7 @@ import {
 } from "@workspace/ui/components/card"
 
 import { InviteMemberDialog } from "@/components/configuracoes/invite-member-dialog"
+import { RolePermissions } from "@/components/configuracoes/role-permissions"
 import {
   PendingInvitations,
   type PendingInvitation,
@@ -133,6 +134,19 @@ export default async function EquipePage() {
         </CardHeader>
         <CardContent>
           <TeamMembersTable members={members} actorRole={actorRole} today={todayInSaoPaulo()} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>O que cada papel pode fazer</CardTitle>
+          <CardDescription>
+            Use antes de escolher o papel de alguém. As regras valem no banco de dados: um papel sem
+            permissão não consegue a ação nem por link direto.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <RolePermissions actorRole={actorRole} />
         </CardContent>
       </Card>
 

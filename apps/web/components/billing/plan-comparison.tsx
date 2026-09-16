@@ -8,6 +8,7 @@ import {
   formatLimit,
   LIMIT_KEYS,
   LIMITS,
+  LISTING_PHOTO_MAX_MB,
   maxExtraSeats,
   PLAN_KEYS,
   PLANS,
@@ -75,6 +76,13 @@ function buildGroups(prices: CatalogPrices): ComparisonGroup[] {
       soon: LIMITS[key].status === "soon",
       cells: byPlan((plan) => text(limitText(key, PLANS[plan].limits[key]))),
     })),
+    {
+      // Igual em todos os planos: não é chave de `limits`, é constante do produto.
+      id: "photo-size",
+      label: "Tamanho máximo por foto",
+      soon: false,
+      cells: byPlan(() => text(`${LISTING_PHOTO_MAX_MB} MB`)),
+    },
     {
       id: "seat",
       label: "Usuário extra",

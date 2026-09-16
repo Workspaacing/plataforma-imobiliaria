@@ -20,10 +20,6 @@ export const metadata: Metadata = {
     "CRM para corretores e imobiliárias: imóveis, clientes, funil de leads, agenda, propostas e landing pages num só lugar.",
 }
 
-// Pré-visualização ao vivo do tweakcn (editor de temas shadcn). Só em desenvolvimento:
-// em produção, nenhum script de terceiro roda nas telas com dados de clientes.
-const enableTweakcnPreview = process.env.NODE_ENV === "development"
-
 // Web Analytics e Speed Insights da Vercel só no build de produção. Os scripts vêm do
 // próprio domínio (/_vercel/...) e só respondem na Vercel com os recursos ativados no painel.
 const enableVercelObservability = process.env.NODE_ENV === "production"
@@ -40,11 +36,6 @@ export default function RootLayout({
       suppressHydrationWarning
       className={cn("antialiased", "font-sans", GeistSans.variable, GeistMono.variable)}
     >
-      {enableTweakcnPreview ? (
-        <head>
-          <script async crossOrigin="anonymous" src="https://tweakcn.com/live-preview.min.js" />
-        </head>
-      ) : null}
       {/* Extensões como ColorZilla injetam atributos no body antes da hidratação. */}
       <body suppressHydrationWarning>
         <DirectionProvider direction="ltr">{children}</DirectionProvider>

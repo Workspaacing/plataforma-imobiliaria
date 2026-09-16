@@ -9,7 +9,8 @@ import { PLANS, clampExtraSeats, type PlanKey } from "./plans"
 export const LIMIT_KEYS = [
   "users",
   "landing_pages",
-  "storage_gb",
+  "owned_listings",
+  "photos_per_listing",
   "pipelines",
   "ai_conversations",
   "whatsapp_numbers",
@@ -36,7 +37,12 @@ export type LimitDefinition = {
 export const LIMITS: Record<LimitKey, LimitDefinition> = {
   users: { label: "Usuários", status: "available", enforced: true },
   landing_pages: { label: "Landing pages publicadas", status: "available", enforced: true },
-  storage_gb: { label: "Fotos e documentos", unit: "GB", status: "available", enforced: false },
+  owned_listings: {
+    label: "Imóveis próprios (com fotos hospedadas por nós)",
+    status: "available",
+    enforced: false,
+  },
+  photos_per_listing: { label: "Fotos por imóvel próprio", status: "available", enforced: false },
   pipelines: { label: "Funis de leads", status: "soon", enforced: false },
   ai_conversations: {
     label: "Conversas de IA no WhatsApp por mês",

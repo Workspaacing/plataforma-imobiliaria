@@ -106,7 +106,11 @@ export type PropertyListItem = Pick<
   | "captured_by"
   | "broker_id"
   | "published_to_portals"
-> & { coverPath: string | null }
+> & {
+  coverPath: string | null
+  /** Nome do proprietário que casou com a busca (para explicar o resultado). */
+  matchedOwner: string | null
+}
 
 export type PropertyListResult = {
   items: PropertyListItem[]
@@ -117,102 +121,84 @@ export type PropertyListResult = {
   outOfRange: boolean
 }
 
-/** Remove caracteres com significado na sintaxe de filtros do PostgREST. */
-function sanitizeSearchTerm(value: string) {
-  return value
-    .replace(/[%_,()"'\\*:.]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-}
-
-function priceRange(column: "sale_price" | "rent_price", min: number | null, max: number | null) {
-  const parts: string[] = []
-  if (min != null) parts.push(`${column}.gte.${min}`)
-  if (max != null) parts.push(`${column}.lte.${max}`)
-  return parts
-}
-
 export async function listProperties(
   supabase: ServerSupabaseClient,
   organizationId: string,
   filters: PropertyListFilters
 ): Promise<PropertyListResult> {
-  const from = (filters.page - 1) * PROPERTIES_PAGE_SIZE
-  const to = from + PROPERTIES_PAGE_SIZE - 1
-
-  let query = supabase
-    .from("properties")
-    .select(
-      "id, code, title, neighborhood, city, state, purpose, type, status, sale_price, rent_price, imob_score, captured_by, broker_id, published_to_portals, property_media(storage_path, is_cover, position)",
-      { count: "exact" }
-    )
-    .eq("organization_id", organizationId)
-    // Só a capa (ou a primeira foto) de cada imóvel.
-    .eq("property_media.kind", "image")
-    .order("is_cover", { referencedTable: "property_media", ascending: false })
-    .order("position", { referencedTable: "property_media" })
-    .limit(1, { referencedTable: "property_media" })
-
-  const term = sanitizeSearchTerm(filters.q)
-  if (term) {
-    query = query.or(
-      `code.ilike."%${term}%",title.ilike."%${term}%",neighborhood.ilike."%${term}%"`
-    )
-  }
-
-  if (filters.status) query = query.eq("status", filters.status)
-  if (filters.type) query = query.eq("type", filters.type)
-
-  // "Venda" inclui imóveis de venda e locação; idem "Locação".
-  if (filters.purpose === "sale") query = query.in("purpose", ["sale", "sale_rent"])
-  else if (filters.purpose === "rent") query = query.in("purpose", ["rent", "sale_rent"])
-  else if (filters.purpose === "sale_rent") query = query.eq("purpose", "sale_rent")
-
-  if (filters.minPrice != null || filters.maxPrice != null) {
-    const sale = priceRange("sale_price", filters.minPrice, filters.maxPrice)
-    const rent = priceRange("rent_price", filters.minPrice, filters.maxPrice)
-
-    if (filters.purpose === "sale") {
-      query = query.or(`and(${sale.join(",")})`)
-    } else if (filters.purpose === "rent") {
-      query = query.or(`and(${rent.join(",")})`)
-    } else {
-      query = query.or(`and(${sale.join(",")}),and(${rent.join(",")})`)
-    }
-  }
-
-  if (filters.minBedrooms != null) query = query.gte("bedrooms", filters.minBedrooms)
-
-  const { data, error, count } = await query
-    .order("updated_at", { ascending: false })
-    .order("code", { ascending: false })
-    .range(from, to)
+  // Tudo no Postgres (public.search_properties): filtros, busca por endereço e
+  // por nome do proprietário, capa, paginação e total. `security invoker`, então
+  // o RLS de properties e de clients continua decidindo o que aparece.
+  const { data, error } = await supabase.rpc("search_properties", {
+    p_organization_id: organizationId,
+    // `undefined` sai do corpo do POST e o Postgres usa o default da função.
+    p_term: filters.q || undefined,
+    p_status: filters.status || undefined,
+    p_purpose: filters.purpose || undefined,
+    p_type: filters.type || undefined,
+    p_min_price: filters.minPrice ?? undefined,
+    p_max_price: filters.maxPrice ?? undefined,
+    p_min_bedrooms: filters.minBedrooms ?? undefined,
+    p_limit: PROPERTIES_PAGE_SIZE,
+    p_offset: (filters.page - 1) * PROPERTIES_PAGE_SIZE,
+  })
 
   if (error) {
-    // PGRST103: página além do total.
-    if (error.code === "PGRST103") {
-      return {
-        items: [],
-        total: count ?? 0,
-        page: filters.page,
-        pageCount: 0,
-        outOfRange: true,
-      }
-    }
     throw new Error(`Não foi possível carregar os imóveis (${error.code ?? "erro"}).`)
   }
 
-  const total = count ?? 0
-  const items: PropertyListItem[] = (data ?? []).map(({ property_media: media, ...property }) => ({
-    ...property,
-    coverPath: media?.[0]?.storage_path ?? null,
+  const rows = data ?? []
+  const items: PropertyListItem[] = rows.map((row) => ({
+    id: row.id,
+    code: row.code,
+    title: row.title,
+    neighborhood: row.neighborhood,
+    city: row.city,
+    state: row.state,
+    purpose: row.purpose,
+    type: row.type,
+    status: row.status,
+    sale_price: row.sale_price,
+    rent_price: row.rent_price,
+    imob_score: row.imob_score,
+    captured_by: row.captured_by,
+    broker_id: row.broker_id,
+    published_to_portals: row.published_to_portals,
+    coverPath: row.cover_path,
+    matchedOwner: row.matched_owner,
   }))
+
+  // O total vem repetido em cada linha, então uma página vazia não o traz. Nesse
+  // caso a tela não consegue distinguir "o filtro não achou nada" de "a página
+  // pedida passou da última" — duas mensagens bem diferentes para o usuário.
+  // Uma segunda chamada, só com a primeira linha, resolve; ela só acontece
+  // quando a página vem vazia depois da primeira, que é o caso raro.
+  let total = rows[0]?.total_count ?? 0
+
+  if (items.length === 0 && filters.page > 1) {
+    const { data: firstPage } = await supabase.rpc("search_properties", {
+      p_organization_id: organizationId,
+      p_term: filters.q || undefined,
+      p_status: filters.status || undefined,
+      p_purpose: filters.purpose || undefined,
+      p_type: filters.type || undefined,
+      p_min_price: filters.minPrice ?? undefined,
+      p_max_price: filters.maxPrice ?? undefined,
+      p_min_bedrooms: filters.minBedrooms ?? undefined,
+      p_limit: 1,
+      p_offset: 0,
+    })
+
+    total = firstPage?.[0]?.total_count ?? 0
+  }
 
   return {
     items,
     total,
     page: filters.page,
     pageCount: Math.max(1, Math.ceil(total / PROPERTIES_PAGE_SIZE)),
-    outOfRange: items.length === 0 && total > 0,
+    // Fora de alcance é só quando existe resultado em outra página. Filtro que
+    // não achou nada continua sendo "nenhum imóvel encontrado".
+    outOfRange: items.length === 0 && filters.page > 1 && total > 0,
   }
 }

@@ -60,6 +60,7 @@ import { Skeleton } from "@workspace/ui/components/skeleton"
 
 import { AppointmentFormDialog } from "@/components/agenda/appointment-form-dialog"
 import { ACTIVITY_ICONS } from "@/components/clientes/activity-icons"
+import { AssignRouletteButton } from "@/components/leads/assign-roulette-button"
 import { ConvertLeadDialog } from "@/components/leads/convert-lead-dialog"
 import { DeleteLeadButton } from "@/components/leads/delete-lead-button"
 import { LeadActivityForm } from "@/components/leads/lead-activity-form"
@@ -68,6 +69,7 @@ import {
   LeadSourceBadge,
   LeadStageBadge,
 } from "@/components/leads/lead-badges"
+import { LeadHistoryTimeline } from "@/components/leads/lead-history"
 import { LeadStageSelect } from "@/components/leads/lead-stage-select"
 import { TaskFormDialog } from "@/components/tarefas/task-form-dialog"
 import { canScheduleAppointments } from "@/lib/agenda/permissions"
@@ -84,7 +86,6 @@ import type { ConvertLeadResult } from "@/lib/leads/convert-actions"
 import {
   getLeadInterestLabel,
   LEAD_DUPLICATE_WINDOW_DAYS,
-  LEAD_RESPONSE_TARGET_MINUTES,
   LEAD_SOURCE_LABELS,
   LEAD_STAGE_LABELS,
   LEADS_PATH,
@@ -92,10 +93,11 @@ import {
 import type { LeadStage } from "@/lib/leads/db-types"
 import {
   CLICK_ID_KEYS,
+  formatDurationShort,
   formatElapsedShort,
   formatLeadPhone,
   formatRelativeShort,
-  isLeadAwaitingContact,
+  getLeadSlaView,
   isLeadWithoutContact,
   leadMailtoHref,
   leadTelHref,
@@ -105,13 +107,19 @@ import {
   UTM_LABELS,
 } from "@/lib/leads/format"
 import {
+  canAssignFromRoulette,
   canChooseLeadAssignee,
   canClaimLead,
   canConvertLead,
   canDeleteLeads,
   canEditLead,
 } from "@/lib/leads/permissions"
-import type { LeadActivityItem, LeadDetailExtras, LeadItem } from "@/lib/leads/types"
+import type {
+  LeadActivityItem,
+  LeadDetailExtras,
+  LeadItem,
+  LeadSlaSettings,
+} from "@/lib/leads/types"
 
 const DETAIL_LIST_CLASS =
   "grid grid-cols-[minmax(0,auto)_1fr] gap-x-4 gap-y-1.5 text-sm [&_dt]:text-muted-foreground"
@@ -125,7 +133,9 @@ export type LeadDetailProps = {
   currentUserId: string
   role: Role
   nowMs: number
-  /** null enquanto carrega o cliente vinculado e o histórico. */
+  /** Prazo e rodízio da imobiliária (lead_routing_settings). */
+  sla: LeadSlaSettings
+  /** null enquanto carrega a linha do tempo, o cliente vinculado e o histórico. */
   extras: LeadDetailExtras | null
   extrasError: string | null
   isPending: boolean
@@ -158,6 +168,7 @@ export function LeadDetail({
   currentUserId,
   role,
   nowMs,
+  sla,
   extras,
   extrasError,
   isPending,
@@ -173,7 +184,8 @@ export function LeadDetail({
   const canEdit = canEditLead(role, access, currentUserId)
   const canConvert = canConvertLead(role, access, currentUserId)
   const withoutContact = isLeadWithoutContact(lead)
-  const overdue = isLeadAwaitingContact(lead, nowMs)
+  const slaView = getLeadSlaView(lead, nowMs, sla)
+  const overdue = slaView.state === "breached"
   const phone = formatLeadPhone(lead.phone)
   const whatsapp = leadWhatsappHref(lead.phone)
   const tel = leadTelHref(lead.phone)
@@ -213,11 +225,18 @@ export function LeadDetail({
         <Alert variant={overdue ? "destructive" : undefined}>
           <TimerIcon />
           <AlertTitle>
-            {overdue ? "Primeiro contato fora do prazo" : "Aguardando o primeiro contato"}
+            {overdue
+              ? `Primeiro contato fora do prazo há ${formatDurationShort(slaView.overdueMs)}`
+              : slaView.state === "warning"
+                ? `O prazo do primeiro contato acaba em ${slaView.minutesLeft} min`
+                : "Aguardando o primeiro contato"}
           </AlertTitle>
           <AlertDescription>
-            Sem contato há {formatElapsedShort(lead.createdAt, nowMs)}. A meta é responder em até{" "}
-            {LEAD_RESPONSE_TARGET_MINUTES} min: quem responde rápido converte muito mais.
+            Sem contato há {formatElapsedShort(lead.createdAt, nowMs)}. A meta desta imobiliária é
+            responder em até {sla.slaMinutes} min: quem responde rápido converte muito mais.
+            {lead.slaReassignments > 0
+              ? ` Este lead já voltou ${lead.slaReassignments}x para o rodízio por estouro do prazo.`
+              : ""}
           </AlertDescription>
         </Alert>
       ) : null}
@@ -375,6 +394,18 @@ export function LeadDetail({
                 </div>
               </>
             )}
+            {sla.rouletteEnabled && canAssignFromRoulette(role) ? (
+              <>
+                <div className="flex flex-wrap gap-2">
+                  <AssignRouletteButton leadId={lead.id} disabled={isPending} />
+                </div>
+                <FieldDescription>
+                  {lead.routingDueAt
+                    ? "Ninguém de plantão quando o lead chegou: ele entra na próxima janela do rodízio."
+                    : "Manda o lead para o próximo corretor da fila do rodízio."}
+                </FieldDescription>
+              </>
+            ) : null}
           </Field>
         </FieldGroup>
       </DetailSection>
@@ -660,6 +691,25 @@ export function LeadDetail({
             </ItemContent>
           </Item>
         </ItemGroup>
+
+        {/* Vem do banco (lead_stage_events e lead_assignment_events): mostra
+            também o que a roleta e o cron do SLA fizeram sozinhos. */}
+        {extrasError ? null : (
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-medium text-muted-foreground">Etapas e responsáveis</p>
+            {extras === null ? (
+              <Skeleton className="h-20 w-full" />
+            ) : extras.historyFailed ? (
+              <Alert variant="destructive">
+                <CircleAlertIcon />
+                <AlertTitle>Não foi possível carregar a linha do tempo do lead</AlertTitle>
+                <AlertDescription>Recarregue a página em instantes.</AlertDescription>
+              </Alert>
+            ) : (
+              <LeadHistoryTimeline events={extras.history} nowMs={nowMs} />
+            )}
+          </div>
+        )}
 
         {lead.clientId ? (
           <div className="flex flex-col gap-3">

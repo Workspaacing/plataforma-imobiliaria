@@ -9,6 +9,7 @@ import { getOrganizationMembers } from "@/lib/clientes/members"
 import { createLeadsClient } from "@/lib/leads/db"
 import { canSeeLeadTrackingIds } from "@/lib/leads/permissions"
 import { getLead, getLeadDetailExtras } from "@/lib/leads/queries"
+import { getLeadSlaSettings } from "@/lib/leads/sla"
 
 export const metadata: Metadata = {
   title: "Lead",
@@ -29,9 +30,10 @@ export default async function LeadPage({ params }: LeadPageProps) {
 
   const now = new Date()
   const supabase = await createLeadsClient()
-  const [members, extras] = await Promise.all([
+  const [members, extras, sla] = await Promise.all([
     getOrganizationMembers(organizationId),
-    getLeadDetailExtras(supabase, organizationId, lead.clientId),
+    getLeadDetailExtras(supabase, organizationId, lead.id, lead.clientId),
+    getLeadSlaSettings(supabase, organizationId),
   ])
 
   // Duas colunas (campos | atividades) dependem de separar LeadDetail em blocos: fica
@@ -46,6 +48,7 @@ export default async function LeadPage({ params }: LeadPageProps) {
         currentUserId={user.id}
         role={membership.role}
         nowMs={now.getTime()}
+        sla={sla}
       />
     </PageShell>
   )

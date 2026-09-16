@@ -1,4 +1,12 @@
 import { onlyDigits } from "@workspace/core/br/documents"
+import {
+  LEAD_SLA_DEFAULT_WARNING_PERCENT,
+  leadSlaState,
+  slaDeadlineMs,
+  slaMinutesLeft,
+  toEpochMs,
+  type LeadSlaState,
+} from "@workspace/core/leads/routing"
 
 import type { Json } from "@workspace/database/types"
 
@@ -31,13 +39,9 @@ export function formatRelativeShort(iso: string, nowMs: number) {
   return `em ${formatDate(iso)}`
 }
 
-/** Tempo decorrido curto para cronômetros: "menos de 1 min", "4 min", "2 h", "3 d". */
-export function formatElapsedShort(iso: string, nowMs: number) {
-  const time = Date.parse(iso)
-
-  if (Number.isNaN(time)) return "—"
-
-  const elapsed = Math.max(0, nowMs - time)
+/** Duração curta para cronômetros: "menos de 1 min", "4 min", "2 h", "3 d". */
+export function formatDurationShort(durationMs: number) {
+  const elapsed = Math.max(0, durationMs)
 
   if (elapsed < MINUTE) return "menos de 1 min"
   if (elapsed < HOUR) return `${Math.floor(elapsed / MINUTE)} min`
@@ -46,22 +50,112 @@ export function formatElapsedShort(iso: string, nowMs: number) {
   return `${Math.floor(elapsed / DAY)} d`
 }
 
+/** Tempo decorrido curto para cronômetros: "menos de 1 min", "4 min", "2 h", "3 d". */
+export function formatElapsedShort(iso: string, nowMs: number) {
+  const time = Date.parse(iso)
+
+  if (Number.isNaN(time)) return "—"
+
+  return formatDurationShort(nowMs - time)
+}
+
 /** Lead em "Novo" ainda sem nenhum contato registrado (cronômetro rodando). */
 export function isLeadWithoutContact(lead: { stage: LeadStage; lastContactAt: string | null }) {
   return lead.stage === "new" && !lead.lastContactAt
 }
 
-/** Lead novo, sem contato registrado e fora da meta de primeiro contato. */
-export function isLeadAwaitingContact(
-  lead: { stage: LeadStage; lastContactAt: string | null; createdAt: string },
-  nowMs: number
-) {
-  if (lead.stage !== "new" || lead.lastContactAt) {
-    return false
+// -----------------------------------------------------------------------------
+// SLA de primeiro contato (prazo configurável por imobiliária)
+// -----------------------------------------------------------------------------
+
+/** Campos de prazo que os selos e avisos leem (subconjunto de `LeadItem`). */
+export type LeadSlaFields = {
+  stage: LeadStage
+  lastContactAt: string | null
+  createdAt: string
+  assignedAt?: string | null
+  firstResponseDueAt?: string | null
+}
+
+/** Prazo configurado da imobiliária (`lead_routing_settings`, já com os padrões aplicados). */
+export type LeadSlaConfig = {
+  slaMinutes: number
+  warningPercent: number
+}
+
+export const DEFAULT_LEAD_SLA_CONFIG: LeadSlaConfig = {
+  slaMinutes: LEAD_RESPONSE_TARGET_MINUTES,
+  warningPercent: LEAD_SLA_DEFAULT_WARNING_PERCENT,
+}
+
+/** Quando o cronômetro começou: a entrega ao responsável atual ou, sem ela, a entrada. */
+function leadSlaStartMs(lead: LeadSlaFields) {
+  return toEpochMs(lead.assignedAt ?? null) ?? toEpochMs(lead.createdAt)
+}
+
+/**
+ * Prazo do primeiro contato em epoch ms. Usa `first_response_due_at` (calculado
+ * pelo banco) sempre que existe; sem prazo gravado — lead ainda sem responsável
+ * ou na fila do plantão — calcula a partir da entrada, para o cronômetro não
+ * sumir de quem está esperando.
+ */
+export function leadSlaDueAtMs(lead: LeadSlaFields, slaMinutes: number) {
+  const dueAt = toEpochMs(lead.firstResponseDueAt ?? null)
+
+  if (dueAt !== null) {
+    return dueAt
   }
 
-  const created = Date.parse(lead.createdAt)
-  return !Number.isNaN(created) && nowMs - created > LEAD_RESPONSE_TARGET_MINUTES * MINUTE
+  const startedAt = leadSlaStartMs(lead)
+  return startedAt === null ? null : slaDeadlineMs(startedAt, slaMinutes)
+}
+
+export type LeadSlaView = {
+  state: LeadSlaState
+  dueAtMs: number | null
+  /** Minutos que faltam para o prazo (0 depois de estourar). */
+  minutesLeft: number
+  /** Há quanto tempo estourou, em ms (0 enquanto está dentro do prazo). */
+  overdueMs: number
+}
+
+const IDLE_SLA_VIEW: LeadSlaView = { state: "idle", dueAtMs: null, minutesLeft: 0, overdueMs: 0 }
+
+/** Estado do prazo do lead para a interface (idle/ok/warning/breached) e os tempos do rótulo. */
+export function getLeadSlaView(
+  lead: LeadSlaFields,
+  nowMs: number,
+  config: LeadSlaConfig = DEFAULT_LEAD_SLA_CONFIG
+): LeadSlaView {
+  if (!isLeadWithoutContact(lead)) {
+    return IDLE_SLA_VIEW
+  }
+
+  const dueAtMs = leadSlaDueAtMs(lead, config.slaMinutes)
+  const state = leadSlaState({
+    assignedAtMs: leadSlaStartMs(lead),
+    dueAtMs,
+    nowMs,
+    warningPercent: config.warningPercent,
+  })
+
+  return {
+    state,
+    dueAtMs,
+    minutesLeft: slaMinutesLeft(dueAtMs, nowMs),
+    overdueMs: dueAtMs === null ? 0 : Math.max(0, nowMs - dueAtMs),
+  }
+}
+
+/** Lead novo, sem contato registrado e fora do prazo configurado pela imobiliária. */
+export function isLeadAwaitingContact(
+  lead: LeadSlaFields,
+  nowMs: number,
+  slaMinutes: number = LEAD_RESPONSE_TARGET_MINUTES
+) {
+  return (
+    getLeadSlaView(lead, nowMs, { ...DEFAULT_LEAD_SLA_CONFIG, slaMinutes }).state === "breached"
+  )
 }
 
 // -----------------------------------------------------------------------------

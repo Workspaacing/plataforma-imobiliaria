@@ -4,6 +4,8 @@ import { DEFAULT_BRAND_COLOR } from "./sanitize"
 import {
   captureRequestEmail,
   EmailTemplateError,
+  LEAD_SLA_NOTICE_KINDS,
+  leadSlaNoticeEmail,
   newLeadEmail,
   referralNoticeEmail,
   subscriptionNoticeEmail,
@@ -305,5 +307,163 @@ describe("aviso de indicação", () => {
     expect(() => referralNoticeEmail({ ...base, kind: "bonus" as unknown as "confirmed" })).toThrow(
       EmailTemplateError
     )
+  })
+})
+
+describe("aviso de SLA do rodízio de leads", () => {
+  const base = {
+    origin: ORIGIN,
+    brand: { name: "Imobiliária Teste" },
+    recipientName: "Carla Souza",
+    lead: {
+      id: LEAD_ID,
+      name: "Maria Silva",
+      source: "portal",
+      interest: "buy",
+      phone: "11987654321",
+      receivedAt: "2026-09-15T17:30:00Z",
+    },
+    slaMinutes: 30,
+    dueAt: "2026-09-15T18:00:00Z",
+  }
+
+  it("exporta os três tipos de aviso", () => {
+    expect(LEAD_SLA_NOTICE_KINDS).toEqual(["sla_warning", "sla_reassigned", "sla_lost"])
+  })
+
+  it("prazo acabando: assunto com os minutos restantes e link do lead", () => {
+    const { subject, text, html } = leadSlaNoticeEmail({
+      ...base,
+      kind: "sla_warning",
+      minutesLeft: 8,
+    })
+
+    expect(subject).toBe("Faltam 8 min para responder o lead Maria Silva")
+    expect(text).toContain("Olá, Carla!")
+    expect(text).toContain("Você é o corretor responsável pelo lead Maria Silva")
+    expect(text).toContain("O prazo de primeiro contato é de 30 min")
+    expect(text).toContain("Prazo de primeiro contato: 30 min")
+    expect(text).toContain("Responder até: 15 de setembro de 2026")
+    expect(text).toContain("Origem: Portal")
+    expect(text).toContain("Interesse: Comprar")
+    expect(text).toContain(`Abrir o lead no CRM: ${ORIGIN}/leads/${LEAD_ID}`)
+    expect(html).toContain(`href="${ORIGIN}/leads/${LEAD_ID}"`)
+  })
+
+  it("repassado: o novo dono recebe o lead com o prazo dele", () => {
+    const { subject, text, html } = leadSlaNoticeEmail({
+      ...base,
+      kind: "sla_reassigned",
+      recipientName: "Bruno Lima",
+    })
+
+    expect(subject).toBe("Lead Maria Silva é seu: responda em até 30 min")
+    expect(text).toContain("Olá, Bruno!")
+    expect(text).toContain("o primeiro contato não foi feito dentro do prazo")
+    expect(text).toContain("Seu prazo de primeiro contato começa agora e é de 30 min")
+    expect(text).toContain(`Abrir o lead no CRM: ${ORIGIN}/leads/${LEAD_ID}`)
+    expect(html).toContain(`href="${ORIGIN}/leads/${LEAD_ID}"`)
+  })
+
+  it("perdido: explica o rodízio, manda para /leads e não leva o contato do lead", () => {
+    const { subject, text, html } = leadSlaNoticeEmail({ ...base, kind: "sla_lost" })
+
+    expect(subject).toBe("O lead Maria Silva foi repassado")
+    expect(text).toContain("foi repassado para outro corretor da equipe")
+    expect(text).toContain("passa para o próximo corretor da fila")
+    expect(text).toContain("Prazo terminou em: 15 de setembro de 2026")
+    expect(text).toContain(`Ver meus leads: ${ORIGIN}/leads`)
+    expect(text).not.toContain(`/leads/${LEAD_ID}`)
+    expect(html).not.toContain(`/leads/${LEAD_ID}`)
+    expect(text).not.toContain("Telefone")
+    expect(text).not.toContain("4321")
+  })
+
+  it("sem id válido o link cai no funil, em qualquer tipo", () => {
+    for (const kind of LEAD_SLA_NOTICE_KINDS) {
+      const { text, html } = leadSlaNoticeEmail({
+        ...base,
+        kind,
+        lead: { ...base.lead, id: "../../admin" },
+      })
+
+      expect(text).toContain(`${ORIGIN}/leads\n`)
+      expect(text).not.toContain("admin")
+      expect(html).not.toContain("admin")
+    }
+  })
+
+  it("telefone sempre mascarado e nunca completo", () => {
+    for (const kind of LEAD_SLA_NOTICE_KINDS) {
+      const { html, text } = leadSlaNoticeEmail({ ...base, kind })
+
+      expect(text).not.toContain("987654321")
+      expect(html).not.toContain("987654321")
+    }
+
+    for (const kind of ["sla_warning", "sla_reassigned"] as const) {
+      expect(leadSlaNoticeEmail({ ...base, kind }).text).toContain("Telefone: (11) *****-4321")
+    }
+  })
+
+  it("prazo inválido não vira texto: cai no aviso genérico", () => {
+    for (const slaMinutes of [0, -30, 5000, Number.NaN, Number.POSITIVE_INFINITY]) {
+      const warning = leadSlaNoticeEmail({ ...base, kind: "sla_warning", slaMinutes, dueAt: null })
+      const reassigned = leadSlaNoticeEmail({ ...base, kind: "sla_reassigned", slaMinutes })
+
+      expect(warning.text).toContain("Faça o primeiro contato o quanto antes")
+      expect(warning.text).not.toMatch(/\d+ min/)
+      expect(warning.text).not.toMatch(/NaN|Infinity/)
+      expect(reassigned.subject).toBe("Lead Maria Silva é seu: responda agora")
+      expect(reassigned.text).not.toMatch(/\d+ min/)
+    }
+
+    expect(leadSlaNoticeEmail({ ...base, kind: "sla_reassigned", slaMinutes: 1440 }).subject).toBe(
+      "Lead Maria Silva é seu: responda em até 1440 min"
+    )
+    expect(leadSlaNoticeEmail({ ...base, kind: "sla_reassigned", slaMinutes: 30.9 }).subject).toBe(
+      "Lead Maria Silva é seu: responda em até 30 min"
+    )
+  })
+
+  it("minutos restantes inválidos ou fora da faixa não aparecem no assunto", () => {
+    expect(leadSlaNoticeEmail({ ...base, kind: "sla_warning", minutesLeft: 0 }).subject).toBe(
+      "Faltam menos de 1 min para responder o lead Maria Silva"
+    )
+
+    for (const minutesLeft of [-1, 1441, Number.NaN, Number.NEGATIVE_INFINITY, null]) {
+      const { subject, text } = leadSlaNoticeEmail({ ...base, kind: "sla_warning", minutesLeft })
+
+      expect(subject).toBe("O prazo de resposta do lead Maria Silva está acabando")
+      expect(text).not.toMatch(/Faltam/)
+      expect(text).not.toMatch(/NaN|Infinity/)
+      expect(subject).not.toMatch(/[0-9]/)
+    }
+  })
+
+  it("nunca cita o corretor anterior", () => {
+    const previous = { name: "João Pereira", email: "joao.pereira@imob.example" }
+    // O template não tem por onde receber o corretor anterior: nome e e-mail
+    // dele são dados de outra pessoa e não podem aparecer para o novo dono.
+    const email = leadSlaNoticeEmail({
+      ...base,
+      kind: "sla_reassigned" as const,
+      recipientName: "Bruno Lima",
+      previousBrokerName: previous.name,
+      previousBrokerEmail: previous.email,
+    } as Parameters<typeof leadSlaNoticeEmail>[0])
+
+    for (const part of [email.subject, email.text, email.html]) {
+      expect(part).not.toContain(previous.name)
+      expect(part).not.toContain(previous.email)
+      expect(part).not.toContain("imob.example")
+      expect(part).not.toContain("Carla")
+    }
+  })
+
+  it("tipo inválido lança erro", () => {
+    expect(() =>
+      leadSlaNoticeEmail({ ...base, kind: "sla_ok" as unknown as "sla_warning" })
+    ).toThrow(EmailTemplateError)
   })
 })

@@ -44,8 +44,10 @@ function warningText(meter: Meter, planKey: BillingPlanKey) {
       : `${usage} Contrate usuários extras para crescer a equipe.`
   }
 
+  // Todos os planos têm a mesma franquia de landing page, então não há plano
+  // maior a sugerir: o caminho é despublicar a atual e publicar outra.
   if (!suggestion) {
-    return usage
+    return `${usage} Despublique a página que está no ar para publicar outra; os modelos continuam todos disponíveis.`
   }
 
   const limit = PLANS[suggestion].limits.landing_pages

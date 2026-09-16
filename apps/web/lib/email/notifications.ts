@@ -4,11 +4,13 @@ import { normalizeEmailAddress, isUuid } from "@workspace/core/email/sanitize"
 import {
   aiQuotaNoticeEmail,
   captureRequestEmail,
+  leadSlaNoticeEmail,
   newLeadEmail,
   referralNoticeEmail,
   subscriptionNoticeEmail,
   teamInvitationEmail,
   type AiQuotaNoticeKind,
+  type LeadSlaNoticeKind,
   type ReferralNoticeKind,
   type RenderedEmail,
   type SubscriptionNoticeKind,
@@ -41,6 +43,7 @@ import { buildTenantOrigin } from "@/lib/tenant/urls"
 
 export type NotificationKind =
   | "new_lead"
+  | "lead_sla_notice"
   | "capture_request"
   | "team_invitation"
   | "subscription_notice"
@@ -71,6 +74,31 @@ export type NewLeadNotification = {
     phone?: string | null
     receivedAt?: Date | string | null
   }
+  brand?: NotificationBrand | null
+}
+
+/**
+ * Aviso do SLA de primeiro contato (prazo acabando, lead redistribuído ou
+ * perdido), reservado pelo banco na fila private.lead_notifications: o
+ * destinatário já vem decidido de lá.
+ */
+export type LeadSlaNoticeNotification = {
+  organizationSlug: string
+  notice: LeadSlaNoticeKind
+  /** Id do aviso na fila do banco: entra na chave de idempotência. */
+  alertId: string
+  to: EmailAddress
+  lead: {
+    id: string
+    name: string
+    source?: string | null
+    interest?: string | null
+    phone?: string | null
+    receivedAt?: Date | string | null
+  }
+  slaMinutes: number
+  minutesLeft?: number | null
+  dueAt?: Date | string | null
   brand?: NotificationBrand | null
 }
 
@@ -153,6 +181,7 @@ export type AiQuotaNoticeNotification = {
 
 export type NotificationParams = {
   new_lead: NewLeadNotification
+  lead_sla_notice: LeadSlaNoticeNotification
   capture_request: CaptureRequestNotification
   team_invitation: TeamInvitationNotification
   subscription_notice: SubscriptionNoticeNotification
@@ -275,6 +304,44 @@ async function notifyNewLead(params: NewLeadNotification): Promise<NotificationS
       idempotencyKey: deriveIdempotencyKey("new_lead", subjectId, recipient.email),
     }))
   )
+}
+
+async function notifyLeadSlaNotice(
+  params: LeadSlaNoticeNotification
+): Promise<NotificationSummary> {
+  const recipient = normalizeRecipient(params.to)
+
+  if (!recipient || !isUuid(params.alertId)) {
+    return invalidInput("lead_sla_notice")
+  }
+
+  const origin = buildTenantOrigin(params.organizationSlug)
+  const brand = params.brand ?? (await loadOrganizationContext(params.organizationSlug))
+
+  return deliver("lead_sla_notice", [
+    {
+      to: recipient,
+      email: leadSlaNoticeEmail({
+        origin,
+        brand,
+        recipientName: recipient.name,
+        kind: params.notice,
+        lead: {
+          id: params.lead.id,
+          name: params.lead.name,
+          source: params.lead.source,
+          interest: params.lead.interest,
+          phone: params.lead.phone,
+          receivedAt: params.lead.receivedAt,
+        },
+        slaMinutes: params.slaMinutes,
+        minutesLeft: params.minutesLeft,
+        dueAt: params.dueAt,
+      }),
+      // Uma vez por aviso da fila (o banco já reserva cada um).
+      idempotencyKey: deriveIdempotencyKey("lead_sla_notice", params.alertId, recipient.email),
+    },
+  ])
 }
 
 async function notifyCaptureRequest(
@@ -473,6 +540,7 @@ const HANDLERS: {
   [K in NotificationKind]: (params: NotificationParams[K]) => Promise<NotificationSummary>
 } = {
   new_lead: notifyNewLead,
+  lead_sla_notice: notifyLeadSlaNotice,
   capture_request: notifyCaptureRequest,
   team_invitation: notifyTeamInvitation,
   subscription_notice: notifySubscription,

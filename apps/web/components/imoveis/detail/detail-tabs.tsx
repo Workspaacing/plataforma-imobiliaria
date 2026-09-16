@@ -31,7 +31,11 @@ export function PropertyDetailTabs({
 }) {
   const searchParams = useSearchParams()
   const requested = searchParams.get("aba")
-  const value = isPropertyDetailTab(requested) ? requested : DEFAULT_PROPERTY_DETAIL_TAB
+  // Abas escondidas por papel (Histórico) não valem nem vindas pela URL.
+  const value =
+    isPropertyDetailTab(requested) && tabs.some((tab) => tab.value === requested)
+      ? requested
+      : DEFAULT_PROPERTY_DETAIL_TAB
 
   function handleValueChange(next: unknown) {
     if (!isPropertyDetailTab(next)) return

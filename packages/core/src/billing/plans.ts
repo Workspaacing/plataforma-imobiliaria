@@ -59,8 +59,18 @@ type PlanSeed = Omit<PlanDefinition, "limits" | "features" | "benefits"> & {
 const available = (text: string): PlanBenefit => ({ text, status: "available" })
 const soon = (text: string): PlanBenefit => ({ text, status: "soon" })
 const perMonth = (cents: number) => `${formatBRL(cents, { omitZeroCents: true })}/mês`
-const storageBenefit = (plan: Pick<PlanDefinition, "limits">) =>
-  available(`${plan.limits.storage_gb} GB para fotos e documentos (uso justo)`)
+// A régua de fotos é "imóveis próprios", não GB: GB não significa nada para um
+// corretor, e imóvel com N fotos é exatamente o que custa para nós. Imóvel
+// importado por XML/API guarda a foto na origem e não entra nesta conta.
+// Uma landing page no ar por assinatura, igual em todos os planos: os 9 modelos
+// ficam disponíveis para qualquer plano e o cliente troca de modelo quando quiser,
+// mas só uma fica publicada. Não vendemos página extra.
+const landingPageBenefit = (plan: Pick<PlanDefinition, "limits">) =>
+  available(`${plan.limits.landing_pages} landing page no ar, com todos os modelos disponíveis`)
+const ownedListingsBenefit = (plan: Pick<PlanDefinition, "limits">) =>
+  available(
+    `${plan.limits.owned_listings} imóveis próprios com até ${plan.limits.photos_per_listing} fotos cada`
+  )
 
 function definePlan(
   seed: PlanSeed,
@@ -75,7 +85,27 @@ function definePlan(
   return { ...plan, benefits: benefits(plan) }
 }
 
-const UNLIMITED_RECORDS = available("Imóveis, condomínios e clientes ilimitados")
+// O assento fica MAIS caro quanto maior o plano, ao contrário do desconto por
+// volume que a maioria pratica. É deliberado: com poucos usuários inclusos, o
+// preço do plano é a entrada e o assento é onde a operação grande paga pelo
+// tamanho dela — que também é a que mais consome suporte humano.
+/**
+ * O que todo plano entrega, e já está no ar. Ficava invisível: os cartões
+ * mostravam 8 itens enquanto o catálogo tinha 17 recursos prontos, o que fazia
+ * o produto parecer mais magro do que é. Cada plano acrescenta os itens dele
+ * depois destes.
+ */
+function coreBenefits(plan: Omit<PlanDefinition, "benefits">): PlanBenefit[] {
+  return [
+    available("Imóveis, condomínios e clientes ilimitados"),
+    available("Funil de leads em kanban, com propostas em PDF e link para o cliente"),
+    available("Match imóvel × cliente: quem se interessa por cada imóvel"),
+    available("Agenda, tarefas e controle de chaves"),
+    available("Captação com formulário público e Nota do Anúncio"),
+    available("Feed XML para ZAP, Viva Real e OLX"),
+    landingPageBenefit(plan),
+  ]
+}
 
 export const PLANS: Record<PlanKey, PlanDefinition> = {
   corretor: definePlan(
@@ -86,14 +116,18 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
       description:
         "Para o corretor que trabalha sozinho e quer imóveis, clientes e leads organizados num só lugar.",
       prices: { month: 8900, year: 89000 },
-      seatPrice: { month: 3900, year: 39000 },
+      seatPrice: { month: 4900, year: 49000 },
       usersIncluded: 1,
       usersMax: 2,
       limits: {
-        landing_pages: 3,
-        storage_gb: 10,
+        landing_pages: 1,
+        owned_listings: 5,
+        photos_per_listing: 10,
         pipelines: 1,
-        ai_conversations: 30,
+        // Sem IA no plano de entrada (decisão do dono): a IA é o único custo
+        // variável relevante do produto e R$ 89 não a comporta com folga. Zero
+        // aqui bloqueia no primeiro corte, no core e no banco (feature_unavailable).
+        ai_conversations: 0,
         whatsapp_numbers: 1,
         rental_contracts: 0,
         esign_docs: 5,
@@ -102,13 +136,10 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
       support: "Resposta em até 4h úteis",
     },
     (plan) => [
-      UNLIMITED_RECORDS,
+      ...coreBenefits(plan),
       available(`1 usuário, com até 1 extra por ${perMonth(plan.seatPrice.month)}`),
-      storageBenefit(plan),
-      available(`${plan.limits.landing_pages} landing pages e funil de leads em kanban`),
-      available("Feed XML para ZAP, Viva Real e OLX"),
-      available("Captação com formulário público e Nota do Anúncio"),
-      soon(`${plan.limits.ai_conversations} conversas de IA no WhatsApp por mês`),
+      ownedListingsBenefit(plan),
+      soon(`${plan.limits.esign_docs} documentos com assinatura eletrônica por mês`),
       available(`Suporte humano com ${plan.support.toLowerCase()}`),
     ]
   ),
@@ -121,14 +152,15 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
         "Para a imobiliária que quer a equipe atendendo no mesmo funil e a carteira sempre com a empresa.",
       highlight: true,
       prices: { month: 24900, year: 249000 },
-      seatPrice: { month: 3900, year: 39000 },
+      seatPrice: { month: 5900, year: 59000 },
       usersIncluded: 3,
       usersMax: -1,
       limits: {
-        landing_pages: 15,
-        storage_gb: 30,
+        landing_pages: 1,
+        owned_listings: 20,
+        photos_per_listing: 10,
         pipelines: 3,
-        ai_conversations: 100,
+        ai_conversations: 50,
         whatsapp_numbers: 1,
         rental_contracts: 20,
         esign_docs: 15,
@@ -137,12 +169,12 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
       support: "Resposta em até 1h útil",
     },
     (plan) => [
-      UNLIMITED_RECORDS,
+      ...coreBenefits(plan),
       available(
         `${plan.usersIncluded} usuários incluídos, extra por ${perMonth(plan.seatPrice.month)}`
       ),
-      storageBenefit(plan),
-      available(`${plan.limits.landing_pages} landing pages`),
+      available("Equipe com papéis, convites e histórico de alterações"),
+      ownedListingsBenefit(plan),
       soon(`${plan.limits.pipelines} funis de leads e roleta com SLA`),
       soon(`${plan.limits.ai_conversations} conversas de IA no WhatsApp por mês`),
       soon(`${plan.limits.rental_contracts} contratos de locação com boleto e Pix`),
@@ -157,14 +189,15 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
       description:
         "Para equipes com mais volume de leads, que precisam de vários funis, metas e locação em escala.",
       prices: { month: 59900, year: 599000 },
-      seatPrice: { month: 3500, year: 35000 },
-      usersIncluded: 8,
+      seatPrice: { month: 6900, year: 69000 },
+      usersIncluded: 5,
       usersMax: -1,
       limits: {
-        landing_pages: 50,
-        storage_gb: 100,
+        landing_pages: 1,
+        owned_listings: 50,
+        photos_per_listing: 10,
         pipelines: 10,
-        ai_conversations: 250,
+        ai_conversations: 200,
         whatsapp_numbers: 3,
         rental_contracts: 100,
         esign_docs: 40,
@@ -173,12 +206,12 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
       support: "Resposta em até 30 min, com onboarding ao vivo",
     },
     (plan) => [
-      UNLIMITED_RECORDS,
+      ...coreBenefits(plan),
       available(
         `${plan.usersIncluded} usuários incluídos, extra por ${perMonth(plan.seatPrice.month)}`
       ),
-      storageBenefit(plan),
-      available(`${plan.limits.landing_pages} landing pages`),
+      available("Equipe com papéis, convites e histórico de alterações"),
+      ownedListingsBenefit(plan),
       soon(`${plan.limits.pipelines} funis de leads, BI e metas por corretor`),
       soon(
         `${plan.limits.ai_conversations} conversas de IA e ${plan.limits.whatsapp_numbers} números de WhatsApp`
@@ -196,14 +229,15 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
       description:
         "Para operações com várias lojas ou marcas, que precisam de filiais, API e acompanhamento dedicado.",
       prices: { month: 149000, year: 1490000 },
-      seatPrice: { month: 2900, year: 29000 },
-      usersIncluded: 20,
+      seatPrice: { month: 7900, year: 79000 },
+      usersIncluded: 10,
       usersMax: -1,
       limits: {
-        landing_pages: -1,
-        storage_gb: 300,
+        landing_pages: 1,
+        owned_listings: 150,
+        photos_per_listing: 10,
         pipelines: -1,
-        ai_conversations: 600,
+        ai_conversations: 500,
         whatsapp_numbers: 10,
         rental_contracts: 300,
         esign_docs: 100,
@@ -212,12 +246,12 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
       support: "Resposta em até 15 min, com gerente de sucesso",
     },
     (plan) => [
-      UNLIMITED_RECORDS,
+      ...coreBenefits(plan),
       available(
         `${plan.usersIncluded} usuários incluídos, extra por ${perMonth(plan.seatPrice.month)}`
       ),
-      storageBenefit(plan),
-      available("Landing pages ilimitadas"),
+      available("Equipe com papéis, convites e histórico de alterações"),
+      ownedListingsBenefit(plan),
       soon(`Funis ilimitados e até ${plan.limits.branches} lojas ou imobiliárias`),
       soon(
         `${plan.limits.ai_conversations} conversas de IA e ${plan.limits.whatsapp_numbers} números de WhatsApp`
@@ -236,12 +270,70 @@ export const TRIAL_LIMITS: Record<LimitKey, number> = {
 }
 
 // Regras das franquias exibidas em /planos (sem números: estes vêm de PLANS e ADDONS).
-export const STORAGE_FAIR_USE_NOTE =
-  "Armazenamento conforme uso justo, com fotos otimizadas automaticamente"
+/**
+ * O limite de fotos é por imóvel próprio, não por GB. Imóvel importado de outro
+ * sistema (XML ou API) aponta para a foto na origem e não consome nada nosso —
+ * por isso pode ser ilimitado, e é o que torna a migração barata dos dois lados.
+ */
+/**
+ * Tamanho máximo de cada foto enviada, igual em TODOS os planos — por isso é
+ * constante e não uma chave de `limits`. Espelha MAX_IMAGE_BYTES em
+ * apps/web/lib/imoveis/constants.ts, que é quem barra o upload de fato.
+ */
+export const LISTING_PHOTO_MAX_BYTES = 7 * 1024 * 1024
+export const LISTING_PHOTO_MAX_MB = LISTING_PHOTO_MAX_BYTES / (1024 * 1024)
+export const LISTING_PHOTO_SIZE_NOTE = `Cada foto pode ter até ${LISTING_PHOTO_MAX_MB} MB, em qualquer plano`
+
+export const IMPORTED_LISTINGS_NOTE =
+  "Imóveis importados por XML ou API não contam no limite: as fotos ficam na origem"
+export const OWNED_LISTINGS_NOTE =
+  "Imóvel sem foto não consome o limite, e toda foto enviada é otimizada automaticamente"
 export const AI_OVERAGE_NOTE = "O excedente de conversas de IA tem sempre um teto definido por você"
-/** No anual destes planos, o boleto é a forma padrão sugerida (só texto: o cartão segue disponível). */
-export const ANNUAL_BOLETO_PLANS: readonly PlanKey[] = ["equipe", "rede"]
-export const ANNUAL_BOLETO_NOTE = `No anual dos planos ${ANNUAL_BOLETO_PLANS.map((plan) => PLANS[plan].name).join(" e ")}, o boleto é a forma padrão sugerida; o cartão continua disponível`
+/** Primeiro plano com franquia de IA (o Corretor não tem: ai_conversations = 0). */
+export const AI_FIRST_PLAN: PlanKey = "imobiliaria"
+export const AI_PLAN_NOTE = `O agente de IA no WhatsApp começa no plano ${PLANS[AI_FIRST_PLAN].name}`
+/**
+ * Decisão do dono em 2026-09-16: nós cobramos só o software. O WhatsApp oficial
+ * é contratado pela própria imobiliária na Meta, que fatura o envio direto dela.
+ * Isso mantém o nosso custo por mensagem em zero em qualquer volume — e precisa
+ * estar escrito na página de preços, senão o cliente descobre na fatura.
+ */
+/**
+ * Regra do dono, 2026-09-16, que vale para o produto inteiro: **toda conta de
+ * terceiro que cobra por uso fica no nome do cliente**. WhatsApp na conta Meta
+ * da imobiliária, assinatura eletrônica na conta dela, boleto e Pix da locação
+ * no adquirente dela (o dinheiro é dela), NFS-e no certificado dela, anúncio no
+ * Meta Ads dela. Nós orquestramos e cobramos pelo software.
+ *
+ * Três consequências, e as três são o motivo da regra:
+ *  - nenhum custo por uso do cliente entra na nossa margem;
+ *  - não entramos na relação contratual dele com o fornecedor, então o mau uso
+ *    de um cliente não nos responsabiliza nem contamina os outros;
+ *  - o cliente mantém a conta, o número e o histórico se um dia sair daqui — o
+ *    que é argumento de venda, não ressalva.
+ */
+export const THIRD_PARTY_ACCOUNTS_NOTE =
+  "Serviços cobrados por uso (WhatsApp oficial, assinatura eletrônica, boleto e Pix, NFS-e) ficam na conta da própria imobiliária: você paga o fornecedor direto, sem intermediário nosso"
+
+export const WHATSAPP_BILLING_NOTE =
+  "O WhatsApp oficial fica na conta da própria imobiliária: quem cobra o envio das mensagens é a Meta, direto de você"
+/**
+ * No anual de TODOS os planos o boleto é a forma sugerida, e a razão é
+ * aritmética: a Stripe cobra 3,99% + R$ 0,39 no cartão e **R$ 3,45 fixos** no
+ * boleto (tabela Brasil conferida em 2026-09-16). Como o boleto não é
+ * percentual, a economia cresce com o valor da cobrança — de R$ 32/ano no
+ * Corretor a R$ 591/ano no Rede, por cliente.
+ *
+ * Só no anual: no mensal o boleto obrigaria o cliente a pagar todo mês, o que
+ * gera atrito e inadimplência. O cartão continua disponível em tudo.
+ *
+ * Pix ficou de fora de propósito: conta brasileira da Stripe faz Pix avulso mas
+ * **não** faz Pix Automático (recorrente), e mesmo no anual o Pix sai mais caro
+ * que o boleto (1,19% contra taxa fixa).
+ */
+export const ANNUAL_BOLETO_PLANS: readonly PlanKey[] = PLAN_KEYS
+export const ANNUAL_BOLETO_NOTE =
+  "No plano anual, o boleto é a forma sugerida e sai mais barato para os dois lados; o cartão continua disponível"
 
 export type AddonDefinition = {
   key: string
@@ -260,7 +352,8 @@ export const ADDONS: ReadonlyArray<AddonDefinition> = [
     description: `Mais conversas do agente de IA no WhatsApp quando a franquia do plano acabar. ${AI_OVERAGE_NOTE}.`,
     priceLabel: `+100 por ${perMonth(11900)} · +500 por ${perMonth(49000)} · +2.000 por ${perMonth(199000)}`,
     status: "soon",
-    plans: ["corretor", "imobiliaria", "equipe", "rede"],
+    // Sem Corretor: quem não tem franquia de IA não compra excedente de IA — sobe de plano.
+    plans: ["imobiliaria", "equipe", "rede"],
   },
   {
     key: "rental",
@@ -280,10 +373,10 @@ export const ADDONS: ReadonlyArray<AddonDefinition> = [
     plans: ["corretor", "imobiliaria", "equipe", "rede"],
   },
   {
-    key: "storage",
-    name: "Armazenamento extra",
-    description: `Mais espaço para fotos e documentos, sem limitar a quantidade de imóveis. ${STORAGE_FAIR_USE_NOTE}.`,
-    priceLabel: `+50 GB por ${perMonth(4900)}`,
+    key: "owned_listings",
+    name: "Imóveis próprios extras",
+    description: `Mais imóveis com fotos hospedadas por nós, com o mesmo limite de fotos do plano. ${IMPORTED_LISTINGS_NOTE}.`,
+    priceLabel: `+10 imóveis por ${perMonth(1900)}`,
     status: "soon",
     plans: ["corretor", "imobiliaria", "equipe", "rede"],
   },
@@ -316,8 +409,13 @@ export const PLAN_CONDITIONS: readonly string[] = [
   "Upgrade na hora, com cobrança proporcional; downgrade no próximo ciclo, sem apagar nada",
   "Reajuste só pelo IPCA, no máximo 1 vez por ano, com 45 dias de aviso",
   "Exportação completa dos dados por 90 dias após o cancelamento",
-  STORAGE_FAIR_USE_NOTE,
+  IMPORTED_LISTINGS_NOTE,
+  OWNED_LISTINGS_NOTE,
+  LISTING_PHOTO_SIZE_NOTE,
+  AI_PLAN_NOTE,
   AI_OVERAGE_NOTE,
+  WHATSAPP_BILLING_NOTE,
+  THIRD_PARTY_ACCOUNTS_NOTE,
   ANNUAL_BOLETO_NOTE,
 ]
 

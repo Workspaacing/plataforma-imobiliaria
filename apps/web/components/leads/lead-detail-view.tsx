@@ -7,8 +7,8 @@ import { ArrowLeftIcon } from "lucide-react"
 import { Button } from "@workspace/ui/components/button"
 
 import {
-  LeadContactTimerBadge,
   LeadDuplicateBadge,
+  LeadRoutingBadges,
   LeadSourceBadge,
   LeadStageBadge,
 } from "@/components/leads/lead-badges"
@@ -19,7 +19,7 @@ import { useNow } from "@/components/leads/use-now"
 import type { Role } from "@/lib/auth/roles"
 import type { MemberOption } from "@/lib/clientes/options"
 import { LEADS_PATH } from "@/lib/leads/constants"
-import type { LeadDetailExtras, LeadItem } from "@/lib/leads/types"
+import type { LeadDetailExtras, LeadItem, LeadSlaSettings } from "@/lib/leads/types"
 
 type LeadDetailViewProps = {
   lead: LeadItem
@@ -28,6 +28,7 @@ type LeadDetailViewProps = {
   currentUserId: string
   role: Role
   nowMs: number
+  sla: LeadSlaSettings
 }
 
 /** Página própria do lead (/leads/[id]), com as mesmas ações do painel lateral. */
@@ -38,6 +39,7 @@ export function LeadDetailView({
   currentUserId,
   role,
   nowMs,
+  sla,
 }: LeadDetailViewProps) {
   const router = useRouter()
   const now = useNow(nowMs)
@@ -62,7 +64,7 @@ export function LeadDetailView({
           <div className="flex flex-wrap items-center gap-1.5">
             <LeadStageBadge stage={current.stage} />
             <LeadSourceBadge lead={current} />
-            <LeadContactTimerBadge lead={current} nowMs={now} />
+            <LeadRoutingBadges lead={current} nowMs={now} sla={sla} />
             <LeadDuplicateBadge hasDuplicate={current.hasDuplicate} />
           </div>
         </div>
@@ -74,6 +76,7 @@ export function LeadDetailView({
         currentUserId={currentUserId}
         role={role}
         nowMs={now}
+        sla={sla}
         extras={extras}
         extrasError={null}
         isPending={mutations.isPending}

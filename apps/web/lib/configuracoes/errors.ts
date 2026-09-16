@@ -1,3 +1,4 @@
+import { ASK_MANAGER_HINT } from "@/lib/auth/permission-messages"
 import { translateBillingError } from "@/lib/billing/errors"
 
 type DatabaseErrorLike = {
@@ -6,7 +7,7 @@ type DatabaseErrorLike = {
   details?: string | null
 }
 
-export const PERMISSION_DENIED_MESSAGE = "Seu papel nesta imobiliária não permite esta ação."
+export const PERMISSION_DENIED_MESSAGE = `Seu papel nesta imobiliária não permite esta ação. ${ASK_MANAGER_HINT}`
 
 export const SESSION_EXPIRED_MESSAGE = "Sua sessão expirou. Entre novamente."
 

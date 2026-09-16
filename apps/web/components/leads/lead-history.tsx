@@ -1,0 +1,57 @@
+import { ArrowRightLeftIcon, UserRoundIcon } from "lucide-react"
+
+import { formatDateTime } from "@/lib/format"
+import { LEAD_STAGE_LABELS } from "@/lib/leads/constants"
+import { formatRelativeShort } from "@/lib/leads/format"
+import type { LeadHistoryEvent } from "@/lib/leads/types"
+
+/** "Novo → Em contato" ou, no primeiro evento, só a etapa de entrada. */
+function stageTitle(event: Extract<LeadHistoryEvent, { kind: "stage" }>) {
+  const to = LEAD_STAGE_LABELS[event.toStage]
+  return event.fromStage ? `${LEAD_STAGE_LABELS[event.fromStage]} → ${to}` : `Entrou em ${to}`
+}
+
+function assignmentTitle(event: Extract<LeadHistoryEvent, { kind: "assignment" }>) {
+  const to = event.toName ?? "Sem responsável"
+  return event.fromName ? `${event.fromName} → ${to}` : `Responsável: ${to}`
+}
+
+/**
+ * Linha do tempo do lead (`lead_stage_events` + `lead_assignment_events`), do
+ * mais antigo para o mais recente: "Novo → Em contato · por Ana · há 2 h".
+ */
+export function LeadHistoryTimeline({
+  events,
+  nowMs,
+}: {
+  events: readonly LeadHistoryEvent[]
+  nowMs: number
+}) {
+  if (events.length === 0) {
+    return <p className="text-sm text-muted-foreground">Nenhuma movimentação registrada ainda.</p>
+  }
+
+  return (
+    <ol className="flex flex-col gap-1.5 text-sm" aria-label="Linha do tempo do lead">
+      {events.map((event) => {
+        const Icon = event.kind === "stage" ? ArrowRightLeftIcon : UserRoundIcon
+        const title = event.kind === "stage" ? stageTitle(event) : assignmentTitle(event)
+
+        return (
+          <li key={`${event.kind}-${event.id}`} className="flex items-start gap-2">
+            <Icon aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 break-words">
+              {title}
+              <span className="text-muted-foreground">
+                {event.reasonLabel ? ` · ${event.reasonLabel}` : ""} · por {event.actorName} ·{" "}
+                <time dateTime={event.at} title={formatDateTime(event.at)}>
+                  {formatRelativeShort(event.at, nowMs)}
+                </time>
+              </span>
+            </span>
+          </li>
+        )
+      })}
+    </ol>
+  )
+}

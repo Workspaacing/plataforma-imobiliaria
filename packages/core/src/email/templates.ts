@@ -142,7 +142,162 @@ export function newLeadEmail(params: NewLeadEmailParams): RenderedEmail {
   })
 }
 
-// (b) Nova solicitação de captação ------------------------------------------------
+// (b) Rodízio de leads: SLA de primeiro contato ------------------------------------
+
+export type LeadSlaNoticeKind = "sla_warning" | "sla_reassigned" | "sla_lost"
+
+export const LEAD_SLA_NOTICE_KINDS: readonly LeadSlaNoticeKind[] = [
+  "sla_warning",
+  "sla_reassigned",
+  "sla_lost",
+]
+
+export type LeadSlaNoticeEmailParams = {
+  origin: string
+  brand?: EmailBrand | null
+  recipientName?: string | null
+  kind: LeadSlaNoticeKind
+  lead: {
+    /** leads.id; sem ele o link abre o funil (/leads). */
+    id?: string | null
+    name: string
+    source?: string | null
+    interest?: string | null
+    /** Só os 4 últimos dígitos aparecem no e-mail. */
+    phone?: string | null
+    receivedAt?: Date | string | null
+  }
+  /** Prazo de primeiro contato em minutos configurado pela imobiliária. */
+  slaMinutes: number
+  /** Minutos que faltam para estourar (sla_warning) — pode ser 0. */
+  minutesLeft?: number | null
+  /** Hora limite do primeiro contato. */
+  dueAt?: Date | string | null
+}
+
+/** Um dia: prazo de primeiro contato acima disso é erro de configuração. */
+const MAX_SLA_MINUTES = 24 * 60
+
+/**
+ * Minutos inteiros dentro da faixa aceita (1 a 1440; com `allowZero`, a partir
+ * de 0). Qualquer outra coisa (não numérico, NaN, infinito, negativo ou fora da
+ * faixa) vira null: o e-mail usa o texto de reserva em vez de anunciar um prazo
+ * sem sentido para o corretor.
+ */
+function safeMinutes(value: unknown, options: { allowZero?: boolean } = {}): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return null
+  }
+
+  const minutes = Math.floor(value)
+  const min = options.allowZero === true ? 0 : 1
+
+  return minutes >= min && minutes <= MAX_SLA_MINUTES ? minutes : null
+}
+
+export function leadSlaNoticeEmail(params: LeadSlaNoticeEmailParams): RenderedEmail {
+  const origin = requireOrigin(params.origin)
+  const brand = resolveBrand(params.brand)
+  const lead = params.lead
+  const leadId = isUuid(lead.id) ? lead.id.toLowerCase() : null
+  const leadUrl = requireLink(leadId ? `/leads/${leadId}` : "/leads", origin)
+  const name = cleanText(lead.name, { maxLength: 120 }) || "Novo contato"
+  const shortName = cleanText(name, { maxLength: 60 })
+  const source = labelFrom(LEAD_SOURCE_EMAIL_LABELS, lead.source)
+  const interest = labelFrom(LEAD_INTEREST_EMAIL_LABELS, lead.interest)
+  const receivedAt = formatEmailDateTime(lead.receivedAt)
+  const dueAt = formatEmailDateTime(params.dueAt)
+  const slaMinutes = safeMinutes(params.slaMinutes)
+  const minutesLeft = safeMinutes(params.minutesLeft, { allowZero: true })
+  const sla = slaMinutes === null ? null : `${slaMinutes} min`
+  const left =
+    minutesLeft === null ? null : minutesLeft > 0 ? `${minutesLeft} min` : "menos de 1 min"
+  const deadline = sla
+    ? `O prazo de primeiro contato é de ${sla}${dueAt ? `, até ${dueAt}` : ""}.`
+    : "Faça o primeiro contato o quanto antes."
+  const common = {
+    greeting: greetingFor(params.recipientName),
+    details: [
+      { label: "Nome", value: name },
+      { label: "Origem", value: source },
+      { label: "Interesse", value: interest },
+      { label: "Telefone", value: maskPhoneNumber(lead.phone) },
+      { label: "Recebido em", value: receivedAt },
+      { label: "Prazo de primeiro contato", value: sla },
+      { label: "Responder até", value: dueAt },
+    ],
+    action: { label: "Abrir o lead no CRM", url: leadUrl },
+    closing: [
+      "O telefone aparece parcialmente oculto neste e-mail. Contato completo e histórico ficam no CRM.",
+    ],
+  }
+
+  switch (params.kind) {
+    case "sla_warning":
+      return renderEmail(params.brand, {
+        ...common,
+        subject: left
+          ? `Faltam ${left} para responder o lead ${shortName}`
+          : `O prazo de resposta do lead ${shortName} está acabando`,
+        preheader: "Sem o primeiro contato no prazo, o lead passa para o próximo corretor.",
+        heading: "O prazo de primeiro contato está acabando",
+        paragraphs: [
+          `Você é o corretor responsável pelo lead ${name} e o primeiro contato ainda não foi registrado no CRM.`,
+          deadline,
+        ],
+        highlight: left
+          ? `Faltam ${left}. Depois disso o lead volta para o rodízio e vai para o próximo corretor.`
+          : "Quando o prazo acabar, o lead volta para o rodízio e vai para o próximo corretor.",
+        footer: `Você recebeu este e-mail porque é o corretor responsável por este lead na equipe de ${brand.name} no CRM.`,
+      })
+    case "sla_reassigned":
+      return renderEmail(params.brand, {
+        ...common,
+        subject: sla
+          ? `Lead ${shortName} é seu: responda em até ${sla}`
+          : `Lead ${shortName} é seu: responda agora`,
+        preheader: "O lead entrou no rodízio e agora é seu. Faça o primeiro contato.",
+        heading: "Você recebeu um lead do rodízio",
+        paragraphs: [
+          `O lead ${name} passou a ser seu: o primeiro contato não foi feito dentro do prazo e o rodízio repassou o lead para você.`,
+          sla
+            ? `Seu prazo de primeiro contato começa agora e é de ${sla}${dueAt ? `, até ${dueAt}` : ""}.`
+            : "Faça o primeiro contato o quanto antes.",
+        ],
+        highlight: "O cliente já pediu contato e está esperando: fale com ele agora.",
+        footer: `Você recebeu este e-mail porque passou a ser o corretor responsável por este lead na equipe de ${brand.name} no CRM.`,
+      })
+    case "sla_lost":
+      return renderEmail(params.brand, {
+        ...common,
+        subject: `O lead ${shortName} foi repassado`,
+        preheader: "O prazo de primeiro contato terminou e o lead seguiu no rodízio.",
+        heading: "O lead foi repassado",
+        paragraphs: [
+          `O lead ${name} não teve o primeiro contato dentro do prazo e foi repassado para outro corretor da equipe.`,
+          sla
+            ? `No rodízio, o lead sem primeiro contato em ${sla}${dueAt ? ` (o prazo terminou em ${dueAt})` : ""} passa para o próximo corretor da fila.`
+            : "No rodízio, o lead sem primeiro contato no prazo passa para o próximo corretor da fila.",
+          "Os próximos leads da fila continuam chegando para você normalmente.",
+        ],
+        details: [
+          { label: "Nome", value: name },
+          { label: "Origem", value: source },
+          { label: "Interesse", value: interest },
+          { label: "Recebido em", value: receivedAt },
+          { label: "Prazo de primeiro contato", value: sla },
+          { label: "Prazo terminou em", value: dueAt },
+        ],
+        action: { label: "Ver meus leads", url: requireLink("/leads", origin) },
+        closing: ["Os dados de contato deste lead ficam com quem é responsável por ele agora."],
+        footer: `Você recebeu este e-mail porque era o corretor responsável por este lead na equipe de ${brand.name} no CRM.`,
+      })
+    default:
+      throw new EmailTemplateError("Tipo de aviso de SLA de lead inválido.")
+  }
+}
+
+// (c) Nova solicitação de captação ------------------------------------------------
 
 export type CaptureRequestEmailParams = {
   origin: string
@@ -193,7 +348,7 @@ export function captureRequestEmail(params: CaptureRequestEmailParams): Rendered
   })
 }
 
-// (c) Convite para a equipe -------------------------------------------------------
+// (d) Convite para a equipe -------------------------------------------------------
 
 export type TeamInvitationEmailParams = {
   origin: string
@@ -241,7 +396,7 @@ export function teamInvitationEmail(params: TeamInvitationEmailParams): Rendered
   })
 }
 
-// (d) Aviso de assinatura ---------------------------------------------------------
+// (e) Aviso de assinatura ---------------------------------------------------------
 
 export type SubscriptionNoticeKind = "trial_ending" | "payment_failed" | "canceled" | "read_only"
 
@@ -357,7 +512,7 @@ export function subscriptionNoticeEmail(params: SubscriptionNoticeEmailParams): 
   }
 }
 
-// (e) Indique e ganhe --------------------------------------------------------------
+// (f) Indique e ganhe --------------------------------------------------------------
 
 export type ReferralNoticeKind = "confirmed" | "lost"
 
@@ -435,7 +590,7 @@ export function referralNoticeEmail(params: ReferralNoticeEmailParams): Rendered
   }
 }
 
-// (f) Franquia de IA ---------------------------------------------------------------
+// (g) Franquia de IA ---------------------------------------------------------------
 
 export type AiQuotaNoticeKind = "ai_quota_80" | "ai_quota_100"
 

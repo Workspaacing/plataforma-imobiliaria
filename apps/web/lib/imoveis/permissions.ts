@@ -1,3 +1,4 @@
+import { permissionDeniedMessage } from "@/lib/auth/permission-messages"
 import type { Role } from "@/lib/auth/roles"
 
 /**
@@ -33,6 +34,24 @@ export function canEditProperty(role: Role, userId: string, property: PropertyAs
 export function canDeletePropertyRecords(role: Role) {
   return OWNER_MANAGER_ROLES.includes(role)
 }
+
+/** Recusas de remoção (mesma regra de RLS, mensagens que dizem a quem pedir). */
+export const REMOVE_MEDIA_DENIED_MESSAGE = permissionDeniedMessage(
+  "remover fotos",
+  OWNER_MANAGER_ROLES
+)
+export const REMOVE_OWNER_DENIED_MESSAGE = permissionDeniedMessage(
+  "remover proprietários",
+  OWNER_MANAGER_ROLES
+)
+export const REMOVE_AUTHORIZATION_DENIED_MESSAGE = permissionDeniedMessage(
+  "remover autorizações",
+  OWNER_MANAGER_ROLES
+)
+export const DELETE_PROPERTY_DENIED_MESSAGE = permissionDeniedMessage(
+  "excluir imóveis",
+  OWNER_MANAGER_ROLES
+)
 
 /** "capture_requests: gestão, captador e assistente leem/atualizam". */
 export function canReadCaptureRequests(role: Role) {

@@ -6,12 +6,14 @@ import {
   ADDONS,
   AI_OVERAGE_NOTE,
   ANNUAL_BOLETO_NOTE,
+  ANNUAL_BOLETO_PLANS,
   BILLING_INTERVALS,
   GRACE_DAYS,
   PLAN_CONDITIONS,
   PLAN_KEYS,
   PLANS,
-  STORAGE_FAIR_USE_NOTE,
+  IMPORTED_LISTINGS_NOTE,
+  OWNED_LISTINGS_NOTE,
   TRIAL_AI_CONVERSATIONS,
   TRIAL_DAYS,
   TRIAL_LIMITS,
@@ -33,10 +35,25 @@ describe("PLANS", () => {
     expect(PLANS.equipe.prices).toEqual({ month: 59900, year: 599000 })
     expect(PLANS.rede.prices).toEqual({ month: 149000, year: 1490000 })
 
-    expect(PLANS.corretor.seatPrice).toEqual({ month: 3900, year: 39000 })
-    expect(PLANS.imobiliaria.seatPrice).toEqual({ month: 3900, year: 39000 })
-    expect(PLANS.equipe.seatPrice).toEqual({ month: 3500, year: 35000 })
-    expect(PLANS.rede.seatPrice).toEqual({ month: 2900, year: 29000 })
+    // O assento sobe junto com o plano, de propósito: quem tem operação maior
+    // paga pelo tamanho dela, e é quem mais consome suporte humano.
+    expect(PLANS.corretor.seatPrice).toEqual({ month: 4900, year: 49000 })
+    expect(PLANS.imobiliaria.seatPrice).toEqual({ month: 5900, year: 59000 })
+    expect(PLANS.equipe.seatPrice).toEqual({ month: 6900, year: 69000 })
+    expect(PLANS.rede.seatPrice).toEqual({ month: 7900, year: 79000 })
+    for (let i = 1; i < PLAN_KEYS.length; i += 1) {
+      const anterior = PLANS[PLAN_KEYS[i - 1]!].seatPrice.month
+      expect(PLANS[PLAN_KEYS[i]!].seatPrice.month).toBeGreaterThan(anterior)
+    }
+  })
+
+  it("publica exatamente 1 landing page em todos os planos", () => {
+    // Decisão do dono: não vendemos página extra; os 9 modelos ficam
+    // disponíveis em qualquer plano e o cliente troca quando quiser.
+    for (const plan of PLAN_KEYS) {
+      expect(PLANS[plan].limits.landing_pages, plan).toBe(1)
+    }
+    expect(ADDONS.map((addon) => addon.key)).not.toContain("landing_pages")
   })
 
   it("cobra o anual como 10 mensalidades (2 meses grátis)", () => {
@@ -49,10 +66,11 @@ describe("PLANS", () => {
   it("segue os limites da tabela do contrato", () => {
     expect(PLANS.corretor.limits).toEqual({
       users: 1,
-      landing_pages: 3,
-      storage_gb: 10,
+      landing_pages: 1,
+      owned_listings: 5,
+      photos_per_listing: 10,
       pipelines: 1,
-      ai_conversations: 30,
+      ai_conversations: 0,
       whatsapp_numbers: 1,
       rental_contracts: 0,
       esign_docs: 5,
@@ -60,32 +78,35 @@ describe("PLANS", () => {
     })
     expect(PLANS.imobiliaria.limits).toEqual({
       users: 3,
-      landing_pages: 15,
-      storage_gb: 30,
+      landing_pages: 1,
+      owned_listings: 20,
+      photos_per_listing: 10,
       pipelines: 3,
-      ai_conversations: 100,
+      ai_conversations: 50,
       whatsapp_numbers: 1,
       rental_contracts: 20,
       esign_docs: 15,
       branches: 1,
     })
     expect(PLANS.equipe.limits).toEqual({
-      users: 8,
-      landing_pages: 50,
-      storage_gb: 100,
+      users: 5,
+      landing_pages: 1,
+      owned_listings: 50,
+      photos_per_listing: 10,
       pipelines: 10,
-      ai_conversations: 250,
+      ai_conversations: 200,
       whatsapp_numbers: 3,
       rental_contracts: 100,
       esign_docs: 40,
       branches: 1,
     })
     expect(PLANS.rede.limits).toEqual({
-      users: 20,
-      landing_pages: -1,
-      storage_gb: 300,
+      users: 10,
+      landing_pages: 1,
+      owned_listings: 150,
+      photos_per_listing: 10,
       pipelines: -1,
-      ai_conversations: 600,
+      ai_conversations: 500,
       whatsapp_numbers: 10,
       rental_contracts: 300,
       esign_docs: 100,
@@ -119,16 +140,20 @@ describe("PLANS", () => {
     expect(PLANS.imobiliaria.name).toBe("Imobiliária")
     expect(PLANS.imobiliaria.highlight).toBe(true)
     expect(PLANS.equipe.benefits.map((benefit) => benefit.text)).toContain(
-      "8 usuários incluídos, extra por R$ 35/mês"
+      "5 usuários incluídos, extra por R$ 69/mês"
     )
+    // O Corretor não tem IA: o cartão não pode prometer conversa nenhuma.
+    expect(PLANS.corretor.limits.ai_conversations).toBe(0)
+    expect(PLANS.corretor.benefits.map((benefit) => benefit.text).join(" ")).not.toMatch(/IA/)
     expect(PLANS.corretor.benefits).toContainEqual({
-      text: "30 conversas de IA no WhatsApp por mês",
+      text: "5 documentos com assinatura eletrônica por mês",
       status: "soon",
     })
     expect(PLANS.rede.benefits.map((benefit) => benefit.text)).toEqual(
       expect.arrayContaining([
-        "300 GB para fotos e documentos (uso justo)",
-        "600 conversas de IA e 10 números de WhatsApp",
+        "150 imóveis próprios com até 10 fotos cada",
+        "1 landing page no ar, com todos os modelos disponíveis",
+        "500 conversas de IA e 10 números de WhatsApp",
       ])
     )
 
@@ -152,9 +177,10 @@ describe("teste grátis", () => {
     expect(TRIAL_AI_CONVERSATIONS).toBe(10)
     expect(TRIAL_LIMITS).toEqual({ ...PLANS.equipe.limits, ai_conversations: 10 })
     expect(TRIAL_LIMITS).toMatchObject({
-      users: 8,
-      landing_pages: 50,
-      storage_gb: 100,
+      users: 5,
+      landing_pages: 1,
+      owned_listings: 50,
+      photos_per_listing: 10,
       pipelines: 10,
       ai_conversations: 10,
       esign_docs: 40,
@@ -168,7 +194,7 @@ describe("ADDONS e condições", () => {
       "ai_conversations",
       "rental",
       "esign",
-      "storage",
+      "owned_listings",
       "branch",
       "launches",
     ])
@@ -183,12 +209,20 @@ describe("ADDONS e condições", () => {
     expect(ADDONS.find((addon) => addon.key === "esign")?.priceLabel).toBe(
       "20 documentos por R$ 29/mês · 100 por R$ 149/mês"
     )
-    expect(ADDONS.find((addon) => addon.key === "storage")?.priceLabel).toBe("+50 GB por R$ 49/mês")
+    expect(ADDONS.find((addon) => addon.key === "owned_listings")?.priceLabel).toBe(
+      "+10 imóveis por R$ 19/mês"
+    )
     expect(ADDONS.find((addon) => addon.key === "branch")?.priceLabel).toBe("R$ 190/mês por loja")
     expect(ADDONS.find((addon) => addon.key === "rental")?.priceLabel).toBe(
       "R$ 1,90 por contrato ativo/mês (mínimo de R$ 19/mês no Corretor)"
     )
     expect(ADDONS.find((addon) => addon.key === "branch")?.plans).toEqual(["rede"])
+    // Excedente de IA só onde existe franquia de IA.
+    expect(ADDONS.find((addon) => addon.key === "ai_conversations")?.plans).toEqual([
+      "imobiliaria",
+      "equipe",
+      "rede",
+    ])
     expect(ADDONS.find((addon) => addon.key === "launches")?.plans).toEqual([
       "imobiliaria",
       "equipe",
@@ -200,22 +234,32 @@ describe("ADDONS e condições", () => {
     expect(PLAN_CONDITIONS.length).toBeGreaterThanOrEqual(8)
   })
 
-  it("exibe as regras de armazenamento, excedente de IA e boleto no anual", () => {
+  it("exibe as regras de imóveis próprios, excedente de IA e boleto no anual", () => {
     expect(PLAN_CONDITIONS).toEqual(
-      expect.arrayContaining([STORAGE_FAIR_USE_NOTE, AI_OVERAGE_NOTE, ANNUAL_BOLETO_NOTE])
+      expect.arrayContaining([
+        IMPORTED_LISTINGS_NOTE,
+        OWNED_LISTINGS_NOTE,
+        AI_OVERAGE_NOTE,
+        ANNUAL_BOLETO_NOTE,
+      ])
     )
-    expect(STORAGE_FAIR_USE_NOTE).toBe(
-      "Armazenamento conforme uso justo, com fotos otimizadas automaticamente"
+    expect(IMPORTED_LISTINGS_NOTE).toBe(
+      "Imóveis importados por XML ou API não contam no limite: as fotos ficam na origem"
     )
     expect(ANNUAL_BOLETO_NOTE).toBe(
-      "No anual dos planos Equipe e Rede, o boleto é a forma padrão sugerida; o cartão continua disponível"
+      "No plano anual, o boleto é a forma sugerida e sai mais barato para os dois lados; o cartão continua disponível"
     )
+    // Boleto é taxa fixa (R$ 3,45) e cartão é percentual: no anual vale para todos.
+    expect(ANNUAL_BOLETO_PLANS).toEqual(PLAN_KEYS)
     expect(ADDONS.find((addon) => addon.key === "ai_conversations")?.description).toContain(
       AI_OVERAGE_NOTE
     )
-    expect(ADDONS.find((addon) => addon.key === "storage")?.description).toContain(
-      STORAGE_FAIR_USE_NOTE
+    expect(ADDONS.find((addon) => addon.key === "owned_listings")?.description).toContain(
+      IMPORTED_LISTINGS_NOTE
     )
+    // Nenhum add-on cobra implantação: todo mundo usa o endereço incluso no plano.
+    expect(ADDONS.map((addon) => addon.key)).not.toContain("custom_domain")
+    expect(PLAN_CONDITIONS).toContain("Sem fidelidade e sem taxa de implantação")
     for (const text of [...PLAN_CONDITIONS, ...ADDONS.map((addon) => addon.description)]) {
       expect(text).not.toMatch(/\bR2\b/)
     }
@@ -289,8 +333,8 @@ describe("assentos e totais", () => {
 
   it("soma plano e extras no intervalo pedido", () => {
     expect(planTotal("imobiliaria", "month")).toBe(24900)
-    expect(planTotal("imobiliaria", "month", 2)).toBe(24900 + 2 * 3900)
-    expect(planTotal("equipe", "year", 3)).toBe(599000 + 3 * 35000)
-    expect(planTotal("corretor", "month", 9)).toBe(8900 + 3900)
+    expect(planTotal("imobiliaria", "month", 2)).toBe(24900 + 2 * 5900)
+    expect(planTotal("equipe", "year", 3)).toBe(599000 + 3 * 69000)
+    expect(planTotal("corretor", "month", 9)).toBe(8900 + 4900)
   })
 })

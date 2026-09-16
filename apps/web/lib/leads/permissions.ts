@@ -9,6 +9,13 @@ import type { Role } from "@/lib/auth/roles"
  * - captador e financeiro: só leitura dos atribuídos a eles;
  * - cadastro manual: dono, gerente, assistente e corretor;
  * - exclusão: dono e gerente.
+ *
+ * Com o rodízio de leads LIGADO (`lead_routing_settings.roulette_enabled`),
+ * quem decide o responsável é a roleta, não a ordem de chegada: o lead já entra
+ * com dono e "assumir lead" praticamente não aparece. `canClaimLead` continua
+ * valendo para o que sobra sem responsável (rodízio desligado, fila vazia ou
+ * lead liberado em massa), e a distribuição manual pela roleta fica com a
+ * gestão (`canAssignFromRoulette`).
  */
 export const LEAD_FULL_ACCESS_ROLES: readonly Role[] = ["owner", "manager", "assistant"]
 export const LEAD_CREATOR_ROLES: readonly Role[] = ["owner", "manager", "assistant", "broker"]
@@ -51,6 +58,14 @@ export function canChooseLeadAssignee(role: Role) {
 /** Corretor assume lead sem responsável (atribui a si mesmo). */
 export function canClaimLead(role: Role, lead: LeadAccessInfo) {
   return role === "broker" && lead.assignedTo === null
+}
+
+/**
+ * Mandar o lead para a roleta (RPC `assign_lead_from_roulette`): mesmos papéis
+ * que a RPC aceita. A tela ainda checa se o rodízio está ligado.
+ */
+export function canAssignFromRoulette(role: Role) {
+  return LEAD_FULL_ACCESS_ROLES.includes(role)
 }
 
 export function canDeleteLeads(role: Role) {

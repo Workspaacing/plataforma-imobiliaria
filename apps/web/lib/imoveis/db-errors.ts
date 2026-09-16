@@ -1,5 +1,6 @@
 import { MAX_PROPERTY_PHOTOS } from "@workspace/core/media/limits"
 
+import { ASK_MANAGER_HINT } from "@/lib/auth/permission-messages"
 import { translateBillingError } from "@/lib/billing/errors"
 import { photoLimitMessage } from "@/lib/media/upload-errors"
 
@@ -175,7 +176,7 @@ export function translateDbError(error: DbErrorLike, action: string) {
   switch (error.code) {
     case "42501":
       if (isPortugueseAppMessage(message)) return message
-      return `Você não tem permissão para ${action}.`
+      return `Você não tem permissão para ${action}. ${ASK_MANAGER_HINT}`
     case "23514": {
       if (constraint) {
         const translated = messageForConstraint(constraint)
@@ -198,7 +199,7 @@ export function translateDbError(error: DbErrorLike, action: string) {
     case "22003":
       return "Algum número está fora do limite permitido."
     case "PGRST116":
-      return "Registro não encontrado. Ele pode ter sido removido ou você não tem acesso."
+      return `Registro não encontrado. Ele pode ter sido removido, ou seu papel não dá acesso a ele. ${ASK_MANAGER_HINT}`
     case "22023":
     case "P0001":
     case "P0002":
@@ -217,7 +218,7 @@ export function translateStorageError(
   const status = String(error?.statusCode ?? "")
 
   if (status === "403" || text.includes("row-level security") || text.includes("unauthorized")) {
-    return `Você não tem permissão para ${action}.`
+    return `Você não tem permissão para ${action}. ${ASK_MANAGER_HINT}`
   }
   if (status === "413" || text.includes("maximum allowed size") || text.includes("too large")) {
     return "O arquivo passa de 7 MB."

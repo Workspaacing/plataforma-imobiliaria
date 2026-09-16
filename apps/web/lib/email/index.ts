@@ -4,6 +4,7 @@ export {
   sendNotificationEmail,
   type AiQuotaNoticeNotification,
   type CaptureRequestNotification,
+  type LeadSlaNoticeNotification,
   type NewLeadNotification,
   type NotificationKind,
   type NotificationParams,

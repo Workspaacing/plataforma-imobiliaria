@@ -15,7 +15,7 @@ import { COLLAPSED_BY_DEFAULT_STAGES, LEAD_STAGE_LABELS, LEAD_STAGES } from "@/l
 import type { LeadStage } from "@/lib/leads/db-types"
 import { canEditLead } from "@/lib/leads/permissions"
 import { compareLeadOrder } from "@/lib/leads/position"
-import type { LeadItem } from "@/lib/leads/types"
+import type { LeadItem, LeadSlaSettings } from "@/lib/leads/types"
 
 const HINT_ID = "leads-quadro-atalhos"
 
@@ -25,6 +25,7 @@ export type KanbanBoardProps = {
   leads: LeadItem[]
   members: MemberOption[]
   nowMs: number
+  sla: LeadSlaSettings
   currentUserId: string
   role: Role
   onOpenLead: (leadId: string) => void
@@ -58,6 +59,7 @@ export function KanbanBoard({
   leads,
   members,
   nowMs,
+  sla,
   currentUserId,
   role,
   onOpenLead,
@@ -133,6 +135,7 @@ export function KanbanBoard({
             leads={columnLeads}
             membersById={membersById}
             nowMs={nowMs}
+            sla={sla}
             collapsible={COLLAPSED_BY_DEFAULT_STAGES.includes(stage)}
             collapsed={collapsed.has(stage)}
             draggingId={draggingId}
@@ -173,6 +176,7 @@ type KanbanColumnProps = {
   leads: LeadItem[]
   membersById: ReadonlyMap<string, MemberOption>
   nowMs: number
+  sla: LeadSlaSettings
   collapsible: boolean
   collapsed: boolean
   draggingId: string | null
@@ -196,6 +200,7 @@ function KanbanColumn({
   leads,
   membersById,
   nowMs,
+  sla,
   collapsible,
   collapsed,
   draggingId,
@@ -285,6 +290,7 @@ function KanbanColumn({
           lead={lead}
           member={lead.assignedTo ? (membersById.get(lead.assignedTo) ?? null) : null}
           nowMs={nowMs}
+          sla={sla}
           canMove={movable}
           isFirst={position === 0}
           isLast={position === leads.length - 1}

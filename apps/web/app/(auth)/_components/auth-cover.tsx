@@ -1,68 +1,31 @@
-import {
-  CalendarDaysIcon,
-  HandshakeIcon,
-  HistoryIcon,
-  KanbanIcon,
-  KeyRoundIcon,
-  LayoutTemplateIcon,
-  LockKeyholeIcon,
-  MapPinIcon,
-  UsersIcon,
-  type LucideIcon,
-} from "lucide-react"
-
-import { Separator } from "@workspace/ui/components/separator"
-
-type Feature = {
-  icon: LucideIcon
+type Note = {
   title: string
   description: string
 }
 
-const FEATURES: Feature[] = [
+/**
+ * Dois blocos no rodapé, e só. A versão anterior trazia 6 módulos e 3
+ * destaques: informação demais numa tela cujo único trabalho é receber e-mail e
+ * senha. Quem chega aqui já decidiu entrar — o painel serve para situar, não
+ * para vender de novo.
+ */
+const NOTES: Note[] = [
   {
-    icon: KanbanIcon,
-    title: "Funil de leads",
-    description: "Contatos dos portais e das landing pages chegam direto no funil.",
+    title: "Primeira vez por aqui?",
+    description:
+      "São 14 dias grátis, sem cartão. A migração dos seus imóveis é assistida e não custa nada.",
   },
   {
-    icon: KeyRoundIcon,
-    title: "Imóveis e chaves",
-    description: "Cadastro com fotos, condomínios, captações e controle de chaves.",
-  },
-  {
-    icon: UsersIcon,
-    title: "Clientes",
-    description: "Histórico, documentos e interesses de cada cliente.",
-  },
-  {
-    icon: CalendarDaysIcon,
-    title: "Agenda e tarefas",
-    description: "Visitas e retornos organizados para toda a equipe.",
-  },
-  {
-    icon: HandshakeIcon,
-    title: "Propostas",
-    description: "Da negociação à proposta aceita, tudo registrado.",
-  },
-  {
-    icon: LayoutTemplateIcon,
-    title: "Landing pages",
-    description: "Páginas prontas para captar leads, sem programar.",
+    title: "Precisa de ajuda?",
+    description: "Suporte humano em português, sem robô no meio. Respondemos no mesmo dia útil.",
   },
 ]
 
-const HIGHLIGHTS: { icon: LucideIcon; label: string }[] = [
-  { icon: MapPinIcon, label: "Dados hospedados no Brasil" },
-  { icon: LockKeyholeIcon, label: "Acesso por papel na equipe" },
-  { icon: HistoryIcon, label: "Histórico de acessos" },
-]
-
-/** Painel lateral das telas de autenticação: o que o workspace do CRM oferece. */
+/** Painel lateral das telas de autenticação. */
 export function AuthCover() {
   return (
-    <aside className="hidden flex-col justify-between gap-10 border-s bg-muted/40 p-10 lg:flex xl:p-14">
-      <div className="flex max-w-lg flex-col gap-3">
+    <aside className="hidden flex-col justify-between gap-16 border-s bg-muted/40 p-10 lg:flex xl:p-14">
+      <div className="flex max-w-md flex-col gap-4">
         <p className="text-sm font-medium text-muted-foreground">Workspace da imobiliária</p>
         <h2 className="text-3xl font-semibold tracking-tight text-balance">
           Imóveis, clientes e equipe num só lugar.
@@ -72,31 +35,14 @@ export function AuthCover() {
         </p>
       </div>
 
-      <ul className="grid max-w-2xl gap-x-8 gap-y-6 xl:grid-cols-2">
-        {FEATURES.map(({ icon: Icon, title, description }) => (
-          <li key={title} className="flex gap-3">
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-background ring-1 ring-foreground/10">
-              <Icon aria-hidden="true" className="size-4 text-primary" />
-            </div>
-            <div className="flex flex-col gap-0.5">
-              <p className="text-sm font-medium">{title}</p>
-              <p className="text-sm text-muted-foreground">{description}</p>
-            </div>
+      <ul className="grid max-w-2xl gap-8 sm:grid-cols-2">
+        {NOTES.map(({ title, description }) => (
+          <li key={title} className="flex flex-col gap-1.5 border-s ps-4">
+            <p className="text-sm font-medium">{title}</p>
+            <p className="text-sm text-pretty text-muted-foreground">{description}</p>
           </li>
         ))}
       </ul>
-
-      <div className="flex flex-col gap-4">
-        <Separator />
-        <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
-          {HIGHLIGHTS.map(({ icon: Icon, label }) => (
-            <li key={label} className="flex items-center gap-2">
-              <Icon aria-hidden="true" className="size-4" />
-              {label}
-            </li>
-          ))}
-        </ul>
-      </div>
     </aside>
   )
 }

@@ -11,12 +11,18 @@ import {
   AI_USAGE_KINDS,
   AI_USAGE_KIND_LABELS,
   AI_UNIT_WEIGHTS,
+  AI_MAX_OVERAGE_CAP_CENTS,
+  AI_OVERAGE_BILLING_AVAILABLE,
+  AI_PRICE_CACHE_WRITE_1H_USD_PER_MTOK,
+  AI_PRICE_USD_PER_MTOK,
+  AI_REQUEST_PROFILES,
   aiCostCapCents,
   aiCostMillicents,
   aiCostUsd,
   aiDailyCapCents,
   aiPlanAllowances,
   aiUnitsFor,
+  aiUsageFromApi,
   aiUsageNoticeLevel,
   aiUsageRatio,
   aiWeeklyCapCents,
@@ -74,29 +80,31 @@ describe("preços e câmbio", () => {
 })
 
 describe("tetos por plano", () => {
-  it("usa 15% do preço de tabela mensal, nunca o valor com desconto", () => {
-    expect(AI_COST_CAP_PCT).toBe(0.15)
-    expect(aiCostCapCents("corretor")).toBe(1335)
-    expect(aiCostCapCents("imobiliaria")).toBe(3735)
-    expect(aiCostCapCents("equipe")).toBe(8985)
-    expect(aiCostCapCents("rede")).toBe(22350)
+  it("usa 20% do preço de tabela mensal, nunca o valor com desconto", () => {
+    expect(AI_COST_CAP_PCT).toBe(0.2)
+    // Corretor não tem IA: teto zero, e nenhum excedente muda isso.
+    expect(PLANS.corretor.limits.ai_conversations).toBe(0)
+    expect(aiCostCapCents("corretor")).toBe(0)
+    expect(aiCostCapCents("imobiliaria")).toBe(4980)
+    expect(aiCostCapCents("equipe")).toBe(11980)
+    expect(aiCostCapCents("rede")).toBe(29800)
     expect(aiCostCapCents("trial")).toBe(AI_TRIAL_COST_CAP_CENTS)
 
-    for (const plan of ["corretor", "imobiliaria", "equipe", "rede"] as const) {
+    for (const plan of ["imobiliaria", "equipe", "rede"] as const) {
       expect(aiCostCapCents(plan)).toBe(Math.round(PLANS[plan].prices.month * AI_COST_CAP_PCT))
     }
   })
 
   it("recorta o teto do ciclo em dia (1/15) e semana (1/4)", () => {
-    expect(aiDailyCapCents(1335)).toBe(89)
-    expect(aiWeeklyCapCents(1335)).toBe(334)
+    expect(aiDailyCapCents(3735)).toBe(249)
+    expect(aiWeeklyCapCents(3735)).toBe(934)
     expect(aiDailyCapCents(22350)).toBe(1490)
     expect(aiWeeklyCapCents(22350)).toBe(5588)
     expect(aiDailyCapCents(-10)).toBe(0)
   })
 
   it("respeita o piso das janelas curtas sem passar do teto do ciclo", () => {
-    // Teste grátis: 1/15 de R$ 3,00 não pagaria nem uma conversa.
+    // Teste grátis: 1/15 de R$ 6,00 não pagaria nem uma conversa.
     expect(aiDailyCapCents(AI_TRIAL_COST_CAP_CENTS)).toBe(AI_MIN_DAILY_CAP_CENTS)
     expect(aiWeeklyCapCents(AI_TRIAL_COST_CAP_CENTS)).toBe(AI_MIN_WEEKLY_CAP_CENTS)
     expect(aiDailyCapCents(20)).toBe(20)
@@ -116,14 +124,27 @@ describe("tetos por plano", () => {
     )
   })
 
-  it("o teto do dia comporta ao menos uma conversa típica em todos os planos", () => {
-    const caps = [...aiPlanAllowances().map((a) => a.cycleCapCents), AI_TRIAL_COST_CAP_CENTS]
+  it("o teto do dia comporta ao menos uma conversa típica em todo plano com IA", () => {
+    const withAi = aiPlanAllowances().filter((allowance) => allowance.conversations !== 0)
+    const caps = [...withAi.map((a) => a.cycleCapCents), AI_TRIAL_COST_CAP_CENTS]
+
+    expect(withAi).toHaveLength(3)
 
     for (const cap of caps) {
       expect(centsToMillicents(aiDailyCapCents(cap))).toBeGreaterThanOrEqual(
         typicalConversationCostMillicents()
       )
     }
+  })
+
+  it("o plano sem IA não tem teto nenhum a gastar", () => {
+    const corretor = aiPlanAllowances().find((allowance) => allowance.plan === "corretor")
+
+    expect(corretor?.conversations).toBe(0)
+    expect(corretor?.cycleCapCents).toBe(0)
+    expect(corretor?.dailyCapCents).toBe(0)
+    expect(corretor?.weeklyCapCents).toBe(0)
+    expect(corretor?.conversationsWithinCap).toBe(0)
   })
 })
 
@@ -175,8 +196,8 @@ describe("resolveAiQuota", () => {
     expect(decision.allowed).toBe(true)
     expect(decision.reason).toBeNull()
     expect(decision.inOverage).toBe(false)
-    expect(decision.conversationsRemaining).toBe(100)
-    expect(decision.effectiveCapMillicents).toBe(centsToMillicents(3735))
+    expect(decision.conversationsRemaining).toBe(50)
+    expect(decision.effectiveCapMillicents).toBe(centsToMillicents(4980))
   })
 
   it("bloqueia fora de trialing/active (carência, modo leitura, inadimplência)", () => {
@@ -195,7 +216,7 @@ describe("resolveAiQuota", () => {
 
   it("bloqueia pelo teto do dia antes de qualquer outro teto", () => {
     const decision = resolveAiQuota(
-      state({ dayCostMillicents: centsToMillicents(aiDailyCapCents(3735)) }),
+      state({ dayCostMillicents: centsToMillicents(aiDailyCapCents(4980)) }),
       request
     )
 
@@ -205,7 +226,7 @@ describe("resolveAiQuota", () => {
 
   it("bloqueia pelo teto da semana", () => {
     const decision = resolveAiQuota(
-      state({ weekCostMillicents: centsToMillicents(aiWeeklyCapCents(3735)) }),
+      state({ weekCostMillicents: centsToMillicents(aiWeeklyCapCents(4980)) }),
       request
     )
 
@@ -214,13 +235,13 @@ describe("resolveAiQuota", () => {
 
   it("bloqueia pelo teto do ciclo mesmo com conversas sobrando na franquia", () => {
     const decision = resolveAiQuota(
-      state({ conversationsUsed: 1, costMillicents: centsToMillicents(3735) }),
+      state({ conversationsUsed: 1, costMillicents: centsToMillicents(4980) }),
       request
     )
 
     expect(decision.allowed).toBe(false)
     expect(decision.reason).toBe("cycle_cost_cap")
-    expect(decision.conversationsRemaining).toBe(99)
+    expect(decision.conversationsRemaining).toBe(49)
     expect(decision.inOverage).toBe(true)
   })
 
@@ -232,32 +253,51 @@ describe("resolveAiQuota", () => {
     expect(decision.conversationsRemaining).toBe(0)
   })
 
-  it("libera o excedente até o teto em reais definido pela imobiliária", () => {
-    const allowed = resolveAiQuota(
-      state({ conversationsUsed: 100, overageCapCents: 2000 }),
+  it("ignora excedente gravado enquanto não houver como cobrá-lo", () => {
+    // Sem preço na Stripe, excedente autorizado seria gasto nosso sem receita.
+    // A quota tem que parar exatamente no teto do plano, mesmo com valor gravado.
+    expect(AI_OVERAGE_BILLING_AVAILABLE).toBe(false)
+    expect(AI_MAX_OVERAGE_CAP_CENTS).toBe(0)
+
+    const decisao = resolveAiQuota(
+      state({ conversationsUsed: 100, overageCapCents: 200_000 }),
       request
     )
 
-    expect(allowed.allowed).toBe(true)
-    expect(allowed.inOverage).toBe(true)
-    expect(allowed.effectiveCapMillicents).toBe(centsToMillicents(3735 + 2000))
+    expect(decisao.overageCapMillicents).toBe(0)
+    expect(decisao.effectiveCapMillicents).toBe(centsToMillicents(4980))
+    expect(decisao.allowed).toBe(false)
+    // Sem excedente, nada estende a franquia esgotada.
+    expect(decisao.reason).toBe("quota_exhausted")
+  })
 
-    const blocked = resolveAiQuota(
-      state({
-        conversationsUsed: 200,
-        overageCapCents: 2000,
-        costMillicents: centsToMillicents(3735 + 2000),
-      }),
-      request
-    )
+  it("o teto do plano é o limite absoluto de gasto, em qualquer escala", () => {
+    // A garantia que sustenta "sem prejuízo": nenhuma combinação de estado
+    // permite gastar acima de 20% do preço de tabela do plano.
+    for (const plano of ["imobiliaria", "equipe", "rede"] as const) {
+      const teto = aiCostCapCents(plano)
+      const decisao = resolveAiQuota(
+        {
+          planKey: plano,
+          billingState: "active",
+          conversationsLimit: -1,
+          conversationsUsed: 0,
+          costMillicents: centsToMillicents(teto),
+          dayCostMillicents: 0,
+          weekCostMillicents: 0,
+          overageCapCents: 500_000,
+        },
+        { kind: "conversation", estimatedCostMillicents: 1 }
+      )
 
-    expect(blocked.allowed).toBe(false)
-    expect(blocked.reason).toBe("overage_cap")
+      expect(decisao.allowed, plano).toBe(false)
+      expect(decisao.effectiveCapMillicents, plano).toBe(centsToMillicents(teto))
+    }
   })
 
   it("franquia ilimitada ainda respeita o teto em reais", () => {
     const decision = resolveAiQuota(
-      state({ conversationsLimit: -1, costMillicents: centsToMillicents(3735) }),
+      state({ conversationsLimit: -1, costMillicents: centsToMillicents(4980) }),
       request
     )
 
@@ -266,7 +306,7 @@ describe("resolveAiQuota", () => {
   })
 
   it("cobra a estimativa antes da chamada, então duas requisições simultâneas não furam o teto", () => {
-    const almostFull = centsToMillicents(3735) - CONVERSATION_COST
+    const almostFull = centsToMillicents(4980) - CONVERSATION_COST
     const first = resolveAiQuota(state({ costMillicents: almostFull }), request)
     // A segunda chega depois de a primeira já ter debitado a estimativa.
     const second = resolveAiQuota(
@@ -287,10 +327,10 @@ describe("projeção e avisos", () => {
 
   it("assume 8 turnos com cache lido nos turnos seguintes", () => {
     expect(typicalConversationTokens()).toEqual({
-      inputTokens: 4_800,
-      outputTokens: 2_000,
-      cacheWriteTokens: 2_000,
-      cacheReadTokens: 14_000,
+      inputTokens: 1_200,
+      outputTokens: 3_560,
+      cacheWriteTokens: 20_800,
+      cacheReadTokens: 37_800,
     })
   })
 
@@ -320,5 +360,70 @@ describe("projeção e avisos", () => {
     expect(aiUsageNoticeLevel(0.99)).toBe("80")
     expect(aiUsageNoticeLevel(1)).toBe("100")
     expect(aiUsageNoticeLevel(Number.NaN)).toBeNull()
+  })
+})
+
+describe("uso devolvido pela API", () => {
+  it("lê entrada, saída (com raciocínio) e leitura de cache como vieram", () => {
+    expect(
+      aiUsageFromApi({
+        input_tokens: 120,
+        output_tokens: 450,
+        cache_read_input_tokens: 3_000,
+        cache_creation_input_tokens: 0,
+      })
+    ).toEqual({ inputTokens: 120, outputTokens: 450, cacheReadTokens: 3_000, cacheWriteTokens: 0 })
+  })
+
+  it("converte escrita de 1 hora em tokens de 5 min pelo preço (nunca mede a menos)", () => {
+    const usage = aiUsageFromApi({
+      cache_creation_input_tokens: 2_000,
+      cache_creation: { ephemeral_5m_input_tokens: 500, ephemeral_1h_input_tokens: 1_500 },
+    })
+
+    // 1.500 × 4,00 / 2,50 = 2.400 equivalentes, mais os 500 de 5 min.
+    expect(usage.cacheWriteTokens).toBe(2_900)
+    expect(aiCostUsd(usage)).toBeCloseTo(
+      (500 * AI_PRICE_USD_PER_MTOK.cacheWrite + 1_500 * AI_PRICE_CACHE_WRITE_1H_USD_PER_MTOK) /
+        1_000_000,
+      10
+    )
+  })
+
+  it("sem detalhe por duração, trata toda escrita como 1 hora", () => {
+    expect(aiUsageFromApi({ cache_creation_input_tokens: 1_000 }).cacheWriteTokens).toBe(1_600)
+    // Detalhe que não fecha com o total: a diferença também conta como 1 hora.
+    expect(
+      aiUsageFromApi({
+        cache_creation_input_tokens: 1_000,
+        cache_creation: { ephemeral_5m_input_tokens: 400, ephemeral_1h_input_tokens: 0 },
+      }).cacheWriteTokens
+    ).toBe(400 + 960)
+  })
+
+  it("ignora usage ausente ou com valores inválidos", () => {
+    expect(aiUsageFromApi(null)).toEqual({
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    })
+    expect(aiUsageFromApi({ input_tokens: -5, output_tokens: null }).inputTokens).toBe(0)
+  })
+})
+
+describe("perfil de chamada por tipo de uso", () => {
+  it("todo tipo tem effort explícito e cabe no teto de saída", () => {
+    for (const kind of AI_USAGE_KINDS) {
+      const profile = AI_REQUEST_PROFILES[kind]
+      expect(["low", "medium", "high"]).toContain(profile.effort)
+      expect(profile.maxTokens).toBeGreaterThan(0)
+      expect(profile.maxTokens).toBeLessThanOrEqual(AI_MAX_OUTPUT_TOKENS)
+    }
+  })
+
+  it("atendimento no WhatsApp roda em low e sem lote", () => {
+    expect(AI_REQUEST_PROFILES.conversation.effort).toBe("low")
+    expect(AI_REQUEST_PROFILES.conversation.batchable).toBe(false)
   })
 })

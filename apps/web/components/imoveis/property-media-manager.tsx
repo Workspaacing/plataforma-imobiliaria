@@ -4,6 +4,7 @@ import * as React from "react"
 import {
   ArrowDownIcon,
   ArrowUpIcon,
+  GripVerticalIcon,
   ImagePlusIcon,
   StarIcon,
   Trash2Icon,
@@ -52,6 +53,7 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@workspace/ui/components/item"
+import { Kbd } from "@workspace/ui/components/kbd"
 import { Spinner } from "@workspace/ui/components/spinner"
 import { toast } from "@workspace/ui/components/toast"
 import { cn } from "@workspace/ui/lib/utils"
@@ -62,13 +64,14 @@ import type { ActionResult } from "@/lib/auth/action-result"
 import { CAPTION_MAX_LENGTH, MAX_IMAGE_BYTES, PROPERTY_MEDIA_BUCKET } from "@/lib/imoveis/constants"
 import { translateStorageError } from "@/lib/imoveis/db-errors"
 import {
-  moveMediaAction,
   registerPropertyImagesAction,
   removeMediaAction,
+  reorderMediaAction,
   setCoverMediaAction,
   updateMediaCaptionAction,
 } from "@/lib/imoveis/media-actions"
 import type { MediaSource } from "@/lib/imoveis/mappers"
+import { REMOVE_MEDIA_DENIED_MESSAGE } from "@/lib/imoveis/permissions"
 import { getImagePreparationMessage, prepareImage } from "@/lib/media/compress-image"
 import { getPropertyPhotoUrls, propertyPhotoObjectPaths, thumbPathFor } from "@/lib/media/paths"
 import { UPLOADS_BLOCKED_MESSAGE, isStorageForbiddenError } from "@/lib/media/upload-errors"
@@ -78,6 +81,8 @@ import { createClient } from "@/lib/supabase/client"
 const UPLOAD_CONCURRENCY = 2
 const STORAGE_CACHE_CONTROL = "31536000"
 const PHOTO_SIZES = "(min-width: 1280px) 20rem, (min-width: 640px) 50vw, 100vw"
+const DRAG_MEDIA_TYPE = "application/x-imob-foto"
+const REORDER_HELP_ID = "fotos-reordenar-ajuda"
 
 type UploadStatus = "queued" | "optimizing" | "uploading" | "error"
 
@@ -108,25 +113,61 @@ function notify(result: ActionResult, { quiet = false }: { quiet?: boolean } = {
   }
 }
 
+/** Nova ordem com `id` na posição `to` (os demais deslizam). */
+function moveInOrder(ids: readonly string[], id: string, to: number) {
+  const from = ids.indexOf(id)
+  if (from < 0) return [...ids]
+
+  const target = Math.min(Math.max(to, 0), ids.length - 1)
+  if (from === target) return [...ids]
+
+  const next = [...ids]
+  next.splice(from, 1)
+  next.splice(target, 0, id)
+  return next
+}
+
+type MediaCardProps = {
+  propertyId: string
+  image: MediaSource
+  index: number
+  total: number
+  canDelete: boolean
+  isGrabbed: boolean
+  isDragging: boolean
+  reordering: boolean
+  onMove: (id: string, to: number) => void
+  onGrabToggle: (id: string) => void
+  onCancelGrab: () => void
+  onDragStart: (id: string) => void
+  onDragEnd: () => void
+  onDragEnterIndex: (index: number) => void
+}
+
 function MediaCard({
   propertyId,
   image,
   index,
   total,
   canDelete,
-}: {
-  propertyId: string
-  image: MediaSource
-  index: number
-  total: number
-  canDelete: boolean
-}) {
+  isGrabbed,
+  isDragging,
+  reordering,
+  onMove,
+  onGrabToggle,
+  onCancelGrab,
+  onDragStart,
+  onDragEnd,
+  onDragEnterIndex,
+}: MediaCardProps) {
   const [caption, setCaption] = React.useState(image.caption ?? "")
   const [confirmOpen, setConfirmOpen] = React.useState(false)
   const [isPending, startTransition] = React.useTransition()
+  const cardRef = React.useRef<HTMLDivElement>(null)
   const photo = getPropertyPhotoUrls(image.storage_path)
   const captionChanged = caption.trim() !== (image.caption ?? "")
   const label = `Foto ${index + 1}`
+  const position = `posição ${index + 1} de ${total}`
 
   function run(action: () => Promise<ActionResult>, options?: { quiet?: boolean }) {
     startTransition(async () => {
@@ -139,8 +180,53 @@ function MediaCard({
     run(() => updateMediaCaptionAction(propertyId, image.id, caption))
   }
 
+  function handleHandleKeyDown(event: React.KeyboardEvent<HTMLButtonElement>) {
+    if (event.key === " " || event.key === "Enter") {
+      event.preventDefault()
+      onGrabToggle(image.id)
+      return
+    }
+
+    if (!isGrabbed) return
+
+    if (event.key === "Escape") {
+      event.preventDefault()
+      onCancelGrab()
+      return
+    }
+
+    const step =
+      event.key === "ArrowUp" || event.key === "ArrowLeft"
+        ? -1
+        : event.key === "ArrowDown" || event.key === "ArrowRight"
+          ? 1
+          : event.key === "Home"
+            ? -index
+            : event.key === "End"
+              ? total - 1 - index
+              : 0
+
+    if (step === 0) return
+    event.preventDefault()
+    onMove(image.id, index + step)
+  }
+
   return (
-    <Card size="sm" className="h-full">
+    <Card
+      ref={cardRef}
+      size="sm"
+      data-grabbed={isGrabbed || undefined}
+      className={cn(
+        "h-full transition-opacity",
+        isDragging && "opacity-50",
+        isGrabbed && "ring-2 ring-ring"
+      )}
+      onDragEnter={() => onDragEnterIndex(index)}
+      onDragOver={(event) => {
+        // Sem preventDefault o navegador recusa a soltura neste alvo.
+        if (event.dataTransfer.types.includes(DRAG_MEDIA_TYPE)) event.preventDefault()
+      }}
+    >
       {photo.main ? (
         <FallbackImage
           src={photo.main}
@@ -201,13 +287,38 @@ function MediaCard({
           type="button"
           variant="ghost"
           size="icon-sm"
+          draggable={total > 1}
+          aria-roledescription="botão de mover foto"
+          aria-describedby={REORDER_HELP_ID}
+          aria-pressed={isGrabbed}
+          aria-label={`Mover ${label.toLowerCase()}, ${position}`}
+          title="Arraste para reordenar (ou Espaço e setas)"
+          disabled={total < 2}
+          className="cursor-grab active:cursor-grabbing"
+          onKeyDown={handleHandleKeyDown}
+          onBlur={() => {
+            if (isGrabbed) onGrabToggle(image.id)
+          }}
+          onDragStart={(event) => {
+            event.dataTransfer.effectAllowed = "move"
+            event.dataTransfer.setData(DRAG_MEDIA_TYPE, image.id)
+            if (cardRef.current) event.dataTransfer.setDragImage(cardRef.current, 24, 24)
+            onDragStart(image.id)
+          }}
+          onDragEnd={onDragEnd}
+        >
+          <GripVerticalIcon />
+          <span className="sr-only">
+            {isGrabbed ? "Soltar" : "Mover"} {label.toLowerCase()}
+          </span>
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
           title="Subir"
-          disabled={isPending || index === 0}
-          onClick={() =>
-            run(() => moveMediaAction(propertyId, image.id, "up"), {
-              quiet: true,
-            })
-          }
+          disabled={isPending || reordering || index === 0}
+          onClick={() => onMove(image.id, index - 1)}
         >
           <ArrowUpIcon />
           <span className="sr-only">Subir {label.toLowerCase()}</span>
@@ -217,12 +328,8 @@ function MediaCard({
           variant="ghost"
           size="icon-sm"
           title="Descer"
-          disabled={isPending || index === total - 1}
-          onClick={() =>
-            run(() => moveMediaAction(propertyId, image.id, "down"), {
-              quiet: true,
-            })
-          }
+          disabled={isPending || reordering || index === total - 1}
+          onClick={() => onMove(image.id, index + 1)}
         >
           <ArrowDownIcon />
           <span className="sr-only">Descer {label.toLowerCase()}</span>
@@ -281,6 +388,10 @@ function MediaCard({
  * sem EXIF/GPS) e ganha uma miniatura WebP de 400 px (`__thumb.webp`) antes de
  * ir direto para o bucket property-media (o RLS do Storage confere se o usuário
  * edita o imóvel). As linhas são registradas depois via Server Action.
+ *
+ * A ordem muda arrastando o botão de mover (ou, pelo teclado, Espaço para pegar
+ * e setas para mover). A lista reage na hora e a ordem inteira é gravada de uma
+ * vez por `reorderMediaAction`; se o banco recusar, ela volta ao que estava.
  */
 export function PropertyMediaManager({
   organizationId,
@@ -301,12 +412,128 @@ export function PropertyMediaManager({
   const [summary, setSummary] = React.useState<string | null>(null)
   const [isDragging, setIsDragging] = React.useState(false)
 
-  const images = media
-    .filter((item) => item.kind === "image" && item.storage_path)
-    .sort((a, b) => a.position - b.position)
+  const serverImages = React.useMemo(
+    () =>
+      media
+        .filter((item) => item.kind === "image" && item.storage_path)
+        .sort((a, b) => a.position - b.position),
+    [media]
+  )
+  const serverOrderKey = serverImages.map((image) => image.id).join(",")
+
+  /**
+   * Ordem otimista enquanto a gravação não volta. Fica guardada com a ordem do
+   * servidor de que saiu (`key`): quando a revalidação traz posições novas a
+   * chave muda, a ordem local deixa de valer sozinha e não é preciso efeito
+   * nenhum para limpá-la.
+   */
+  const [pendingOrder, setPendingOrder] = React.useState<{ key: string; ids: string[] } | null>(
+    null
+  )
+  const [draggingId, setDraggingId] = React.useState<string | null>(null)
+  const [grabbedId, setGrabbedId] = React.useState<string | null>(null)
+  const [reorderStatus, setReorderStatus] = React.useState("")
+  const [isReordering, startReorder] = React.useTransition()
+  const orderBeforeGrab = React.useRef<string[] | null>(null)
+  const orderBeforeDrag = React.useRef<string[] | null>(null)
+
+  const localOrder = pendingOrder?.key === serverOrderKey ? pendingOrder.ids : null
+
+  function applyOrder(ids: string[] | null) {
+    setPendingOrder(ids ? { key: serverOrderKey, ids } : null)
+  }
+
+  const images = React.useMemo(() => {
+    if (!localOrder) return serverImages
+
+    const byId = new Map(serverImages.map((image) => [image.id, image]))
+    const ordered = localOrder
+      .map((id) => byId.get(id))
+      .filter((image): image is MediaSource => image !== undefined)
+    const placed = new Set(ordered.map((image) => image.id))
+
+    for (const image of serverImages) {
+      if (!placed.has(image.id)) ordered.push(image)
+    }
+
+    return ordered
+  }, [serverImages, localOrder])
+
+  const imageIds = images.map((image) => image.id)
   const isUploading = uploads.some((entry) => entry.status !== "error")
   const isFull = images.length >= MAX_PROPERTY_PHOTOS
   const canAdd = !uploadsBlocked && !isFull
+
+  function announceMove(id: string, ids: readonly string[]) {
+    const position = ids.indexOf(id) + 1
+    setReorderStatus(`Foto movida para a posição ${position} de ${ids.length}.`)
+  }
+
+  function persistOrder(ids: string[]) {
+    startReorder(async () => {
+      const result = await reorderMediaAction(propertyId, ids)
+      if (!result.ok) {
+        applyOrder(null)
+        setReorderStatus("A ordem das fotos não foi salva.")
+        notify(result)
+      }
+    })
+  }
+
+  /** Move na tela na hora; grava só quando a foto é solta. */
+  function previewMove(id: string, to: number) {
+    const next = moveInOrder(localOrder ?? imageIds, id, to)
+    applyOrder(next)
+    announceMove(id, next)
+  }
+
+  function moveAndSave(id: string, to: number) {
+    const next = moveInOrder(localOrder ?? imageIds, id, to)
+    applyOrder(next)
+    announceMove(id, next)
+    persistOrder(next)
+  }
+
+  function startDrag(id: string) {
+    orderBeforeDrag.current = [...(localOrder ?? imageIds)]
+    setDraggingId(id)
+  }
+
+  /** Vale para soltar na lista e para desistir: dragend sempre acontece. */
+  function endDrag() {
+    const current = localOrder ?? imageIds
+    if (orderBeforeDrag.current && orderBeforeDrag.current.join(",") !== current.join(",")) {
+      persistOrder([...current])
+    }
+    orderBeforeDrag.current = null
+    setDraggingId(null)
+  }
+
+  function toggleGrab(id: string) {
+    if (grabbedId === id) {
+      setGrabbedId(null)
+      const current = localOrder ?? imageIds
+      if (orderBeforeGrab.current?.join(",") !== current.join(",")) {
+        persistOrder([...current])
+        setReorderStatus(`Foto solta na posição ${current.indexOf(id) + 1} de ${current.length}.`)
+      }
+      orderBeforeGrab.current = null
+      return
+    }
+
+    orderBeforeGrab.current = [...(localOrder ?? imageIds)]
+    setGrabbedId(id)
+    setReorderStatus(
+      `Foto pega na posição ${(localOrder ?? imageIds).indexOf(id) + 1} de ${images.length}. Use as setas para mover, Enter para soltar e Esc para cancelar.`
+    )
+  }
+
+  function cancelGrab() {
+    applyOrder(orderBeforeGrab.current)
+    setGrabbedId(null)
+    orderBeforeGrab.current = null
+    setReorderStatus("Movimentação cancelada: a ordem voltou ao que estava.")
+  }
 
   function updateEntry(key: string, patch: Partial<UploadEntry>) {
     setUploads((current) =>
@@ -485,11 +712,14 @@ export function PropertyMediaManager({
           !canAdd && "opacity-60"
         )}
         onDragOver={(event) => {
+          // Reordenar não é envio: o arrastar de uma foto da lista não entra aqui.
+          if (event.dataTransfer.types.includes(DRAG_MEDIA_TYPE)) return
           event.preventDefault()
           if (canAdd) setIsDragging(true)
         }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={(event) => {
+          if (event.dataTransfer.types.includes(DRAG_MEDIA_TYPE)) return
           event.preventDefault()
           setIsDragging(false)
           if (!uploadsBlocked && isFull) {
@@ -591,27 +821,62 @@ export function PropertyMediaManager({
           {images.length < 5 ? ` · faltam ${5 - images.length} para o mínimo dos portais` : ""}
           {summary ? <span className="block text-xs tabular-nums">{summary}</span> : null}
         </span>
-        {canDelete ? null : <span>Somente o dono ou o gerente podem remover fotos.</span>}
+        <span className="flex items-center gap-2">
+          {isReordering ? <Spinner /> : null}
+          {canDelete ? null : <span>{REMOVE_MEDIA_DENIED_MESSAGE}</span>}
+        </span>
       </div>
 
       {images.length > 0 ? (
-        <ul
-          className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
-          aria-label="Fotos do imóvel"
-        >
-          {images.map((image, index) => (
-            <li key={image.id}>
-              <MediaCard
-                key={`${image.id}-${image.caption ?? ""}`}
-                propertyId={propertyId}
-                image={image}
-                index={index}
-                total={images.length}
-                canDelete={canDelete}
-              />
-            </li>
-          ))}
-        </ul>
+        <>
+          {images.length > 1 ? (
+            <p id={REORDER_HELP_ID} className="text-sm text-muted-foreground">
+              A primeira foto é a que os portais mostram primeiro. Arraste pelo{" "}
+              <GripVerticalIcon className="inline size-4 align-text-bottom" aria-hidden="true" />{" "}
+              para reordenar. No teclado: chegue ao botão de mover, <Kbd>Espaço</Kbd> para pegar,{" "}
+              <Kbd>↑</Kbd> <Kbd>↓</Kbd> para mover, <Kbd>Enter</Kbd> para soltar e <Kbd>Esc</Kbd>{" "}
+              para cancelar.
+            </p>
+          ) : null}
+          <p aria-live="assertive" className="sr-only">
+            {reorderStatus}
+          </p>
+          <ul
+            className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
+            aria-label="Fotos do imóvel, em ordem de exibição"
+            onDragOver={(event) => {
+              if (event.dataTransfer.types.includes(DRAG_MEDIA_TYPE)) event.preventDefault()
+            }}
+            onDrop={(event) => {
+              // A ordem é gravada no dragend (que acontece mesmo fora da lista).
+              if (event.dataTransfer.types.includes(DRAG_MEDIA_TYPE)) event.preventDefault()
+            }}
+          >
+            {images.map((image, index) => (
+              <li key={image.id}>
+                <MediaCard
+                  key={`${image.id}-${image.caption ?? ""}`}
+                  propertyId={propertyId}
+                  image={image}
+                  index={index}
+                  total={images.length}
+                  canDelete={canDelete}
+                  isGrabbed={grabbedId === image.id}
+                  isDragging={draggingId === image.id}
+                  reordering={isReordering}
+                  onMove={grabbedId === image.id ? previewMove : moveAndSave}
+                  onGrabToggle={toggleGrab}
+                  onCancelGrab={cancelGrab}
+                  onDragStart={startDrag}
+                  onDragEnd={endDrag}
+                  onDragEnterIndex={(target) => {
+                    if (draggingId && draggingId !== image.id) previewMove(draggingId, target)
+                  }}
+                />
+              </li>
+            ))}
+          </ul>
+        </>
       ) : null}
     </div>
   )

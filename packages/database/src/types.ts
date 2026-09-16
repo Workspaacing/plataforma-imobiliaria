@@ -350,6 +350,284 @@ export type Database = {
           },
         ]
       }
+      caixa_catalog_status: {
+        Row: {
+          atualizado_em: string
+          checks_since_change: number
+          last_changed_at: string | null
+          last_checked_at: string | null
+          last_failure_at: string | null
+          last_failure_reason: string | null
+          last_result: string | null
+          lista_gerada_em: string | null
+          sincronizado_em: string | null
+          singleton: boolean
+          source_digest: string | null
+          source_etag: string | null
+          source_last_modified: string | null
+          total_ativo: number
+          ultima_carga_recusada: number
+          ultima_carga_saiu: number
+          ultima_carga_total: number
+        }
+        Insert: {
+          atualizado_em?: string
+          checks_since_change?: number
+          last_changed_at?: string | null
+          last_checked_at?: string | null
+          last_failure_at?: string | null
+          last_failure_reason?: string | null
+          last_result?: string | null
+          lista_gerada_em?: string | null
+          sincronizado_em?: string | null
+          singleton?: boolean
+          source_digest?: string | null
+          source_etag?: string | null
+          source_last_modified?: string | null
+          total_ativo?: number
+          ultima_carga_recusada?: number
+          ultima_carga_saiu?: number
+          ultima_carga_total?: number
+        }
+        Update: {
+          atualizado_em?: string
+          checks_since_change?: number
+          last_changed_at?: string | null
+          last_checked_at?: string | null
+          last_failure_at?: string | null
+          last_failure_reason?: string | null
+          last_result?: string | null
+          lista_gerada_em?: string | null
+          sincronizado_em?: string | null
+          singleton?: boolean
+          source_digest?: string | null
+          source_etag?: string | null
+          source_last_modified?: string | null
+          total_ativo?: number
+          ultima_carga_recusada?: number
+          ultima_carga_saiu?: number
+          ultima_carga_total?: number
+        }
+        Relationships: []
+      }
+      caixa_client_links: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          lead_id: string | null
+          notes: string | null
+          numero: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lead_id?: string | null
+          notes?: string | null
+          numero: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          lead_id?: string | null
+          notes?: string | null
+          numero?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "caixa_client_links_client_fkey"
+            columns: ["organization_id", "client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "caixa_client_links_lead_fkey"
+            columns: ["organization_id", "lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "caixa_client_links_numero_fkey"
+            columns: ["numero"]
+            isOneToOne: false
+            referencedRelation: "caixa_listings"
+            referencedColumns: ["numero"]
+          },
+          {
+            foreignKeyName: "caixa_client_links_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      caixa_favorites: {
+        Row: {
+          created_at: string
+          numero: string
+          organization_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          numero: string
+          organization_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          numero?: string
+          organization_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "caixa_favorites_numero_fkey"
+            columns: ["numero"]
+            isOneToOne: false
+            referencedRelation: "caixa_listings"
+            referencedColumns: ["numero"]
+          },
+          {
+            foreignKeyName: "caixa_favorites_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      caixa_listings: {
+        Row: {
+          aceita_financiamento: boolean | null
+          area_privativa: number | null
+          area_terreno: number | null
+          area_total: number | null
+          atualizado_em: string
+          bairro: string | null
+          cidade: string
+          desconto: number | null
+          descricao: string | null
+          endereco: string
+          link: string
+          lista_gerada_em: string | null
+          modalidade: string | null
+          numero: string
+          preco: number
+          primeira_vez_em: string
+          quartos: number | null
+          saiu_da_lista_em: string | null
+          sincronizacao_id: string
+          tipo: Database["public"]["Enums"]["property_type"]
+          uf: string
+          vagas: number | null
+          valor_avaliacao: number | null
+        }
+        Insert: {
+          aceita_financiamento?: boolean | null
+          area_privativa?: number | null
+          area_terreno?: number | null
+          area_total?: number | null
+          atualizado_em?: string
+          bairro?: string | null
+          cidade: string
+          desconto?: number | null
+          descricao?: string | null
+          endereco: string
+          link: string
+          lista_gerada_em?: string | null
+          modalidade?: string | null
+          numero: string
+          preco: number
+          primeira_vez_em?: string
+          quartos?: number | null
+          saiu_da_lista_em?: string | null
+          sincronizacao_id: string
+          tipo?: Database["public"]["Enums"]["property_type"]
+          uf: string
+          vagas?: number | null
+          valor_avaliacao?: number | null
+        }
+        Update: {
+          aceita_financiamento?: boolean | null
+          area_privativa?: number | null
+          area_terreno?: number | null
+          area_total?: number | null
+          atualizado_em?: string
+          bairro?: string | null
+          cidade?: string
+          desconto?: number | null
+          descricao?: string | null
+          endereco?: string
+          link?: string
+          lista_gerada_em?: string | null
+          modalidade?: string | null
+          numero?: string
+          preco?: number
+          primeira_vez_em?: string
+          quartos?: number | null
+          saiu_da_lista_em?: string | null
+          sincronizacao_id?: string
+          tipo?: Database["public"]["Enums"]["property_type"]
+          uf?: string
+          vagas?: number | null
+          valor_avaliacao?: number | null
+        }
+        Relationships: []
+      }
+      caixa_sync_events: {
+        Row: {
+          id: number
+          lista_gerada_em: string | null
+          motivo: string | null
+          ocorrido_em: string
+          recusados: number | null
+          resultado: string
+          sairam: number | null
+          source_last_modified: string | null
+          total: number | null
+          verificacoes: number | null
+        }
+        Insert: {
+          id?: never
+          lista_gerada_em?: string | null
+          motivo?: string | null
+          ocorrido_em?: string
+          recusados?: number | null
+          resultado: string
+          sairam?: number | null
+          source_last_modified?: string | null
+          total?: number | null
+          verificacoes?: number | null
+        }
+        Update: {
+          id?: never
+          lista_gerada_em?: string | null
+          motivo?: string | null
+          ocorrido_em?: string
+          recusados?: number | null
+          resultado?: string
+          sairam?: number | null
+          source_last_modified?: string | null
+          total?: number | null
+          verificacoes?: number | null
+        }
+        Relationships: []
+      }
       capture_requests: {
         Row: {
           city: string | null
@@ -697,6 +975,278 @@ export type Database = {
           },
         ]
       }
+      commission_rules: {
+        Row: {
+          agency_percent: number
+          basis: Database["public"]["Enums"]["commission_basis"]
+          capturer_percent: number
+          created_at: string
+          created_by: string | null
+          effective_from: string
+          effective_to: string | null
+          fixed_cents: number
+          id: string
+          manager_percent: number
+          note: string | null
+          organization_id: string
+          partner_percent: number
+          percent: number
+          purpose: Database["public"]["Enums"]["listing_purpose"]
+          seller_percent: number
+        }
+        Insert: {
+          agency_percent?: number
+          basis?: Database["public"]["Enums"]["commission_basis"]
+          capturer_percent?: number
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string
+          effective_to?: string | null
+          fixed_cents?: number
+          id?: string
+          manager_percent?: number
+          note?: string | null
+          organization_id: string
+          partner_percent?: number
+          percent?: number
+          purpose: Database["public"]["Enums"]["listing_purpose"]
+          seller_percent?: number
+        }
+        Update: {
+          agency_percent?: number
+          basis?: Database["public"]["Enums"]["commission_basis"]
+          capturer_percent?: number
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string
+          effective_to?: string | null
+          fixed_cents?: number
+          id?: string
+          manager_percent?: number
+          note?: string | null
+          organization_id?: string
+          partner_percent?: number
+          percent?: number
+          purpose?: Database["public"]["Enums"]["listing_purpose"]
+          seller_percent?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_rules_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commission_settings: {
+        Row: {
+          created_at: string
+          discount_approval_enabled: boolean
+          manager_user_id: string | null
+          max_discount_percent: number
+          organization_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          discount_approval_enabled?: boolean
+          manager_user_id?: string | null
+          max_discount_percent?: number
+          organization_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          discount_approval_enabled?: boolean
+          manager_user_id?: string | null
+          max_discount_percent?: number
+          organization_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commission_shares: {
+        Row: {
+          amount_cents: number
+          commission_id: string
+          created_at: string
+          id: string
+          organization_id: string
+          paid_at: string | null
+          paid_by: string | null
+          paid_note: string | null
+          partner_name: string | null
+          percent: number
+          role: Database["public"]["Enums"]["commission_role"]
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          amount_cents: number
+          commission_id: string
+          created_at?: string
+          id?: string
+          organization_id: string
+          paid_at?: string | null
+          paid_by?: string | null
+          paid_note?: string | null
+          partner_name?: string | null
+          percent: number
+          role: Database["public"]["Enums"]["commission_role"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          commission_id?: string
+          created_at?: string
+          id?: string
+          organization_id?: string
+          paid_at?: string | null
+          paid_by?: string | null
+          paid_note?: string | null
+          partner_name?: string | null
+          percent?: number
+          role?: Database["public"]["Enums"]["commission_role"]
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commission_shares_commission_id_fkey"
+            columns: ["commission_id"]
+            isOneToOne: false
+            referencedRelation: "commissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commission_shares_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commissions: {
+        Row: {
+          client_id: string | null
+          client_name: string | null
+          closed_at: string
+          created_at: string
+          deal_amount_cents: number
+          id: string
+          note: string | null
+          organization_id: string
+          property_code: string | null
+          property_id: string | null
+          property_title: string | null
+          proposal_id: string | null
+          purpose: Database["public"]["Enums"]["listing_purpose"]
+          rule_id: string | null
+          rule_snapshot: Json
+          status: Database["public"]["Enums"]["commission_status"]
+          total_cents: number
+          updated_at: string
+        }
+        Insert: {
+          client_id?: string | null
+          client_name?: string | null
+          closed_at?: string
+          created_at?: string
+          deal_amount_cents: number
+          id?: string
+          note?: string | null
+          organization_id: string
+          property_code?: string | null
+          property_id?: string | null
+          property_title?: string | null
+          proposal_id?: string | null
+          purpose: Database["public"]["Enums"]["listing_purpose"]
+          rule_id?: string | null
+          rule_snapshot: Json
+          status?: Database["public"]["Enums"]["commission_status"]
+          total_cents: number
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string | null
+          client_name?: string | null
+          closed_at?: string
+          created_at?: string
+          deal_amount_cents?: number
+          id?: string
+          note?: string | null
+          organization_id?: string
+          property_code?: string | null
+          property_id?: string | null
+          property_title?: string | null
+          proposal_id?: string | null
+          purpose?: Database["public"]["Enums"]["listing_purpose"]
+          rule_id?: string | null
+          rule_snapshot?: Json
+          status?: Database["public"]["Enums"]["commission_status"]
+          total_cents?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commissions_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commissions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commissions_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "client_property_matches"
+            referencedColumns: ["property_id"]
+          },
+          {
+            foreignKeyName: "commissions_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commissions_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commissions_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "commission_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       condominiums: {
         Row: {
           amenities: string[]
@@ -759,6 +1309,304 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      connected_accounts: {
+        Row: {
+          blocked_at: string | null
+          blocked_reason: string | null
+          connected_at: string
+          connected_by: string | null
+          created_at: string
+          credential_expires_at: string | null
+          credential_secret_id: string | null
+          display_name: string | null
+          enabled: boolean
+          external_account_id: string
+          external_owner_id: string | null
+          handle: string | null
+          id: string
+          last_error_at: string | null
+          last_error_code: string | null
+          last_error_message: string | null
+          last_synced_at: string | null
+          metadata: Json
+          organization_id: string
+          provider: Database["public"]["Enums"]["connection_provider"]
+          scopes: string[]
+          status: Database["public"]["Enums"]["connection_status"]
+          terms_acceptance_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          blocked_at?: string | null
+          blocked_reason?: string | null
+          connected_at?: string
+          connected_by?: string | null
+          created_at?: string
+          credential_expires_at?: string | null
+          credential_secret_id?: string | null
+          display_name?: string | null
+          enabled?: boolean
+          external_account_id: string
+          external_owner_id?: string | null
+          handle?: string | null
+          id?: string
+          last_error_at?: string | null
+          last_error_code?: string | null
+          last_error_message?: string | null
+          last_synced_at?: string | null
+          metadata?: Json
+          organization_id: string
+          provider: Database["public"]["Enums"]["connection_provider"]
+          scopes?: string[]
+          status?: Database["public"]["Enums"]["connection_status"]
+          terms_acceptance_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          blocked_at?: string | null
+          blocked_reason?: string | null
+          connected_at?: string
+          connected_by?: string | null
+          created_at?: string
+          credential_expires_at?: string | null
+          credential_secret_id?: string | null
+          display_name?: string | null
+          enabled?: boolean
+          external_account_id?: string
+          external_owner_id?: string | null
+          handle?: string | null
+          id?: string
+          last_error_at?: string | null
+          last_error_code?: string | null
+          last_error_message?: string | null
+          last_synced_at?: string | null
+          metadata?: Json
+          organization_id?: string
+          provider?: Database["public"]["Enums"]["connection_provider"]
+          scopes?: string[]
+          status?: Database["public"]["Enums"]["connection_status"]
+          terms_acceptance_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connected_accounts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connected_accounts_terms_fkey"
+            columns: ["organization_id", "terms_acceptance_id"]
+            isOneToOne: false
+            referencedRelation: "connection_terms_acceptances"
+            referencedColumns: ["organization_id", "id"]
+          },
+        ]
+      }
+      connection_events: {
+        Row: {
+          action: Database["public"]["Enums"]["connection_event_action"]
+          actor_id: string | null
+          connected_account_id: string | null
+          created_at: string
+          details: Json
+          id: string
+          organization_id: string
+          provider: Database["public"]["Enums"]["connection_provider"]
+          reason: string | null
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["connection_event_action"]
+          actor_id?: string | null
+          connected_account_id?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          organization_id: string
+          provider: Database["public"]["Enums"]["connection_provider"]
+          reason?: string | null
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["connection_event_action"]
+          actor_id?: string | null
+          connected_account_id?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          organization_id?: string
+          provider?: Database["public"]["Enums"]["connection_provider"]
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connection_events_account_fkey"
+            columns: ["organization_id", "connected_account_id"]
+            isOneToOne: false
+            referencedRelation: "connected_accounts"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "connection_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      connection_terms_acceptances: {
+        Row: {
+          accepted_at: string
+          accepted_by: string
+          created_at: string
+          displayed_text: string
+          displayed_text_sha256: string
+          id: string
+          ip_hash: string | null
+          organization_id: string
+          provider: Database["public"]["Enums"]["connection_provider"]
+          provider_evidence: Json
+          terms_key: string
+          terms_url: string
+          terms_version: string
+          user_agent: string | null
+        }
+        Insert: {
+          accepted_at?: string
+          accepted_by: string
+          created_at?: string
+          displayed_text: string
+          displayed_text_sha256: string
+          id?: string
+          ip_hash?: string | null
+          organization_id: string
+          provider: Database["public"]["Enums"]["connection_provider"]
+          provider_evidence?: Json
+          terms_key: string
+          terms_url: string
+          terms_version: string
+          user_agent?: string | null
+        }
+        Update: {
+          accepted_at?: string
+          accepted_by?: string
+          created_at?: string
+          displayed_text?: string
+          displayed_text_sha256?: string
+          id?: string
+          ip_hash?: string | null
+          organization_id?: string
+          provider?: Database["public"]["Enums"]["connection_provider"]
+          provider_evidence?: Json
+          terms_key?: string
+          terms_url?: string
+          terms_version?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connection_terms_acceptances_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      consent_records: {
+        Row: {
+          action: Database["public"]["Enums"]["consent_action"]
+          channel: Database["public"]["Enums"]["consent_channel"]
+          client_id: string | null
+          collected_at: string
+          created_at: string
+          disclosure_sha256: string
+          disclosure_text: string
+          evidence: Json
+          id: string
+          lead_id: string | null
+          organization_id: string
+          policy_version: string
+          purpose: Database["public"]["Enums"]["consent_purpose"]
+          recorded_by: string | null
+          revokes_id: string | null
+          source: Database["public"]["Enums"]["consent_source"]
+          subject_address: string
+          subject_name: string | null
+        }
+        Insert: {
+          action: Database["public"]["Enums"]["consent_action"]
+          channel: Database["public"]["Enums"]["consent_channel"]
+          client_id?: string | null
+          collected_at?: string
+          created_at?: string
+          disclosure_sha256: string
+          disclosure_text: string
+          evidence?: Json
+          id?: string
+          lead_id?: string | null
+          organization_id: string
+          policy_version: string
+          purpose: Database["public"]["Enums"]["consent_purpose"]
+          recorded_by?: string | null
+          revokes_id?: string | null
+          source: Database["public"]["Enums"]["consent_source"]
+          subject_address: string
+          subject_name?: string | null
+        }
+        Update: {
+          action?: Database["public"]["Enums"]["consent_action"]
+          channel?: Database["public"]["Enums"]["consent_channel"]
+          client_id?: string | null
+          collected_at?: string
+          created_at?: string
+          disclosure_sha256?: string
+          disclosure_text?: string
+          evidence?: Json
+          id?: string
+          lead_id?: string | null
+          organization_id?: string
+          policy_version?: string
+          purpose?: Database["public"]["Enums"]["consent_purpose"]
+          recorded_by?: string | null
+          revokes_id?: string | null
+          source?: Database["public"]["Enums"]["consent_source"]
+          subject_address?: string
+          subject_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consent_records_client_fkey"
+            columns: ["organization_id", "client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "consent_records_lead_fkey"
+            columns: ["organization_id", "lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "consent_records_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consent_records_revokes_fkey"
+            columns: ["organization_id", "revokes_id"]
+            isOneToOne: false
+            referencedRelation: "consent_records"
+            referencedColumns: ["organization_id", "id"]
           },
         ]
       }
@@ -998,8 +1846,396 @@ export type Database = {
           },
         ]
       }
+      lead_assignment_events: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          from_user_id: string | null
+          id: number
+          lead_id: string
+          organization_id: string
+          reason: string
+          to_user_id: string | null
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          from_user_id?: string | null
+          id?: never
+          lead_id: string
+          organization_id: string
+          reason?: string
+          to_user_id?: string | null
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          from_user_id?: string | null
+          id?: never
+          lead_id?: string
+          organization_id?: string
+          reason?: string
+          to_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_assignment_events_lead_fkey"
+            columns: ["organization_id", "lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "lead_assignment_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_integration_deliveries: {
+        Row: {
+          attempts: number
+          contact_name: string | null
+          detail: string | null
+          external_event_id: string
+          id: string
+          lead_id: string | null
+          listing_code: string | null
+          next_attempt_at: string | null
+          occurred_at: string | null
+          organization_id: string
+          origin: string | null
+          provider: Database["public"]["Enums"]["lead_integration_provider"]
+          reason: string | null
+          received_at: string
+          settled_at: string | null
+          status: Database["public"]["Enums"]["lead_delivery_status"]
+        }
+        Insert: {
+          attempts?: number
+          contact_name?: string | null
+          detail?: string | null
+          external_event_id: string
+          id?: string
+          lead_id?: string | null
+          listing_code?: string | null
+          next_attempt_at?: string | null
+          occurred_at?: string | null
+          organization_id: string
+          origin?: string | null
+          provider: Database["public"]["Enums"]["lead_integration_provider"]
+          reason?: string | null
+          received_at?: string
+          settled_at?: string | null
+          status?: Database["public"]["Enums"]["lead_delivery_status"]
+        }
+        Update: {
+          attempts?: number
+          contact_name?: string | null
+          detail?: string | null
+          external_event_id?: string
+          id?: string
+          lead_id?: string | null
+          listing_code?: string | null
+          next_attempt_at?: string | null
+          occurred_at?: string | null
+          organization_id?: string
+          origin?: string | null
+          provider?: Database["public"]["Enums"]["lead_integration_provider"]
+          reason?: string | null
+          received_at?: string
+          settled_at?: string | null
+          status?: Database["public"]["Enums"]["lead_delivery_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_integration_deliveries_lead_fkey"
+            columns: ["organization_id", "lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "lead_integration_deliveries_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_integrations: {
+        Row: {
+          account_label: string | null
+          config: Json
+          connected_at: string | null
+          connected_by: string | null
+          created_at: string
+          external_account_id: string | null
+          id: string
+          last_error: string | null
+          last_error_at: string | null
+          last_event_at: string | null
+          last_success_at: string | null
+          last_test_at: string | null
+          organization_id: string
+          poll_cursor: Json
+          provider: Database["public"]["Enums"]["lead_integration_provider"]
+          secret_id: string | null
+          status: Database["public"]["Enums"]["lead_integration_status"]
+          updated_at: string
+          webhook_token: string | null
+        }
+        Insert: {
+          account_label?: string | null
+          config?: Json
+          connected_at?: string | null
+          connected_by?: string | null
+          created_at?: string
+          external_account_id?: string | null
+          id?: string
+          last_error?: string | null
+          last_error_at?: string | null
+          last_event_at?: string | null
+          last_success_at?: string | null
+          last_test_at?: string | null
+          organization_id: string
+          poll_cursor?: Json
+          provider: Database["public"]["Enums"]["lead_integration_provider"]
+          secret_id?: string | null
+          status?: Database["public"]["Enums"]["lead_integration_status"]
+          updated_at?: string
+          webhook_token?: string | null
+        }
+        Update: {
+          account_label?: string | null
+          config?: Json
+          connected_at?: string | null
+          connected_by?: string | null
+          created_at?: string
+          external_account_id?: string | null
+          id?: string
+          last_error?: string | null
+          last_error_at?: string | null
+          last_event_at?: string | null
+          last_success_at?: string | null
+          last_test_at?: string | null
+          organization_id?: string
+          poll_cursor?: Json
+          provider?: Database["public"]["Enums"]["lead_integration_provider"]
+          secret_id?: string | null
+          status?: Database["public"]["Enums"]["lead_integration_status"]
+          updated_at?: string
+          webhook_token?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_integrations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_routing_members: {
+        Row: {
+          active: boolean
+          away_from: string | null
+          away_until: string | null
+          created_at: string
+          daily_limit: number | null
+          id: string
+          last_assigned_at: string | null
+          organization_id: string
+          updated_at: string
+          user_id: string
+          weight: number
+        }
+        Insert: {
+          active?: boolean
+          away_from?: string | null
+          away_until?: string | null
+          created_at?: string
+          daily_limit?: number | null
+          id?: string
+          last_assigned_at?: string | null
+          organization_id: string
+          updated_at?: string
+          user_id: string
+          weight?: number
+        }
+        Update: {
+          active?: boolean
+          away_from?: string | null
+          away_until?: string | null
+          created_at?: string
+          daily_limit?: number | null
+          id?: string
+          last_assigned_at?: string | null
+          organization_id?: string
+          updated_at?: string
+          user_id?: string
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_routing_members_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_routing_settings: {
+        Row: {
+          created_at: string
+          fallback_to_page_assignee: boolean
+          max_reassignments: number
+          organization_id: string
+          respect_schedule: boolean
+          roulette_enabled: boolean
+          sla_minutes: number
+          sla_reassign_enabled: boolean
+          sla_warning_percent: number
+          time_zone: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          fallback_to_page_assignee?: boolean
+          max_reassignments?: number
+          organization_id: string
+          respect_schedule?: boolean
+          roulette_enabled?: boolean
+          sla_minutes?: number
+          sla_reassign_enabled?: boolean
+          sla_warning_percent?: number
+          time_zone?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          fallback_to_page_assignee?: boolean
+          max_reassignments?: number
+          organization_id?: string
+          respect_schedule?: boolean
+          roulette_enabled?: boolean
+          sla_minutes?: number
+          sla_reassign_enabled?: boolean
+          sla_warning_percent?: number
+          time_zone?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_routing_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_routing_shifts: {
+        Row: {
+          created_at: string
+          end_minute: number
+          id: string
+          member_id: string
+          organization_id: string
+          start_minute: number
+          weekday: number
+        }
+        Insert: {
+          created_at?: string
+          end_minute: number
+          id?: string
+          member_id: string
+          organization_id: string
+          start_minute: number
+          weekday: number
+        }
+        Update: {
+          created_at?: string
+          end_minute?: number
+          id?: string
+          member_id?: string
+          organization_id?: string
+          start_minute?: number
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_routing_shifts_member_fkey"
+            columns: ["organization_id", "member_id"]
+            isOneToOne: false
+            referencedRelation: "lead_routing_members"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "lead_routing_shifts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_stage_events: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          from_stage: Database["public"]["Enums"]["lead_stage"] | null
+          id: number
+          lead_id: string
+          organization_id: string
+          reason: string | null
+          to_stage: Database["public"]["Enums"]["lead_stage"]
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          from_stage?: Database["public"]["Enums"]["lead_stage"] | null
+          id?: never
+          lead_id: string
+          organization_id: string
+          reason?: string | null
+          to_stage: Database["public"]["Enums"]["lead_stage"]
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          from_stage?: Database["public"]["Enums"]["lead_stage"] | null
+          id?: never
+          lead_id?: string
+          organization_id?: string
+          reason?: string | null
+          to_stage?: Database["public"]["Enums"]["lead_stage"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_stage_events_lead_fkey"
+            columns: ["organization_id", "lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "lead_stage_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
+          assigned_at: string | null
           assigned_to: string | null
           click_ids: Json
           client_id: string | null
@@ -1008,6 +2244,7 @@ export type Database = {
           created_by: string | null
           email: string | null
           event_id: string | null
+          first_response_due_at: string | null
           id: string
           interest: string | null
           landing_page_id: string | null
@@ -1021,6 +2258,9 @@ export type Database = {
           position: number | null
           property_id: string | null
           referrer: string | null
+          routing_due_at: string | null
+          sla_reassignments: number
+          sla_warned_at: string | null
           source: Database["public"]["Enums"]["lead_source"]
           stage: Database["public"]["Enums"]["lead_stage"]
           typology: string | null
@@ -1028,6 +2268,7 @@ export type Database = {
           utm: Json
         }
         Insert: {
+          assigned_at?: string | null
           assigned_to?: string | null
           click_ids?: Json
           client_id?: string | null
@@ -1036,6 +2277,7 @@ export type Database = {
           created_by?: string | null
           email?: string | null
           event_id?: string | null
+          first_response_due_at?: string | null
           id?: string
           interest?: string | null
           landing_page_id?: string | null
@@ -1049,6 +2291,9 @@ export type Database = {
           position?: number | null
           property_id?: string | null
           referrer?: string | null
+          routing_due_at?: string | null
+          sla_reassignments?: number
+          sla_warned_at?: string | null
           source?: Database["public"]["Enums"]["lead_source"]
           stage?: Database["public"]["Enums"]["lead_stage"]
           typology?: string | null
@@ -1056,6 +2301,7 @@ export type Database = {
           utm?: Json
         }
         Update: {
+          assigned_at?: string | null
           assigned_to?: string | null
           click_ids?: Json
           client_id?: string | null
@@ -1064,6 +2310,7 @@ export type Database = {
           created_by?: string | null
           email?: string | null
           event_id?: string | null
+          first_response_due_at?: string | null
           id?: string
           interest?: string | null
           landing_page_id?: string | null
@@ -1077,6 +2324,9 @@ export type Database = {
           position?: number | null
           property_id?: string | null
           referrer?: string | null
+          routing_due_at?: string | null
+          sla_reassignments?: number
+          sla_warned_at?: string | null
           source?: Database["public"]["Enums"]["lead_source"]
           stage?: Database["public"]["Enums"]["lead_stage"]
           typology?: string | null
@@ -1609,6 +2859,126 @@ export type Database = {
           },
         ]
       }
+      proposal_discount_requests: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          discount_percent: number
+          id: string
+          organization_id: string
+          proposal_id: string
+          reason: string | null
+          reference_cents: number
+          requested_by: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["discount_request_status"]
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          discount_percent: number
+          id?: string
+          organization_id: string
+          proposal_id: string
+          reason?: string | null
+          reference_cents: number
+          requested_by?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["discount_request_status"]
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          discount_percent?: number
+          id?: string
+          organization_id?: string
+          proposal_id?: string
+          reason?: string | null
+          reference_cents?: number
+          requested_by?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["discount_request_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_discount_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_discount_requests_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proposal_shares: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          first_viewed_at: string | null
+          last_viewed_at: string | null
+          organization_id: string
+          proposal_id: string
+          token: string | null
+          updated_at: string
+          view_count: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          first_viewed_at?: string | null
+          last_viewed_at?: string | null
+          organization_id: string
+          proposal_id: string
+          token?: string | null
+          updated_at?: string
+          view_count?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          first_viewed_at?: string | null
+          last_viewed_at?: string | null
+          organization_id?: string
+          proposal_id?: string
+          token?: string | null
+          updated_at?: string
+          view_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_shares_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_shares_proposal_fkey"
+            columns: ["organization_id", "proposal_id"]
+            isOneToOne: true
+            referencedRelation: "proposals"
+            referencedColumns: ["organization_id", "id"]
+          },
+        ]
+      }
       proposals: {
         Row: {
           amount: number
@@ -1758,6 +3128,311 @@ export type Database = {
           },
         ]
       }
+      whatsapp_channels: {
+        Row: {
+          auto_suspended_at: string | null
+          auto_suspended_reason: string | null
+          connected_account_id: string
+          created_at: string
+          display_phone_number: string | null
+          enabled: boolean
+          id: string
+          last_quality_change_at: string | null
+          last_synced_at: string | null
+          messaging_tier: string
+          organization_id: string
+          phone_number_id: string
+          quality_rating: Database["public"]["Enums"]["whatsapp_quality_rating"]
+          throughput: number | null
+          updated_at: string
+          verified_name: string | null
+          waba_id: string
+        }
+        Insert: {
+          auto_suspended_at?: string | null
+          auto_suspended_reason?: string | null
+          connected_account_id: string
+          created_at?: string
+          display_phone_number?: string | null
+          enabled?: boolean
+          id?: string
+          last_quality_change_at?: string | null
+          last_synced_at?: string | null
+          messaging_tier?: string
+          organization_id: string
+          phone_number_id: string
+          quality_rating?: Database["public"]["Enums"]["whatsapp_quality_rating"]
+          throughput?: number | null
+          updated_at?: string
+          verified_name?: string | null
+          waba_id: string
+        }
+        Update: {
+          auto_suspended_at?: string | null
+          auto_suspended_reason?: string | null
+          connected_account_id?: string
+          created_at?: string
+          display_phone_number?: string | null
+          enabled?: boolean
+          id?: string
+          last_quality_change_at?: string | null
+          last_synced_at?: string | null
+          messaging_tier?: string
+          organization_id?: string
+          phone_number_id?: string
+          quality_rating?: Database["public"]["Enums"]["whatsapp_quality_rating"]
+          throughput?: number | null
+          updated_at?: string
+          verified_name?: string | null
+          waba_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_channels_account_fkey"
+            columns: ["organization_id", "connected_account_id"]
+            isOneToOne: false
+            referencedRelation: "connected_accounts"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "whatsapp_channels_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_conversations: {
+        Row: {
+          assigned_to: string | null
+          channel_id: string
+          client_id: string | null
+          closed_at: string | null
+          contact_name: string | null
+          contact_wa_id: string
+          created_at: string
+          id: string
+          last_inbound_at: string | null
+          last_message_at: string | null
+          last_message_preview: string | null
+          lead_id: string | null
+          organization_id: string
+          unread_count: number
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          channel_id: string
+          client_id?: string | null
+          closed_at?: string | null
+          contact_name?: string | null
+          contact_wa_id: string
+          created_at?: string
+          id?: string
+          last_inbound_at?: string | null
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          lead_id?: string | null
+          organization_id: string
+          unread_count?: number
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          channel_id?: string
+          client_id?: string | null
+          closed_at?: string | null
+          contact_name?: string | null
+          contact_wa_id?: string
+          created_at?: string
+          id?: string
+          last_inbound_at?: string | null
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          lead_id?: string | null
+          organization_id?: string
+          unread_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_conversations_channel_fkey"
+            columns: ["organization_id", "channel_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_channels"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "whatsapp_conversations_client_fkey"
+            columns: ["organization_id", "client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "whatsapp_conversations_lead_fkey"
+            columns: ["organization_id", "lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "whatsapp_conversations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_messages: {
+        Row: {
+          accepted_at: string | null
+          body: string | null
+          conversation_id: string
+          created_at: string
+          delivered_at: string | null
+          direction: Database["public"]["Enums"]["whatsapp_message_direction"]
+          error_code: number | null
+          error_title: string | null
+          failed_at: string | null
+          id: string
+          media: Json
+          organization_id: string
+          pricing_category: string | null
+          pricing_type: string | null
+          read_at: string | null
+          sent_at: string | null
+          sent_by: string | null
+          status: Database["public"]["Enums"]["whatsapp_message_status"]
+          template_name: string | null
+          wamid: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          body?: string | null
+          conversation_id: string
+          created_at?: string
+          delivered_at?: string | null
+          direction: Database["public"]["Enums"]["whatsapp_message_direction"]
+          error_code?: number | null
+          error_title?: string | null
+          failed_at?: string | null
+          id?: string
+          media?: Json
+          organization_id: string
+          pricing_category?: string | null
+          pricing_type?: string | null
+          read_at?: string | null
+          sent_at?: string | null
+          sent_by?: string | null
+          status: Database["public"]["Enums"]["whatsapp_message_status"]
+          template_name?: string | null
+          wamid?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          body?: string | null
+          conversation_id?: string
+          created_at?: string
+          delivered_at?: string | null
+          direction?: Database["public"]["Enums"]["whatsapp_message_direction"]
+          error_code?: number | null
+          error_title?: string | null
+          failed_at?: string | null
+          id?: string
+          media?: Json
+          organization_id?: string
+          pricing_category?: string | null
+          pricing_type?: string | null
+          read_at?: string | null
+          sent_at?: string | null
+          sent_by?: string | null
+          status?: Database["public"]["Enums"]["whatsapp_message_status"]
+          template_name?: string | null
+          wamid?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_conversation_fkey"
+            columns: ["organization_id", "conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_suppressions: {
+        Row: {
+          contact_wa_id: string
+          created_at: string
+          created_by: string | null
+          evidence: Json
+          id: string
+          organization_id: string
+          reason: string | null
+          released_at: string | null
+          released_by: string | null
+          released_consent_id: string | null
+          released_reason: string | null
+          scope: Database["public"]["Enums"]["whatsapp_suppression_scope"]
+          source: Database["public"]["Enums"]["whatsapp_suppression_source"]
+        }
+        Insert: {
+          contact_wa_id: string
+          created_at?: string
+          created_by?: string | null
+          evidence?: Json
+          id?: string
+          organization_id: string
+          reason?: string | null
+          released_at?: string | null
+          released_by?: string | null
+          released_consent_id?: string | null
+          released_reason?: string | null
+          scope?: Database["public"]["Enums"]["whatsapp_suppression_scope"]
+          source: Database["public"]["Enums"]["whatsapp_suppression_source"]
+        }
+        Update: {
+          contact_wa_id?: string
+          created_at?: string
+          created_by?: string | null
+          evidence?: Json
+          id?: string
+          organization_id?: string
+          reason?: string | null
+          released_at?: string | null
+          released_by?: string | null
+          released_consent_id?: string | null
+          released_reason?: string | null
+          scope?: Database["public"]["Enums"]["whatsapp_suppression_scope"]
+          source?: Database["public"]["Enums"]["whatsapp_suppression_source"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_suppressions_consent_fkey"
+            columns: ["organization_id", "released_consent_id"]
+            isOneToOne: false
+            referencedRelation: "consent_records"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "whatsapp_suppressions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       client_property_matches: {
@@ -1804,7 +3479,30 @@ export type Database = {
       }
     }
     Functions: {
+      accept_connection_terms: {
+        Args: {
+          p_displayed_text: string
+          p_ip_hash?: string
+          p_organization_id: string
+          p_provider: Database["public"]["Enums"]["connection_provider"]
+          p_provider_evidence?: Json
+          p_terms_key: string
+          p_terms_url: string
+          p_terms_version: string
+          p_user_agent?: string
+        }
+        Returns: string
+      }
       accept_invitation: { Args: { p_token: string }; Returns: string }
+      add_whatsapp_suppression: {
+        Args: {
+          p_contact: string
+          p_organization_id: string
+          p_reason?: string
+          p_scope?: Database["public"]["Enums"]["whatsapp_suppression_scope"]
+        }
+        Returns: string
+      }
       apply_referral_recalculation: {
         Args: {
           p_count?: string[]
@@ -1816,6 +3514,80 @@ export type Database = {
           p_uncount?: string[]
         }
         Returns: Json
+      }
+      assign_lead_from_roulette: {
+        Args: { p_lead_id: string; p_organization_id: string }
+        Returns: Json
+      }
+      bulk_reassign_leads: {
+        Args: {
+          p_from_user_id: string
+          p_include_closed?: boolean
+          p_organization_id: string
+          p_to_user_id?: string
+        }
+        Returns: Json
+      }
+      caixa_catalog_facets: { Args: { p_uf?: string }; Returns: Json }
+      claim_lead_deliveries: {
+        Args: { p_limit?: number; p_server_key: string }
+        Returns: {
+          attempts: number
+          external_account_id: string
+          external_event_id: string
+          organization_id: string
+          provider: string
+        }[]
+      }
+      claim_lead_notifications: {
+        Args: { p_limit?: number; p_server_key: string }
+        Returns: {
+          due_at: string
+          id: string
+          kind: string
+          lead_created_at: string
+          lead_id: string
+          lead_interest: string
+          lead_name: string
+          lead_phone: string
+          lead_source: string
+          organization_id: string
+          organization_slug: string
+          recipient_email: string
+          recipient_name: string
+          sla_minutes: number
+        }[]
+      }
+      commission_summary: { Args: { p_user_id?: string }; Returns: Json }
+      connect_connection_account: {
+        Args: {
+          p_connected_by?: string
+          p_display_name?: string
+          p_external_account_id?: string
+          p_external_owner_id?: string
+          p_handle?: string
+          p_metadata?: Json
+          p_nonce?: string
+          p_organization_id?: string
+          p_provider?: Database["public"]["Enums"]["connection_provider"]
+          p_scopes?: string[]
+          p_server_key?: string
+          p_terms_acceptance_id?: string
+          p_token?: string
+          p_token_expires_at?: string
+        }
+        Returns: Json
+      }
+      connect_lead_integration: {
+        Args: {
+          p_account_label?: string
+          p_config?: Json
+          p_credential: string
+          p_external_account_id: string
+          p_organization_id: string
+          p_provider: string
+        }
+        Returns: undefined
       }
       create_organization: {
         Args: {
@@ -1854,6 +3626,162 @@ export type Database = {
           total: number
         }[]
       }
+      disconnect_connection: {
+        Args: { p_connected_account_id: string }
+        Returns: Json
+      }
+      disconnect_lead_integration: {
+        Args: { p_organization_id: string; p_provider: string }
+        Returns: undefined
+      }
+      enable_lead_webhook: {
+        Args: {
+          p_account_label?: string
+          p_organization_id: string
+          p_provider: string
+          p_rotate?: boolean
+        }
+        Returns: string
+      }
+      export_clients_rows: {
+        Args: {
+          p_after_created_at?: string
+          p_after_id?: string
+          p_from?: string
+          p_limit?: number
+          p_organization_id: string
+          p_to?: string
+          p_user_id?: string
+        }
+        Returns: {
+          assigned_to_name: string
+          birth_date: string
+          city: string
+          created_at: string
+          document: string
+          email: string
+          id: string
+          kind: Database["public"]["Enums"]["client_kind"]
+          lgpd_consent_at: string
+          name: string
+          neighborhood: string
+          phone: string
+          source: string
+          state: string
+          tags: string[]
+          whatsapp: string
+        }[]
+      }
+      export_leads_rows: {
+        Args: {
+          p_after_created_at?: string
+          p_after_id?: string
+          p_from?: string
+          p_limit?: number
+          p_organization_id: string
+          p_to?: string
+          p_user_id?: string
+        }
+        Returns: {
+          assigned_at: string
+          assigned_to_name: string
+          created_at: string
+          email: string
+          first_contact_at: string
+          id: string
+          interest: string
+          landing_page_name: string
+          lost_reason: string
+          name: string
+          phone: string
+          source: Database["public"]["Enums"]["lead_source"]
+          stage: Database["public"]["Enums"]["lead_stage"]
+          tracking_ids: string
+          utm_campaign: string
+          utm_medium: string
+          utm_source: string
+        }[]
+      }
+      export_properties_rows: {
+        Args: {
+          p_after_created_at?: string
+          p_after_id?: string
+          p_from?: string
+          p_limit?: number
+          p_organization_id: string
+          p_to?: string
+          p_user_id?: string
+        }
+        Returns: {
+          bedrooms: number
+          broker_name: string
+          captured_by_name: string
+          city: string
+          code: string
+          condo_fee: number
+          created_at: string
+          id: string
+          imob_score: number
+          living_area: number
+          neighborhood: string
+          parking_spaces: number
+          published_to_portals: boolean
+          purpose: Database["public"]["Enums"]["listing_purpose"]
+          rent_price: number
+          sale_price: number
+          state: string
+          status: Database["public"]["Enums"]["property_status"]
+          title: string
+          type: Database["public"]["Enums"]["property_type"]
+        }[]
+      }
+      export_proposals_rows: {
+        Args: {
+          p_after_created_at?: string
+          p_after_id?: string
+          p_from?: string
+          p_limit?: number
+          p_organization_id: string
+          p_to?: string
+          p_user_id?: string
+        }
+        Returns: {
+          amount: number
+          broker_name: string
+          client_name: string
+          created_at: string
+          decided_at: string
+          id: string
+          property_code: string
+          property_title: string
+          purpose: Database["public"]["Enums"]["listing_purpose"]
+          status: Database["public"]["Enums"]["proposal_status"]
+          valid_until: string
+        }[]
+      }
+      fail_lead_delivery: {
+        Args: {
+          p_detail?: string
+          p_external_event_id: string
+          p_organization_id: string
+          p_provider: string
+          p_reason: string
+          p_server_key: string
+        }
+        Returns: Json
+      }
+      finish_caixa_sync: {
+        Args: {
+          p_generated_on?: string
+          p_rejected?: number
+          p_server_key: string
+          p_source_digest?: string
+          p_source_etag?: string
+          p_source_last_modified?: string
+          p_sync_id: string
+        }
+        Returns: Json
+      }
       get_ai_usage_overview: {
         Args: { p_organization_id: string }
         Returns: Json
@@ -1870,8 +3798,33 @@ export type Database = {
         Args: { p_organization_id: string }
         Returns: Json
       }
+      get_caixa_sync_state: { Args: { p_server_key: string }; Returns: Json }
+      get_connection_credential: {
+        Args: { p_connected_account_id?: string; p_server_key?: string }
+        Returns: Json
+      }
+      get_consent_state: {
+        Args: {
+          p_address: string
+          p_channel: Database["public"]["Enums"]["consent_channel"]
+          p_organization_id: string
+        }
+        Returns: Json
+      }
       get_feed_settings: { Args: { p_organization_id: string }; Returns: Json }
       get_invitation_preview: { Args: { p_token: string }; Returns: Json }
+      get_lead_integrations_overview: {
+        Args: { p_limit?: number; p_organization_id: string }
+        Returns: Json
+      }
+      get_lead_routing_overview: {
+        Args: { p_organization_id: string }
+        Returns: Json
+      }
+      get_lead_stage_metrics: {
+        Args: { p_days?: number; p_organization_id: string }
+        Returns: Json
+      }
       get_notification_recipients: {
         Args: {
           p_kind: string
@@ -1888,6 +3841,7 @@ export type Database = {
         Args: { p_org_slug: string; p_token: string }
         Returns: Json
       }
+      get_proposal_document: { Args: { p_proposal_id: string }; Returns: Json }
       get_public_landing_page: {
         Args: { p_org_slug: string; p_page_slug: string }
         Returns: Json
@@ -1895,6 +3849,42 @@ export type Database = {
       get_public_organization: { Args: { p_slug: string }; Returns: Json }
       get_referral_state: {
         Args: { p_organization_id?: string; p_server_key?: string }
+        Returns: Json
+      }
+      get_shared_proposal: { Args: { p_token: string }; Returns: Json }
+      ingest_caixa_listings: {
+        Args: {
+          p_generated_on?: string
+          p_rows?: Json
+          p_server_key: string
+          p_sync_id: string
+        }
+        Returns: Json
+      }
+      ingest_external_lead: {
+        Args: {
+          p_organization_id: string
+          p_payload: Json
+          p_provider: string
+          p_server_key: string
+        }
+        Returns: Json
+      }
+      ingest_webhook_lead: {
+        Args: { p_payload: Json; p_server_key: string; p_token: string }
+        Returns: Json
+      }
+      ingest_whatsapp_message: {
+        Args: {
+          p_body?: string
+          p_contact_name?: string
+          p_contact_wa_id?: string
+          p_media?: Json
+          p_phone_number_id?: string
+          p_sent_at?: string
+          p_server_key?: string
+          p_wamid?: string
+        }
         Returns: Json
       }
       lead_duplicate_flags: {
@@ -1912,6 +3902,32 @@ export type Database = {
           organization_name: string
           organization_slug: string
           owner_emails: string[]
+        }[]
+      }
+      list_lead_integrations_for_poll: {
+        Args: { p_limit?: number; p_provider: string; p_server_key: string }
+        Returns: {
+          external_account_id: string
+          last_success_at: string
+          organization_id: string
+          poll_cursor: Json
+        }[]
+      }
+      list_proposal_discount_requests: {
+        Args: { p_organization_id: string; p_proposal_ids: string[] }
+        Returns: {
+          amount_cents: number
+          created_at: string
+          discount_percent: number
+          id: string
+          proposal_id: string
+          reason: string
+          reference_cents: number
+          requested_by_me: boolean
+          review_note: string
+          reviewed_at: string
+          status: Database["public"]["Enums"]["discount_request_status"]
+          updated_at: string
         }[]
       }
       list_referral_grace_completions: {
@@ -1945,6 +3961,34 @@ export type Database = {
         Args: { p_action?: string; p_entity: string; p_entity_id: string }
         Returns: undefined
       }
+      mark_whatsapp_message_sent: {
+        Args: {
+          p_error_code?: number
+          p_error_title?: string
+          p_message_id?: string
+          p_message_status?: string
+          p_server_key?: string
+          p_wamid?: string
+        }
+        Returns: Json
+      }
+      queue_whatsapp_message: {
+        Args: {
+          p_body?: string
+          p_conversation_id: string
+          p_marketing?: boolean
+          p_template_name?: string
+        }
+        Returns: Json
+      }
+      read_lead_integration_secret: {
+        Args: {
+          p_organization_id: string
+          p_provider: string
+          p_server_key: string
+        }
+        Returns: string
+      }
       record_billing_invoice_paid: {
         Args: {
           p_amount_paid_cents?: number
@@ -1955,6 +3999,171 @@ export type Database = {
           p_server_key?: string
         }
         Returns: boolean
+      }
+      record_caixa_check: {
+        Args: {
+          p_failure_reason?: string
+          p_result: string
+          p_server_key: string
+          p_source_digest?: string
+          p_source_etag?: string
+          p_source_last_modified?: string
+        }
+        Returns: Json
+      }
+      record_connection_error: {
+        Args: {
+          p_code?: string
+          p_connected_account_id?: string
+          p_message?: string
+          p_revoked?: boolean
+          p_server_key?: string
+        }
+        Returns: undefined
+      }
+      record_consent: {
+        Args: {
+          p_action: Database["public"]["Enums"]["consent_action"]
+          p_address: string
+          p_channel: Database["public"]["Enums"]["consent_channel"]
+          p_client_id?: string
+          p_disclosure_text: string
+          p_evidence?: Json
+          p_lead_id?: string
+          p_organization_id: string
+          p_policy_version: string
+          p_purpose: Database["public"]["Enums"]["consent_purpose"]
+          p_source: Database["public"]["Enums"]["consent_source"]
+          p_subject_name?: string
+        }
+        Returns: string
+      }
+      record_lead_integration_test: {
+        Args: {
+          p_detail?: string
+          p_organization_id: string
+          p_provider: string
+          p_server_key: string
+        }
+        Returns: undefined
+      }
+      record_webhook_event: {
+        Args: {
+          p_event_key?: string
+          p_payload_sha256?: string
+          p_provider?: string
+          p_server_key?: string
+        }
+        Returns: boolean
+      }
+      register_lead_delivery: {
+        Args: {
+          p_external_account_id: string
+          p_external_event_id: string
+          p_occurred_at?: string
+          p_origin?: string
+          p_provider: string
+          p_server_key: string
+        }
+        Returns: Json
+      }
+      register_shared_proposal_view: {
+        Args: { p_token: string }
+        Returns: undefined
+      }
+      register_whatsapp_channel: {
+        Args: {
+          p_connected_account_id?: string
+          p_display_phone_number?: string
+          p_nonce?: string
+          p_organization_id?: string
+          p_phone_number_id?: string
+          p_server_key?: string
+          p_verified_name?: string
+          p_waba_id?: string
+        }
+        Returns: Json
+      }
+      release_whatsapp_suppression: {
+        Args: { p_reason?: string; p_suppression_id: string }
+        Returns: Json
+      }
+      report_broker_performance: {
+        Args: { p_from?: string; p_organization_id: string; p_to?: string }
+        Returns: {
+          first_response_median_minutes: number
+          full_name: string
+          leads_answered: number
+          leads_in_sla: number
+          leads_lost: number
+          leads_open: number
+          leads_received: number
+          leads_taken_by_sla: number
+          leads_won: number
+          member_active: boolean
+          member_role: Database["public"]["Enums"]["app_role"]
+          properties_captured: number
+          proposals_closed: number
+          proposals_closed_amount: number
+          proposals_made: number
+          user_id: string
+        }[]
+      }
+      report_lead_lost_reasons: {
+        Args: {
+          p_from?: string
+          p_limit?: number
+          p_organization_id: string
+          p_to?: string
+          p_user_id?: string
+        }
+        Returns: {
+          lost_reason: string
+          total: number
+        }[]
+      }
+      report_lead_sources: {
+        Args: {
+          p_from?: string
+          p_limit?: number
+          p_organization_id: string
+          p_to?: string
+          p_user_id?: string
+        }
+        Returns: {
+          answered: number
+          landing_page_id: string
+          landing_page_name: string
+          leads: number
+          lost: number
+          open_leads: number
+          source: Database["public"]["Enums"]["lead_source"]
+          utm_campaign: string
+          utm_medium: string
+          utm_source: string
+          won: number
+        }[]
+      }
+      report_stage_funnel: {
+        Args: {
+          p_from?: string
+          p_organization_id: string
+          p_to?: string
+          p_user_id?: string
+        }
+        Returns: {
+          advanced: number
+          avg_hours: number
+          entered: number
+          lost_after: number
+          median_hours: number
+          stage: Database["public"]["Enums"]["lead_stage"]
+          still_there: number
+        }[]
+      }
+      request_proposal_discount: {
+        Args: { p_proposal_id: string; p_reason?: string }
+        Returns: Json
       }
       reserve_ai_usage: {
         Args: {
@@ -1972,13 +4181,133 @@ export type Database = {
         }
         Returns: Json
       }
+      review_proposal_discount: {
+        Args: { p_approve: boolean; p_note?: string; p_request_id: string }
+        Returns: Json
+      }
+      revoke_proposal_share: {
+        Args: { p_proposal_id: string }
+        Returns: boolean
+      }
       rotate_feed_token: {
         Args: { p_organization_id: string }
         Returns: string
       }
+      save_lead_integration_state: {
+        Args: {
+          p_credential_rejected?: boolean
+          p_cursor?: Json
+          p_error?: string
+          p_organization_id: string
+          p_provider: string
+          p_server_key: string
+          p_tested?: boolean
+        }
+        Returns: undefined
+      }
+      search_caixa_listings: {
+        Args: {
+          p_bairro?: string
+          p_cidade?: string
+          p_financiamento?: boolean
+          p_include_delisted?: boolean
+          p_limit?: number
+          p_max_price?: number
+          p_min_price?: number
+          p_modalidade?: string
+          p_offset?: number
+          p_only_favorites?: boolean
+          p_organization_id: string
+          p_sort?: string
+          p_term?: string
+          p_tipo?: Database["public"]["Enums"]["property_type"]
+          p_uf?: string
+        }
+        Returns: {
+          aceita_financiamento: boolean
+          area_privativa: number
+          area_terreno: number
+          area_total: number
+          bairro: string
+          cidade: string
+          desconto: number
+          descricao: string
+          endereco: string
+          is_favorite: boolean
+          link: string
+          link_count: number
+          lista_gerada_em: string
+          modalidade: string
+          numero: string
+          preco: number
+          primeira_vez_em: string
+          quartos: number
+          saiu_da_lista_em: string
+          tipo: Database["public"]["Enums"]["property_type"]
+          total_count: number
+          uf: string
+          vagas: number
+          valor_avaliacao: number
+        }[]
+      }
+      search_properties: {
+        Args: {
+          p_limit?: number
+          p_max_price?: number
+          p_min_bedrooms?: number
+          p_min_price?: number
+          p_offset?: number
+          p_organization_id: string
+          p_purpose?: Database["public"]["Enums"]["listing_purpose"]
+          p_status?: Database["public"]["Enums"]["property_status"]
+          p_term?: string
+          p_type?: Database["public"]["Enums"]["property_type"]
+        }
+        Returns: {
+          broker_id: string
+          captured_by: string
+          city: string
+          code: string
+          cover_path: string
+          id: string
+          imob_score: number
+          matched_owner: string
+          neighborhood: string
+          published_to_portals: boolean
+          purpose: Database["public"]["Enums"]["listing_purpose"]
+          rent_price: number
+          sale_price: number
+          state: string
+          status: Database["public"]["Enums"]["property_status"]
+          title: string
+          total_count: number
+          type: Database["public"]["Enums"]["property_type"]
+        }[]
+      }
       set_ai_overage_cap: {
         Args: { p_cents: number; p_organization_id: string }
         Returns: number
+      }
+      set_commission_partner: {
+        Args: {
+          p_commission_id: string
+          p_partner_name?: string
+          p_percent?: number
+        }
+        Returns: Json
+      }
+      set_connection_enabled: {
+        Args: { p_connected_account_id: string; p_enabled: boolean }
+        Returns: Json
+      }
+      set_connection_platform_block: {
+        Args: {
+          p_blocked?: boolean
+          p_connected_account_id?: string
+          p_reason?: string
+          p_server_key?: string
+        }
+        Returns: Json
       }
       set_referral_confirmation_notice: {
         Args: {
@@ -1997,6 +4326,20 @@ export type Database = {
         }
         Returns: boolean
       }
+      set_whatsapp_channel_enabled: {
+        Args: { p_channel_id: string; p_enabled: boolean }
+        Returns: Json
+      }
+      set_whatsapp_marketing_preference: {
+        Args: {
+          p_at?: string
+          p_contact_wa_id?: string
+          p_phone_number_id?: string
+          p_server_key?: string
+          p_value?: string
+        }
+        Returns: Json
+      }
       settle_ai_usage: {
         Args: {
           p_cache_read_tokens?: number
@@ -2009,6 +4352,14 @@ export type Database = {
           p_server_key?: string
           p_status?: string
         }
+        Returns: Json
+      }
+      settle_lead_notifications: {
+        Args: { p_failed?: string[]; p_sent?: string[]; p_server_key: string }
+        Returns: Json
+      }
+      share_proposal: {
+        Args: { p_days?: number; p_proposal_id: string; p_rotate?: boolean }
         Returns: Json
       }
       submit_capture_request: {
@@ -2040,6 +4391,31 @@ export type Database = {
         }
         Returns: undefined
       }
+      sync_whatsapp_channel_health: {
+        Args: {
+          p_display_phone_number?: string
+          p_messaging_tier?: string
+          p_phone_number_id?: string
+          p_quality_rating?: string
+          p_server_key?: string
+          p_throughput?: number
+        }
+        Returns: Json
+      }
+      update_whatsapp_message_status: {
+        Args: {
+          p_at?: string
+          p_error_code?: number
+          p_error_title?: string
+          p_phone_number_id?: string
+          p_pricing_category?: string
+          p_pricing_type?: string
+          p_server_key?: string
+          p_status?: string
+          p_wamid?: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       activity_type:
@@ -2066,6 +4442,47 @@ export type Database = {
         | "canceled"
       capture_request_status: "new" | "contacted" | "converted" | "discarded"
       client_kind: "pf" | "pj"
+      commission_basis: "percent" | "fixed"
+      commission_role: "capturer" | "seller" | "manager" | "agency" | "partner"
+      commission_status: "pending" | "partially_paid" | "paid" | "canceled"
+      connection_event_action:
+        | "connected"
+        | "reconnected"
+        | "enabled"
+        | "disabled"
+        | "blocked"
+        | "unblocked"
+        | "terms_accepted"
+        | "disconnected"
+        | "error"
+      connection_provider:
+        | "whatsapp"
+        | "instagram"
+        | "facebook_page"
+        | "facebook_lead_ads"
+        | "email_forwarding"
+        | "telegram"
+      connection_status: "pending" | "connected" | "error" | "revoked"
+      consent_action: "granted" | "revoked"
+      consent_channel: "whatsapp" | "email" | "sms" | "telefone" | "presencial"
+      consent_purpose:
+        | "atendimento"
+        | "envio_de_imoveis"
+        | "divulgacao"
+        | "pesquisa_satisfacao"
+        | "compartilhamento_parceiros"
+      consent_source:
+        | "formulario_site"
+        | "landing_page"
+        | "captacao_publica"
+        | "whatsapp_opt_in"
+        | "portal"
+        | "indicacao"
+        | "atendimento_presencial"
+        | "telefone"
+        | "contrato"
+        | "importacao"
+      discount_request_status: "pending" | "approved" | "rejected"
       key_status: "available" | "checked_out" | "lost"
       landing_status: "draft" | "published" | "archived"
       landing_template:
@@ -2078,6 +4495,15 @@ export type Database = {
         | "portfolio_grid"
         | "portfolio_agency"
         | "portfolio_broker"
+      lead_delivery_status:
+        | "pending"
+        | "accepted"
+        | "duplicate"
+        | "rejected"
+        | "failed"
+        | "ignored"
+      lead_integration_provider: "canal_pro" | "meta_lead_ads"
+      lead_integration_status: "disconnected" | "connected" | "error"
       lead_source:
         | "landing_page"
         | "portal"
@@ -2130,6 +4556,25 @@ export type Database = {
         | "withdrawn"
       task_priority: "low" | "medium" | "high"
       task_status: "open" | "done" | "canceled"
+      whatsapp_message_direction: "inbound" | "outbound"
+      whatsapp_message_status:
+        | "queued"
+        | "accepted"
+        | "held"
+        | "sent"
+        | "delivered"
+        | "read"
+        | "played"
+        | "failed"
+        | "discarded"
+      whatsapp_quality_rating: "GREEN" | "YELLOW" | "RED" | "UNKNOWN"
+      whatsapp_suppression_scope: "marketing" | "all"
+      whatsapp_suppression_source:
+        | "user_preferences"
+        | "delivery_error"
+        | "keyword"
+        | "consent_revoked"
+        | "manual"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2284,6 +4729,51 @@ export const Constants = {
       ],
       capture_request_status: ["new", "contacted", "converted", "discarded"],
       client_kind: ["pf", "pj"],
+      commission_basis: ["percent", "fixed"],
+      commission_role: ["capturer", "seller", "manager", "agency", "partner"],
+      commission_status: ["pending", "partially_paid", "paid", "canceled"],
+      connection_event_action: [
+        "connected",
+        "reconnected",
+        "enabled",
+        "disabled",
+        "blocked",
+        "unblocked",
+        "terms_accepted",
+        "disconnected",
+        "error",
+      ],
+      connection_provider: [
+        "whatsapp",
+        "instagram",
+        "facebook_page",
+        "facebook_lead_ads",
+        "email_forwarding",
+        "telegram",
+      ],
+      connection_status: ["pending", "connected", "error", "revoked"],
+      consent_action: ["granted", "revoked"],
+      consent_channel: ["whatsapp", "email", "sms", "telefone", "presencial"],
+      consent_purpose: [
+        "atendimento",
+        "envio_de_imoveis",
+        "divulgacao",
+        "pesquisa_satisfacao",
+        "compartilhamento_parceiros",
+      ],
+      consent_source: [
+        "formulario_site",
+        "landing_page",
+        "captacao_publica",
+        "whatsapp_opt_in",
+        "portal",
+        "indicacao",
+        "atendimento_presencial",
+        "telefone",
+        "contrato",
+        "importacao",
+      ],
+      discount_request_status: ["pending", "approved", "rejected"],
       key_status: ["available", "checked_out", "lost"],
       landing_status: ["draft", "published", "archived"],
       landing_template: [
@@ -2297,6 +4787,16 @@ export const Constants = {
         "portfolio_agency",
         "portfolio_broker",
       ],
+      lead_delivery_status: [
+        "pending",
+        "accepted",
+        "duplicate",
+        "rejected",
+        "failed",
+        "ignored",
+      ],
+      lead_integration_provider: ["canal_pro", "meta_lead_ads"],
+      lead_integration_status: ["disconnected", "connected", "error"],
       lead_source: [
         "landing_page",
         "portal",
@@ -2354,6 +4854,27 @@ export const Constants = {
       ],
       task_priority: ["low", "medium", "high"],
       task_status: ["open", "done", "canceled"],
+      whatsapp_message_direction: ["inbound", "outbound"],
+      whatsapp_message_status: [
+        "queued",
+        "accepted",
+        "held",
+        "sent",
+        "delivered",
+        "read",
+        "played",
+        "failed",
+        "discarded",
+      ],
+      whatsapp_quality_rating: ["GREEN", "YELLOW", "RED", "UNKNOWN"],
+      whatsapp_suppression_scope: ["marketing", "all"],
+      whatsapp_suppression_source: [
+        "user_preferences",
+        "delivery_error",
+        "keyword",
+        "consent_revoked",
+        "manual",
+      ],
     },
   },
 } as const

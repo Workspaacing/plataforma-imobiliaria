@@ -9,7 +9,10 @@ import {
 import type { ActionResult } from "@/lib/auth/action-result"
 import { translateDbError } from "@/lib/imoveis/db-errors"
 import { isUuid } from "@/lib/imoveis/ids"
-import { canDeletePropertyRecords } from "@/lib/imoveis/permissions"
+import {
+  REMOVE_AUTHORIZATION_DENIED_MESSAGE,
+  canDeletePropertyRecords,
+} from "@/lib/imoveis/permissions"
 import {
   getPropertyActionContext,
   refreshImobScore,
@@ -186,7 +189,7 @@ export async function removeAuthorizationAction(
   if (!canDeletePropertyRecords(role)) {
     return {
       ok: false,
-      error: "Somente o dono ou o gerente podem remover autorizações.",
+      error: REMOVE_AUTHORIZATION_DENIED_MESSAGE,
     }
   }
 

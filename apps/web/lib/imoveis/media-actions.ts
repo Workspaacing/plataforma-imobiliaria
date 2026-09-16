@@ -10,7 +10,7 @@ import {
 } from "@/lib/imoveis/constants"
 import { translateDbError } from "@/lib/imoveis/db-errors"
 import { isUuid } from "@/lib/imoveis/ids"
-import { canDeletePropertyRecords } from "@/lib/imoveis/permissions"
+import { REMOVE_MEDIA_DENIED_MESSAGE, canDeletePropertyRecords } from "@/lib/imoveis/permissions"
 import type { ServerSupabaseClient } from "@/lib/imoveis/queries"
 import {
   getPropertyActionContext,
@@ -145,13 +145,20 @@ export async function registerPropertyImagesAction(
   }
 }
 
-export async function moveMediaAction(
+/**
+ * Grava a ordem inteira das fotos de uma vez (arrastar e soltar, ou mover pelo
+ * teclado). Recebe todos os ids do imóvel: fotos que faltarem no pedido ficam
+ * no fim, na ordem atual, então uma foto adicionada em outra aba não some.
+ */
+export async function reorderMediaAction(
   propertyId: string,
-  mediaId: string,
-  direction: "up" | "down"
+  orderedIds: string[]
 ): Promise<ActionResult> {
-  if (!isUuid(mediaId) || (direction !== "up" && direction !== "down")) {
-    return { ok: false, error: "Foto inválida." }
+  if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+    return { ok: false, error: "Nenhuma ordem de fotos para salvar." }
+  }
+  if (orderedIds.length > MAX_PROPERTY_PHOTOS || !orderedIds.every(isUuid)) {
+    return { ok: false, error: "Ordem de fotos inválida." }
   }
 
   const loaded = await getPropertyActionContext(propertyId)
@@ -160,24 +167,23 @@ export async function moveMediaAction(
   const { supabase, organizationId, property } = loaded.context
   const { images, error: loadError } = await loadImages(supabase, organizationId, property.id)
   if (loadError) {
-    return {
-      ok: false,
-      error: translateDbError(loadError, "reordenar as fotos"),
-    }
+    return { ok: false, error: translateDbError(loadError, "reordenar as fotos") }
   }
 
-  const index = images.findIndex((image) => image.id === mediaId)
-  const target = direction === "up" ? index - 1 : index + 1
-  const current = images[index]
-  const swap = images[target]
+  const byId = new Map(images.map((image) => [image.id, image]))
+  const requested = [...new Set(orderedIds)]
+  const ordered = requested
+    .map((id) => byId.get(id))
+    .filter((image): image is ImageRow => image !== undefined)
 
-  if (index < 0 || !current || !swap) {
-    return { ok: true }
+  if (ordered.length === 0) {
+    return { ok: false, error: "Nenhuma das fotos enviadas está neste imóvel." }
   }
 
-  const ordered = [...images]
-  ordered[index] = swap
-  ordered[target] = current
+  const placed = new Set(ordered.map((image) => image.id))
+  for (const image of images) {
+    if (!placed.has(image.id)) ordered.push(image)
+  }
 
   const error = await persistOrder(supabase, ordered)
   if (error) {
@@ -310,10 +316,7 @@ export async function removeMediaAction(
   const { supabase, organizationId, role, property } = loaded.context
 
   if (!canDeletePropertyRecords(role)) {
-    return {
-      ok: false,
-      error: "Somente o dono ou o gerente podem remover fotos.",
-    }
+    return { ok: false, error: REMOVE_MEDIA_DENIED_MESSAGE }
   }
 
   const { data: removed, error } = await supabase

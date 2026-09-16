@@ -10,7 +10,6 @@ import {
   CardHeader,
 } from "@workspace/ui/components/card"
 
-import { LEAD_RESPONSE_TARGET_MINUTES } from "@/lib/leads/constants"
 import type { LeadSummaryCounts } from "@/lib/leads/types"
 
 const percent = new Intl.NumberFormat("pt-BR", {
@@ -24,6 +23,8 @@ type LeadsSummaryProps = {
   wonCount: number
   totalCount: number
   periodLabel: string
+  /** Prazo de primeiro contato configurado pela imobiliária. */
+  slaMinutes: number
 }
 
 function SummaryCard({
@@ -61,7 +62,13 @@ function SummaryCard({
 }
 
 /** Resumo do topo: prazo de primeiro contato, novos sem contato, leads de hoje e conversão. */
-export function LeadsSummary({ counts, wonCount, totalCount, periodLabel }: LeadsSummaryProps) {
+export function LeadsSummary({
+  counts,
+  wonCount,
+  totalCount,
+  periodLabel,
+  slaMinutes,
+}: LeadsSummaryProps) {
   const show = (value: number) => (counts.failed ? "—" : integer.format(value))
 
   return (
@@ -69,7 +76,7 @@ export function LeadsSummary({ counts, wonCount, totalCount, periodLabel }: Lead
       <SummaryCard
         label="Leads novos fora do prazo"
         value={show(counts.overdue)}
-        hint={`Sem contato há mais de ${LEAD_RESPONSE_TARGET_MINUTES} min.`}
+        hint={`Primeiro contato não feito dentro de ${slaMinutes} min.`}
         icon={TimerIcon}
         highlight={!counts.failed && counts.overdue > 0}
       />

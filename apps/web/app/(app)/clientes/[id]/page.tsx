@@ -7,6 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/al
 import { Separator } from "@workspace/ui/components/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs"
 
+import { AuditTimeline } from "@/components/auditoria/audit-timeline"
 import { ActivityQuickForm } from "@/components/clientes/activity-quick-form"
 import { ActivityTimeline } from "@/components/clientes/activity-timeline"
 import { ClientAppointmentsCard } from "@/components/clientes/client-appointments-card"
@@ -18,6 +19,8 @@ import { DocumentsPanel } from "@/components/clientes/documents-panel"
 import { InterestsPanel } from "@/components/clientes/interests-panel"
 import { MatchesPanel } from "@/components/clientes/matches-panel"
 import { SharesPanel } from "@/components/clientes/shares-panel"
+import { canViewAuditTrail } from "@/lib/auditoria/permissions"
+import { getClientAuditEvents } from "@/lib/auditoria/queries"
 import { ROLE_LABELS } from "@/lib/auth/roles"
 import { requireMembership } from "@/lib/auth/session"
 import { getBillingOverview } from "@/lib/billing/queries"
@@ -31,6 +34,7 @@ import {
   canRegisterActivities,
 } from "@/lib/clientes/permissions"
 import { getClient } from "@/lib/clientes/queries"
+import { createClient as createSupabaseClient } from "@/lib/supabase/server"
 
 export const metadata: Metadata = {
   title: "Cliente",
@@ -43,6 +47,7 @@ const TAB_VALUES = [
   "documentos",
   "compartilhamento",
   "visitas",
+  "alteracoes",
 ] as const
 
 type ClientePageProps = {
@@ -75,13 +80,20 @@ export default async function ClientePage({ params, searchParams }: ClientePageP
     notFound()
   }
 
-  const [members, detail, billing] = await Promise.all([
+  const role = membership.role
+  const canViewHistory = canViewAuditTrail(role)
+
+  const [members, detail, billing, auditEvents] = await Promise.all([
     getOrganizationMembers(organizationId),
     getClientDetailData(organizationId, client.id),
     getBillingOverview(organizationId),
+    canViewHistory
+      ? createSupabaseClient().then((supabase) =>
+          getClientAuditEvents(supabase, organizationId, client.id)
+        )
+      : Promise.resolve(null),
   ])
 
-  const role = membership.role
   const canEdit = canEditClient(
     role,
     {
@@ -104,7 +116,8 @@ export default async function ClientePage({ params, searchParams }: ClientePageP
   const requestedTab = typeof query.aba === "string" ? query.aba : ""
   const defaultTab =
     (TAB_VALUES as readonly string[]).includes(requestedTab) &&
-    (requestedTab !== "compartilhamento" || canEdit)
+    (requestedTab !== "compartilhamento" || canEdit) &&
+    (requestedTab !== "alteracoes" || canViewHistory)
       ? requestedTab
       : "historico"
 
@@ -164,6 +177,7 @@ export default async function ClientePage({ params, searchParams }: ClientePageP
             </TabsTrigger>
             {canEdit ? <TabsTrigger value="compartilhamento">Compartilhamento</TabsTrigger> : null}
             <TabsTrigger value="visitas">Visitas e tarefas</TabsTrigger>
+            {canViewHistory ? <TabsTrigger value="alteracoes">Alterações</TabsTrigger> : null}
           </TabsList>
         </div>
 
@@ -237,6 +251,16 @@ export default async function ClientePage({ params, searchParams }: ClientePageP
               candidates={shareCandidates}
               currentUserId={user.id}
               role={role}
+            />
+          </TabsContent>
+        ) : null}
+
+        {auditEvents ? (
+          <TabsContent value="alteracoes">
+            <AuditTimeline
+              result={auditEvents}
+              emptyDescription="Quem cadastrou, quem editou e o que mudou nesta ficha aparece aqui, junto com os documentos anexados e removidos."
+              retentionNote="As alterações ficam guardadas por 180 dias; as aberturas da ficha e os downloads de documentos, por 5 anos (LGPD). Só o dono e o gerente da imobiliária veem esta aba."
             />
           </TabsContent>
         ) : null}

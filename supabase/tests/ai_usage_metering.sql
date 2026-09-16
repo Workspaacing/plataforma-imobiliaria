@@ -5,7 +5,7 @@
 -- `raise exception` — o resultado sai na mensagem do erro (P0001) e a transação
 -- inteira é desfeita. Rode no SQL Editor do projeto ou por `psql -f`.
 --
--- A imobiliária de teste usa o plano Imobiliária (teto de R$ 37,35 por ciclo)
+-- A imobiliária de teste usa o plano Imobiliária (teto de R$ 49,80 por ciclo)
 -- com a franquia reduzida para 3 conversas, só para o corte acontecer rápido.
 --
 -- Resultado esperado (ordem das chaves pode variar):
@@ -22,8 +22,8 @@
 --   franquia_cheia                 : "quota_exhausted"
 --   aviso_100                      : "100"
 --   aviso_100_so_uma_vez           : "NULL"
---   excedente_ligado               : "true/overage"
---   excedente_esgotado             : "overage_cap"
+--   excedente_recusado             : "NEGADO:23514" (travado em zero)
+--   teto_do_ciclo                  : "cycle_cost_cap"
 --   teto_do_dia                    : "daily_cost_cap"
 --   teto_da_semana                 : "weekly_cost_cap"
 --   rajada_por_usuario             : "rate_limited_user"
@@ -32,7 +32,8 @@
 --   sessao_le_consumo              : true
 --   sessao_escreve_consumo         : "NEGADO:42501"
 --   sessao_le_reservas             : "NEGADO:42501"
---   dono_define_teto               : true
+--   dono_define_teto_zero          : true
+--   dono_liga_excedente            : "NEGADO:22023" (sem cobrança, sem excedente)
 --   estranho_define_teto           : "NEGADO:42501"
 --   teto_acima_do_maximo           : "NEGADO:22023"
 --   rpc_sem_chave                  : "NEGADO:42501"
@@ -144,20 +145,27 @@ begin
   r := r || jsonb_build_object('aviso_100_so_uma_vez', coalesce(res ->> 'notify', 'NULL'));
 
   -- ---------------------------------------------------------------------------
-  -- 5. Excedente: só com teto definido pela imobiliária, e até ele
+  -- 5. Excedente travado em zero e teto do ciclo como limite absoluto
   -- ---------------------------------------------------------------------------
-  update public.billing_accounts set ai_overage_cap_cents = 1000 where organization_id = org;
+  -- Sem cobrança do excedente, o banco recusa qualquer valor diferente de zero.
+  begin
+    update public.billing_accounts set ai_overage_cap_cents = 1000 where organization_id = org;
+    r := r || jsonb_build_object('excedente_recusado', 'PERMITIDO');
+  exception when others then
+    r := r || jsonb_build_object('excedente_recusado', 'NEGADO:' || sqlstate);
+  end;
 
-  res := public.reserve_ai_usage(key, org, 'conversation', 1, null, contato_c, null, 600, 250, 0, 2000);
-  r := r || jsonb_build_object('excedente_ligado',
-    (res ->> 'allowed') || '/' || case when (res ->> 'in_overage')::boolean then 'overage' else 'plano' end);
+  -- Franquia liberada para o corte vir só do teto em reais.
+  update public.billing_accounts
+  set limits = limits || '{"ai_conversations": -1}'::jsonb
+  where organization_id = org;
 
   update public.ai_usage_periods
-  set cost_millicents = (3735 + 1000)::bigint * 1000
+  set cost_millicents = private.ai_cost_cap_cents('imobiliaria')::bigint * 1000
   where organization_id = org and period_start = ctx.period_start;
 
   res := public.reserve_ai_usage(key, org, 'conversation', 1, null, contato_c, null, 600, 250, 0, 2000);
-  r := r || jsonb_build_object('excedente_esgotado', res ->> 'reason');
+  r := r || jsonb_build_object('teto_do_ciclo', res ->> 'reason');
 
   -- ---------------------------------------------------------------------------
   -- 6. Janelas curtas: dia e semana bloqueiam sozinhas
@@ -165,7 +173,7 @@ begin
   update public.ai_usage_periods
   set cost_millicents = 0,
       day_start = (now() at time zone 'America/Sao_Paulo')::date,
-      day_cost_millicents = (private.ai_daily_cap_cents(3735 + 1000))::bigint * 1000,
+      day_cost_millicents = (private.ai_daily_cap_cents(private.ai_cost_cap_cents('imobiliaria')))::bigint * 1000,
       week_start = (date_trunc('week', now() at time zone 'America/Sao_Paulo'))::date,
       week_cost_millicents = 0
   where organization_id = org and period_start = ctx.period_start;
@@ -175,7 +183,7 @@ begin
 
   update public.ai_usage_periods
   set day_cost_millicents = 0,
-      week_cost_millicents = (private.ai_weekly_cap_cents(3735 + 1000))::bigint * 1000
+      week_cost_millicents = (private.ai_weekly_cap_cents(private.ai_cost_cap_cents('imobiliaria')))::bigint * 1000
   where organization_id = org and period_start = ctx.period_start;
 
   res := public.reserve_ai_usage(key, org, 'conversation', 1, null, contato_c, null, 600, 250, 0, 2000);
@@ -184,7 +192,6 @@ begin
   -- ---------------------------------------------------------------------------
   -- 7. Rajada por usuário e por organização
   -- ---------------------------------------------------------------------------
-  update public.billing_accounts set ai_overage_cap_cents = 500000 where organization_id = org;
   update public.ai_usage_periods
   set cost_millicents = 0, day_cost_millicents = 0, week_cost_millicents = 0
   where organization_id = org and period_start = ctx.period_start;
@@ -248,10 +255,17 @@ begin
   end;
 
   begin
-    r := r || jsonb_build_object('dono_define_teto',
-      public.set_ai_overage_cap(org, 2500) = 500000);
+    r := r || jsonb_build_object('dono_define_teto_zero',
+      public.set_ai_overage_cap(org, 0) = 0);
   exception when others then
-    r := r || jsonb_build_object('dono_define_teto', 'NEGADO:' || sqlstate);
+    r := r || jsonb_build_object('dono_define_teto_zero', 'NEGADO:' || sqlstate);
+  end;
+
+  begin
+    perform public.set_ai_overage_cap(org, 2500);
+    r := r || jsonb_build_object('dono_liga_excedente', 'PERMITIDO');
+  exception when others then
+    r := r || jsonb_build_object('dono_liga_excedente', 'NEGADO:' || sqlstate);
   end;
 
   begin

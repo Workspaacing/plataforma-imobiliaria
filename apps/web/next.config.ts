@@ -12,17 +12,14 @@ const nextConfig: NextConfig = {
     serverFunctions: false,
   },
   async headers() {
-    const isDevelopment = process.env.NODE_ENV === "development"
-    // Impede embutir o CRM em iframe de terceiros (clickjacking em convites, equipe e feed).
-    // Em desenvolvimento, só o editor do tweakcn pode embutir o app para pré-visualizar temas.
-    const frameAncestors = isDevelopment ? "'self' https://tweakcn.com" : "'none'"
-
+    // Impede embutir o CRM em iframe de terceiros (clickjacking em convites, equipe e
+    // feed). Vale em qualquer ambiente: nenhum site de fora embute o app.
     const securityHeaders = [
       {
         key: "Content-Security-Policy",
-        value: `frame-ancestors ${frameAncestors}; base-uri 'self'; form-action 'self'; object-src 'none'`,
+        value: `frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'`,
       },
-      ...(isDevelopment ? [] : [{ key: "X-Frame-Options", value: "DENY" }]),
+      { key: "X-Frame-Options", value: "DENY" },
       { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
       { key: "X-Content-Type-Options", value: "nosniff" },
       {
@@ -38,7 +35,19 @@ const nextConfig: NextConfig = {
       })
     }
 
-    return [{ source: "/(.*)", headers: securityHeaders }]
+    return [
+      { source: "/(.*)", headers: securityHeaders },
+      {
+        // Link público da proposta: fora dos buscadores e sem vazar o token no
+        // Referer de qualquer link que o cliente clique na página.
+        // (Regra depois da geral: para a mesma chave, vale a última.)
+        source: "/proposta/:path*",
+        headers: [
+          { key: "X-Robots-Tag", value: "noindex, nofollow" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+        ],
+      },
+    ]
   },
 }
 

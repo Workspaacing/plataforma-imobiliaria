@@ -1,3 +1,4 @@
+import { ASK_MANAGER_HINT } from "@/lib/auth/permission-messages"
 import { translateBillingError } from "@/lib/billing/errors"
 
 /**
@@ -17,7 +18,7 @@ export const GENERIC_ERROR_MESSAGE = "Não foi possível concluir agora. Tente n
 
 /** Mensagem padrão quando o RLS bloqueia (42501 ou UPDATE/DELETE sem linhas). */
 export function permissionDeniedMessage(action: string) {
-  return `Você não tem permissão para ${action}.`
+  return `Você não tem permissão para ${action}. ${ASK_MANAGER_HINT}`
 }
 
 const CHECK_CONSTRAINT_MESSAGES: Record<string, string> = {

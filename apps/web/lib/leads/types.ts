@@ -52,6 +52,16 @@ export type LeadItem = {
   stage: LeadStage
   position: number | null
   assignedTo: string | null
+  /** Quando o responsável atual recebeu o lead (base do prazo de 1º contato). */
+  assignedAt: string | null
+  /** Prazo do 1º contato calculado pelo banco; null quando não há prazo correndo. */
+  firstResponseDueAt: string | null
+  /** Quando saiu o aviso de "o prazo vai estourar". */
+  slaWarnedAt: string | null
+  /** Quantas vezes o lead voltou para a roleta por estouro do prazo. */
+  slaReassignments: number
+  /** Lead fora do horário de plantão, esperando a próxima janela do rodízio. */
+  routingDueAt: string | null
   utm: LeadUtm
   /** Plataforma de anúncio detectada pelos click ids (visível a todos). */
   adPlatforms: LeadAdPlatform[]
@@ -120,6 +130,11 @@ export function toLeadItem(row: LeadRow, refs: LeadRefs, options: LeadItemOption
     stage: row.stage,
     position: toNumberOrNull(row.position),
     assignedTo: row.assigned_to,
+    assignedAt: row.assigned_at ?? null,
+    firstResponseDueAt: row.first_response_due_at ?? null,
+    slaWarnedAt: row.sla_warned_at ?? null,
+    slaReassignments: toNumberOrNull(row.sla_reassignments) ?? 0,
+    routingDueAt: row.routing_due_at ?? null,
     utm: readLeadUtm(row.utm),
     adPlatforms: detectAdPlatforms(clickIds),
     clickIds: showTrackingIds && hasClickIds ? clickIds : null,
@@ -153,17 +168,64 @@ export type LeadActivityItem = {
   property: LeadPropertyRef | null
 }
 
+// -----------------------------------------------------------------------------
+// Histórico do lead (lead_stage_events + lead_assignment_events)
+// -----------------------------------------------------------------------------
+
+/** Mudança de etapa registrada pelo banco. */
+export type LeadStageHistoryEvent = {
+  kind: "stage"
+  id: string
+  at: string
+  /** Nome de quem fez; "Sistema" quando foi o próprio banco (rodízio, cron). */
+  actorName: string
+  /** Motivo em pt-BR; null quando o banco não registrou nenhum. */
+  reasonLabel: string | null
+  /** null no primeiro evento (o lead entrando no funil). */
+  fromStage: LeadStage | null
+  toStage: LeadStage
+}
+
+/** Troca de responsável registrada pelo banco. */
+export type LeadAssignmentHistoryEvent = {
+  kind: "assignment"
+  id: string
+  at: string
+  actorName: string
+  reasonLabel: string
+  /** null quando o lead não tinha responsável antes. */
+  fromName: string | null
+  /** null quando o lead ficou sem responsável. */
+  toName: string | null
+}
+
+export type LeadHistoryEvent = LeadStageHistoryEvent | LeadAssignmentHistoryEvent
+
 /** Dados que só existem depois da conversão (ficha do cliente e histórico). */
 export type LeadDetailExtras = {
   client: LeadClientSummary | null
   activities: LeadActivityItem[]
   activitiesFailed: boolean
+  /** Linha do tempo do lead, em ordem cronológica. */
+  history: LeadHistoryEvent[]
+  historyFailed: boolean
 }
 
 export const EMPTY_LEAD_DETAIL_EXTRAS: LeadDetailExtras = {
   client: null,
   activities: [],
   activitiesFailed: false,
+  history: [],
+  historyFailed: false,
+}
+
+/** Rodízio e SLA da imobiliária (`lead_routing_settings`), já com os padrões aplicados. */
+export type LeadSlaSettings = {
+  slaMinutes: number
+  warningPercent: number
+  rouletteEnabled: boolean
+  slaReassignEnabled: boolean
+  maxReassignments: number
 }
 
 export type LeadSummaryCounts = {

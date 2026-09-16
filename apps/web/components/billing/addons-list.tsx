@@ -33,8 +33,8 @@ export function AddonsList() {
         ))}
       </ItemGroup>
       <p className="text-sm text-muted-foreground">
-        Conectar um domínio que já é seu não tem custo. Não cobramos implantação, hora técnica nem
-        pacote de imóveis.
+        Todo plano já vem com um endereço exclusivo da imobiliária, sem custo. Add-on é opcional e
+        cobrado só se você contratar: não cobramos implantação, hora técnica nem pacote de imóveis.
       </p>
     </div>
   )

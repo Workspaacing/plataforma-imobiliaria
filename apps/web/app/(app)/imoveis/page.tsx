@@ -4,6 +4,7 @@ import { HouseIcon, PlusIcon, SearchXIcon } from "lucide-react"
 
 import { Button } from "@workspace/ui/components/button"
 import { Card, CardContent } from "@workspace/ui/components/card"
+import { Kbd } from "@workspace/ui/components/kbd"
 import {
   Empty,
   EmptyContent,
@@ -17,6 +18,7 @@ import { PageHeading } from "@/components/crm/page-placeholder"
 import { ListPagination } from "@/components/imoveis/list-pagination"
 import { PropertiesFilters } from "@/components/imoveis/properties-filters"
 import { PropertiesList } from "@/components/imoveis/properties-list"
+import { PropertiesShortcuts } from "@/components/imoveis/properties-shortcuts"
 import { PageShell } from "@/components/shared/page-shell"
 import { requireMembership } from "@/lib/auth/session"
 import {
@@ -56,14 +58,18 @@ export default async function ImoveisPage({ searchParams }: ImoveisPageProps) {
   const filterParams = filtersToSearchParams(filters)
 
   const newPropertyButton = canCreate ? (
-    <Button render={<Link href="/imoveis/novo" />} nativeButton={false}>
+    <Button render={<Link href="/imoveis/novo" />} nativeButton={false} aria-keyshortcuts="n">
       <PlusIcon data-icon="inline-start" />
       Novo imóvel
+      <Kbd className="ms-1 hidden bg-primary-foreground/15 text-primary-foreground sm:inline-flex">
+        N
+      </Kbd>
     </Button>
   ) : null
 
   return (
     <PageShell>
+      <PropertiesShortcuts canCreate={canCreate} />
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <PageHeading
           title="Imóveis"
@@ -75,7 +81,6 @@ export default async function ImoveisPage({ searchParams }: ImoveisPageProps) {
       <Card>
         <CardContent>
           <PropertiesFilters
-            key={filterParams.toString()}
             defaults={{
               q: filters.q,
               status: filters.status,

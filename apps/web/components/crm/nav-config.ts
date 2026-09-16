@@ -1,16 +1,21 @@
 import {
   BuildingIcon,
   CalendarDaysIcon,
+  ChartColumnIcon,
   CreditCardIcon,
   GiftIcon,
+  HandCoinsIcon,
   HandshakeIcon,
   HouseIcon,
   HousePlusIcon,
   KanbanIcon,
   KeyRoundIcon,
+  LandmarkIcon,
   LayoutDashboardIcon,
   LayoutTemplateIcon,
   ListTodoIcon,
+  PlugIcon,
+  PlugZapIcon,
   SettingsIcon,
   StoreIcon,
   UserCogIcon,
@@ -50,7 +55,10 @@ export type NavMatch = {
 export const NAV_GROUPS: NavGroup[] = [
   {
     title: "Principal",
-    items: [{ title: "Painel", url: "/painel", icon: LayoutDashboardIcon }],
+    items: [
+      { title: "Painel", url: "/painel", icon: LayoutDashboardIcon },
+      { title: "Relatórios", url: "/relatorios", icon: ChartColumnIcon },
+    ],
   },
   {
     title: "Funil",
@@ -60,6 +68,9 @@ export const NAV_GROUPS: NavGroup[] = [
     title: "Imóveis",
     items: [
       { title: "Imóveis", url: "/imoveis", icon: HouseIcon },
+      // Rota fora de /imoveis de propósito: isNavItemActive casa por prefixo e
+      // "/imoveis/caixa" deixaria os dois itens marcados como ativos.
+      { title: "Imóveis da Caixa", url: "/imoveis-caixa", icon: LandmarkIcon },
       { title: "Condomínios", url: "/condominios", icon: BuildingIcon },
       { title: "Chaves", url: "/chaves", icon: KeyRoundIcon },
       { title: "Propostas", url: "/propostas", icon: HandshakeIcon },
@@ -77,6 +88,13 @@ export const NAV_GROUPS: NavGroup[] = [
       { title: "Clientes", url: "/clientes", icon: UsersIcon },
       { title: "Agenda", url: "/agenda", icon: CalendarDaysIcon },
       { title: "Tarefas", url: "/tarefas", icon: ListTodoIcon },
+    ],
+  },
+  {
+    title: "Financeiro",
+    items: [
+      // Sem `roles`: cada pessoa vê o extrato dela; a gestão vê o de todos.
+      { title: "Comissões", url: "/comissoes", icon: HandCoinsIcon },
     ],
   },
   {
@@ -111,6 +129,18 @@ export const NAV_GROUPS: NavGroup[] = [
         roles: ORGANIZATION_VIEWER_ROLES,
       },
       {
+        title: "Conexões",
+        url: "/configuracoes/conexoes",
+        icon: PlugZapIcon,
+        roles: TEAM_MANAGER_ROLES,
+      },
+      {
+        title: "Comissões",
+        url: "/configuracoes/comissoes",
+        icon: HandCoinsIcon,
+        roles: TEAM_MANAGER_ROLES,
+      },
+      {
         title: "Assinatura",
         url: "/configuracoes/assinatura",
         icon: CreditCardIcon,
@@ -121,6 +151,12 @@ export const NAV_GROUPS: NavGroup[] = [
         url: "/configuracoes/indicacoes",
         icon: GiftIcon,
         roles: ORGANIZATION_VIEWER_ROLES,
+      },
+      {
+        title: "Integrações",
+        url: "/configuracoes/integracoes",
+        icon: PlugIcon,
+        roles: TEAM_MANAGER_ROLES,
       },
     ],
   },

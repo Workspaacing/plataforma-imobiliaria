@@ -1,8 +1,12 @@
 import {
   CreditCardIcon,
   GiftIcon,
+  HandCoinsIcon,
   GlobeIcon,
   PlugIcon,
+  PlugZapIcon,
+  ShieldCheckIcon,
+  ShuffleIcon,
   StoreIcon,
   UserCogIcon,
   UserRoundIcon,
@@ -12,12 +16,23 @@ import {
 import { NAV_GROUPS } from "@/components/crm/nav-config"
 import { ORGANIZATION_VIEWER_ROLES, TEAM_MANAGER_ROLES, type Role } from "@/lib/auth/roles"
 import { REFERRALS_SETTINGS_PATH, SUBSCRIPTION_SETTINGS_PATH } from "@/lib/auth/routes"
+import { INTEGRATIONS_SETTINGS_PATH } from "@/lib/integracoes/constants"
 
 /** Índice de configurações (estilo Stripe). */
 export const SETTINGS_INDEX_PATH = "/configuracoes"
 
 export const ORGANIZATION_SETTINGS_PATH = "/configuracoes/imobiliaria"
 export const TEAM_SETTINGS_PATH = "/configuracoes/equipe"
+/** Entrada de leads dos portais e dos anúncios (definida em lib/integracoes). */
+export { INTEGRATIONS_SETTINGS_PATH }
+/** Contas da própria imobiliária em serviços de terceiros (WhatsApp oficial). */
+export const CONNECTIONS_SETTINGS_PATH = "/configuracoes/conexoes"
+/** Rodízio (roleta) de leads, escala de plantão e prazo de primeiro contato. */
+export const LEAD_ROUTING_SETTINGS_PATH = "/configuracoes/rodizio"
+/** Referência de papéis: aberta a todos os membros (a Equipe é só da gestão). */
+export const ROLE_PERMISSIONS_SETTINGS_PATH = "/configuracoes/permissoes"
+/** Tabela de comissão, divisão entre os papéis e limite de desconto. */
+export const COMMISSIONS_SETTINGS_PATH = "/configuracoes/comissoes"
 /** O perfil ainda não mudou para /configuracoes/perfil (depende do agente de autenticação). */
 export const PROFILE_SETTINGS_PATH = "/perfil"
 
@@ -88,6 +103,31 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
         roles: sidebarRoles(TEAM_SETTINGS_PATH, TEAM_MANAGER_ROLES),
       },
       {
+        title: "Rodízio de leads",
+        navTitle: "Rodízio",
+        description: "Distribuição automática dos leads, escala de plantão e prazo de resposta.",
+        icon: ShuffleIcon,
+        href: LEAD_ROUTING_SETTINGS_PATH,
+        roles: sidebarRoles(LEAD_ROUTING_SETTINGS_PATH, TEAM_MANAGER_ROLES),
+      },
+      {
+        title: "Papéis e permissões",
+        navTitle: "Papéis",
+        description: "O que cada papel pode fazer no CRM, área por área.",
+        icon: ShieldCheckIcon,
+        href: ROLE_PERMISSIONS_SETTINGS_PATH,
+        // Sem `roles`: qualquer membro precisa saber o que pode fazer.
+      },
+      {
+        title: "Comissões",
+        navTitle: "Comissões",
+        description:
+          "Percentual por tipo de negócio, divisão entre os papéis e limite de desconto.",
+        icon: HandCoinsIcon,
+        href: COMMISSIONS_SETTINGS_PATH,
+        roles: sidebarRoles(COMMISSIONS_SETTINGS_PATH, TEAM_MANAGER_ROLES),
+      },
+      {
         title: "Assinatura",
         navTitle: "Assinatura",
         description: "Plano, uso, forma de pagamento e faturas.",
@@ -115,9 +155,20 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
       },
       {
         title: "Integrações",
-        description: "WhatsApp, Meta e e-mail conectados ao CRM.",
+        navTitle: "Integrações",
+        description: "Leads do ZAP, Viva Real, OLX e dos anúncios do Facebook e Instagram.",
         icon: PlugIcon,
-        roles: TEAM_MANAGER_ROLES,
+        href: INTEGRATIONS_SETTINGS_PATH,
+        roles: sidebarRoles(INTEGRATIONS_SETTINGS_PATH, TEAM_MANAGER_ROLES),
+      },
+      {
+        title: "Conexões",
+        navTitle: "Conexões",
+        description:
+          "Contas da própria imobiliária em serviços de terceiros (WhatsApp oficial), com o que cada uma custa direto com o fornecedor.",
+        icon: PlugZapIcon,
+        href: CONNECTIONS_SETTINGS_PATH,
+        roles: sidebarRoles(CONNECTIONS_SETTINGS_PATH, TEAM_MANAGER_ROLES),
       },
     ],
   },

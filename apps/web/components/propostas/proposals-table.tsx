@@ -2,9 +2,23 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { BookmarkCheckIcon, EyeIcon, MoreHorizontalIcon, PencilIcon } from "lucide-react"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import {
+  BadgeCheckIcon,
+  BadgePercentIcon,
+  BookmarkCheckIcon,
+  DownloadIcon,
+  EyeIcon,
+  HourglassIcon,
+  MoreHorizontalIcon,
+  PencilIcon,
+  Share2Icon,
+  XCircleIcon,
+} from "lucide-react"
 
+import { formatPercent } from "@workspace/core/comissoes"
 import { LISTING_PURPOSE_LABELS } from "@workspace/core/properties/enums"
+import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,15 +52,24 @@ import {
 import { toast } from "@workspace/ui/components/toast"
 import { cn } from "@workspace/ui/lib/utils"
 
+import {
+  DiscountApprovalDialog,
+  type DiscountApprovalTarget,
+} from "@/components/propostas/discount-approval-dialog"
 import type { ComboboxOption } from "@/components/propostas/option-combobox"
 import {
   ProposalFormDialog,
   type EditableProposal,
   type ProposalPropertyOption,
 } from "@/components/propostas/proposal-form-dialog"
+import {
+  ShareProposalDialog,
+  type ProposalShareTarget,
+} from "@/components/propostas/share-proposal-dialog"
 import { formatDateOnly } from "@/lib/chaves/datetime"
-import { formatCurrency } from "@/lib/format"
+import { formatCurrency, formatDateTime } from "@/lib/format"
 import { changeProposalStatus, reserveProperty } from "@/lib/propostas/actions"
+import type { ProposalDiscount } from "@/lib/propostas/discount"
 import { amountToBrlInput } from "@/lib/propostas/money"
 import type { ProposalRow } from "@/lib/propostas/queries"
 import {
@@ -61,6 +84,10 @@ import {
 export type ProposalTableRow = ProposalRow & {
   canUpdate: boolean
   isExpired: boolean
+  /** Link público pronto (null quando não existe, foi revogado ou venceu). */
+  shareUrl: string | null
+  /** Desconto acima do limite da imobiliária (null quando a proposta não trava). */
+  discount: ProposalDiscount | null
 }
 
 type ReserveOffer = { propertyId: string; propertyLabel: string }
@@ -101,9 +128,112 @@ type ProposalsTableProps = {
   properties: ProposalPropertyOption[]
   clients: ComboboxOption[]
   brokers: ComboboxOption[]
+  organizationName: string
+  /** Dono ou gerente: responde pedidos de desconto em Comissões. */
+  canReviewDiscounts: boolean
 }
 
-export function ProposalsTable({ rows, properties, clients, brokers }: ProposalsTableProps) {
+/** Dados do diálogo de envio: link, validade e registro de leitura da proposta. */
+function toShareTarget(row: ProposalTableRow, organizationName: string): ProposalShareTarget {
+  return {
+    proposalId: row.id,
+    title: proposalTitle(row),
+    organizationName,
+    purposeLabel: LISTING_PURPOSE_LABELS[row.purpose],
+    amountLabel: formatCurrency(row.amount),
+    url: row.shareUrl,
+    expiresAt: row.share?.expiresAt ?? null,
+    firstViewedAt: row.share?.firstViewedAt ?? null,
+    lastViewedAt: row.share?.lastViewedAt ?? null,
+    viewCount: row.share?.viewCount ?? 0,
+    canShare: row.canUpdate,
+    pdfUrl: `/api/propostas/${row.id}/pdf`,
+  }
+}
+
+function proposalTitle(row: ProposalTableRow) {
+  return `${propertyLabel(row)} · ${row.client?.name ?? "cliente"}`
+}
+
+/** Selo do desconto na coluna Status: abre o pedido de aprovação. */
+function discountBadge(discount: ProposalDiscount) {
+  if (discount.approved) {
+    return { icon: BadgeCheckIcon, label: "Desconto aprovado", variant: "outline" as const }
+  }
+
+  switch (discount.latestRequest?.status) {
+    case "pending":
+      return { icon: HourglassIcon, label: "Desconto com o gerente", variant: "secondary" as const }
+    case "rejected":
+      return { icon: XCircleIcon, label: "Desconto recusado", variant: "destructive" as const }
+    default:
+      return {
+        icon: BadgePercentIcon,
+        label: `Desconto de ${formatPercent(discount.percent)}: pedir aprovação`,
+        variant: "destructive" as const,
+      }
+  }
+}
+
+function ProposalDiscountBadge({
+  discount,
+  onOpen,
+}: {
+  discount: ProposalDiscount
+  onOpen: () => void
+}) {
+  const badge = discountBadge(discount)
+  const Icon = badge.icon
+
+  return (
+    <Badge
+      variant={badge.variant}
+      className="cursor-pointer"
+      render={<button type="button" onClick={onOpen} />}
+    >
+      <Icon data-icon="inline-start" />
+      {badge.label}
+    </Badge>
+  )
+}
+
+/** Aviso do diálogo de enviar/aceitar quando a lista já sabe que o desconto trava. */
+function discountTransitionNotice(discount: ProposalDiscount, to: ProposalStatus) {
+  const action = to === "accepted" ? "aceita" : "enviada"
+
+  if (discount.latestRequest?.status === "pending") {
+    return `O desconto de ${formatPercent(discount.percent)} está esperando o gerente. Sem a aprovação, a proposta não pode ser ${action}.`
+  }
+
+  return `O desconto de ${formatPercent(discount.percent)} passa do limite de ${formatPercent(discount.limitPercent)}. Sem a aprovação do gerente, a proposta não pode ser ${action}.`
+}
+
+/** Coluna "Envio": o que o corretor precisa saber sem abrir o diálogo. */
+function ProposalDeliveryCell({ row }: { row: ProposalTableRow }) {
+  if (row.share?.firstViewedAt) {
+    return (
+      <span className="flex items-center gap-1.5 text-sm">
+        <EyeIcon className="size-3.5 text-muted-foreground" />
+        <span>Aberta em {formatDateTime(row.share.firstViewedAt)}</span>
+      </span>
+    )
+  }
+
+  if (row.shareUrl) {
+    return <Badge variant="secondary">Link enviado</Badge>
+  }
+
+  return <span className="text-muted-foreground">—</span>
+}
+
+export function ProposalsTable({
+  rows,
+  properties,
+  clients,
+  brokers,
+  organizationName,
+  canReviewDiscounts,
+}: ProposalsTableProps) {
   const [formOpen, setFormOpen] = React.useState(false)
   const [editing, setEditing] = React.useState<EditableProposal | null>(null)
   const [transition, setTransition] = React.useState<{
@@ -111,9 +241,25 @@ export function ProposalsTable({ rows, properties, clients, brokers }: Proposals
     to: ProposalStatus
   } | null>(null)
   const [transitionOpen, setTransitionOpen] = React.useState(false)
+  // Recusa do gatilho de desconto na última tentativa de enviar/aceitar.
+  const [transitionError, setTransitionError] = React.useState<string | null>(null)
+  // Título e permissão guardados no clique: se a linha sair da lista (filtro de
+  // status depois da contraproposta), o diálogo continua com o que mostrar.
+  const [discountRequest, setDiscountRequest] = React.useState<{
+    rowId: string
+    title: string
+    canRequest: boolean
+    blockedMessage: string | null
+  } | null>(null)
+  const [discountOpen, setDiscountOpen] = React.useState(false)
+  const [shareRowId, setShareRowId] = React.useState<string | null>(null)
+  const [shareOpen, setShareOpen] = React.useState(false)
   const [reserveOffer, setReserveOffer] = React.useState<ReserveOffer | null>(null)
   const [reserveOpen, setReserveOpen] = React.useState(false)
   const [isChanging, startChange] = React.useTransition()
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [isReserving, startReserve] = React.useTransition()
 
   function openForm(row: ProposalTableRow) {
@@ -121,12 +267,89 @@ export function ProposalsTable({ rows, properties, clients, brokers }: Proposals
     setFormOpen(true)
   }
 
+  // Derivado das linhas (e não copiado no clique): depois de gerar o link ou de
+  // o cliente abrir a proposta, o diálogo já mostra o estado novo.
+  const shareRow = rows.find((row) => row.id === shareRowId) ?? null
+  const shareTarget = shareRow ? toShareTarget(shareRow, organizationName) : null
+
+  function openShare(row: ProposalTableRow) {
+    setShareRowId(row.id)
+    setShareOpen(true)
+  }
+
+  // Derivado das linhas, como o do link: depois do pedido o diálogo e o selo já
+  // mostram a situação nova.
+  const discountRow = discountRequest
+    ? (rows.find((row) => row.id === discountRequest.rowId) ?? null)
+    : null
+  const discountTarget: DiscountApprovalTarget | null = discountRequest
+    ? {
+        proposalId: discountRequest.rowId,
+        title: discountRow ? proposalTitle(discountRow) : discountRequest.title,
+        // Fora da lista, a medida antiga não vale mais: o diálogo pede sem números.
+        discount: discountRow?.discount ?? null,
+        blockedMessage: discountRequest.blockedMessage,
+        canRequest: discountRow?.canUpdate ?? discountRequest.canRequest,
+        canReview: canReviewDiscounts,
+      }
+    : null
+
+  function openDiscount(
+    target: { rowId: string; title: string; canRequest: boolean },
+    blockedMessage: string | null = null
+  ) {
+    setDiscountRequest({ ...target, blockedMessage })
+    setDiscountOpen(true)
+  }
+
+  function openDiscountForRow(row: ProposalTableRow, blockedMessage: string | null = null) {
+    openDiscount(
+      { rowId: row.id, title: proposalTitle(row), canRequest: row.canUpdate },
+      blockedMessage
+    )
+  }
+
+  // Depois de "Registrar contraproposta e salvar": a proposta virou contraproposta
+  // e sairia de um filtro de outro status. A lista passa para a aba certa.
+  function openDiscountAfterCounterOffer(proposalId: string) {
+    const status = searchParams.get("status")
+
+    if (status && status !== "countered") {
+      const params = new URLSearchParams(searchParams.toString())
+
+      params.set("status", "countered")
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false })
+    }
+
+    openDiscount({
+      rowId: proposalId,
+      title: editing ? `${editing.propertyLabel} · ${editing.clientLabel}` : "Proposta",
+      canRequest: !(editing?.readOnly ?? false),
+    })
+  }
+
   function openTransition(row: ProposalTableRow, to: ProposalStatus) {
     setTransition({ row, to })
+    setTransitionError(null)
     setTransitionOpen(true)
   }
 
   const copy = transition ? getTransitionCopy(transition.row.status, transition.to) : null
+  const transitionDiscount =
+    transition &&
+    (transition.to === "sent" || transition.to === "accepted") &&
+    transition.row.discount &&
+    !transition.row.discount.approved
+      ? transition.row.discount
+      : null
+  const showDiscountAction = Boolean(transitionError || transitionDiscount)
+
+  function requestFromTransition() {
+    if (!transition) return
+
+    setTransitionOpen(false)
+    openDiscountForRow(transition.row, transitionError)
+  }
 
   function runTransition() {
     if (!transition) return
@@ -137,6 +360,15 @@ export function ProposalsTable({ rows, properties, clients, brokers }: Proposals
       const result = await changeProposalStatus(row.id, to)
 
       if (!result.ok) {
+        if (result.needsDiscountApproval) {
+          // O banco barrou pelo desconto: o diálogo troca o "confirmar" pelo pedido.
+          setTransitionError(result.error)
+          // A lista pode estar velha (valor ou pedido mudou): o diálogo de pedido
+          // já abre com os dados do banco.
+          router.refresh()
+          return
+        }
+
         toast.add({
           title: "Não foi possível alterar",
           description: result.error,
@@ -192,6 +424,7 @@ export function ProposalsTable({ rows, properties, clients, brokers }: Proposals
             <TableHead className="text-end">Valor</TableHead>
             <TableHead>Validade</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead>Envio</TableHead>
             <TableHead className="w-12">
               <span className="sr-only">Ações</span>
             </TableHead>
@@ -249,7 +482,16 @@ export function ProposalsTable({ rows, properties, clients, brokers }: Proposals
                       {PROPOSAL_STATUS_LABELS[row.status]}
                     </Badge>
                     {row.isExpired ? <Badge variant="destructive">Vencida</Badge> : null}
+                    {row.discount ? (
+                      <ProposalDiscountBadge
+                        discount={row.discount}
+                        onOpen={() => openDiscountForRow(row)}
+                      />
+                    ) : null}
                   </div>
+                </TableCell>
+                <TableCell>
+                  <ProposalDeliveryCell row={row} />
                 </TableCell>
                 <TableCell className="text-end">
                   <DropdownMenu>
@@ -262,6 +504,22 @@ export function ProposalsTable({ rows, properties, clients, brokers }: Proposals
                         <DropdownMenuItem onClick={() => openForm(row)}>
                           {canEditFields ? <PencilIcon /> : <EyeIcon />}
                           {canEditFields ? "Editar proposta" : "Ver detalhes"}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openShare(row)}>
+                          <Share2Icon />
+                          {row.shareUrl ? "Ver link da proposta" : "Enviar ao cliente"}
+                        </DropdownMenuItem>
+                        {row.discount && !row.discount.approved ? (
+                          <DropdownMenuItem onClick={() => openDiscountForRow(row)}>
+                            <BadgePercentIcon />
+                            {row.discount.latestRequest?.status === "pending"
+                              ? "Ver pedido de desconto"
+                              : "Pedir aprovação do desconto"}
+                          </DropdownMenuItem>
+                        ) : null}
+                        <DropdownMenuItem render={<a href={`/api/propostas/${row.id}/pdf`} />}>
+                          <DownloadIcon />
+                          Baixar PDF
                         </DropdownMenuItem>
                       </DropdownMenuGroup>
                       {transitions.length > 0 ? (
@@ -294,6 +552,14 @@ export function ProposalsTable({ rows, properties, clients, brokers }: Proposals
         </TableBody>
       </Table>
 
+      <ShareProposalDialog target={shareTarget} open={shareOpen} onOpenChange={setShareOpen} />
+
+      <DiscountApprovalDialog
+        target={discountTarget}
+        open={discountOpen}
+        onOpenChange={setDiscountOpen}
+      />
+
       <ProposalFormDialog
         open={formOpen}
         onOpenChange={setFormOpen}
@@ -301,6 +567,7 @@ export function ProposalsTable({ rows, properties, clients, brokers }: Proposals
         clients={clients}
         brokers={brokers}
         editing={editing}
+        onDiscountApprovalNeeded={openDiscountAfterCounterOffer}
       />
 
       <AlertDialog open={transitionOpen} onOpenChange={setTransitionOpen}>
@@ -314,16 +581,46 @@ export function ProposalsTable({ rows, properties, clients, brokers }: Proposals
               {copy?.description}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {transitionError ? (
+            <Alert variant="destructive">
+              <BadgePercentIcon />
+              <AlertTitle>Precisa da aprovação do gerente</AlertTitle>
+              <AlertDescription>{transitionError}</AlertDescription>
+            </Alert>
+          ) : transition && transitionDiscount ? (
+            <Alert>
+              <BadgePercentIcon />
+              <AlertTitle>Desconto acima do limite</AlertTitle>
+              <AlertDescription>
+                {discountTransitionNotice(transitionDiscount, transition.to)}
+              </AlertDescription>
+            </Alert>
+          ) : null}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isChanging}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              variant={copy?.destructive ? "destructive" : "default"}
-              disabled={isChanging}
-              onClick={runTransition}
-            >
-              {isChanging ? <Spinner data-icon="inline-start" /> : null}
-              {copy?.confirm}
-            </AlertDialogAction>
+            {/* Depois da recusa do banco, confirmar de novo não adianta. Só com o
+                aviso da lista, a tentativa continua: o pedido aprovado pode ser
+                de outra pessoa, que o RLS não mostra. */}
+            {transitionError ? null : (
+              <AlertDialogAction
+                variant={
+                  showDiscountAction ? "outline" : copy?.destructive ? "destructive" : "default"
+                }
+                disabled={isChanging}
+                onClick={runTransition}
+              >
+                {isChanging ? <Spinner data-icon="inline-start" /> : null}
+                {copy?.confirm}
+              </AlertDialogAction>
+            )}
+            {showDiscountAction ? (
+              <Button disabled={isChanging} onClick={requestFromTransition}>
+                <BadgePercentIcon data-icon="inline-start" />
+                {!transitionError && transitionDiscount?.latestRequest?.status === "pending"
+                  ? "Ver pedido de aprovação"
+                  : "Pedir aprovação do gerente"}
+              </Button>
+            ) : null}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

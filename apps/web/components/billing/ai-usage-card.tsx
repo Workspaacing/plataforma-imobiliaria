@@ -178,13 +178,16 @@ export function AiUsageCard({ overview, canManage }: AiUsageCardProps) {
         )}
       </CardContent>
 
-      <CardFooter className="flex-col items-stretch gap-3 border-t">
-        <AiOverageCapForm
-          overageCapCents={overview.overageCapCents}
-          maxOverageCapCents={overview.maxOverageCapCents}
-          canManage={canManage}
-        />
-      </CardFooter>
+      {/* Sem franquia no plano, o excedente não libera nada: o corte é anterior. */}
+      {included ? (
+        <CardFooter className="flex-col items-stretch gap-3 border-t">
+          <AiOverageCapForm
+            overageCapCents={overview.overageCapCents}
+            maxOverageCapCents={overview.maxOverageCapCents}
+            canManage={canManage}
+          />
+        </CardFooter>
+      ) : null}
     </Card>
   )
 }

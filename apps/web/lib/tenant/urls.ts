@@ -23,6 +23,7 @@ import {
   buildLandingPagePathFor,
   buildLandingPageUrlFor,
   buildPortalFeedUrlFor,
+  buildProposalShareUrlFor,
   buildTenantOriginFor,
   buildTenantUrlFor,
 } from "@workspace/core/tenant/links"
@@ -180,4 +181,9 @@ export function buildPortalFeedUrl(orgSlug: string, feedToken: string): string {
 
 export function buildInvitationUrl(orgSlug: string, token: string): string {
   return buildInvitationUrlFor(getTenancyConfig(), orgSlug, token)
+}
+
+/** Link público da proposta (/proposta/{token}) no endereço da imobiliária. */
+export function buildProposalShareUrl(orgSlug: string, token: string): string {
+  return buildProposalShareUrlFor(getTenancyConfig(), orgSlug, token)
 }

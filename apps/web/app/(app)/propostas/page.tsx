@@ -3,11 +3,13 @@ import Link from "next/link"
 import { HandshakeIcon, SearchXIcon, TriangleAlertIcon } from "lucide-react"
 import { z } from "zod"
 
+import { DEFAULT_DISCOUNT_POLICY, type DiscountPolicy } from "@workspace/core/comissoes"
 import {
   LISTING_PURPOSE_LABELS,
   PROPERTY_STATUS_LABELS,
   PROPOSAL_STATUS_VALUES,
 } from "@workspace/core/properties/enums"
+import { isProposalShareActive } from "@workspace/core/proposals/share"
 import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -28,11 +30,20 @@ import { StatusTabs } from "@/components/propostas/status-tabs"
 import { PageShell } from "@/components/shared/page-shell"
 import { requireMembership } from "@/lib/auth/session"
 import { todayInSaoPaulo } from "@/lib/chaves/datetime"
+import { canManageCommissions } from "@/lib/comissoes/permissions"
+import { getCommissionSettings } from "@/lib/comissoes/queries"
+import { measureProposalDiscount, resolveProposalDiscount } from "@/lib/propostas/discount"
 import { getClientOptions, getPropertyOptions, getTeamMembers } from "@/lib/propostas/options"
 import { canUpdateProposal, COMMERCIAL_ROLES, isSelfBrokerRole } from "@/lib/propostas/permissions"
-import { listProposals, type ProposalPurpose } from "@/lib/propostas/queries"
+import {
+  listProposalDiscountRequests,
+  listProposals,
+  type ProposalPurpose,
+  type ProposalShareInfo,
+} from "@/lib/propostas/queries"
 import { isProposalExpired, PROPOSAL_STATUS_LABELS } from "@/lib/propostas/status"
 import { createClient } from "@/lib/supabase/server"
+import { buildProposalShareUrl } from "@/lib/tenant/urls"
 
 export const metadata: Metadata = {
   title: "Propostas",
@@ -47,6 +58,48 @@ function firstValue(value: string | string[] | undefined) {
 function guidParam(value: string | string[] | undefined) {
   const first = firstValue(value)
   return first && z.guid().safeParse(first).success ? first : null
+}
+
+/**
+ * Endereço do link público, só quando ele existe e está no prazo (espelho do
+ * `expires_at > now()` da RPC). Sem o endereço público configurado, a tela
+ * segue funcionando sem o link.
+ */
+function proposalShareUrl(slug: string, share: ProposalShareInfo | null) {
+  const token = share?.token
+
+  if (!token || !isProposalShareActive({ token, expiresAt: share?.expiresAt ?? null })) {
+    return null
+  }
+
+  try {
+    return buildProposalShareUrl(slug, token)
+  } catch {
+    return null
+  }
+}
+
+type ServerClient = Awaited<ReturnType<typeof createClient>>
+
+/**
+ * Trava de desconto da imobiliária. Se os ajustes não carregarem, a lista abre
+ * sem o aviso: quem garante a regra é o gatilho do banco, e a recusa dele já
+ * oferece pedir a aprovação na hora de enviar ou aceitar.
+ */
+async function getDiscountPolicy(
+  supabase: ServerClient,
+  organizationId: string
+): Promise<DiscountPolicy> {
+  try {
+    const settings = await getCommissionSettings(supabase, organizationId)
+
+    return {
+      approvalEnabled: settings.discountApprovalEnabled,
+      maxDiscountPercent: settings.maxDiscountPercent,
+    }
+  } catch {
+    return DEFAULT_DISCOUNT_POLICY
+  }
 }
 
 export default async function PropostasPage({
@@ -70,7 +123,7 @@ export default async function PropostasPage({
   const isCommercial = COMMERCIAL_ROLES.includes(role)
   const supabase = await createClient()
 
-  const [{ rows, counts }, properties, members, clients] = await Promise.all([
+  const [{ rows, counts }, properties, members, clients, discountPolicy] = await Promise.all([
     listProposals(supabase, organizationId, {
       status,
       propertyId,
@@ -80,16 +133,39 @@ export default async function PropostasPage({
     getPropertyOptions(supabase, organizationId),
     getTeamMembers(supabase, organizationId),
     isCommercial ? getClientOptions(supabase, organizationId) : Promise.resolve([]),
+    getDiscountPolicy(supabase, organizationId),
   ])
 
+  // Pedidos de desconto só das propostas que o gatilho vai barrar.
+  const discountMeasures = new Map(
+    rows.flatMap((row) => {
+      const measure = measureProposalDiscount(discountPolicy, row)
+      return measure ? [[row.id, measure] as const] : []
+    })
+  )
+  // Sem os pedidos, o selo mostraria "pedir aprovação" onde já há pedido em
+  // aberto ou aprovado: melhor abrir a lista sem o aviso (o gatilho segue valendo).
+  const discountRequests = await listProposalDiscountRequests(supabase, organizationId, [
+    ...discountMeasures.keys(),
+  ]).catch(() => null)
+
   const today = todayInSaoPaulo()
-  const tableRows: ProposalTableRow[] = rows.map((row) => ({
-    ...row,
-    canUpdate: row.property
-      ? canUpdateProposal(role, user.id, { brokerId: row.brokerId }, row.property)
-      : false,
-    isExpired: isProposalExpired(row, today),
-  }))
+  const tableRows: ProposalTableRow[] = rows.map((row) => {
+    const measure = discountMeasures.get(row.id)
+
+    return {
+      ...row,
+      canUpdate: row.property
+        ? canUpdateProposal(role, user.id, { brokerId: row.brokerId }, row.property)
+        : false,
+      isExpired: isProposalExpired(row, today),
+      shareUrl: proposalShareUrl(membership.organization.slug, row.share),
+      discount:
+        measure && discountRequests
+          ? resolveProposalDiscount(measure, discountRequests.get(row.id) ?? [])
+          : null,
+    }
+  })
 
   const brokers = members
     .filter((member) => COMMERCIAL_ROLES.includes(member.role))
@@ -164,6 +240,8 @@ export default async function PropostasPage({
           properties={propertyFormOptions}
           clients={clients}
           brokers={brokers}
+          organizationName={membership.organization.name}
+          canReviewDiscounts={canManageCommissions(role)}
         />
       ) : hasFilters ? (
         <Empty className="border">

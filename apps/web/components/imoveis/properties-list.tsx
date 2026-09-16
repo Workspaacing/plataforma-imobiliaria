@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { UserIcon } from "lucide-react"
 
 import { PROPERTY_TYPE_LABELS } from "@workspace/core/properties/enums"
 import { Badge } from "@workspace/ui/components/badge"
@@ -30,6 +31,18 @@ import { getDisplayPrices } from "@/lib/imoveis/mappers"
 function location(item: PropertyListItem) {
   const city = [item.city, item.state].filter(Boolean).join("/")
   return [item.neighborhood, city].filter(Boolean).join(" · ") || "Endereço não informado"
+}
+
+/** Explica um resultado que casou pelo proprietário, e não pelo texto do imóvel. */
+function MatchedOwner({ item }: { item: PropertyListItem }) {
+  if (!item.matchedOwner) return null
+
+  return (
+    <span className="truncate text-xs text-muted-foreground">
+      <UserIcon className="inline size-3 align-text-bottom" aria-hidden="true" /> Proprietário:{" "}
+      {item.matchedOwner}
+    </span>
+  )
 }
 
 function Prices({ item }: { item: PropertyListItem }) {
@@ -117,6 +130,7 @@ export function PropertiesList({
                       {item.title}
                     </Link>
                     <span className="truncate text-xs text-muted-foreground">{location(item)}</span>
+                    <MatchedOwner item={item} />
                   </div>
                 </TableCell>
                 <TableCell>
@@ -158,6 +172,7 @@ export function PropertiesList({
               </span>
               <ItemTitle className="line-clamp-2">{item.title}</ItemTitle>
               <ItemDescription className="truncate">{location(item)}</ItemDescription>
+              <MatchedOwner item={item} />
               <Prices item={item} />
             </ItemContent>
             <ItemFooter className="justify-start">

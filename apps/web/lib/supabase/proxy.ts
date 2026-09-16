@@ -13,6 +13,7 @@ import {
   isRootOnlyPath,
   isWebhookPath,
   LOGIN_PATH,
+  PROPOSAL_SHARE_PATH_PREFIX,
   sanitizeRedirectPath,
   TENANT_PICKER_PATH,
   WEBHOOKS_PATH_PREFIX,
@@ -42,12 +43,12 @@ import {
 } from "@/lib/tenant/urls"
 
 /**
- * Rotas públicas que nunca usam a sessão: landing pages, feed dos portais e
- * webhooks (URLs curtas do subdomínio e rotas longas têm o mesmo prefixo).
- * Pular a renovação evita uma chamada ao Auth por visita e Set-Cookie que
- * impediria o cache dessas respostas.
+ * Rotas públicas que nunca usam a sessão: landing pages, feed dos portais,
+ * link da proposta e webhooks (URLs curtas do subdomínio e rotas longas têm o
+ * mesmo prefixo). Pular a renovação evita uma chamada ao Auth por visita e
+ * Set-Cookie que impediria o cache dessas respostas.
  */
-const SESSIONLESS_PREFIXES = ["/lp", "/api/feeds", WEBHOOKS_PATH_PREFIX]
+const SESSIONLESS_PREFIXES = ["/lp", "/api/feeds", PROPOSAL_SHARE_PATH_PREFIX, WEBHOOKS_PATH_PREFIX]
 
 function isSessionlessPath(pathname: string) {
   return SESSIONLESS_PREFIXES.some(
