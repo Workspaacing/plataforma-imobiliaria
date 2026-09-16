@@ -1,3 +1,4 @@
+import { LISTING_PHOTO_MAX_MB } from "@workspace/core/billing/plans"
 import { MAX_PROPERTY_PHOTOS } from "@workspace/core/media/limits"
 
 import { ASK_MANAGER_HINT } from "@/lib/auth/permission-messages"
@@ -221,7 +222,7 @@ export function translateStorageError(
     return `Você não tem permissão para ${action}. ${ASK_MANAGER_HINT}`
   }
   if (status === "413" || text.includes("maximum allowed size") || text.includes("too large")) {
-    return "O arquivo passa de 7 MB."
+    return `Mesmo otimizada, a foto passou de ${LISTING_PHOTO_MAX_MB} MB. Tente outra foto.`
   }
   if (status === "415" || text.includes("mime type") || text.includes("not supported")) {
     return "Formato não aceito. Envie JPG, PNG ou WebP."

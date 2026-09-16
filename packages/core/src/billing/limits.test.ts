@@ -13,10 +13,10 @@ import {
 import { PLANS } from "./plans"
 
 describe("LIMITS", () => {
-  it("descreve todas as chaves e só o banco aplica usuários e landing pages", () => {
+  it("descreve todas as chaves e diz quais o banco aplica", () => {
     expect(Object.keys(LIMITS)).toEqual([...LIMIT_KEYS])
     const enforced = LIMIT_KEYS.filter((key) => LIMITS[key].enforced)
-    expect(enforced).toEqual(["users", "landing_pages"])
+    expect(enforced).toEqual(["users", "landing_pages", "owned_listings", "photos_per_listing"])
   })
 })
 

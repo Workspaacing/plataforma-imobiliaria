@@ -276,13 +276,15 @@ export const TRIAL_LIMITS: Record<LimitKey, number> = {
  * por isso pode ser ilimitado, e é o que torna a migração barata dos dois lados.
  */
 /**
- * Tamanho máximo de cada foto enviada, igual em TODOS os planos — por isso é
- * constante e não uma chave de `limits`. Espelha MAX_IMAGE_BYTES em
- * apps/web/lib/imoveis/constants.ts, que é quem barra o upload de fato.
+ * Tamanho máximo de cada foto GUARDADA, igual em TODOS os planos — por isso é
+ * constante e não uma chave de `limits`. É o mesmo limite do bucket
+ * `property-media` no Storage (2 MB, migração storage_savings). Foto maior que
+ * isso não é recusada: o navegador otimiza antes de enviar (preset propertyPhoto,
+ * alvo de 1,5 MB), e só o arquivo otimizado chega ao Storage.
  */
-export const LISTING_PHOTO_MAX_BYTES = 7 * 1024 * 1024
+export const LISTING_PHOTO_MAX_BYTES = 2 * 1024 * 1024
 export const LISTING_PHOTO_MAX_MB = LISTING_PHOTO_MAX_BYTES / (1024 * 1024)
-export const LISTING_PHOTO_SIZE_NOTE = `Cada foto pode ter até ${LISTING_PHOTO_MAX_MB} MB, em qualquer plano`
+export const LISTING_PHOTO_SIZE_NOTE = `Cada foto fica com no máximo ${LISTING_PHOTO_MAX_MB} MB, em qualquer plano: fotos maiores são otimizadas automaticamente ao enviar`
 
 export const IMPORTED_LISTINGS_NOTE =
   "Imóveis importados por XML ou API não contam no limite: as fotos ficam na origem"

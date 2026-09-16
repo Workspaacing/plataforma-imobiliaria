@@ -338,3 +338,16 @@ describe("assentos e totais", () => {
     expect(planTotal("corretor", "month", 9)).toBe(8900 + 4900)
   })
 })
+
+describe("fotos de imóvel próprio", () => {
+  it("guarda no máximo 2 MB por foto e 10 fotos por imóvel em todos os planos", async () => {
+    const { LISTING_PHOTO_MAX_BYTES, LISTING_PHOTO_MAX_MB, PLANS } = await import("./plans")
+    const { MAX_PROPERTY_PHOTOS } = await import("../media/limits")
+
+    expect(LISTING_PHOTO_MAX_BYTES).toBe(2 * 1024 * 1024)
+    expect(LISTING_PHOTO_MAX_MB).toBe(2)
+    for (const plan of Object.values(PLANS)) {
+      expect(plan.limits.photos_per_listing).toBe(MAX_PROPERTY_PHOTOS)
+    }
+  })
+})

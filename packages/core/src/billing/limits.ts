@@ -40,9 +40,9 @@ export const LIMITS: Record<LimitKey, LimitDefinition> = {
   owned_listings: {
     label: "Imóveis próprios (com fotos hospedadas por nós)",
     status: "available",
-    enforced: false,
+    enforced: true,
   },
-  photos_per_listing: { label: "Fotos por imóvel próprio", status: "available", enforced: false },
+  photos_per_listing: { label: "Fotos por imóvel próprio", status: "available", enforced: true },
   pipelines: { label: "Funis de leads", status: "soon", enforced: false },
   ai_conversations: {
     label: "Conversas de IA no WhatsApp por mês",

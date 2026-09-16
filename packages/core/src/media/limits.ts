@@ -2,8 +2,11 @@
 
 const MB = 1024 * 1024
 
-/** Fotos por imóvel. */
-export const MAX_PROPERTY_PHOTOS = 20
+/**
+ * Fotos por imóvel próprio. É o `limits.photos_per_listing` dos planos, igual em
+ * todos (10); o banco aplica o valor do plano no trigger de property_media.
+ */
+export const MAX_PROPERTY_PHOTOS = 10
 
 /** Maior arquivo de imagem aceito para otimizar no navegador (antes da compressão). */
 export const MAX_SOURCE_IMAGE_BYTES = 40 * MB

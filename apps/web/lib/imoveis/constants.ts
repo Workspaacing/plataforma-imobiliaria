@@ -1,10 +1,11 @@
+import { LISTING_PHOTO_MAX_BYTES } from "@workspace/core/billing/plans"
 import { Constants } from "@workspace/database/types"
 
 /** Bucket público das fotos (os portais baixam pela URL pública do feed VRSync). */
 export const PROPERTY_MEDIA_BUCKET = "property-media"
 
-/** Limite do bucket e do VRSync. */
-export const MAX_IMAGE_BYTES = 7 * 1024 * 1024
+/** Limite por foto já otimizada: o mesmo do bucket `property-media` (2 MB). */
+export const MAX_IMAGE_BYTES = LISTING_PHOTO_MAX_BYTES
 
 export const ACCEPTED_IMAGE_TYPES: Record<string, string> = {
   "image/jpeg": "jpg",
