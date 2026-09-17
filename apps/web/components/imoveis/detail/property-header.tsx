@@ -1,6 +1,10 @@
 import Link from "next/link"
 import { ArrowLeftIcon, MapPinIcon } from "lucide-react"
 
+import {
+  buildPropertyShareText,
+  buildWhatsappShareUrl,
+} from "@workspace/core/properties/share-text"
 import type { Tables } from "@workspace/database/types"
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
@@ -11,6 +15,7 @@ import { PropertyHeaderActions } from "@/components/imoveis/detail/property-head
 import { PropertyCover } from "@/components/imoveis/property-cover"
 import { PropertyStatusBadge } from "@/components/imoveis/property-status-badge"
 import { formatCurrency } from "@/lib/format"
+import { tryBuildPublicPropertyUrl } from "@/lib/imovel-publico/urls"
 import { getDisplayPrices } from "@/lib/imoveis/mappers"
 
 export function PropertyHeader({
@@ -22,6 +27,8 @@ export function PropertyHeader({
   completeHref,
   portalErrors,
   portalWarnings,
+  organizationName,
+  organizationSlug,
 }: {
   property: Tables<"properties">
   coverPath: string | null
@@ -31,6 +38,10 @@ export function PropertyHeader({
   completeHref: string
   portalErrors: string[]
   portalWarnings: string[]
+  /** Assina a mensagem do WhatsApp. */
+  organizationName: string
+  /** Monta o link da página pública do imóvel (só imóvel ativo tem página). */
+  organizationSlug: string
 }) {
   const location = [
     property.neighborhood,
@@ -39,6 +50,31 @@ export function PropertyHeader({
     .filter(Boolean)
     .join(", ")
   const prices = getDisplayPrices(property)
+  const publicUrl =
+    property.status === "active" ? tryBuildPublicPropertyUrl(organizationSlug, property.code) : null
+  // Só bairro e cidade: o modo de exibição do endereço nunca é furado aqui.
+  const whatsappHref = buildWhatsappShareUrl(
+    buildPropertyShareText({
+      code: property.code,
+      title: property.title,
+      type: property.type,
+      purpose: property.purpose,
+      salePrice: property.sale_price,
+      rentPrice: property.rent_price,
+      condoFee: property.condo_fee,
+      bedrooms: property.bedrooms,
+      suites: property.suites,
+      bathrooms: property.bathrooms,
+      parkingSpaces: property.parking_spaces,
+      livingArea: property.living_area,
+      lotArea: property.lot_area,
+      neighborhood: property.neighborhood,
+      city: property.city,
+      state: property.state,
+      organizationName,
+      publicUrl,
+    })
+  )
 
   return (
     <div className="flex flex-col gap-4">
@@ -103,6 +139,8 @@ export function PropertyHeader({
             canEdit={canEdit}
             requirementIssues={requirementIssues}
             completeHref={completeHref}
+            whatsappHref={whatsappHref}
+            publicUrl={publicUrl}
           />
           <PortalPublishCard
             propertyId={property.id}

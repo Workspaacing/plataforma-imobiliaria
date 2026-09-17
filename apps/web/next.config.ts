@@ -1,5 +1,14 @@
 import type { NextConfig } from "next"
 
+/**
+ * CSP do app (só diretivas que não dependem de nonce). A ficha do imóvel em PDF
+ * troca apenas `object-src`: o visualizador de PDF do navegador é um objeto
+ * embutido e não abre com `object-src 'none'`.
+ */
+function contentSecurityPolicy(objectSrc: "'none'" | "'self'") {
+  return `frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src ${objectSrc}`
+}
+
 const nextConfig: NextConfig = {
   transpilePackages: ["@workspace/ui", "@workspace/core", "@workspace/database"],
   // Sem experimental.inlineCss: com ele o CSS ia inline e repetido no payload do React
@@ -11,14 +20,23 @@ const nextConfig: NextConfig = {
   logging: {
     serverFunctions: false,
   },
+  async redirects() {
+    return [
+      {
+        // A antiga página de demonstração do modelo (dados de exemplo) foi removida:
+        // links salvos caem no painel. Temporário (307) para o navegador não guardar
+        // o desvio para sempre, caso a rota volte a ser usada.
+        source: "/dashboard/:path*",
+        destination: "/painel",
+        permanent: false,
+      },
+    ]
+  },
   async headers() {
     // Impede embutir o CRM em iframe de terceiros (clickjacking em convites, equipe e
     // feed). Vale em qualquer ambiente: nenhum site de fora embute o app.
     const securityHeaders = [
-      {
-        key: "Content-Security-Policy",
-        value: `frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'`,
-      },
+      { key: "Content-Security-Policy", value: contentSecurityPolicy("'none'") },
       { key: "X-Frame-Options", value: "DENY" },
       { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
       { key: "X-Content-Type-Options", value: "nosniff" },
@@ -46,6 +64,15 @@ const nextConfig: NextConfig = {
           { key: "X-Robots-Tag", value: "noindex, nofollow" },
           { key: "Referrer-Policy", value: "no-referrer" },
         ],
+      },
+      {
+        // Ficha do imóvel em PDF (/api/imoveis/{id}/ficha?abrir=1 abre na aba): só
+        // esta rota libera `object-src 'self'`; o resto da CSP e os demais
+        // cabeçalhos continuam os da regra geral. Um segmento só (`:id`), sem
+        // curinga, para não alcançar outras rotas.
+        // (Regra depois da geral: para a mesma chave, vale a última.)
+        source: "/api/imoveis/:id/ficha",
+        headers: [{ key: "Content-Security-Policy", value: contentSecurityPolicy("'self'") }],
       },
     ]
   },

@@ -1,6 +1,11 @@
 import Link from "next/link"
-import { UserIcon } from "lucide-react"
+import { CalendarClockIcon, UserIcon } from "lucide-react"
 
+import {
+  daysBetweenDates,
+  describeAuthorizationDeadline,
+  isAuthorizationTrackedStatus,
+} from "@workspace/core/properties/authorization-alerts"
 import { PROPERTY_TYPE_LABELS } from "@workspace/core/properties/enums"
 import { Badge } from "@workspace/ui/components/badge"
 import {
@@ -26,7 +31,7 @@ import { PropertyCover } from "@/components/imoveis/property-cover"
 import { PropertyStatusBadge } from "@/components/imoveis/property-status-badge"
 import { formatCurrency } from "@/lib/format"
 import type { PropertyListItem } from "@/lib/imoveis/list-queries"
-import { getDisplayPrices } from "@/lib/imoveis/mappers"
+import { getDisplayPrices, todayInSaoPaulo } from "@/lib/imoveis/mappers"
 
 function location(item: PropertyListItem) {
   const city = [item.city, item.state].filter(Boolean).join("/")
@@ -42,6 +47,33 @@ function MatchedOwner({ item }: { item: PropertyListItem }) {
       <UserIcon className="inline size-3 align-text-bottom" aria-hidden="true" /> Proprietário:{" "}
       {item.matchedOwner}
     </span>
+  )
+}
+
+/** Autorização vencendo (30 dias) ou vencida, só para imóvel em carteira. */
+function AuthorizationBadge({ item, today }: { item: PropertyListItem; today: string }) {
+  if (!isAuthorizationTrackedStatus(item.status)) return null
+
+  if (item.authorizationState === "expired") {
+    return (
+      <Badge variant="destructive">
+        <CalendarClockIcon data-icon="inline-start" />
+        Autorização vencida
+      </Badge>
+    )
+  }
+
+  if (item.authorizationState !== "expiring" || !item.authorizationEndsOn) return null
+
+  const daysLeft = daysBetweenDates(today, item.authorizationEndsOn)
+
+  return (
+    <Badge variant="outline">
+      <CalendarClockIcon data-icon="inline-start" />
+      {daysLeft == null
+        ? "Autorização vencendo"
+        : `Autorização ${describeAuthorizationDeadline(daysLeft)}`}
+    </Badge>
   )
 }
 
@@ -92,6 +124,8 @@ export function PropertiesList({
   items: PropertyListItem[]
   memberNames: Record<string, string>
 }) {
+  const today = todayInSaoPaulo()
+
   return (
     <>
       <div className="hidden overflow-hidden rounded-xl ring-1 ring-foreground/10 md:block">
@@ -142,6 +176,7 @@ export function PropertiesList({
                     {item.published_to_portals ? (
                       <Badge variant="outline">Nos portais</Badge>
                     ) : null}
+                    <AuthorizationBadge item={item} today={today} />
                   </div>
                 </TableCell>
                 <TableCell>
@@ -175,10 +210,11 @@ export function PropertiesList({
               <MatchedOwner item={item} />
               <Prices item={item} />
             </ItemContent>
-            <ItemFooter className="justify-start">
+            <ItemFooter className="flex-wrap justify-start">
               <PropertyStatusBadge status={item.status} />
               <ImobScoreBadge score={item.imob_score} />
               {item.published_to_portals ? <Badge variant="outline">Nos portais</Badge> : null}
+              <AuthorizationBadge item={item} today={today} />
             </ItemFooter>
           </Item>
         ))}

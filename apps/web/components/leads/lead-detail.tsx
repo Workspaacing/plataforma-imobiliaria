@@ -13,7 +13,6 @@ import {
   InboxIcon,
   ListTodoIcon,
   MailIcon,
-  MessageCircleIcon,
   PhoneCallIcon,
   PhoneIcon,
   ShieldCheckIcon,
@@ -71,6 +70,7 @@ import {
 } from "@/components/leads/lead-badges"
 import { LeadHistoryTimeline } from "@/components/leads/lead-history"
 import { LeadStageSelect } from "@/components/leads/lead-stage-select"
+import { LeadWhatsappButton } from "@/components/leads/lead-whatsapp-button"
 import { TaskFormDialog } from "@/components/tarefas/task-form-dialog"
 import { canScheduleAppointments } from "@/lib/agenda/permissions"
 import type { Role } from "@/lib/auth/roles"
@@ -101,7 +101,6 @@ import {
   isLeadWithoutContact,
   leadMailtoHref,
   leadTelHref,
-  leadWhatsappHref,
   safeHttpUrl,
   UTM_KEYS,
   UTM_LABELS,
@@ -187,7 +186,6 @@ export function LeadDetail({
   const slaView = getLeadSlaView(lead, nowMs, sla)
   const overdue = slaView.state === "breached"
   const phone = formatLeadPhone(lead.phone)
-  const whatsapp = leadWhatsappHref(lead.phone)
   const tel = leadTelHref(lead.phone)
   const mailto = leadMailtoHref(lead.email)
   const interest = getLeadInterestLabel(lead.interest)
@@ -236,6 +234,9 @@ export function LeadDetail({
             responder em até {sla.slaMinutes} min: quem responde rápido converte muito mais.
             {lead.slaReassignments > 0
               ? ` Este lead já voltou ${lead.slaReassignments}x para o rodízio por estouro do prazo.`
+              : ""}
+            {lead.slaBreachedAt
+              ? " O rodízio não tinha outro corretor disponível: o lead continua com o responsável e a gestão foi avisada."
               : ""}
           </AlertDescription>
         </Alert>
@@ -292,25 +293,28 @@ export function LeadDetail({
           <dd className="tabular-nums">{phone ?? "Não informado"}</dd>
           <dt>E-mail</dt>
           <dd className="break-all">{lead.email ?? "Não informado"}</dd>
-          <dt>Último contato</dt>
+          <dt>Primeiro contato</dt>
           <dd>
-            {lead.lastContactAt
-              ? `${formatDateTime(lead.lastContactAt)} (${formatRelativeShort(lead.lastContactAt, nowMs)})`
+            {lead.firstContactAt
+              ? `${formatDateTime(lead.firstContactAt)} (${formatRelativeShort(lead.firstContactAt, nowMs)})`
               : "Nenhum contato registrado"}
           </dd>
+          {lead.lastContactAt && lead.lastContactAt !== lead.firstContactAt ? (
+            <>
+              <dt>Último contato</dt>
+              <dd>
+                {`${formatDateTime(lead.lastContactAt)} (${formatRelativeShort(lead.lastContactAt, nowMs)})`}
+              </dd>
+            </>
+          ) : null}
         </dl>
         <div className="flex flex-wrap gap-2">
-          {whatsapp ? (
-            <Button
-              variant="outline"
-              size="sm"
-              render={<a href={whatsapp} target="_blank" rel="noopener noreferrer" />}
-              nativeButton={false}
-            >
-              <MessageCircleIcon data-icon="inline-start" />
-              WhatsApp
-            </Button>
-          ) : null}
+          <LeadWhatsappButton
+            lead={lead}
+            senderName={members.find((member) => member.id === currentUserId)?.name ?? null}
+            canRegisterContact={canEdit}
+            onContact={onMarkContacted}
+          />
           {tel ? (
             <Button variant="outline" size="sm" render={<a href={tel} />} nativeButton={false}>
               <PhoneIcon data-icon="inline-start" />
@@ -668,7 +672,18 @@ export function LeadDetail({
               </ItemDescription>
             </ItemContent>
           </Item>
-          {lead.lastContactAt ? (
+          {lead.firstContactAt ? (
+            <Item variant="outline" role="listitem">
+              <ItemMedia variant="icon">
+                <PhoneCallIcon />
+              </ItemMedia>
+              <ItemContent className="min-w-0">
+                <ItemTitle>Primeiro contato</ItemTitle>
+                <ItemDescription>{formatDateTime(lead.firstContactAt)}</ItemDescription>
+              </ItemContent>
+            </Item>
+          ) : null}
+          {lead.lastContactAt && lead.lastContactAt !== lead.firstContactAt ? (
             <Item variant="outline" role="listitem">
               <ItemMedia variant="icon">
                 <PhoneCallIcon />

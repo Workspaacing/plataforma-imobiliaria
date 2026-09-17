@@ -51,6 +51,7 @@ import {
 } from "@/lib/imoveis/constants"
 import { mustStayAssigned } from "@/lib/imoveis/permissions"
 import type { CondominiumOption } from "@/lib/imoveis/queries"
+import { EXTERNAL_CODE_MAX_LENGTH } from "@/lib/imoveis/schema"
 
 const USAGE_ITEMS: SelectOption[] = PROPERTY_USAGES.map((value) => ({
   label: PROPERTY_USAGE_LABELS[value],
@@ -265,6 +266,16 @@ export function StepDados({
       </div>
 
       <CondominiumField control={control} condominiums={condominiums} />
+
+      <TextField
+        control={control}
+        name="externalCode"
+        label="Código no sistema anterior"
+        placeholder="Ex.: AP-001"
+        maxLength={EXTERNAL_CODE_MAX_LENGTH}
+        autoComplete="off"
+        description="Opcional. O código que o imóvel tinha no sistema ou na planilha de antes; a busca de imóveis também encontra por ele."
+      />
 
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <SelectField control={control} name="capturedBy" label="Captador" items={memberItems} />

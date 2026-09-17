@@ -47,6 +47,11 @@ import { toDateKey } from "@/lib/agenda/datetime"
 import type { Role } from "@/lib/auth/roles"
 import { maskPhoneInput } from "@/lib/clientes/format"
 import type { MemberOption } from "@/lib/clientes/options"
+import { FormDraftNotice } from "@/lib/forms/draft/form-draft-notice"
+import { useFormDraft } from "@/lib/forms/draft/use-form-draft"
+import { useFormDraftScope } from "@/lib/forms/draft/use-form-draft-scope"
+import { useGuardedSubmit } from "@/lib/forms/submit/use-guarded-submit"
+import { UnsavedChangesGuard } from "@/lib/forms/unsaved/unsaved-changes-guard"
 import { createLead } from "@/lib/leads/actions"
 import {
   LEAD_INTEREST_LABELS,
@@ -88,6 +93,11 @@ function isFormField(value: string): value is (typeof FORM_FIELDS)[number] {
 type NewLeadDialogProps = {
   members: MemberOption[]
   currentUserId: string
+  /**
+   * Imobiliária atual, para o rascunho local. Sem ela, o formulário pergunta
+   * ao servidor ao abrir (uma chamada a mais).
+   */
+  organizationId?: string
   role: Role
   /** Elemento do gatilho, ex.: <Button />. */
   trigger: React.ReactElement
@@ -112,10 +122,11 @@ export function NewLeadDialog({ trigger, children, ...props }: NewLeadDialogProp
 function NewLeadForm({
   members,
   currentUserId,
+  organizationId,
   role,
   onClose,
 }: Omit<NewLeadDialogProps, "trigger" | "children"> & { onClose: () => void }) {
-  const [isSaving, startSaving] = React.useTransition()
+  const { isPending: isSaving, run: runSave } = useGuardedSubmit()
   const [formError, setFormError] = React.useState<string | null>(null)
   const canChoose = canChooseLeadAssignee(role)
   const canCreate = canCreateLeads(role)
@@ -129,6 +140,11 @@ function NewLeadForm({
     },
   })
   const hasConsent = useWatch({ control: form.control, name: "hasConsent" })
+  const { isDirty } = form.formState
+
+  // Fechar o diálogo ou a aba sem querer não perde o cadastro: o rascunho volta na próxima abertura.
+  const draftScope = useFormDraftScope({ userId: currentUserId, organizationId }, canCreate)
+  const draft = useFormDraft({ form, scope: draftScope, formId: "lead", enabled: canCreate })
 
   const currentMember = members.find((member) => member.id === currentUserId)
   const assigneeItems: { label: string; value: string | null }[] = canChoose
@@ -150,28 +166,36 @@ function NewLeadForm({
   function onSubmit(values: NewLeadFormValues) {
     setFormError(null)
 
-    startSaving(async () => {
-      const result = await createLead(values)
+    runSave(
+      async () => {
+        const result = await createLead(values)
 
-      if (!result.ok) {
-        for (const [path, message] of Object.entries(result.fieldErrors ?? {})) {
-          const field = path.split(".")[0] ?? ""
+        if (!result.ok) {
+          for (const [path, message] of Object.entries(result.fieldErrors ?? {})) {
+            const field = path.split(".")[0] ?? ""
 
-          if (isFormField(field)) {
-            form.setError(field, { type: "server", message })
+            if (isFormField(field)) {
+              form.setError(field, { type: "server", message })
+            }
           }
+
+          setFormError(result.error)
+          return
         }
 
-        setFormError(result.error)
-        return
+        draft.clear()
+        toast.add({
+          title: result.message ?? "Lead cadastrado.",
+          type: "success",
+        })
+        onClose()
+      },
+      ({ message }) => {
+        // Queda de rede ou erro inesperado: o diálogo continua aberto com os campos.
+        draft.saveNow()
+        setFormError(message)
       }
-
-      toast.add({
-        title: result.message ?? "Lead cadastrado.",
-        type: "success",
-      })
-      onClose()
-    })
+    )
   }
 
   return (
@@ -182,8 +206,10 @@ function NewLeadForm({
           Cadastre um contato que chegou por telefone, portal, indicação ou redes sociais.
         </DialogDescription>
       </DialogHeader>
+      <UnsavedChangesGuard when={isDirty} />
 
       <FieldGroup>
+        <FormDraftNotice draft={draft} />
         {formError ? (
           <Alert variant="destructive">
             <CircleAlertIcon />

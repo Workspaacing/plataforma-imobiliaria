@@ -117,6 +117,7 @@ export default async function EditarImovelPage({ params, searchParams }: EditarI
 
       <PropertyForm
         organizationId={organizationId}
+        userId={user.id}
         role={membership.role}
         property={{
           id: property.id,

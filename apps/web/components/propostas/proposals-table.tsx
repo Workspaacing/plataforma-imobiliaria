@@ -17,6 +17,7 @@ import {
 } from "lucide-react"
 
 import { formatPercent } from "@workspace/core/comissoes"
+import type { FormDraftScope } from "@workspace/core/forms/draft"
 import { LISTING_PURPOSE_LABELS } from "@workspace/core/properties/enums"
 import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert"
 import {
@@ -131,6 +132,8 @@ type ProposalsTableProps = {
   organizationName: string
   /** Dono ou gerente: responde pedidos de desconto em Comissões. */
   canReviewDiscounts: boolean
+  /** Usuário + imobiliária do rascunho local (evita perguntar ao servidor ao abrir). */
+  draftScope?: FormDraftScope
 }
 
 /** Dados do diálogo de envio: link, validade e registro de leitura da proposta. */
@@ -233,6 +236,7 @@ export function ProposalsTable({
   brokers,
   organizationName,
   canReviewDiscounts,
+  draftScope,
 }: ProposalsTableProps) {
   const [formOpen, setFormOpen] = React.useState(false)
   const [editing, setEditing] = React.useState<EditableProposal | null>(null)
@@ -568,6 +572,7 @@ export function ProposalsTable({
         brokers={brokers}
         editing={editing}
         onDiscountApprovalNeeded={openDiscountAfterCounterOffer}
+        draftScope={draftScope}
       />
 
       <AlertDialog open={transitionOpen} onOpenChange={setTransitionOpen}>

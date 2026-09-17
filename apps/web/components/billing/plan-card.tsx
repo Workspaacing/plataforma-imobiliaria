@@ -52,7 +52,8 @@ export function PlanCard({
   footer,
 }: PlanCardProps) {
   const details = PLANS[plan]
-  const benefits = keyBenefits(plan, compact ? 3 : 7)
+  // Os 8 itens comuns a todos os planos, com o limite de imóveis com foto primeiro.
+  const benefits = keyBenefits(plan, compact ? 3 : 8)
   const suffix = BILLING_INTERVAL_LABELS[interval].suffix
   const monthlyEquivalent = interval === "year" ? Math.round(pricing.price / 12) : pricing.price
   const maxExtra = maxExtraSeats(plan)

@@ -4,8 +4,12 @@ import {
   formatLimit,
   isAtLimit,
   isNearLimit,
+  OWNED_LISTING_RELEASED_STATUS_PLURAL_TEXT,
+  OWNED_LISTING_RELEASED_STATUS_TEXT,
+  OWNED_LISTINGS_SHORT_LABEL,
   PLAN_KEYS,
   PLANS,
+  TRIAL_LIMITS,
   usageRatio,
   type BillingPlanKey,
   type PlanKey,
@@ -18,7 +22,7 @@ import { pluralize } from "@/components/billing/plan-content"
 import type { BillingOverview } from "@/lib/billing/queries"
 import { formatNumber } from "@/lib/format"
 
-type MeterKey = "users" | "landing_pages"
+type MeterKey = "users" | "landing_pages" | "owned_listings"
 
 type Meter = { key: MeterKey; label: string; used: number; limit: number }
 
@@ -34,9 +38,26 @@ function nextPlanFor(planKey: BillingPlanKey, key: MeterKey, used: number): Plan
   )
 }
 
+function ownedListingsWarning(meter: Meter, planKey: BillingPlanKey, usage: string) {
+  const suggestion = nextPlanFor(planKey, meter.key, meter.used)
+  const upgrade = suggestion
+    ? `, ou mude para o plano ${PLANS[suggestion].name}, com até ${pluralize(PLANS[suggestion].limits.owned_listings, "imóvel com foto", "imóveis com foto")}`
+    : ""
+
+  // O banco barra a PRIMEIRA foto de um imóvel novo, e também reativar um imóvel
+  // com foto que estava vendido, alugado ou inativo.
+  return isAtLimit(meter.limit, meter.used)
+    ? `${usage} Para enviar fotos de outro imóvel, marque como ${OWNED_LISTING_RELEASED_STATUS_TEXT} um imóvel que saiu da carteira${upgrade}.`
+    : `${usage} Imóveis ${OWNED_LISTING_RELEASED_STATUS_PLURAL_TEXT} não contam: mantenha o status da carteira em dia${upgrade}.`
+}
+
 function warningText(meter: Meter, planKey: BillingPlanKey) {
   const suggestion = nextPlanFor(planKey, meter.key, meter.used)
   const usage = `${meter.label}: ${formatNumber(meter.used)} de ${formatLimit(meter.limit)}.`
+
+  if (meter.key === "owned_listings") {
+    return ownedListingsWarning(meter, planKey, usage)
+  }
 
   if (meter.key === "users") {
     return suggestion
@@ -56,14 +77,28 @@ function warningText(meter: Meter, planKey: BillingPlanKey) {
   }.`
 }
 
+/**
+ * Limite de imóveis com foto. Chave ausente no resumo cai no catálogo do plano,
+ * nunca em "ilimitado": o banco aplica esse limite em todos os planos.
+ */
+function ownedListingsLimit(overview: BillingOverview) {
+  const catalog = overview.planKey === "trial" ? TRIAL_LIMITS : PLANS[overview.planKey].limits
+  return overview.limits.owned_listings ?? catalog.owned_listings
+}
+
 type UsageMetersProps = {
   overview: BillingOverview
+  /**
+   * Imóveis com foto que contam no limite, lidos do banco (mesma contagem do
+   * gatilho). null = não foi possível ler agora.
+   */
+  ownedListings: number | null
   /** Mostra o link para os planos (quem pode assinar ou trocar). */
   upgradeHref?: string
 }
 
-/** Medidores de uso contra o limite do plano, com aviso a partir de 80%. */
-export function UsageMeters({ overview, upgradeHref }: UsageMetersProps) {
+/** Medidores de uso contra o limite do plano, com aviso a partir de 80% e no limite. */
+export function UsageMeters({ overview, ownedListings, upgradeHref }: UsageMetersProps) {
   const meters: Meter[] = [
     {
       key: "users",
@@ -78,9 +113,20 @@ export function UsageMeters({ overview, upgradeHref }: UsageMetersProps) {
       // Chave ausente = ilimitado.
       limit: overview.limits.landing_pages ?? -1,
     },
+    ...(ownedListings === null
+      ? []
+      : [
+          {
+            key: "owned_listings" as const,
+            label: OWNED_LISTINGS_SHORT_LABEL,
+            used: ownedListings,
+            limit: ownedListingsLimit(overview),
+          },
+        ]),
   ]
 
   const warnings = meters.filter((meter) => isNearLimit(meter.limit, meter.used))
+  const anyAtLimit = warnings.some((meter) => isAtLimit(meter.limit, meter.used))
 
   return (
     <div className="flex flex-col gap-6">
@@ -114,16 +160,25 @@ export function UsageMeters({ overview, upgradeHref }: UsageMetersProps) {
         )
       })}
 
+      {ownedListings === null ? (
+        <p className="text-sm text-muted-foreground">
+          {OWNED_LISTINGS_SHORT_LABEL}: não deu para carregar a contagem agora. O limite do plano
+          continua valendo ao enviar fotos.
+        </p>
+      ) : null}
+
       <p className="text-sm text-muted-foreground">
-        Imóveis, condomínios e clientes são ilimitados em todos os planos
-        {` (hoje: ${pluralize(overview.usage.activeProperties, "imóvel ativo", "imóveis ativos")})`}
-        .
+        {OWNED_LISTINGS_SHORT_LABEL} são os imóveis à venda ou para alugar com fotos hospedadas por
+        nós. Imóveis {OWNED_LISTING_RELEASED_STATUS_PLURAL_TEXT}, sem foto ou importados por XML ou
+        API não contam, e clientes e condomínios não têm limite.
       </p>
 
       {warnings.length > 0 ? (
         <Alert>
           <TriangleAlertIcon />
-          <AlertTitle>Perto do limite do plano</AlertTitle>
+          <AlertTitle>
+            {anyAtLimit ? "Limite do plano atingido" : "Perto do limite do plano"}
+          </AlertTitle>
           <AlertDescription>
             {warnings.map((meter) => (
               <p key={meter.key}>{warningText(meter, overview.planKey)}</p>

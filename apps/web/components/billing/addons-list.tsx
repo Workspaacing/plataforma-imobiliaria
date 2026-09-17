@@ -8,7 +8,7 @@ import {
   ItemTitle,
 } from "@workspace/ui/components/item"
 
-/** Add-ons "em breve", com preço, sem compra na v1. */
+/** Adicionais "em breve", com preço, sem compra na v1. */
 export function AddonsList() {
   return (
     <div className="flex flex-col gap-4">
@@ -33,8 +33,8 @@ export function AddonsList() {
         ))}
       </ItemGroup>
       <p className="text-sm text-muted-foreground">
-        Todo plano já vem com um endereço exclusivo da imobiliária, sem custo. Add-on é opcional e
-        cobrado só se você contratar: não cobramos implantação, hora técnica nem pacote de imóveis.
+        Todo plano já vem com um endereço exclusivo da imobiliária, sem custo. O adicional é
+        opcional e cobrado só se você contratar: não cobramos implantação nem hora técnica.
       </p>
     </div>
   )

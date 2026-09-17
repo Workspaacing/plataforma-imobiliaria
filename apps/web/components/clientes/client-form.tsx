@@ -61,6 +61,16 @@ import {
 import type { MemberOption } from "@/lib/clientes/options"
 import { canChooseClientAssignee } from "@/lib/clientes/permissions"
 import { clientFormSchema, type ClientFormValues } from "@/lib/clientes/schemas"
+import { FormDraftNotice } from "@/lib/forms/draft/form-draft-notice"
+import { useFormDraft } from "@/lib/forms/draft/use-form-draft"
+import { useGuardedSubmit } from "@/lib/forms/submit/use-guarded-submit"
+import { UnsavedChangesGuard } from "@/lib/forms/unsaved/unsaved-changes-guard"
+
+/**
+ * Nunca vão para o rascunho local. CPF/CNPJ ("document") e RG já saem pela
+ * regra geral de campos sensíveis; a data de nascimento sai por minimização (LGPD).
+ */
+const CLIENT_DRAFT_EXCLUDE = ["document", "rg", "birthDate"] as const
 
 const STATE_ITEMS = [
   { label: "UF", value: null },
@@ -151,6 +161,9 @@ function TextField({ control, name, label, description, mask, ...inputProps }: T
 type ClientFormProps = {
   mode: "create" | "edit"
   clientId?: string
+  /** Usuário e imobiliária atuais: separam o rascunho local. */
+  userId: string
+  organizationId: string
   initialValues: ClientFormValues
   members: MemberOption[]
   role: Role
@@ -164,6 +177,8 @@ type CepFeedback = { type: "success" | "error"; message: string } | null
 export function ClientForm({
   mode,
   clientId,
+  userId,
+  organizationId,
   initialValues,
   members,
   role,
@@ -171,7 +186,7 @@ export function ClientForm({
   today,
 }: ClientFormProps) {
   const router = useRouter()
-  const [isSubmitting, startSubmit] = React.useTransition()
+  const { isPending: isSubmitting, run: runSubmit } = useGuardedSubmit()
   const [isLookingUp, startLookup] = React.useTransition()
   const [formError, setFormError] = React.useState<string | null>(null)
   const [cepFeedback, setCepFeedback] = React.useState<CepFeedback>(null)
@@ -182,6 +197,17 @@ export function ClientForm({
     mode: "onTouched",
     defaultValues: initialValues,
   })
+
+  const draft = useFormDraft({
+    form,
+    scope: { userId, organizationId },
+    formId: "cliente",
+    recordId: mode === "edit" ? (clientId ?? null) : null,
+    exclude: CLIENT_DRAFT_EXCLUDE,
+    // Edição sem id não tem registro certo para guardar.
+    enabled: mode === "create" || Boolean(clientId),
+  })
+  const { isDirty } = form.formState
 
   const kind = useWatch({ control: form.control, name: "kind" })
   const legalBasis = useWatch({ control: form.control, name: "legalBasis" })
@@ -201,7 +227,18 @@ export function ClientForm({
     setCepFeedback(null)
 
     startLookup(async () => {
-      const result = await lookupClientAddress(digits)
+      let result: Awaited<ReturnType<typeof lookupClientAddress>>
+
+      try {
+        result = await lookupClientAddress(digits)
+      } catch {
+        // Sem conexão: a busca falha, mas o formulário continua na tela.
+        setCepFeedback({
+          type: "error",
+          message: "Sem conexão para buscar o CEP. Preencha o endereço ou tente de novo.",
+        })
+        return
+      }
 
       if (!result.ok) {
         setCepFeedback({ type: "error", message: result.error })
@@ -226,32 +263,45 @@ export function ClientForm({
   function onSubmit(values: ClientFormValues) {
     setFormError(null)
 
-    startSubmit(async () => {
-      const result =
-        mode === "edit" && clientId
-          ? await updateClientRecord(clientId, values)
-          : await createClientRecord(values)
+    runSubmit(
+      async () => {
+        const result =
+          mode === "edit" && clientId
+            ? await updateClientRecord(clientId, values)
+            : await createClientRecord(values)
 
-      if (!result.ok) {
-        for (const [path, message] of Object.entries(result.fieldErrors ?? {})) {
-          const fieldName = path.split(".")[0] as keyof ClientFormValues
-          form.setError(fieldName, { type: "server", message })
+        if (!result.ok) {
+          for (const [path, message] of Object.entries(result.fieldErrors ?? {})) {
+            const fieldName = path.split(".")[0] as keyof ClientFormValues
+            form.setError(fieldName, { type: "server", message })
+          }
+
+          setFormError(result.error)
+          return
         }
 
-        setFormError(result.error)
-        return
+        draft.clear()
+        toast.add({ title: result.message ?? "Cliente salvo.", type: "success" })
+        router.push(`${CLIENTS_PATH}/${result.data.id}`)
+      },
+      ({ message }) => {
+        // Queda de rede ou erro inesperado: os campos continuam preenchidos.
+        draft.saveNow()
+        setFormError(message)
       }
-
-      toast.add({ title: result.message ?? "Cliente salvo.", type: "success" })
-      router.push(`${CLIENTS_PATH}/${result.data.id}`)
-    })
+    )
   }
 
   const cancelHref = mode === "edit" && clientId ? `${CLIENTS_PATH}/${clientId}` : CLIENTS_PATH
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} noValidate>
+      <UnsavedChangesGuard when={isDirty} />
       <FieldGroup>
+        <FormDraftNotice
+          draft={draft}
+          note="CPF/CNPJ, RG e data de nascimento não entram no rascunho."
+        />
         {formError ? (
           <Alert variant="destructive">
             <CircleAlertIcon />

@@ -3,7 +3,8 @@ import {
   ANNUAL_BOLETO_NOTE,
   GRACE_DAYS,
   IMPORTED_LISTINGS_NOTE,
-  OWNED_LISTINGS_NOTE,
+  LISTING_PHOTO_SIZE_NOTE,
+  OWNED_LISTING_RELEASED_STATUS_TEXT,
   PLAN_KEYS,
   PLANS,
   TRIAL_AI_CONVERSATIONS,
@@ -65,9 +66,9 @@ const QUESTIONS: ReadonlyArray<{ id: string; question: string; answer: string[] 
     id: "armazenamento",
     question: "Quantos imóveis posso cadastrar com foto?",
     answer: [
-      "A carteira em si é ilimitada em todos os planos: imóvel, condomínio e cliente você cadastra à vontade.",
-      `O limite é só de imóvel próprio, que é aquele cujas fotos ficam hospedadas por nós: de ${SMALLEST_PLAN.limits.owned_listings} com até ${SMALLEST_PLAN.limits.photos_per_listing} fotos no ${SMALLEST_PLAN.name} a ${LARGEST_PLAN.limits.owned_listings} com até ${LARGEST_PLAN.limits.photos_per_listing} fotos no ${LARGEST_PLAN.name}.`,
-      `${IMPORTED_LISTINGS_NOTE}. ${OWNED_LISTINGS_NOTE}.`,
+      `Cada plano tem um limite de imóveis à venda ou para alugar com fotos hospedadas por nós: de ${SMALLEST_PLAN.limits.owned_listings} no ${SMALLEST_PLAN.name} a ${LARGEST_PLAN.limits.owned_listings} no ${LARGEST_PLAN.name}, com até ${LARGEST_PLAN.limits.photos_per_listing} fotos por imóvel.`,
+      `Imóvel marcado como ${OWNED_LISTING_RELEASED_STATUS_TEXT} libera a vaga. Imóvel sem foto não conta, e cliente e condomínio não têm limite.`,
+      `${IMPORTED_LISTINGS_NOTE}. ${LISTING_PHOTO_SIZE_NOTE}.`,
     ],
   },
   {
@@ -89,7 +90,7 @@ const QUESTIONS: ReadonlyArray<{ id: string; question: string; answer: string[] 
     id: "cancelamento",
     question: "Como faço para cancelar?",
     answer: [
-      "Direto no app, na tela de assinatura, sem multa. O acesso continua até o fim do período pago, e a exportação completa fica disponível por 90 dias.",
+      "Direto no app, na tela de assinatura, sem multa. O acesso continua até o fim do período pago, e a exportação de leads, imóveis, clientes e propostas em planilha fica disponível por 90 dias.",
     ],
   },
 ]

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { ChevronDownIcon, ChevronRightIcon } from "lucide-react"
+import { ChevronDownIcon, ChevronRightIcon, MoreHorizontalIcon } from "lucide-react"
 import { cn } from "cn"
 
 import { Badge } from "@workspace/ui/components/badge"
@@ -53,7 +53,8 @@ function computeDropIndex(container: HTMLElement, clientY: number, draggingId: s
 /**
  * Quadro do funil. Arrastar usa a API nativa de drag and drop do HTML5; o
  * mesmo resultado sai pelo teclado (Alt + setas no nome do lead) e pelo menu
- * de cada card, para quem não usa mouse ou está no celular.
+ * de cada card (⋯), que é o caminho no celular: não depende de arrastar.
+ * A ajuda visível muda com o tipo de ponteiro (toque ou mouse).
  */
 export function KanbanBoard({
   leads,
@@ -123,8 +124,21 @@ export function KanbanBoard({
   return (
     <div className="flex flex-col gap-2">
       <p id={HINT_ID} className="sr-only">
-        Enter abre os detalhes. Alt com seta para a esquerda ou para a direita muda a etapa; Alt com
-        seta para cima ou para baixo muda a ordem na coluna.
+        Enter abre os detalhes. Para mudar a etapa ou a ordem, use o botão de ações do lead. Com
+        teclado, Alt com seta para a esquerda ou para a direita muda a etapa; Alt com seta para cima
+        ou para baixo muda a ordem na coluna.
+      </p>
+
+      {/* Toque (celular e tablet): arrastar não é o caminho; o menu do card é. */}
+      <p
+        className="hidden items-center gap-1 text-sm text-muted-foreground pointer-coarse:flex"
+        aria-hidden
+      >
+        Toque em
+        <span className="inline-flex size-6 items-center justify-center rounded-md border bg-background">
+          <MoreHorizontalIcon className="size-4" />
+        </span>
+        no card para mover o lead de etapa ou de posição.
       </p>
 
       <div className="flex gap-3 overflow-x-auto pb-3">
@@ -162,7 +176,7 @@ export function KanbanBoard({
         ))}
       </div>
 
-      <p className="text-xs text-muted-foreground" aria-hidden>
+      <p className="text-xs text-muted-foreground pointer-coarse:hidden" aria-hidden>
         Arraste os cards entre as colunas ou, com o nome do lead em foco, use <Kbd>Alt</Kbd> +{" "}
         <Kbd>←</Kbd> <Kbd>→</Kbd> para mudar a etapa e <Kbd>Alt</Kbd> + <Kbd>↑</Kbd> <Kbd>↓</Kbd>{" "}
         para mudar a ordem.

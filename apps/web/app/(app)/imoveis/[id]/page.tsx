@@ -169,6 +169,8 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
         completeHref={completeHref}
         portalErrors={portalValidation.errors.map((issue) => issue.message)}
         portalWarnings={portalValidation.warnings.map((issue) => issue.message)}
+        organizationName={membership.organization.name}
+        organizationSlug={membership.organization.slug}
       />
 
       {canEdit && issueMessages.length > 0 ? (

@@ -15,6 +15,7 @@ import {
 } from "@workspace/ui/components/empty"
 import { Spinner } from "@workspace/ui/components/spinner"
 
+import { SupportHelpButton } from "@/components/crm/support-help-button"
 import { signOut } from "@/lib/auth/actions"
 
 /** Exibida quando a casca do CRM não consegue carregar as imobiliárias do usuário. */
@@ -46,6 +47,7 @@ export function CrmLoadError() {
               )}
               Tentar de novo
             </Button>
+            <SupportHelpButton label="Chamar o suporte" />
             <Button
               variant="outline"
               disabled={isSigningOut}

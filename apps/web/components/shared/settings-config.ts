@@ -1,5 +1,6 @@
 import {
   CreditCardIcon,
+  FileSpreadsheetIcon,
   GiftIcon,
   HandCoinsIcon,
   GlobeIcon,
@@ -16,6 +17,7 @@ import {
 import { NAV_GROUPS } from "@/components/crm/nav-config"
 import { ORGANIZATION_VIEWER_ROLES, TEAM_MANAGER_ROLES, type Role } from "@/lib/auth/roles"
 import { REFERRALS_SETTINGS_PATH, SUBSCRIPTION_SETTINGS_PATH } from "@/lib/auth/routes"
+import { IMPORT_ROLES, IMPORT_SETTINGS_PATH } from "@/lib/importacao/constants"
 import { INTEGRATIONS_SETTINGS_PATH } from "@/lib/integracoes/constants"
 
 /** Índice de configurações (estilo Stripe). */
@@ -169,6 +171,15 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
         icon: PlugZapIcon,
         href: CONNECTIONS_SETTINGS_PATH,
         roles: sidebarRoles(CONNECTIONS_SETTINGS_PATH, TEAM_MANAGER_ROLES),
+      },
+      {
+        title: "Importar planilhas",
+        navTitle: "Importação",
+        description:
+          "Traga clientes, leads e imóveis do sistema antigo ou do Excel (.csv ou .xlsx) sem digitar.",
+        icon: FileSpreadsheetIcon,
+        href: IMPORT_SETTINGS_PATH,
+        roles: IMPORT_ROLES,
       },
     ],
   },

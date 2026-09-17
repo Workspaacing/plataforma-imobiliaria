@@ -47,6 +47,8 @@ export default async function NovoClientePage() {
     >
       <ClientForm
         mode="create"
+        userId={user.id}
+        organizationId={membership.organizationId}
         initialValues={{
           ...EMPTY_CLIENT_FORM_VALUES,
           assignedTo: membership.role === "broker" ? user.id : "",

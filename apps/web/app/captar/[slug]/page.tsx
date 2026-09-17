@@ -11,7 +11,11 @@ import { getInitials } from "@/components/crm/utils"
 import { issueFormToken } from "@/lib/captacao/anti-bot"
 import { brandCssVariables } from "@/lib/captacao/brand"
 import { formatPhoneDisplay, telUrl } from "@/lib/captacao/masks"
-import { getPublicOrganization, type PublicOrganization } from "@/lib/captacao/public-organization"
+import {
+  getPublicOrganization,
+  publicCreciLabel,
+  type PublicOrganization,
+} from "@/lib/captacao/public-organization"
 import { buildCaptureUrl, isValidTenantSlug } from "@/lib/tenant/urls"
 
 type CaptarPageProps = {
@@ -80,11 +84,8 @@ export default async function CaptarPage({ params }: CaptarPageProps) {
 
   const place = formatPlace(organization)
   const phoneHref = telUrl(organization.phone)
-  const creciLabel = organization.creci
-    ? /^creci/i.test(organization.creci)
-      ? organization.creci
-      : `CRECI ${organization.creci}`
-    : null
+  // CRECI J da imobiliária ou, para o corretor autônomo, o CRECI F do dono.
+  const creciLabel = publicCreciLabel(organization)
 
   // Cor da marca só em destaques (faixa do cabeçalho e botão de envio), com o
   // texto em branco ou quase preto conforme o contraste. Sem cor: tokens do tema.

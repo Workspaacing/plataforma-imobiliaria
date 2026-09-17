@@ -2,8 +2,8 @@
 
 import * as React from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { CircleAlertIcon, SearchIcon } from "lucide-react"
-import { Controller, useForm } from "react-hook-form"
+import { BuildingIcon, CircleAlertIcon, SearchIcon, UserIcon } from "lucide-react"
+import { Controller, useForm, useWatch } from "react-hook-form"
 
 import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert"
 import { Button } from "@workspace/ui/components/button"
@@ -34,6 +34,7 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select"
 import { Spinner } from "@workspace/ui/components/spinner"
+import { ToggleGroup, ToggleGroupItem } from "@workspace/ui/components/toggle-group"
 
 import { createOrganization, lookupCnpj } from "@/app/onboarding/actions"
 import {
@@ -43,6 +44,7 @@ import {
   normalizeCnpj,
   organizationSchema,
   slugify,
+  type OrganizationKind,
   type OrganizationValues,
 } from "@/app/onboarding/schema"
 
@@ -81,15 +83,21 @@ export function OnboardingForm({
     resolver: zodResolver(organizationSchema),
     mode: "onTouched",
     defaultValues: {
+      kind: "company",
       name: "",
       slug: "",
       legalName: "",
       cnpj: "",
       creci: "",
+      creciNumber: "",
+      creciState: "",
       city: "",
       state: "",
     },
   })
+
+  const kind = useWatch({ control: form.control, name: "kind" })
+  const isCompany = kind === "company"
 
   function runLookup(rawCnpj: string) {
     const cnpj = normalizeCnpj(rawCnpj)
@@ -170,15 +178,78 @@ export function OnboardingForm({
         {formError ? (
           <Alert variant="destructive">
             <CircleAlertIcon />
-            <AlertTitle>Não foi possível criar a imobiliária</AlertTitle>
+            <AlertTitle>
+              {isCompany
+                ? "Não foi possível criar a imobiliária"
+                : "Não foi possível criar o cadastro"}
+            </AlertTitle>
             <AlertDescription>{formError}</AlertDescription>
           </Alert>
         ) : null}
 
         <FieldSet>
+          <FieldLegend>Como você atua</FieldLegend>
+          <FieldGroup>
+            <Controller
+              name="kind"
+              control={form.control}
+              render={({ field }) => (
+                <Field>
+                  <ToggleGroup
+                    aria-label="Como você atua"
+                    variant="outline"
+                    orientation="vertical"
+                    className="w-full"
+                    value={[field.value]}
+                    onValueChange={(value: string[]) => {
+                      const next = value[0]
+
+                      if ((next === "company" || next === "person") && next !== field.value) {
+                        field.onChange(next as OrganizationKind)
+                        form.clearErrors([
+                          "legalName",
+                          "cnpj",
+                          "creci",
+                          "creciNumber",
+                          "creciState",
+                        ])
+                      }
+                    }}
+                  >
+                    <ToggleGroupItem
+                      value="person"
+                      className="h-auto w-full justify-start gap-2 py-2.5 text-left whitespace-normal"
+                    >
+                      <UserIcon data-icon="inline-start" />
+                      Sou corretor autônomo (pessoa física)
+                    </ToggleGroupItem>
+                    <ToggleGroupItem
+                      value="company"
+                      className="h-auto w-full justify-start gap-2 py-2.5 text-left whitespace-normal"
+                    >
+                      <BuildingIcon data-icon="inline-start" />
+                      Sou imobiliária (pessoa jurídica)
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                  <FieldDescription>
+                    {isCompany
+                      ? "Pessoa jurídica: pedimos CNPJ, razão social e CRECI jurídico."
+                      : "Pessoa física: pedimos o seu CRECI, sem CNPJ nem razão social."}
+                  </FieldDescription>
+                </Field>
+              )}
+            />
+          </FieldGroup>
+        </FieldSet>
+
+        <FieldSeparator />
+
+        <FieldSet>
           <FieldLegend>Identificação</FieldLegend>
           <FieldDescription>
-            Como a imobiliária aparece para a equipe e para os clientes.
+            {isCompany
+              ? "Como a imobiliária aparece para a equipe e para os clientes."
+              : "Como você aparece para a equipe e para os clientes."}
           </FieldDescription>
           <FieldGroup>
             <Controller
@@ -186,12 +257,14 @@ export function OnboardingForm({
               control={form.control}
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="org-nome">Nome da imobiliária</FieldLabel>
+                  <FieldLabel htmlFor="org-nome">
+                    {isCompany ? "Nome da imobiliária" : "Nome profissional"}
+                  </FieldLabel>
                   <Input
                     {...field}
                     id="org-nome"
-                    autoComplete="organization"
-                    placeholder="Ex.: Horizonte Imóveis"
+                    autoComplete={isCompany ? "organization" : "name"}
+                    placeholder={isCompany ? "Ex.: Horizonte Imóveis" : "Ex.: Ana Souza Imóveis"}
                     aria-invalid={fieldState.invalid}
                     onChange={(event) => {
                       field.onChange(event)
@@ -242,8 +315,8 @@ export function OnboardingForm({
                     <FieldError errors={[fieldState.error]} />
                   ) : (
                     <FieldDescription>
-                      Endereço do CRM e dos links públicos da imobiliária. Gerado a partir do nome:
-                      letras minúsculas, números e hífens simples.
+                      Endereço do CRM e dos links públicos{isCompany ? " da imobiliária" : ""}.
+                      Gerado a partir do nome: letras minúsculas, números e hífens simples.
                     </FieldDescription>
                   )}
                 </Field>
@@ -254,100 +327,165 @@ export function OnboardingForm({
 
         <FieldSeparator />
 
-        <FieldSet>
-          <FieldLegend>Dados legais</FieldLegend>
-          <FieldDescription>
-            Informe o CNPJ para preencher a razão social e o endereço automaticamente.
-          </FieldDescription>
-          <FieldGroup>
-            <Controller
-              name="cnpj"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="org-cnpj">CNPJ (opcional)</FieldLabel>
-                  <InputGroup>
-                    <InputGroupInput
-                      {...field}
-                      id="org-cnpj"
-                      autoComplete="off"
-                      placeholder="00.000.000/0000-00"
-                      aria-invalid={fieldState.invalid}
-                      onChange={(event) => {
-                        const formatted = formatCnpj(event.target.value)
-                        const cnpj = normalizeCnpj(formatted)
-                        field.onChange(formatted)
+        {isCompany ? (
+          <FieldSet>
+            <FieldLegend>Dados legais</FieldLegend>
+            <FieldDescription>
+              Informe o CNPJ para preencher a razão social e o endereço automaticamente.
+            </FieldDescription>
+            <FieldGroup>
+              <Controller
+                name="cnpj"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="org-cnpj">CNPJ (opcional)</FieldLabel>
+                    <InputGroup>
+                      <InputGroupInput
+                        {...field}
+                        id="org-cnpj"
+                        autoComplete="off"
+                        placeholder="00.000.000/0000-00"
+                        aria-invalid={fieldState.invalid}
+                        onChange={(event) => {
+                          const formatted = formatCnpj(event.target.value)
+                          const cnpj = normalizeCnpj(formatted)
+                          field.onChange(formatted)
 
-                        if (
-                          cnpj.length === 14 &&
-                          isValidCnpj(cnpj) &&
-                          cnpj !== lastLookupRef.current
-                        ) {
-                          runLookup(cnpj)
-                        }
-                      }}
+                          if (
+                            cnpj.length === 14 &&
+                            isValidCnpj(cnpj) &&
+                            cnpj !== lastLookupRef.current
+                          ) {
+                            runLookup(cnpj)
+                          }
+                        }}
+                      />
+                      <InputGroupAddon align="inline-end">
+                        <InputGroupButton
+                          onClick={() => runLookup(field.value)}
+                          disabled={isLookingUp || normalizeCnpj(field.value).length !== 14}
+                        >
+                          {isLookingUp ? (
+                            <Spinner data-icon="inline-start" />
+                          ) : (
+                            <SearchIcon data-icon="inline-start" />
+                          )}
+                          Consultar
+                        </InputGroupButton>
+                      </InputGroupAddon>
+                    </InputGroup>
+                    {fieldState.invalid ? (
+                      <FieldError errors={[fieldState.error]} />
+                    ) : lookupFeedback?.type === "error" ? (
+                      <FieldError>{lookupFeedback.message}</FieldError>
+                    ) : (
+                      <FieldDescription>
+                        {lookupFeedback?.message ?? "Consultamos a Receita Federal pela BrasilAPI."}
+                      </FieldDescription>
+                    )}
+                  </Field>
+                )}
+              />
+              <Controller
+                name="legalName"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="org-razao-social">Razão social</FieldLabel>
+                    <Input
+                      {...field}
+                      id="org-razao-social"
+                      placeholder="Ex.: Horizonte Negócios Imobiliários Ltda."
+                      aria-invalid={fieldState.invalid}
                     />
-                    <InputGroupAddon align="inline-end">
-                      <InputGroupButton
-                        onClick={() => runLookup(field.value)}
-                        disabled={isLookingUp || normalizeCnpj(field.value).length !== 14}
-                      >
-                        {isLookingUp ? (
-                          <Spinner data-icon="inline-start" />
-                        ) : (
-                          <SearchIcon data-icon="inline-start" />
-                        )}
-                        Consultar
-                      </InputGroupButton>
-                    </InputGroupAddon>
-                  </InputGroup>
-                  {fieldState.invalid ? (
-                    <FieldError errors={[fieldState.error]} />
-                  ) : lookupFeedback?.type === "error" ? (
-                    <FieldError>{lookupFeedback.message}</FieldError>
-                  ) : (
-                    <FieldDescription>
-                      {lookupFeedback?.message ?? "Consultamos a Receita Federal pela BrasilAPI."}
-                    </FieldDescription>
+                    {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
+                  </Field>
+                )}
+              />
+              <Controller
+                name="creci"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="org-creci">CRECI jurídico</FieldLabel>
+                    <Input
+                      {...field}
+                      id="org-creci"
+                      autoComplete="off"
+                      placeholder="Ex.: J-12345"
+                      aria-invalid={fieldState.invalid}
+                    />
+                    {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
+                  </Field>
+                )}
+              />
+            </FieldGroup>
+          </FieldSet>
+        ) : (
+          <FieldSet>
+            <FieldLegend>CRECI</FieldLegend>
+            <FieldDescription>
+              Número do seu registro no Conselho Regional de Corretores de Imóveis.
+            </FieldDescription>
+            <FieldGroup>
+              <div className="grid gap-5 sm:grid-cols-[1fr_10rem]">
+                <Controller
+                  name="creciNumber"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="org-creci-numero">Número do CRECI</FieldLabel>
+                      <Input
+                        {...field}
+                        id="org-creci-numero"
+                        autoComplete="off"
+                        placeholder="Ex.: 12345"
+                        aria-invalid={fieldState.invalid}
+                      />
+                      {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
+                    </Field>
                   )}
-                </Field>
-              )}
-            />
-            <Controller
-              name="legalName"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="org-razao-social">Razão social</FieldLabel>
-                  <Input
-                    {...field}
-                    id="org-razao-social"
-                    placeholder="Ex.: Horizonte Negócios Imobiliários Ltda."
-                    aria-invalid={fieldState.invalid}
-                  />
-                  {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
-                </Field>
-              )}
-            />
-            <Controller
-              name="creci"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="org-creci">CRECI jurídico</FieldLabel>
-                  <Input
-                    {...field}
-                    id="org-creci"
-                    autoComplete="off"
-                    placeholder="Ex.: J-12345"
-                    aria-invalid={fieldState.invalid}
-                  />
-                  {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
-                </Field>
-              )}
-            />
-          </FieldGroup>
-        </FieldSet>
+                />
+                <Controller
+                  name="creciState"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="org-creci-uf">UF do CRECI</FieldLabel>
+                      <Select
+                        items={STATE_ITEMS}
+                        value={field.value ? field.value : null}
+                        onValueChange={(value) => field.onChange(value ?? "")}
+                        onOpenChange={(open) => {
+                          if (!open) field.onBlur()
+                        }}
+                      >
+                        <SelectTrigger
+                          id="org-creci-uf"
+                          className="w-full"
+                          aria-invalid={fieldState.invalid}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            {BRAZILIAN_STATES.map((state) => (
+                              <SelectItem key={state.code} value={state.code}>
+                                {state.code} · {state.name}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                      {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
+                    </Field>
+                  )}
+                />
+              </div>
+            </FieldGroup>
+          </FieldSet>
+        )}
 
         <FieldSeparator />
 
@@ -408,7 +546,7 @@ export function OnboardingForm({
         <Field orientation="horizontal" className="justify-end">
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting ? <Spinner data-icon="inline-start" /> : null}
-            Criar imobiliária
+            {isCompany ? "Criar imobiliária" : "Concluir cadastro"}
           </Button>
         </Field>
       </FieldGroup>

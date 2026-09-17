@@ -38,6 +38,10 @@ import {
 } from "@/components/comissoes/painel-commission-card"
 import { getFirstName } from "@/components/crm/utils"
 import {
+  AuthorizationAlertsCard,
+  AuthorizationAlertsCardSkeleton,
+} from "@/components/painel/authorization-alerts-card"
+import {
   LeadsFunnelCard,
   LeadsWeeklyCard,
   PainelChartSkeleton,
@@ -239,6 +243,13 @@ export default async function PainelPage({ searchParams }: PainelPageProps) {
       <div className="px-4 lg:px-6">
         <Suspense fallback={<PainelCommissionCardSkeleton />}>
           <PainelCommissionCard userId={user.id} role={membership.role} />
+        </Suspense>
+      </div>
+
+      {/* Autorização vencendo: anunciar sem contrato vigente expõe a comissão. */}
+      <div className="px-4 lg:px-6">
+        <Suspense fallback={<AuthorizationAlertsCardSkeleton />}>
+          <AuthorizationAlertsCard organizationId={organizationId} />
         </Suspense>
       </div>
 

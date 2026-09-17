@@ -26,7 +26,9 @@ export function AuthCover() {
   return (
     <aside className="hidden flex-col justify-between gap-16 border-s bg-muted/40 p-10 lg:flex xl:p-14">
       <div className="flex max-w-md flex-col gap-4">
-        <p className="text-sm font-medium text-muted-foreground">Workspace da imobiliária</p>
+        <p className="text-sm font-medium text-muted-foreground">
+          Espaço de trabalho da imobiliária
+        </p>
         <h2 className="text-3xl font-semibold tracking-tight text-balance">
           Imóveis, clientes e equipe num só lugar.
         </h2>

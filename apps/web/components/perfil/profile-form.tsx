@@ -115,7 +115,9 @@ export function ProfileForm({
             <Field>
               <FieldLabel htmlFor="perfil-email">E-mail</FieldLabel>
               <Input id="perfil-email" value={email ?? ""} readOnly />
-              <FieldDescription>É o seu login e o e-mail usado nos convites.</FieldDescription>
+              <FieldDescription>
+                É o e-mail com que você entra e o usado nos convites.
+              </FieldDescription>
             </Field>
             <FormTextField
               control={form.control}

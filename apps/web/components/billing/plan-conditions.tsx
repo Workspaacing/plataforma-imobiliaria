@@ -2,7 +2,7 @@ import {
   ArrowRightLeftIcon,
   BadgeCheckIcon,
   DownloadIcon,
-  InfinityIcon,
+  ImagesIcon,
   LogOutIcon,
   ShieldCheckIcon,
   TrendingUpIcon,
@@ -10,6 +10,7 @@ import {
   type LucideIcon,
 } from "lucide-react"
 
+import { OWNED_LISTING_RELEASED_STATUS_PLURAL_TEXT } from "@workspace/core/billing"
 import {
   Item,
   ItemContent,
@@ -53,12 +54,13 @@ const CONDITIONS: ReadonlyArray<{ icon: LucideIcon; title: string; description: 
   {
     icon: DownloadIcon,
     title: "Seus dados são seus",
-    description: "Exportação completa por 90 dias depois de cancelar.",
+    description: "Leads, imóveis, clientes e propostas em planilha por 90 dias depois de cancelar.",
   },
   {
-    icon: InfinityIcon,
-    title: "Imóveis e clientes ilimitados",
-    description: "Em todos os planos. Você paga por usuário, nunca por imóvel.",
+    // Não é "ilimitado": imóvel com foto hospedada por nós tem o limite do plano.
+    icon: ImagesIcon,
+    title: "Limite só para imóvel com foto",
+    description: `Clientes, condomínios e imóveis sem foto ou importados por XML ou API não têm limite. Imóveis à venda ou para alugar com fotos hospedadas por nós seguem o limite do plano; ${OWNED_LISTING_RELEASED_STATUS_PLURAL_TEXT} não contam.`,
   },
 ]
 

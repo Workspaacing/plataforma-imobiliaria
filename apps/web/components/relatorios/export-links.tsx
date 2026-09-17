@@ -1,8 +1,11 @@
-import { DownloadIcon } from "lucide-react"
+import { DownloadIcon, LockIcon } from "lucide-react"
 
 import type { ReportPeriod } from "@workspace/core/reports/period"
 import { Button } from "@workspace/ui/components/button"
 
+import { requireMembership } from "@/lib/auth/session"
+import { getExportRoles } from "@/lib/configuracoes/export-audit"
+import { canExportData, exportDeniedMessage } from "@/lib/configuracoes/export-permissions"
 import { REPORT_DATASET_LABELS, type ReportDataset } from "@/lib/relatorios/datasets"
 import { reportPeriodParams } from "@/lib/relatorios/url"
 
@@ -28,20 +31,49 @@ export function exportHref(
   return `/api/relatorios/${dataset}?${params.toString()}`
 }
 
+/** A base (dados de pessoas) explica a recusa; o relatório agregado só some. */
+const BASE_DATASETS: readonly ReportDataset[] = ["leads", "imoveis", "clientes", "propostas"]
+
 type ExportLinksProps = {
   datasets: readonly ReportDataset[]
   period: ReportPeriod
   broker: string | null
   /** O primeiro link ganha destaque (é o relatório que está na tela). */
   emphasizeFirst?: boolean
+  /**
+   * O que mostrar quando o papel não exporta: um aviso dizendo quem libera, ou
+   * nada. Padrão: aviso quando há conjunto da base, nada no cabeçalho dos
+   * relatórios agregados.
+   */
+  deniedNotice?: boolean
 }
 
-export function ExportLinks({
+/**
+ * Só desenha os botões para quem exporta (configuração do dono em
+ * /configuracoes/permissoes). É conforto de tela: a rota responde 403 e o
+ * banco recusa a página para quem não pode, com ou sem botão.
+ */
+export async function ExportLinks({
   datasets,
   period,
   broker,
   emphasizeFirst = false,
+  deniedNotice,
 }: ExportLinksProps) {
+  const { membership } = await requireMembership()
+  const exportRoles = await getExportRoles(membership.organizationId)
+
+  if (!canExportData(membership.role, exportRoles)) {
+    const showNotice = deniedNotice ?? datasets.some((dataset) => BASE_DATASETS.includes(dataset))
+
+    return showNotice ? (
+      <p className="flex items-start gap-2 text-sm text-muted-foreground">
+        <LockIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
+        <span>{exportDeniedMessage(exportRoles)}</span>
+      </p>
+    ) : null
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-2">
       {datasets.map((dataset, index) => (

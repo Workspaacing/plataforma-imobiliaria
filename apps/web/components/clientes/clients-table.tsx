@@ -48,11 +48,12 @@ export function ClientsTable({ rows, members }: ClientsTableProps) {
               <TableRow key={client.id}>
                 <TableCell className="max-w-64">
                   <div className="flex min-w-0 flex-col">
+                    {/* No celular, a linha inteira do nome vira área de toque de 44 px. */}
                     <Link
                       href={`${CLIENTS_PATH}/${client.id}`}
-                      className="truncate font-medium underline-offset-4 hover:underline"
+                      className="flex min-w-0 items-center font-medium underline-offset-4 hover:underline max-sm:min-h-11"
                     >
-                      {client.name}
+                      <span className="truncate">{client.name}</span>
                     </Link>
                     {client.kind === "pj" && client.trade_name ? (
                       <span className="truncate text-xs text-muted-foreground">

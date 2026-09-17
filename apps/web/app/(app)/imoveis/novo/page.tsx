@@ -156,6 +156,7 @@ export default async function NovoImovelPage({ searchParams }: NovoImovelPagePro
 
       <PropertyForm
         organizationId={organizationId}
+        userId={user.id}
         role={membership.role}
         property={null}
         initialValues={initialValues}

@@ -4,7 +4,14 @@ import * as React from "react"
 import Link from "next/link"
 import { ArrowRightIcon, MinusIcon, PlusIcon, SparklesIcon } from "lucide-react"
 
-import { formatBRL, PLANS, recommendPlan, TRIAL_DAYS } from "@workspace/core/billing"
+import {
+  formatBRL,
+  OWNED_LISTING_RELEASED_STATUS_PLURAL_TEXT,
+  PLAN_KEYS,
+  PLANS,
+  recommendPlan,
+  TRIAL_DAYS,
+} from "@workspace/core/billing"
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -43,18 +50,43 @@ import {
 
 const MAX_TEAM_SIZE = 500
 
-/** Faixas alinhadas à regra do core (acima de 300 leads/mês sobe para o Equipe). */
-const LEAD_OPTIONS = [
-  { value: "50", label: "Até 50" },
-  { value: "150", label: "51 a 150" },
-  { value: "300", label: "151 a 300" },
-  { value: "600", label: "Mais de 300" },
-] as const
+const integer = new Intl.NumberFormat("pt-BR")
 
-type LeadOption = (typeof LEAD_OPTIONS)[number]["value"]
+/**
+ * Faixas de imóveis com foto nas bordas do limite de cada plano (5, 20, 50,
+ * 150): cada resposta cabe inteira num plano, e "Mais de 150" mostra que nenhum
+ * comporta. O valor é o topo da faixa, que é o que o core compara com o limite.
+ */
+const LISTING_LIMITS = [
+  ...new Set(
+    PLAN_KEYS.map((plan) => PLANS[plan].limits.owned_listings).filter((limit) => limit > 0)
+  ),
+].sort((a, b) => a - b)
 
-function isLeadOption(value: unknown): value is LeadOption {
-  return LEAD_OPTIONS.some((option) => option.value === value)
+const LARGEST_LISTING_LIMIT = LISTING_LIMITS.at(-1) ?? 0
+
+const LISTING_OPTIONS = [
+  ...LISTING_LIMITS.map((limit, index) => {
+    const previous = LISTING_LIMITS[index - 1]
+    return {
+      value: String(limit),
+      label:
+        previous === undefined
+          ? `Até ${integer.format(limit)}`
+          : `${integer.format(previous + 1)} a ${integer.format(limit)}`,
+    }
+  }),
+  {
+    value: String(LARGEST_LISTING_LIMIT + 1),
+    label: `Mais de ${integer.format(LARGEST_LISTING_LIMIT)}`,
+  },
+]
+
+/** Começa na segunda faixa (6 a 20), a de uma imobiliária pequena. */
+const DEFAULT_LISTING_OPTION = LISTING_OPTIONS[1]?.value ?? String(LARGEST_LISTING_LIMIT)
+
+function isListingOption(value: unknown): value is string {
+  return LISTING_OPTIONS.some((option) => option.value === value)
 }
 
 function parseTeamSize(value: string) {
@@ -66,14 +98,10 @@ export function PlanRecommender({ prices }: { prices: CatalogPrices }) {
   const teamSizeId = React.useId()
   const [teamSizeInput, setTeamSizeInput] = React.useState("3")
   const [doesRentals, setDoesRentals] = React.useState(false)
-  const [leads, setLeads] = React.useState<LeadOption>("150")
+  const [listings, setListings] = React.useState(DEFAULT_LISTING_OPTION)
 
   const teamSize = parseTeamSize(teamSizeInput)
-  const recommendation = recommendPlan({
-    teamSize,
-    doesRentals,
-    leadsPerMonth: Number(leads),
-  })
+  const recommendation = recommendPlan({ teamSize, ownedListings: Number(listings) })
   const plan = PLANS[recommendation.plan]
   const { extraSeats } = recommendation
   const monthly = resolvePlanPricing(prices, recommendation.plan, "month")
@@ -86,21 +114,22 @@ export function PlanRecommender({ prices }: { prices: CatalogPrices }) {
   const rentalContracts = plan.limits.rental_contracts
   const reasons = [...recommendation.reasons]
 
-  if (doesRentals && rentalContracts !== 0) {
+  // Locação e IA ainda estão em construção: informam, mas não mudam o plano
+  // sugerido (recomendar plano mais caro por recurso "em breve" seria vender o
+  // que não entregamos).
+  if (doesRentals) {
     reasons.push(
-      rentalContracts < 0
-        ? "Contratos de locação ilimitados (módulo em breve)."
-        : `Inclui ${pluralize(rentalContracts, "contrato de locação ativo", "contratos de locação ativos")} (módulo em breve).`
+      rentalContracts === 0
+        ? `A locação ainda está em construção. No plano ${plan.name}, ela virá como adicional.`
+        : rentalContracts < 0
+          ? "A locação ainda está em construção; quando chegar, os contratos não terão limite neste plano."
+          : `A locação ainda está em construção; quando chegar, este plano inclui ${pluralize(rentalContracts, "contrato ativo", "contratos ativos")}.`
     )
   }
 
   if (aiConversations > 0) {
     reasons.push(
-      `${pluralize(aiConversations, "conversa", "conversas")} de IA no WhatsApp por mês (em breve).${
-        Number(leads) > aiConversations
-          ? " Acima da franquia, o lead passa para um corretor e nunca fica sem resposta."
-          : ""
-      }`
+      `${pluralize(aiConversations, "conversa", "conversas")} de IA no WhatsApp por mês (em breve).`
     )
   }
 
@@ -174,26 +203,27 @@ export function PlanRecommender({ prices }: { prices: CatalogPrices }) {
             </FieldSet>
 
             <FieldSet>
-              <FieldLegend>Quantos leads chegam por mês?</FieldLegend>
+              <FieldLegend>Quantos imóveis à venda ou para alugar vão ter fotos?</FieldLegend>
               <ToggleGroup
-                aria-label="Quantos leads chegam por mês?"
+                aria-label="Quantos imóveis à venda ou para alugar vão ter fotos?"
                 variant="outline"
                 className="flex-wrap"
-                value={[leads]}
+                value={[listings]}
                 onValueChange={(next) => {
-                  if (isLeadOption(next[0])) {
-                    setLeads(next[0])
+                  if (isListingOption(next[0])) {
+                    setListings(next[0])
                   }
                 }}
               >
-                {LEAD_OPTIONS.map((option) => (
+                {LISTING_OPTIONS.map((option) => (
                   <ToggleGroupItem key={option.value} value={option.value}>
                     {option.label}
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>
               <FieldDescription>
-                Somando portais, site, landing pages e redes sociais.
+                Só contam fotos enviadas por aqui. Imóveis sem foto, importados por XML ou API,{" "}
+                {OWNED_LISTING_RELEASED_STATUS_PLURAL_TEXT} ficam de fora.
               </FieldDescription>
             </FieldSet>
           </FieldGroup>

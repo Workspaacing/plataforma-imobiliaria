@@ -59,7 +59,7 @@ export function LeadAdPlatformBadges({ platforms }: { platforms: readonly LeadAd
 
 type ContactTimerLead = Pick<
   LeadItem,
-  "stage" | "lastContactAt" | "createdAt" | "assignedAt" | "firstResponseDueAt"
+  "stage" | "firstContactAt" | "createdAt" | "assignedAt" | "firstResponseDueAt"
 >
 
 /**

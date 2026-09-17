@@ -15,7 +15,9 @@ import {
 import { Separator } from "@workspace/ui/components/separator"
 import { SidebarTrigger } from "@workspace/ui/components/sidebar"
 
+import { GlobalSearch } from "@/components/busca/global-search"
 import { EXTRA_PAGE_TITLES, findNavMatch } from "@/components/crm/nav-config"
+import { SupportHelpButton } from "@/components/crm/support-help-button"
 
 const SEGMENT_LABELS: Record<string, string> = {
   novo: "Novo",
@@ -47,10 +49,12 @@ function HeaderBreadcrumb() {
 
   if (!match) {
     return (
-      <Breadcrumb>
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbPage>{EXTRA_PAGE_TITLES[pathname] ?? "CRM"}</BreadcrumbPage>
+      <Breadcrumb className="min-w-0">
+        <BreadcrumbList className="flex-nowrap">
+          <BreadcrumbItem className="min-w-0">
+            <BreadcrumbPage className="truncate">
+              {EXTRA_PAGE_TITLES[pathname] ?? "CRM"}
+            </BreadcrumbPage>
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
@@ -61,9 +65,11 @@ function HeaderBreadcrumb() {
   const trail = pathname.slice(item.url.length).split("/").filter(Boolean)
   const showGroup = group.title !== item.title && group.title !== "Principal"
 
+  // No celular a trilha fica numa linha só (a busca e a ajuda dividem o
+  // cabeçalho): some o grupo e os passos do meio, e o último trunca.
   return (
-    <Breadcrumb>
-      <BreadcrumbList>
+    <Breadcrumb className="min-w-0">
+      <BreadcrumbList className="flex-nowrap">
         {showGroup ? (
           <>
             <BreadcrumbItem className="hidden md:block">{group.title}</BreadcrumbItem>
@@ -71,8 +77,8 @@ function HeaderBreadcrumb() {
           </>
         ) : null}
         {trail.length === 0 ? (
-          <BreadcrumbItem>
-            <BreadcrumbPage>{item.title}</BreadcrumbPage>
+          <BreadcrumbItem className="min-w-0">
+            <BreadcrumbPage className="truncate">{item.title}</BreadcrumbPage>
           </BreadcrumbItem>
         ) : (
           <>
@@ -85,10 +91,12 @@ function HeaderBreadcrumb() {
 
               return (
                 <React.Fragment key={href}>
-                  <BreadcrumbSeparator />
-                  <BreadcrumbItem>
+                  <BreadcrumbSeparator className={isLast ? undefined : "hidden sm:block"} />
+                  <BreadcrumbItem className={isLast ? "min-w-0" : "hidden sm:inline-flex"}>
                     {isLast ? (
-                      <BreadcrumbPage>{labelForSegment(segment)}</BreadcrumbPage>
+                      <BreadcrumbPage className="truncate">
+                        {labelForSegment(segment)}
+                      </BreadcrumbPage>
                     ) : (
                       <BreadcrumbLink render={<Link href={href} />}>
                         {labelForSegment(segment)}
@@ -108,13 +116,18 @@ function HeaderBreadcrumb() {
 export function CrmHeader() {
   return (
     <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-2 rounded-t-xl border-b bg-background transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-      <div className="flex min-w-0 flex-1 items-center gap-2 px-4">
+      <div className="flex min-w-0 flex-1 items-center gap-2 ps-4">
         <SidebarTrigger className="-ms-1" />
         <Separator
           orientation="vertical"
           className="me-2 data-vertical:h-4 data-vertical:self-auto"
         />
         <HeaderBreadcrumb />
+      </div>
+      {/* Busca e ajuda sempre à mão, em qualquer página e no celular. */}
+      <div className="flex shrink-0 items-center gap-2 pe-4">
+        <GlobalSearch />
+        <SupportHelpButton />
       </div>
     </header>
   )

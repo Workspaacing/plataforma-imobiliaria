@@ -56,7 +56,7 @@ export function pluralize(count: number, singular: string, plural: string) {
  * Benefícios-chave do cartão: os do core, sem a linha de usuários (o cartão
  * mostra usuários e preço do extra no intervalo e no catálogo escolhidos).
  */
-export function keyBenefits(plan: PlanKey, max = 7): PlanBenefit[] {
+export function keyBenefits(plan: PlanKey, max = 8): PlanBenefit[] {
   return PLANS[plan].benefits.filter((benefit) => !/usuári/i.test(benefit.text)).slice(0, max)
 }
 

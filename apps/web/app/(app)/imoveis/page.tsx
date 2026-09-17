@@ -89,6 +89,7 @@ export default async function ImoveisPage({ searchParams }: ImoveisPageProps) {
               precoMin: filters.minPrice == null ? "" : String(filters.minPrice),
               precoMax: filters.maxPrice == null ? "" : String(filters.maxPrice),
               quartos: filters.minBedrooms == null ? "" : String(filters.minBedrooms),
+              autorizacao: filters.authorization,
             }}
           />
         </CardContent>

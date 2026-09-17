@@ -122,47 +122,89 @@ export function toTitleCase(value: string) {
     .join(" ")
 }
 
-export const organizationSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(2, "Informe o nome da imobiliária.")
-    .max(120, "O nome pode ter no máximo 120 caracteres."),
-  slug: z
-    .string()
-    .trim()
-    .min(3, "O endereço precisa ter pelo menos 3 caracteres.")
-    .max(SLUG_MAX_LENGTH, `O endereço pode ter no máximo ${SLUG_MAX_LENGTH} caracteres.`)
-    // Mesma regra do subdomínio (@workspace/core/tenant/slug): sem hífen nas
-    // pontas, sem "--" (inclui o prefixo IDN "xn--") e fora da lista reservada.
-    .refine((slug) => getTenantSlugIssue(slug) !== "characters", SLUG_HYPHENS_MESSAGE)
-    .refine((slug) => getTenantSlugIssue(slug) !== "hyphens", SLUG_HYPHENS_MESSAGE)
-    .refine(
-      (slug) => getTenantSlugIssue(slug) !== "reserved",
-      "Este endereço é reservado. Escolha outro."
-    ),
-  legalName: z
-    .string()
-    .trim()
-    .min(2, "Informe a razão social.")
-    .max(200, "A razão social pode ter no máximo 200 caracteres."),
-  cnpj: z
-    .string()
-    .trim()
-    .refine((cnpj) => cnpj === "" || isValidCnpj(cnpj), "CNPJ inválido. Confira os números."),
-  creci: z
-    .string()
-    .trim()
-    .min(2, "Informe o CRECI jurídico.")
-    .max(30, "O CRECI pode ter no máximo 30 caracteres."),
-  city: z
-    .string()
-    .trim()
-    .min(2, "Informe a cidade.")
-    .max(120, "A cidade pode ter no máximo 120 caracteres."),
-  // Retorno `boolean` explícito: evita que o TS infira um type predicate e
-  // mantém entrada e saída como string no react-hook-form.
-  state: z.string().refine((state): boolean => isBrazilianState(state), "Selecione a UF."),
-})
+/**
+ * "company" (pessoa jurídica, imobiliária) exige CNPJ/razão social/CRECI
+ * jurídico; "person" (corretor autônomo, pessoa física) exige o CRECI da
+ * pessoa física (número + UF), sem CNPJ nem razão social.
+ */
+export const ORGANIZATION_KIND_VALUES = ["company", "person"] as const
+export type OrganizationKind = (typeof ORGANIZATION_KIND_VALUES)[number]
+
+export function isOrganizationKind(value: unknown): value is OrganizationKind {
+  return (
+    typeof value === "string" && (ORGANIZATION_KIND_VALUES as readonly string[]).includes(value)
+  )
+}
+
+export const organizationSchema = z
+  .object({
+    kind: z.enum(ORGANIZATION_KIND_VALUES),
+    name: z
+      .string()
+      .trim()
+      .min(2, "Informe o nome.")
+      .max(120, "O nome pode ter no máximo 120 caracteres."),
+    slug: z
+      .string()
+      .trim()
+      .min(3, "O endereço precisa ter pelo menos 3 caracteres.")
+      .max(SLUG_MAX_LENGTH, `O endereço pode ter no máximo ${SLUG_MAX_LENGTH} caracteres.`)
+      // Mesma regra do subdomínio (@workspace/core/tenant/slug): sem hífen nas
+      // pontas, sem "--" (inclui o prefixo IDN "xn--") e fora da lista reservada.
+      .refine((slug) => getTenantSlugIssue(slug) !== "characters", SLUG_HYPHENS_MESSAGE)
+      .refine((slug) => getTenantSlugIssue(slug) !== "hyphens", SLUG_HYPHENS_MESSAGE)
+      .refine(
+        (slug) => getTenantSlugIssue(slug) !== "reserved",
+        "Este endereço é reservado. Escolha outro."
+      ),
+    // Só obrigatórios quando kind === "company" (ver superRefine abaixo).
+    legalName: z.string().trim().max(200, "A razão social pode ter no máximo 200 caracteres."),
+    cnpj: z
+      .string()
+      .trim()
+      .refine((cnpj) => cnpj === "" || isValidCnpj(cnpj), "CNPJ inválido. Confira os números."),
+    creci: z.string().trim().max(30, "O CRECI pode ter no máximo 30 caracteres."),
+    // Só obrigatórios quando kind === "person" (ver superRefine abaixo).
+    creciNumber: z.string().trim().max(30, "O CRECI pode ter no máximo 30 caracteres."),
+    // Retorno `boolean` explícito: mesmo motivo do campo `state` abaixo (evita
+    // que o TS infira um type predicate e mantém entrada e saída como string).
+    creciState: z
+      .string()
+      .refine(
+        (state): boolean => state === "" || isBrazilianState(state),
+        "Selecione a UF do CRECI."
+      ),
+    city: z
+      .string()
+      .trim()
+      .min(2, "Informe a cidade.")
+      .max(120, "A cidade pode ter no máximo 120 caracteres."),
+    // Retorno `boolean` explícito: evita que o TS infira um type predicate e
+    // mantém entrada e saída como string no react-hook-form.
+    state: z.string().refine((state): boolean => isBrazilianState(state), "Selecione a UF."),
+  })
+  .superRefine((values, ctx) => {
+    if (values.kind === "company") {
+      if (values.legalName.length < 2) {
+        ctx.addIssue({ code: "custom", path: ["legalName"], message: "Informe a razão social." })
+      }
+      if (values.creci.length < 2) {
+        ctx.addIssue({ code: "custom", path: ["creci"], message: "Informe o CRECI jurídico." })
+      }
+      return
+    }
+
+    if (values.creciNumber.length < 1) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["creciNumber"],
+        message: "Informe o número do CRECI.",
+      })
+    }
+
+    if (values.creciState === "") {
+      ctx.addIssue({ code: "custom", path: ["creciState"], message: "Selecione a UF do CRECI." })
+    }
+  })
 
 export type OrganizationValues = z.infer<typeof organizationSchema>

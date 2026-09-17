@@ -4,6 +4,7 @@ import type { CatalogPrices } from "@/components/billing/plan-content"
 import {
   getBillingOverview,
   getCatalogPrices,
+  getOwnedListingUsage,
   listRecentInvoices,
   type RecentInvoice,
 } from "@/lib/billing/queries"
@@ -27,6 +28,16 @@ export async function loadBillingOverview(organizationId: string) {
     return await getBillingOverview(organizationId)
   } catch (error) {
     logFailure("a assinatura", error)
+    return null
+  }
+}
+
+/** Imóveis com foto que contam no limite (contagem do banco); null = indisponível. */
+export async function loadOwnedListingUsage(organizationId: string) {
+  try {
+    return await getOwnedListingUsage(organizationId)
+  } catch (error) {
+    logFailure("os imóveis com foto", error)
     return null
   }
 }

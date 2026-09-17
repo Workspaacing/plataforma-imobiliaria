@@ -23,6 +23,7 @@ import {
 import { HOME_PATH, LOGIN_PATH, ONBOARDING_PATH } from "@/lib/auth/routes"
 import { getCurrentUser } from "@/lib/auth/session"
 import { getReferralCookieOptions, REFERRAL_COOKIE_NAME } from "@/lib/billing/referral-cookie"
+import { translateDatabaseError } from "@/lib/configuracoes/errors"
 import { createClient } from "@/lib/supabase/server"
 import { buildTenantUrl, isSubdomainTenancy, isValidTenantSlug } from "@/lib/tenant/urls"
 
@@ -121,7 +122,9 @@ export async function createOrganization(
     redirect(`${LOGIN_PATH}?next=${encodeURIComponent(ONBOARDING_PATH)}`)
   }
 
-  const { name, slug, legalName, cnpj, creci, city, state } = parsed.data
+  const { kind, name, slug, legalName, cnpj, creci, creciNumber, creciState, city, state } =
+    parsed.data
+  const isCompany = kind === "company"
   const supabase = await createClient()
   const cookieStore = await cookies()
   // Indique e ganhe: só o formato é conferido aqui; existência e antifraude
@@ -135,14 +138,36 @@ export async function createOrganization(
       typeof metadata.referral_code === "string" ? metadata.referral_code : undefined
     ) ?? normalizeReferralCode(cookieStore.get(REFERRAL_COOKIE_NAME)?.value)
 
+  // Corretor autônomo (pessoa física): o CRECI é do profissional, não da
+  // organização (que fica sem CNPJ/razão social/CRECI jurídico). Grava no
+  // próprio perfil (1:1 com o usuário, já usado pela tela "Meu perfil").
+  if (!isCompany) {
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .update({ creci_number: creciNumber, creci_state: creciState })
+      .eq("id", user.id)
+
+    if (profileError) {
+      return {
+        ok: false,
+        error: translateDatabaseError(
+          profileError,
+          "Não foi possível salvar o seu CRECI agora. Tente novamente."
+        ),
+        fieldErrors: { creciNumber: "Não foi possível salvar o CRECI." },
+      }
+    }
+  }
+
   // A função cria a organização e a membership de dono na mesma transação.
   const { data: organizationId, error } = await supabase.rpc("create_organization", {
     p_name: name,
     p_slug: slug,
-    p_legal_name: legalName,
-    // Parâmetros com DEFAULT NULL na função: omitir em vez de enviar null.
-    p_cnpj: cnpj ? normalizeCnpj(cnpj) : undefined,
-    p_creci: creci,
+    // Parâmetros com DEFAULT NULL na função: omitir (não string vazia) para
+    // pessoa física, que não tem razão social, CNPJ nem CRECI jurídico.
+    p_legal_name: isCompany ? legalName : undefined,
+    p_cnpj: isCompany && cnpj ? normalizeCnpj(cnpj) : undefined,
+    p_creci: isCompany ? creci : undefined,
     p_city: city,
     p_state: state,
     p_referral_code: referralCode ?? undefined,

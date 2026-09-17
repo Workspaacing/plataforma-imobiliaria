@@ -54,9 +54,9 @@ function text(value: string): Cell {
 }
 
 function limitText(key: LimitKey, value: number) {
-  // Locação no Corretor é vendida só como add-on.
+  // Locação no Corretor é vendida só como adicional.
   if (key === "rental_contracts" && value === 0) {
-    return "Add-on"
+    return "Adicional"
   }
 
   return formatLimit(value, LIMITS[key].unit)
@@ -65,10 +65,11 @@ function limitText(key: LimitKey, value: number) {
 function buildGroups(prices: CatalogPrices): ComparisonGroup[] {
   const limitRows: ComparisonRow[] = [
     {
+      // Só o que o banco não limita. Imóvel com foto tem linha própria (limit-owned_listings).
       id: "records",
-      label: "Imóveis, condomínios e clientes",
+      label: "Clientes, condomínios e imóveis sem foto ou importados por XML ou API",
       soon: false,
-      cells: byPlan(() => text("Ilimitado")),
+      cells: byPlan(() => text("Sem limite")),
     },
     ...LIMIT_KEYS.map((key) => ({
       id: `limit-${key}`,

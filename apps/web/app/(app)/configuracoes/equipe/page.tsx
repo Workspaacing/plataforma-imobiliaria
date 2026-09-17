@@ -24,6 +24,7 @@ import { PageShell } from "@/components/shared/page-shell"
 import { TEAM_MANAGER_ROLES } from "@/lib/auth/roles"
 import { requireRole } from "@/lib/auth/session"
 import { todayInSaoPaulo } from "@/lib/configuracoes/dates"
+import { getExportRoles } from "@/lib/configuracoes/export-audit"
 import { INVITATION_VALIDITY_DAYS, isInvitationExpired } from "@/lib/configuracoes/invitations"
 import { getAssignableRoles } from "@/lib/configuracoes/roles"
 import { createClient } from "@/lib/supabase/server"
@@ -40,7 +41,7 @@ export default async function EquipePage() {
   const actorRole: AppRole = membership.role
   const supabase = await createClient()
 
-  const [membershipsResult, invitationsResult] = await Promise.all([
+  const [membershipsResult, invitationsResult, exportRoles] = await Promise.all([
     supabase
       .from("memberships")
       .select("id, user_id, role, active")
@@ -52,6 +53,8 @@ export default async function EquipePage() {
       .eq("organization_id", organizationId)
       .is("accepted_at", null)
       .order("created_at", { ascending: false }),
+    // A matriz de papéis mostra quem exporta de verdade nesta imobiliária.
+    getExportRoles(organizationId),
   ])
 
   if (membershipsResult.error) {
@@ -146,7 +149,7 @@ export default async function EquipePage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <RolePermissions actorRole={actorRole} />
+          <RolePermissions actorRole={actorRole} exportRoles={exportRoles} />
         </CardContent>
       </Card>
 

@@ -1,7 +1,9 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 import { InfoIcon } from "lucide-react"
 
 import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert"
+import { Button } from "@workspace/ui/components/button"
 
 import { PageHeading } from "@/components/crm/page-placeholder"
 import { ExportLinks } from "@/components/relatorios/export-links"
@@ -14,9 +16,12 @@ import {
 } from "@/components/relatorios/report-sections"
 import { ReportTabs } from "@/components/relatorios/report-tabs"
 import { PageShell } from "@/components/shared/page-shell"
+import { ROLE_PERMISSIONS_SETTINGS_PATH } from "@/components/shared/settings-config"
 import { ROLE_LABELS } from "@/lib/auth/roles"
 import { requireMembership } from "@/lib/auth/session"
 import { getOrganizationMembers } from "@/lib/clientes/members"
+import { getExportRoles } from "@/lib/configuracoes/export-audit"
+import { canExportData } from "@/lib/configuracoes/export-permissions"
 import type { ReportDataset } from "@/lib/relatorios/datasets"
 import { canSeeTeamReports, reportScopeNotice } from "@/lib/relatorios/permissions"
 import {
@@ -57,7 +62,12 @@ export default async function RelatoriosPage({
     broker,
   }
 
-  const members = canSeeTeam ? await getOrganizationMembers(membership.organizationId) : []
+  // `getExportRoles` é memorizado por requisição: os links de exportação reusam a leitura.
+  const [members, exportRoles] = await Promise.all([
+    canSeeTeam ? getOrganizationMembers(membership.organizationId) : [],
+    getExportRoles(membership.organizationId),
+  ])
+  const canExport = canExportData(role, exportRoles)
   const selfName =
     user.fullName?.trim() ||
     members.find((member) => member.id === user.id)?.name ||
@@ -132,15 +142,33 @@ export default async function RelatoriosPage({
       ) : null}
 
       <section className="flex flex-col gap-2 border-t pt-6">
-        <h2 className="text-sm font-medium">Exportar a base do período</h2>
-        <p className="text-sm text-muted-foreground">
-          Arquivo CSV com BOM UTF-8 e separador ponto e vírgula, que o Excel brasileiro abre sem
-          quebrar acento. Sai com as mesmas linhas que você já enxerga no sistema
-          {canSeeTeam
-            ? "."
-            : " — e sem CPF/CNPJ nem data de nascimento, que só o dono e o gerente exportam."}
-        </p>
+        {canExport ? (
+          <>
+            <h2 className="text-sm font-medium">Exportar a base do período</h2>
+            <p className="text-sm text-muted-foreground">
+              Arquivo CSV com BOM UTF-8 e separador ponto e vírgula, que o Excel brasileiro abre sem
+              quebrar acento. Sai com as mesmas linhas que você já enxerga no sistema
+              {canSeeTeam
+                ? "."
+                : " — e sem CPF/CNPJ nem data de nascimento, que só o dono e o gerente exportam."}
+            </p>
+          </>
+        ) : (
+          // Sem promessa de download: o aviso abaixo diz quem exporta hoje e quem libera.
+          <h2 className="text-sm font-medium">Exportação da base</h2>
+        )}
         <ExportLinks datasets={BASE_DATASETS} period={view.period} broker={broker} />
+        {canExport ? null : (
+          <Button
+            variant="link"
+            size="sm"
+            className="self-start px-0"
+            render={<Link href={ROLE_PERMISSIONS_SETTINGS_PATH} />}
+            nativeButton={false}
+          >
+            Ver o que cada papel pode fazer
+          </Button>
+        )}
       </section>
     </PageShell>
   )

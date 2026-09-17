@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/componen
 
 import { ConsentPreferences } from "@/components/leads-publicos/consent-preferences"
 import { formatPhoneDisplay } from "@/lib/captacao/masks"
+import { getPublicOrganization, publicCreciLabel } from "@/lib/captacao/public-organization"
 import { readGtmContainerId } from "@/lib/leads-publicos/landing-extras"
 import { LANDING_NOT_FOUND_METADATA } from "@/lib/leads-publicos/metadata"
 import { getPublicLandingPage } from "@/lib/leads-publicos/queries"
@@ -18,6 +19,21 @@ export const revalidate = 60
 
 type LandingPrivacyPageProps = {
   params: Promise<{ org: string; page: string }>
+}
+
+/** CRECI J da imobiliária ou, sem ele, o CRECI F do dono (corretor autônomo). */
+async function responsibleCreciLabel(orgSlug: string, creci: string | null | undefined) {
+  if (creci?.trim()) {
+    return publicCreciLabel({ creci, ownerCreci: null })
+  }
+
+  try {
+    const organization = await getPublicOrganization(orgSlug)
+    return organization ? publicCreciLabel(organization) : null
+  } catch {
+    // Rótulo acessório: sem ele a página de privacidade continua completa.
+    return null
+  }
 }
 
 export async function generateMetadata({ params }: LandingPrivacyPageProps): Promise<Metadata> {
@@ -49,6 +65,7 @@ export default async function LandingPrivacyPage({ params }: LandingPrivacyPageP
   const pageLabel = payload.page.content.headline ?? payload.page.name
   const phone = formatPhoneDisplay(organization.phone)
   const contacts = [organization.email, phone].filter(Boolean).join(" · ")
+  const creciLabel = await responsibleCreciLabel(orgSlug, organization.creci)
   const hasTrackers = Boolean(
     safeMetaPixelId(payload.page.tracking.meta_pixel_id) ||
     safeGoogleTagId(payload.page.tracking.google_tag_id) ||
@@ -85,8 +102,8 @@ export default async function LandingPrivacyPage({ params }: LandingPrivacyPageP
         <CardContent className="flex flex-col gap-2 text-sm">
           <p>
             {organization.name}
-            {organization.creci ? ` (CRECI ${organization.creci.replace(/^creci\s*/i, "")})` : ""} é
-            a responsável pelos dados enviados por esta página.
+            {creciLabel ? ` (${creciLabel})` : ""} é a responsável pelos dados enviados por esta
+            página.
           </p>
           <p className="text-muted-foreground">
             {contacts

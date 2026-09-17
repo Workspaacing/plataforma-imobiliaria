@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { BadgePercentIcon, CircleAlertIcon } from "lucide-react"
 import { Controller, useForm, useWatch } from "react-hook-form"
 
+import type { FormDraftScope } from "@workspace/core/forms/draft"
 import { LISTING_PURPOSE_LABELS } from "@workspace/core/properties/enums"
 import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert"
 import { Button } from "@workspace/ui/components/button"
@@ -46,6 +47,11 @@ import { toast } from "@workspace/ui/components/toast"
 import { ToggleGroup, ToggleGroupItem } from "@workspace/ui/components/toggle-group"
 
 import { OptionCombobox, type ComboboxOption } from "@/components/propostas/option-combobox"
+import { FormDraftNotice } from "@/lib/forms/draft/form-draft-notice"
+import { useFormDraft } from "@/lib/forms/draft/use-form-draft"
+import { useFormDraftScope } from "@/lib/forms/draft/use-form-draft-scope"
+import { useGuardedSubmit, type SubmitFailure } from "@/lib/forms/submit/use-guarded-submit"
+import { UnsavedChangesGuard } from "@/lib/forms/unsaved/unsaved-changes-guard"
 import { changeProposalStatus, createProposal, updateProposal } from "@/lib/propostas/actions"
 import { maskBrlInput } from "@/lib/propostas/money"
 import { proposalFormSchema, type ProposalFormValues } from "@/lib/propostas/schemas"
@@ -96,6 +102,11 @@ type ProposalFormProps = {
   lockBroker?: boolean
   /** Depois de salvar um valor que depende da aprovação do gerente. */
   onDiscountApprovalNeeded?: (proposalId: string) => void
+  /**
+   * Usuário + imobiliária para o rascunho local. Sem isso, o formulário
+   * pergunta ao servidor ao abrir (uma chamada a mais).
+   */
+  draftScope?: FormDraftScope
 }
 
 type ProposalFormDialogProps = ProposalFormProps & {
@@ -140,7 +151,7 @@ function getInitialValues({
 
 function ProposalForm({ onDone, ...props }: ProposalFormProps & { onDone: () => void }) {
   const { properties, clients, brokers, editing, onDiscountApprovalNeeded } = props
-  const [isSubmitting, startSubmit] = React.useTransition()
+  const { isPending: isSubmitting, run: runSubmit } = useGuardedSubmit()
   const [formError, setFormError] = React.useState<string | null>(null)
   // Recusa do gatilho de desconto, amarrada ao valor que foi barrado.
   const [discountBlock, setDiscountBlock] = React.useState<{
@@ -154,6 +165,17 @@ function ProposalForm({ onDone, ...props }: ProposalFormProps & { onDone: () => 
     resolver: zodResolver(proposalFormSchema),
     mode: "onTouched",
     defaultValues: getInitialValues(props),
+  })
+  const { isDirty } = form.formState
+
+  // Rascunho por proposta (ou nova); proposta só de leitura não guarda nada.
+  const draftScope = useFormDraftScope(props.draftScope, !readOnly)
+  const draft = useFormDraft({
+    form,
+    scope: draftScope,
+    formId: "proposta",
+    recordId: editing?.id ?? null,
+    enabled: !readOnly,
   })
 
   const propertyId = useWatch({ control: form.control, name: "propertyId" })
@@ -193,13 +215,19 @@ function ProposalForm({ onDone, ...props }: ProposalFormProps & { onDone: () => 
       ? ["sale", "rent"]
       : [selectedProperty.purpose]
 
+  // Queda de rede ou erro inesperado: o diálogo continua aberto com os campos.
+  function onSubmitFailure({ message }: SubmitFailure) {
+    draft.saveNow()
+    setFormError(message)
+  }
+
   function onSubmit(values: ProposalFormValues) {
     if (readOnly) return
 
     setFormError(null)
     setDiscountBlock(null)
 
-    startSubmit(async () => {
+    runSubmit(async () => {
       const result = editing
         ? await updateProposal(editing.id, values)
         : await createProposal(values)
@@ -214,9 +242,10 @@ function ProposalForm({ onDone, ...props }: ProposalFormProps & { onDone: () => 
         return
       }
 
+      draft.clear()
       toast.add({ title: result.message ?? "Proposta salva.", type: "success" })
       onDone()
-    })
+    }, onSubmitFailure)
   }
 
   // O gatilho só barra a edição de proposta ENVIADA (rascunho e contraproposta
@@ -228,7 +257,7 @@ function ProposalForm({ onDone, ...props }: ProposalFormProps & { onDone: () => 
 
     setFormError(null)
 
-    startSubmit(async () => {
+    runSubmit(async () => {
       const countered = await changeProposalStatus(editing.id, "countered")
 
       if (!countered.ok) {
@@ -247,6 +276,7 @@ function ProposalForm({ onDone, ...props }: ProposalFormProps & { onDone: () => 
         return
       }
 
+      draft.clear()
       toast.add({
         title: "Contraproposta registrada com o valor novo.",
         description: "Peça a aprovação do gerente antes de reenviar a proposta.",
@@ -254,7 +284,7 @@ function ProposalForm({ onDone, ...props }: ProposalFormProps & { onDone: () => 
       })
       onDone()
       onDiscountApprovalNeeded?.(editing.id)
-    })
+    }, onSubmitFailure)
   }
 
   const title = editing ? (readOnly ? "Detalhes da proposta" : "Editar proposta") : "Nova proposta"
@@ -269,7 +299,9 @@ function ProposalForm({ onDone, ...props }: ProposalFormProps & { onDone: () => 
         <DialogDescription>{description}</DialogDescription>
       </DialogHeader>
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="flex flex-col gap-6">
+        <UnsavedChangesGuard when={!readOnly && isDirty} />
         <FieldGroup>
+          <FormDraftNotice draft={draft} />
           {formError ? (
             <Alert variant="destructive">
               <CircleAlertIcon />

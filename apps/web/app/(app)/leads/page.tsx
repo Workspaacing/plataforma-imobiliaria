@@ -88,7 +88,13 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
         : "Contatos das landing pages, portais e site, do primeiro contato até virar cliente."
 
   const newLeadButton = canCreate ? (
-    <NewLeadDialog members={members} currentUserId={user.id} role={role} trigger={<Button />}>
+    <NewLeadDialog
+      members={members}
+      currentUserId={user.id}
+      organizationId={organizationId}
+      role={role}
+      trigger={<Button />}
+    >
       <PlusIcon data-icon="inline-start" />
       Novo lead
     </NewLeadDialog>

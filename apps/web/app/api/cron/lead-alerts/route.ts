@@ -109,6 +109,7 @@ async function sendAlert(alert: LeadAlert): Promise<NotificationSummary> {
     slaMinutes: alert.slaMinutes,
     minutesLeft: minutesLeftUntil(alert.dueAt),
     dueAt: alert.dueAt,
+    assigneeName: alert.assigneeName,
   })
 }
 

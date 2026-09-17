@@ -15,7 +15,14 @@ import { ROLE_DESCRIPTIONS } from "@/lib/configuracoes/roles"
  * está lendo, que é a dúvida mais comum ("o que eu posso fazer aqui?"), e
  * permite abrir os outros para decidir qual papel dar a quem.
  */
-export function RolePermissions({ actorRole }: { actorRole: Role }) {
+export function RolePermissions({
+  actorRole,
+  exportRoles,
+}: {
+  actorRole: Role
+  /** Papéis que exportam nesta imobiliária; sem valor, o padrão (dono e gerente). */
+  exportRoles?: readonly Role[]
+}) {
   return (
     <Accordion defaultValue={[actorRole]} className="gap-0">
       {ROLE_PERMISSION_ROLES.map((role) => (
@@ -29,7 +36,7 @@ export function RolePermissions({ actorRole }: { actorRole: Role }) {
           </AccordionTrigger>
           <AccordionContent>
             <dl className="flex flex-col gap-3">
-              {getRolePermissions(role).map((area) => (
+              {getRolePermissions(role, exportRoles).map((area) => (
                 <div key={area.id} className="grid gap-0.5 sm:grid-cols-[12rem_minmax(0,1fr)]">
                   <dt className="font-medium">{area.title}</dt>
                   <dd className="text-muted-foreground">{area.text}</dd>

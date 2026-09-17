@@ -20,7 +20,7 @@ import { getMemberships, requireUser } from "@/lib/auth/session"
 import { tryGetRootDomain } from "@/lib/tenant/urls"
 
 export const metadata: Metadata = {
-  title: "Criar imobiliária",
+  title: "Criar cadastro",
 }
 
 /** Onboarding no domínio raiz (o proxy redireciona o subdomínio para cá). */
@@ -58,12 +58,12 @@ export default async function OnboardingPage() {
       <main className="flex flex-1 justify-center px-4 pb-10 md:items-center">
         <Card className="w-full max-w-2xl">
           <CardHeader>
-            <CardTitle>{hasOrganizations ? "Nova imobiliária" : "Crie sua imobiliária"}</CardTitle>
+            <CardTitle>{hasOrganizations ? "Novo cadastro" : "Crie seu cadastro"}</CardTitle>
             <CardDescription>
               {firstName ? `${firstName}, ` : ""}
               {hasOrganizations
-                ? "cadastre mais uma imobiliária. Você será o dono dela e ela terá o próprio endereço."
-                : "falta pouco. Cadastre a imobiliária para começar a usar o CRM; você poderá convidar a equipe depois."}
+                ? "cadastre mais uma imobiliária ou conta autônoma. Você será o dono dela e ela terá o próprio endereço."
+                : "falta pouco. Diga como você atua e cadastre seus dados para começar a usar o CRM; você poderá convidar a equipe depois."}
             </CardDescription>
           </CardHeader>
           <CardContent>

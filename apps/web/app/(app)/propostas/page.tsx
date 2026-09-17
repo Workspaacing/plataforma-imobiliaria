@@ -185,6 +185,8 @@ export default async function PropostasPage({
   const defaultBrokerId =
     lockBroker || brokers.some((broker) => broker.value === user.id) ? user.id : ""
   const expiredCount = tableRows.filter((row) => row.isExpired).length
+  // O rascunho local do formulário já nasce com o escopo, sem Server Action ao abrir.
+  const draftScope = { userId: user.id, organizationId }
 
   const statusItems = PROPOSAL_STATUS_VALUES.map((value) => ({
     value,
@@ -211,6 +213,7 @@ export default async function PropostasPage({
             defaultPropertyId={propertyId ?? undefined}
             defaultBrokerId={defaultBrokerId}
             lockBroker={lockBroker}
+            draftScope={draftScope}
           />
         ) : null}
       </div>
@@ -242,6 +245,7 @@ export default async function PropostasPage({
           brokers={brokers}
           organizationName={membership.organization.name}
           canReviewDiscounts={canManageCommissions(role)}
+          draftScope={draftScope}
         />
       ) : hasFilters ? (
         <Empty className="border">

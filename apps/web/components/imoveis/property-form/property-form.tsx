@@ -33,6 +33,10 @@ import type {
   PropertySummary,
 } from "@/components/imoveis/property-form/types"
 import type { Role } from "@/lib/auth/roles"
+import { FormDraftNotice } from "@/lib/forms/draft/form-draft-notice"
+import { useFormDraft } from "@/lib/forms/draft/use-form-draft"
+import { useGuardedSubmit, type SubmitFailure } from "@/lib/forms/submit/use-guarded-submit"
+import { UnsavedChangesGuard } from "@/lib/forms/unsaved/unsaved-changes-guard"
 import {
   findStepForField,
   PROPERTY_FORM_STEPS,
@@ -50,6 +54,8 @@ import {
 
 type PropertyFormProps = {
   organizationId: string
+  /** Usuário logado: separa o rascunho local por pessoa. */
+  userId: string
   role: Role
   property: PropertySummary | null
   initialValues: PropertyFormValues
@@ -73,6 +79,7 @@ const ALL_FIELDS = PROPERTY_FORM_STEPS.flatMap((step) => [...step.fields]) as Pr
  */
 export function PropertyForm({
   organizationId,
+  userId,
   role,
   property,
   initialValues,
@@ -88,7 +95,7 @@ export function PropertyForm({
   const router = useRouter()
   const [step, setStep] = React.useState<PropertyFormStepKey>(initialStep)
   const [formError, setFormError] = React.useState<string | null>(null)
-  const [isSaving, startSaving] = React.useTransition()
+  const { isPending: isSaving, run: runSave } = useGuardedSubmit()
 
   const form = useForm<PropertyFormValues>({
     resolver: zodResolver(propertyFormSchema),
@@ -96,11 +103,26 @@ export function PropertyForm({
     defaultValues: initialValues,
   })
 
+  // Rascunho local por usuário + imobiliária + imóvel (ou cadastro novo).
+  const draft = useFormDraft({
+    form,
+    scope: { userId, organizationId },
+    formId: "imovel",
+    recordId: property?.id ?? null,
+  })
+
   const status = useWatch({ control: form.control, name: "status" })
   const { errors, isDirty } = form.formState
   const stepIndex = PROPERTY_FORM_STEPS.findIndex((item) => item.key === step)
   const previousStep = PROPERTY_FORM_STEPS[stepIndex - 1]
   const nextStep = PROPERTY_FORM_STEPS[stepIndex + 1]
+
+  // Queda de rede ou erro inesperado: a tela e os campos ficam como estão.
+  function onSaveFailure({ message }: SubmitFailure) {
+    draft.saveNow()
+    setFormError(message)
+    toast.add({ type: "error", title: "Não foi possível salvar", description: message })
+  }
 
   function submit(values: PropertyFormValues) {
     setFormError(null)
@@ -128,7 +150,7 @@ export function PropertyForm({
       publishedToPortals: values.publishedToPortals && publishState.canPublish,
     }
 
-    startSaving(async () => {
+    runSave(async () => {
       const result = await savePropertyAction({
         values: payload,
         propertyId: property?.id ?? null,
@@ -152,6 +174,7 @@ export function PropertyForm({
         return
       }
 
+      draft.clear()
       toast.add({
         type: "success",
         title: result.message,
@@ -167,7 +190,7 @@ export function PropertyForm({
       } else {
         form.reset(payload)
       }
-    })
+    }, onSaveFailure)
   }
 
   function onInvalid(fieldErrors: FieldErrors<PropertyFormValues>) {
@@ -229,6 +252,8 @@ export function PropertyForm({
 
   return (
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6">
+      <UnsavedChangesGuard when={isDirty} />
+      <FormDraftNotice draft={draft} />
       {formError ? (
         <Alert variant="destructive">
           <CircleAlertIcon />

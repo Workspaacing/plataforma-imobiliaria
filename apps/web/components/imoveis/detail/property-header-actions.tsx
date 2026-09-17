@@ -2,7 +2,15 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { ArrowRightLeftIcon, ChevronDownIcon, PencilIcon } from "lucide-react"
+import {
+  ArrowRightLeftIcon,
+  CheckIcon,
+  ChevronDownIcon,
+  LinkIcon,
+  MessageCircleIcon,
+  PencilIcon,
+  PrinterIcon,
+} from "lucide-react"
 
 import {
   PROPERTY_STATUS_LABELS,
@@ -30,24 +38,109 @@ function isPropertyStatus(value: unknown): value is PropertyStatus {
   return typeof value === "string" && (PROPERTY_STATUS_VALUES as readonly string[]).includes(value)
 }
 
+/**
+ * Ações da ficha do imóvel. Imprimir e compartilhar ficam para qualquer pessoa
+ * que vê o imóvel; editar e mudar o status, só para quem pode editar.
+ */
 export function PropertyHeaderActions({
   propertyId,
   status,
   canEdit,
   requirementIssues,
   completeHref,
+  whatsappHref,
+  publicUrl,
 }: {
   propertyId: string
   status: PropertyStatus
   canEdit: boolean
   requirementIssues: string[]
   completeHref: string
+  /** Link wa.me com o texto pronto (sem endereço nem dados do proprietário). */
+  whatsappHref: string
+  /** Página pública do imóvel; null quando o imóvel não está ativo. */
+  publicUrl: string | null
+}) {
+  return (
+    <div className="flex flex-wrap gap-2 lg:justify-end">
+      {canEdit ? (
+        <PropertyEditActions
+          propertyId={propertyId}
+          status={status}
+          requirementIssues={requirementIssues}
+          completeHref={completeHref}
+        />
+      ) : null}
+      {publicUrl ? <CopyPublicLinkButton url={publicUrl} /> : null}
+      <Button
+        variant="outline"
+        // ?abrir=1: PDF inline, aberto no visualizador do navegador (a rota tem CSP própria).
+        render={
+          <a
+            href={`/api/imoveis/${propertyId}/ficha?abrir=1`}
+            target="_blank"
+            rel="noopener noreferrer"
+          />
+        }
+        nativeButton={false}
+      >
+        <PrinterIcon data-icon="inline-start" />
+        Imprimir ficha
+        <span className="sr-only"> (abre o PDF em nova aba)</span>
+      </Button>
+      <Button
+        variant="outline"
+        render={<a href={whatsappHref} target="_blank" rel="noopener noreferrer" />}
+        nativeButton={false}
+      >
+        <MessageCircleIcon data-icon="inline-start" />
+        Compartilhar no WhatsApp
+        <span className="sr-only"> (abre em nova aba)</span>
+      </Button>
+    </div>
+  )
+}
+
+function CopyPublicLinkButton({ url }: { url: string }) {
+  const [copied, setCopied] = React.useState(false)
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopied(true)
+      toast.add({ title: "Link público copiado.", type: "success" })
+      window.setTimeout(() => setCopied(false), 2000)
+    } catch {
+      toast.add({
+        title: "Não foi possível copiar",
+        description: url,
+        type: "error",
+      })
+    }
+  }
+
+  return (
+    <Button variant="outline" onClick={copyLink}>
+      {copied ? <CheckIcon data-icon="inline-start" /> : <LinkIcon data-icon="inline-start" />}
+      {copied ? "Copiado" : "Copiar link público"}
+    </Button>
+  )
+}
+
+function PropertyEditActions({
+  propertyId,
+  status,
+  requirementIssues,
+  completeHref,
+}: {
+  propertyId: string
+  status: PropertyStatus
+  requirementIssues: string[]
+  completeHref: string
 }) {
   const [isPending, startTransition] = React.useTransition()
   const [optimisticStatus, setOptimisticStatus] = React.useOptimistic(status)
   const hasIssues = requirementIssues.length > 0
-
-  if (!canEdit) return null
 
   function handleStatusChange(next: unknown) {
     if (!isPropertyStatus(next) || next === optimisticStatus) return
@@ -72,7 +165,7 @@ export function PropertyHeaderActions({
   }
 
   return (
-    <div className="flex flex-wrap gap-2 lg:justify-end">
+    <>
       <Button
         variant="outline"
         render={<Link href={`/imoveis/${propertyId}/editar`} />}
@@ -122,6 +215,6 @@ export function PropertyHeaderActions({
           ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
-    </div>
+    </>
   )
 }

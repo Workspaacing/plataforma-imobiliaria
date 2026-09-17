@@ -21,7 +21,7 @@ type EditarClientePageProps = {
 }
 
 export default async function EditarClientePage({ params }: EditarClientePageProps) {
-  const [{ membership }, { id }] = await Promise.all([requireMembership(), params])
+  const [{ user, membership }, { id }] = await Promise.all([requireMembership(), params])
   const client = await getClient(membership.organizationId, id)
 
   if (!client) {
@@ -53,6 +53,8 @@ export default async function EditarClientePage({ params }: EditarClientePagePro
       <ClientForm
         mode="edit"
         clientId={client.id}
+        userId={user.id}
+        organizationId={membership.organizationId}
         initialValues={clientRowToFormValues(client)}
         members={members}
         role={membership.role}

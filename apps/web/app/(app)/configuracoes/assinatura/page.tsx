@@ -20,6 +20,7 @@ import { AiUsageCard } from "@/components/billing/ai-usage-card"
 import {
   loadBillingOverview,
   loadCatalogPrices,
+  loadOwnedListingUsage,
   loadRecentInvoices,
 } from "@/components/billing/billing-data"
 import { BillingPortalButton } from "@/components/billing/billing-portal-button"
@@ -78,7 +79,7 @@ function ReadOnlyDetails() {
       <div className="flex flex-col gap-1">
         <p className="font-medium">Continua funcionando</p>
         <ul className="flex list-disc flex-col gap-1 ps-5 text-muted-foreground">
-          <li>Ver e exportar imóveis, clientes e leads</li>
+          <li>Ver e exportar imóveis, clientes e leads em planilha</li>
           <li>Landing pages captando leads</li>
           <li>Assinar ou regularizar o pagamento</li>
         </ul>
@@ -104,13 +105,15 @@ export default async function AssinaturaPage({ searchParams }: AssinaturaPagePro
   const checkoutStatus = readCheckoutStatus(checkout)
   const stripeConfigured = isStripeConfigured()
 
-  const [overview, prices, invoicesResult, referralPercent, aiUsage] = await Promise.all([
-    loadBillingOverview(membership.organizationId),
-    loadCatalogPrices(),
-    loadRecentInvoices(membership.organizationId),
-    getStoredReferralDiscountPercent(membership.organizationId),
-    loadAiUsageOverview(membership.organizationId),
-  ])
+  const [overview, prices, invoicesResult, referralPercent, aiUsage, ownedListings] =
+    await Promise.all([
+      loadBillingOverview(membership.organizationId),
+      loadCatalogPrices(),
+      loadRecentInvoices(membership.organizationId),
+      getStoredReferralDiscountPercent(membership.organizationId),
+      loadAiUsageOverview(membership.organizationId),
+      loadOwnedListingUsage(membership.organizationId),
+    ])
 
   const stateMessage = overview ? describeBillingState(overview) : null
   const portalAvailable = stripeConfigured && overview !== null && overview.planKey !== "trial"
@@ -262,11 +265,16 @@ export default async function AssinaturaPage({ searchParams }: AssinaturaPagePro
               <CardHeader>
                 <CardTitle>Uso do plano</CardTitle>
                 <CardDescription>
-                  O banco bloqueia novos usuários e publicações acima do limite; nada é apagado.
+                  Acima do limite, novos usuários, publicações e fotos de outro imóvel ficam
+                  bloqueados; nada é apagado.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <UsageMeters overview={overview} upgradeHref={isOwner ? "#planos" : undefined} />
+                <UsageMeters
+                  overview={overview}
+                  ownedListings={ownedListings}
+                  upgradeHref={isOwner ? "#planos" : undefined}
+                />
               </CardContent>
             </Card>
           </div>
@@ -331,7 +339,7 @@ export default async function AssinaturaPage({ searchParams }: AssinaturaPagePro
 
       <Card>
         <CardHeader>
-          <CardTitle>Add-ons</CardTitle>
+          <CardTitle>Adicionais</CardTitle>
           <CardDescription>Extras que chegam em breve, com os preços já definidos.</CardDescription>
         </CardHeader>
         <CardContent>

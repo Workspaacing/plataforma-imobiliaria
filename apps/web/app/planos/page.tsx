@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowRightIcon } from "lucide-react"
 
-import { TRIAL_DAYS } from "@workspace/core/billing"
+import { PLANS, TRIAL_BASE_PLAN, TRIAL_DAYS } from "@workspace/core/billing"
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
 import { Separator } from "@workspace/ui/components/separator"
@@ -110,8 +110,9 @@ export default async function PlanosPage() {
               Nenhum lead sem resposta.
             </h1>
             <p className="max-w-2xl text-lg text-balance text-muted-foreground">
-              Leads dos portais, das landing pages e do WhatsApp num funil só, com a equipe
-              atendendo rápido. Teste todos os recursos por {TRIAL_DAYS} dias, sem cartão.
+              Leads do ZAP, Viva Real, OLX, dos anúncios da Meta e das landing pages num funil só,
+              para a equipe atender rápido. Teste os recursos do plano {PLANS[TRIAL_BASE_PLAN].name}{" "}
+              por {TRIAL_DAYS} dias, sem cartão.
             </p>
             <div className="flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row">
               <Button size="lg" render={<Link href={SIGN_UP_PATH} />} nativeButton={false}>
@@ -136,7 +137,7 @@ export default async function PlanosPage() {
         <Section
           id="planos"
           title="Um plano para cada tamanho de operação"
-          description="Imóveis, condomínios e clientes ilimitados em todos os planos. Valores em reais."
+          description="Clientes e condomínios sem limite em todos os planos. Imóveis à venda ou para alugar com fotos hospedadas por nós seguem o limite de cada plano. Valores em reais."
         >
           <PricingPlans prices={prices} />
         </Section>
@@ -146,7 +147,7 @@ export default async function PlanosPage() {
         <Section
           id="recomendador"
           title="Qual plano combina com você?"
-          description="Responda três perguntas e veja o plano indicado, o total por mês e quanto economiza no anual."
+          description="Responda três perguntas e veja o plano de menor custo que atende a sua equipe e os seus imóveis com foto, o total por mês e quanto economiza no anual."
         >
           <PlanRecommender prices={prices} />
         </Section>
@@ -164,8 +165,8 @@ export default async function PlanosPage() {
         <Separator />
 
         <Section
-          id="add-ons"
-          title="Add-ons"
+          id="adicionais"
+          title="Adicionais"
           description="Extras para quando a operação crescer. Chegam em breve, com estes preços."
         >
           <AddonsList />

@@ -16,7 +16,10 @@ import { compareLeadOrder, planLeadPosition } from "@/lib/leads/position"
 import type { LeadItem } from "@/lib/leads/types"
 
 type LeadPatch = Partial<
-  Pick<LeadItem, "stage" | "position" | "lostReason" | "assignedTo" | "lastContactAt">
+  Pick<
+    LeadItem,
+    "stage" | "position" | "lostReason" | "assignedTo" | "lastContactAt" | "firstContactAt"
+  >
 >
 
 type OptimisticAction = { patches: { id: string; patch: LeadPatch }[] }
@@ -134,10 +137,13 @@ export function useLeadMutations(leads: LeadItem[], { managePositions }: UseLead
       (stage === "contacted" && lead.stage !== "contacted") ||
       (lead.stage === "new" && stage !== "new" && !lead.lastContactAt)
 
+    const contactAt = new Date().toISOString()
     const patch: LeadPatch = {
       stage,
       lostReason: reason,
-      lastContactAt: touchesContact ? new Date().toISOString() : lead.lastContactAt,
+      lastContactAt: touchesContact ? contactAt : lead.lastContactAt,
+      // O banco grava o primeiro contato uma vez só (leads_before_write).
+      firstContactAt: lead.firstContactAt ?? (touchesContact ? contactAt : null),
     }
 
     if (position !== null) {
@@ -197,10 +203,16 @@ export function useLeadMutations(leads: LeadItem[], { managePositions }: UseLead
     )
   }
 
+  /**
+   * "Registrar contato" e o botão WhatsApp da ficha: atualiza o último contato e,
+   * na primeira vez, o primeiro — o que tira o lead de "fora do prazo" na hora.
+   */
   function markContacted(leadId: string) {
     const lead = optimisticLeads.find((item) => item.id === leadId)
 
     if (!lead) return
+
+    const contactAt = new Date().toISOString()
 
     run(
       {
@@ -208,7 +220,8 @@ export function useLeadMutations(leads: LeadItem[], { managePositions }: UseLead
           {
             id: leadId,
             patch: {
-              lastContactAt: new Date().toISOString(),
+              lastContactAt: contactAt,
+              firstContactAt: lead.firstContactAt ?? contactAt,
               stage: lead.stage === "new" ? "contacted" : lead.stage,
             },
           },

@@ -3,6 +3,7 @@
 import * as React from "react"
 import { PlusIcon } from "lucide-react"
 
+import type { FormDraftScope } from "@workspace/core/forms/draft"
 import { Button } from "@workspace/ui/components/button"
 
 import type { ComboboxOption } from "@/components/propostas/option-combobox"
@@ -18,6 +19,7 @@ export function NewProposalButton({
   defaultPropertyId,
   defaultBrokerId,
   lockBroker,
+  draftScope,
 }: {
   properties: ProposalPropertyOption[]
   clients: ComboboxOption[]
@@ -26,6 +28,8 @@ export function NewProposalButton({
   defaultBrokerId?: string
   /** Corretor e captador: corretor da nova proposta travado no próprio usuário. */
   lockBroker?: boolean
+  /** Usuário + imobiliária do rascunho local (evita perguntar ao servidor ao abrir). */
+  draftScope?: FormDraftScope
 }) {
   const [open, setOpen] = React.useState(false)
 
@@ -44,6 +48,7 @@ export function NewProposalButton({
         defaultPropertyId={defaultPropertyId}
         defaultBrokerId={defaultBrokerId}
         lockBroker={lockBroker}
+        draftScope={draftScope}
       />
     </>
   )

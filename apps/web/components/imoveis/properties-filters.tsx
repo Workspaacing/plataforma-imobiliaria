@@ -6,6 +6,10 @@ import { useRouter } from "next/navigation"
 import { SearchIcon, XIcon } from "lucide-react"
 
 import {
+  AUTHORIZATION_LIST_FILTER_LABELS,
+  type AuthorizationListFilter,
+} from "@workspace/core/properties/authorization-alerts"
+import {
   LISTING_PURPOSE_LABELS,
   PROPERTY_STATUS_LABELS,
   PROPERTY_TYPE_LABELS,
@@ -40,6 +44,7 @@ export type PropertyFilterDefaults = {
   precoMin: string
   precoMax: string
   quartos: string
+  autorizacao: string
 }
 
 type Option = { label: string; value: string | null }
@@ -74,6 +79,14 @@ const TYPE_ITEMS: Option[] = [
 const BEDROOM_ITEMS: Option[] = [
   { label: "Qualquer", value: null },
   ...["1", "2", "3", "4", "5"].map((value) => ({ label: `${value}+`, value })),
+]
+
+const AUTHORIZATION_ITEMS: Option[] = [
+  { label: "Todas", value: null },
+  ...(Object.keys(AUTHORIZATION_LIST_FILTER_LABELS) as AuthorizationListFilter[]).map((value) => ({
+    label: AUTHORIZATION_LIST_FILTER_LABELS[value],
+    value,
+  })),
 ]
 
 /** Mesma ordem sempre: a string serve para comparar o que está na URL. */
@@ -230,7 +243,7 @@ export function PropertiesFilters({ defaults }: { defaults: PropertyFilterDefaul
             onValueChange={(tipo) => update({ tipo }, { immediate: true })}
           />
         </div>
-        <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-3 xl:grid-cols-[repeat(3,minmax(0,1fr))_auto]">
+        <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-[repeat(4,minmax(0,1fr))_auto]">
           <Field>
             <FieldLabel htmlFor="filtro-preco-min">Preço mínimo</FieldLabel>
             <InputGroup>
@@ -270,8 +283,15 @@ export function PropertiesFilters({ defaults }: { defaults: PropertyFilterDefaul
             value={values.quartos}
             onValueChange={(quartos) => update({ quartos }, { immediate: true })}
           />
+          <FilterSelect
+            id="filtro-autorizacao"
+            label="Autorização"
+            items={AUTHORIZATION_ITEMS}
+            value={values.autorizacao}
+            onValueChange={(autorizacao) => update({ autorizacao }, { immediate: true })}
+          />
           {hasFilters ? (
-            <div className="flex sm:col-span-3 xl:col-span-1">
+            <div className="flex sm:col-span-2 lg:col-span-4 xl:col-span-1">
               <Button
                 variant="ghost"
                 render={<Link href="/imoveis" scroll={false} />}
@@ -286,7 +306,8 @@ export function PropertiesFilters({ defaults }: { defaults: PropertyFilterDefaul
         </div>
         <p id="filtro-busca-ajuda" className="text-xs text-muted-foreground">
           A busca acontece sozinha enquanto você digita, por código (IMV-000123 ou só 123), título,
-          rua, bairro, cidade e nome do proprietário.
+          rua, bairro, cidade e nome do proprietário. O filtro de autorização considera só imóveis
+          em rascunho, ativos ou reservados.
         </p>
       </FieldGroup>
     </form>

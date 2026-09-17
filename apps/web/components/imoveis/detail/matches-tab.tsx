@@ -66,7 +66,7 @@ export function MatchesTab({ isActive, matches }: { isActive: boolean; matches: 
           <EmptyMedia variant="icon">
             <UserSearchIcon />
           </EmptyMedia>
-          <EmptyTitle>Match só para imóveis ativos</EmptyTitle>
+          <EmptyTitle>Compatíveis só para imóveis ativos</EmptyTitle>
           <EmptyDescription>
             Os clientes compatíveis são calculados apenas para imóveis com status Ativo. Ative o
             imóvel para ver quem procura algo parecido.
