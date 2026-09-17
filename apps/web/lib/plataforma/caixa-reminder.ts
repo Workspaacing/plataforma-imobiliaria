@@ -94,6 +94,7 @@ export async function runCaixaUploadReminder(now = new Date()): Promise<CaixaRem
       html: email.html,
       text: email.text,
       tags: ["caixa_lembrete_envio"],
+      quota: { kind: "caixa_reminder" },
       // Uma vez por pessoa por dia, mesmo que a rotina rode de novo.
       idempotencyKey: deriveIdempotencyKey("caixa_upload_reminder", day, address),
     })

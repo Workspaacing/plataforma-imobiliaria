@@ -33,6 +33,11 @@ export const EXPECTED_SERVER_KEY_SECRETS: readonly ExpectedServerKeySecret[] = [
     env: "CONNECTIONS_SERVER_KEY",
     label: "Contas conectadas e WhatsApp",
   },
+  {
+    name: "organization_deletion_server_key",
+    env: "ORGANIZATION_DELETION_SERVER_KEY",
+    label: "Exclusão de imobiliária",
+  },
 ]
 
 export type ExpectedWebhookSecretPair = {
@@ -59,6 +64,16 @@ export const EXPECTED_WEBHOOK_SECRET_PAIRS: readonly ExpectedWebhookSecretPair[]
     missingStatus: "atencao",
     missing:
       "Os avisos de lead (lead novo, prazo acabando) só saem na rotina diária da Vercel, e não em minutos.",
+  },
+  {
+    key: "lead_ingest",
+    label: "Webhook da nova tentativa de leads de portais e anúncios",
+    url: "lead_ingest_webhook_url",
+    secret: "lead_ingest_webhook_secret",
+    route: "/api/cron/lead-ingest",
+    missingStatus: "atencao",
+    missing:
+      "Um lead da Meta Lead Ads (ou de portal) cuja busca falhou só é tentado de novo na rotina diária da Vercel, e pode levar até 24 h para entrar no funil. Com os segredos, o banco chama a rota a cada 5 min quando há entrega vencida.",
   },
   {
     key: "visit_reminders",

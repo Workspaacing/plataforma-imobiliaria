@@ -27,6 +27,7 @@ const FULL: PlatformEnvSnapshot = {
   CAIXA_SERVER_KEY: "caixa-falso-0010",
   LEAD_INGEST_SERVER_KEY: "ingest-falso-0011",
   CONNECTIONS_SERVER_KEY: "conexoes-falso-0012",
+  ORGANIZATION_DELETION_SERVER_KEY: "exclusao-falso-0013",
   PLATFORM_SERVER_KEY: "plataforma-falso-0013",
   PLATFORM_ADMIN_EMAILS: "equipe@crm-falso.example, outra@crm-falso.example",
   META_APP_SECRET: "meta-falso-0014",

@@ -468,7 +468,12 @@ export type WeeklyReportEmailParams = {
   brokers: readonly WeeklyReportBroker[]
 }
 
-export const WEEKLY_REPORT_MAX_BROKERS = 20
+/**
+ * Corretores listados no corpo do e-mail (tamanho seguro: o Gmail corta
+ * mensagens com mais de ~102 KB). Acima disso, a lista completa vai em CSV
+ * anexo (weekly-report-csv.ts) e continua na tela de relatórios.
+ */
+export const WEEKLY_REPORT_MAX_BROKERS = 30
 
 function percent(part: number, total: number) {
   return total > 0 ? `${Math.round((part / total) * 100)}%` : null
@@ -522,11 +527,14 @@ export function weeklyReportEmail(params: WeeklyReportEmailParams): RenderedEmai
                   .join(" · "),
               }
             }),
-            note: moreNote(
-              Math.max(count(totals.brokersWithActivity), brokers.length),
-              brokers.length,
-              "na tela de relatórios"
-            ),
+            note:
+              params.brokers.length > brokers.length
+                ? `Mostrando ${numberFormat.format(brokers.length)} de ${numberFormat.format(params.brokers.length)} corretores. A lista completa está no anexo (planilha CSV) e na tela de relatórios.`
+                : moreNote(
+                    Math.max(count(totals.brokersWithActivity), brokers.length),
+                    brokers.length,
+                    "na tela de relatórios"
+                  ),
           },
         ]
       : []

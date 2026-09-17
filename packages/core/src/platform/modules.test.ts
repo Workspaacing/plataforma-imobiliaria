@@ -10,12 +10,14 @@ const NOW = new Date("2026-09-17T12:00:00Z")
 describe("evaluateVaultSecrets", () => {
   const allPresent = Object.fromEntries(PLATFORM_VAULT_SECRET_NAMES.map((name) => [name, true]))
 
-  it("pede os oito *_server_key e os dois pares de webhook", () => {
+  it("pede os nove *_server_key e os dois pares de webhook", () => {
     expect(PLATFORM_VAULT_SECRET_NAMES.filter((name) => name.endsWith("_server_key"))).toHaveLength(
-      8
+      9
     )
     expect(PLATFORM_VAULT_SECRET_NAMES).toContain("visit_reminders_webhook_url")
     expect(PLATFORM_VAULT_SECRET_NAMES).toContain("lead_alerts_webhook_secret")
+    expect(PLATFORM_VAULT_SECRET_NAMES).toContain("lead_ingest_webhook_url")
+    expect(PLATFORM_VAULT_SECRET_NAMES).toContain("lead_ingest_webhook_secret")
     expect(PLATFORM_VAULT_SECRET_NAMES.every((name) => /^[a-z][a-z0-9_]{2,62}$/.test(name))).toBe(
       true
     )
@@ -34,12 +36,16 @@ describe("evaluateVaultSecrets", () => {
         lead_alerts_webhook_secret: false,
         visit_reminders_webhook_url: false,
         visit_reminders_webhook_secret: false,
+        lead_ingest_webhook_url: false,
+        lead_ingest_webhook_secret: false,
       }).map((entry) => [entry.key, entry])
     )
 
     expect(items.get("vault_caixa_server_key")?.status).toBe("problema")
     expect(items.get("vault_lead_alerts")?.status).toBe("atencao")
     expect(items.get("vault_visit_reminders")?.status).toBe("problema")
+    expect(items.get("vault_lead_ingest")?.status).toBe("atencao")
+    expect(items.get("vault_lead_ingest")?.action).toContain("/api/cron/lead-ingest")
     expect(items.get("vault_visit_reminders")?.action).toContain(
       "/api/cron/daily-digest/visit-reminders"
     )

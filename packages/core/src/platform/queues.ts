@@ -96,7 +96,7 @@ const QUEUE_SPECS: Record<PlatformQueueKey, QueueSpec> = {
     label: "Entrada de leads de portais e anúncios",
     reference: "public.lead_integration_deliveries",
     staleAction:
-      "Confira LEAD_INGEST_SERVER_KEY e os logs de /api/cron/lead-ingest; entregas da Meta são tentadas de novo a cada 5 minutos.",
+      "Confira LEAD_INGEST_SERVER_KEY, os segredos lead_ingest_webhook_url e _secret no Vault (sem eles a nova tentativa só roda 1 vez por dia, na rotina da Vercel) e os logs de /api/cron/lead-ingest.",
     failedAction:
       "Entregas com falha são tentadas de novo. Se não baixarem, confira o token da Página da imobiliária e LEAD_INGEST_SERVER_KEY.",
     failedLabel: "com falha, aguardando nova tentativa",

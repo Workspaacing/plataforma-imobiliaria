@@ -126,7 +126,7 @@ describe("buildPlatformHealthSections", () => {
     }
 
     expect(byKey.get("variaveis")?.items.length).toBeGreaterThan(10)
-    expect(byKey.get("rotinas_vercel")?.items).toHaveLength(7)
+    expect(byKey.get("rotinas_vercel")?.items).toHaveLength(8)
     expect(byKey.get("caixa")?.items[0]?.status).toBe("atencao")
     // O modo da Stripe não depende do banco.
     expect(byKey.get("assinaturas")?.items[0]?.key).toBe("assinaturas_modo")

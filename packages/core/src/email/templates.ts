@@ -32,6 +32,8 @@ export const LEAD_SOURCE_EMAIL_LABELS = {
   portal: "Portal",
   website: "Site",
   social: "Redes sociais",
+  instagram: "Instagram",
+  whatsapp: "WhatsApp",
   referral: "Indicação",
   manual: "Cadastro manual",
   other: "Outro",

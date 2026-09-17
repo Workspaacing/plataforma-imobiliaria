@@ -31,6 +31,7 @@ export const PLATFORM_ENV_NAMES = [
   "CAIXA_SERVER_KEY",
   "LEAD_INGEST_SERVER_KEY",
   "CONNECTIONS_SERVER_KEY",
+  "ORGANIZATION_DELETION_SERVER_KEY",
   "PLATFORM_SERVER_KEY",
   "PLATFORM_ADMIN_EMAILS",
   "META_APP_SECRET",
@@ -197,6 +198,14 @@ const SERVER_KEYS: readonly ServerKeySpec[] = [
     label: "Chave das contas conectadas",
     missing: "WhatsApp oficial e contas conectadas desligados (opcional).",
     missingStatus: "ok",
+  },
+  {
+    env: "ORGANIZATION_DELETION_SERVER_KEY",
+    vault: "organization_deletion_server_key",
+    label: "Chave da exclusão de imobiliária",
+    missing:
+      "Imobiliária com exclusão agendada não recebe o aviso de 3 dias e os arquivos dela ficam no Storage depois da exclusão.",
+    missingStatus: "atencao",
   },
 ]
 

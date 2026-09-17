@@ -92,6 +92,7 @@ async function deliver(
       tags: ["status_incidente_automatico"],
       // Mesmo aviso reenviado em até 30 min não duplica na Brevo.
       idempotencyKey: deriveIdempotencyKey("status_alert", String(alert.id), address),
+      quota: { kind: "status_alert" },
     })
 
     if (result.ok) {
@@ -99,7 +100,11 @@ async function deliver(
       continue
     }
 
-    if (result.reason === "not_configured" || result.reason === "rate_limited") {
+    if (
+      result.reason === "not_configured" ||
+      result.reason === "rate_limited" ||
+      result.reason === "daily_quota"
+    ) {
       return { outcome: emails > 0 ? "sent" : "released", emails, halt: true }
     }
   }

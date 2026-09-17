@@ -195,6 +195,7 @@ async function deliverInvitation(
     html: email.html,
     text: email.text,
     tags: ["plataforma_equipe_convite"],
+    quota: { kind: "platform_team_invitation" },
     // Novo prazo a cada reenvio: o reenvio não é tratado como repetição.
     idempotencyKey: deriveIdempotencyKey(
       "platform_team_invitation",
@@ -550,6 +551,7 @@ export async function notifyPlatformOwnersOfTeamChange(notice: TeamChangeNotice)
         html: email.html,
         text: email.text,
         tags: ["plataforma_equipe_aviso"],
+        quota: { kind: "platform_team_notice" },
         idempotencyKey: deriveIdempotencyKey(
           "platform_team_notice",
           notice.kind,

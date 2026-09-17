@@ -3,7 +3,12 @@
 // fica no app (apps/web/lib/email).
 
 export type EmailFailureReason =
-  "not_configured" | "rate_limited" | "invalid_recipient" | "provider_error"
+  | "not_configured"
+  | "rate_limited"
+  | "invalid_recipient"
+  | "provider_error"
+  /** Negado pela cota diária da plataforma antes de chamar o provedor (email/quota). */
+  | "daily_quota"
 
 export type BrevoResponseOutcome =
   | { kind: "sent"; messageId: string | null }

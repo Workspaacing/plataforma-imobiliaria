@@ -304,7 +304,7 @@ export const VERCEL_CRONS: readonly VercelCron[] = [
   {
     path: "/api/cron/lead-ingest",
     schedule: "13 9 * * *",
-    label: "Reprocessamento de leads do Meta Lead Ads",
+    label: "Reprocessamento de leads do Meta Lead Ads (última rede; o pg_cron tenta a cada 5 min)",
   },
   {
     path: "/api/cron/authorization-alerts",
@@ -318,8 +318,13 @@ export const VERCEL_CRONS: readonly VercelCron[] = [
   },
   {
     path: "/api/cron/weekly-report",
-    schedule: "0 10 * * 1",
-    label: "Relatório semanal por e-mail",
+    schedule: "0 10 * * 1,2",
+    label: "Relatório semanal por e-mail (segunda, repescagem na terça)",
+  },
+  {
+    path: "/api/cron/organization-deletion",
+    schedule: "50 7 * * *",
+    label: "Exclusão de imobiliária (aviso de 3 dias e limpeza dos arquivos)",
   },
 ]
 

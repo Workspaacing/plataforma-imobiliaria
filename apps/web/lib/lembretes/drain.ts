@@ -20,7 +20,7 @@ export type DrainSummary = {
   invalidSlug: number
   /** Orçamento ou teto de lotes atingido com lote cheio: pode ter sobrado item. */
   truncated: boolean
-  /** Parou por configuração ausente ou cota diária estourada. */
+  /** Parou por configuração ausente ou cota diária estourada (do provedor ou da plataforma). */
   halted: boolean
   reasons: Record<string, number>
 }
@@ -93,6 +93,15 @@ export async function drainReminderQueue<T extends { id: string; organizationSlu
 
         if (result.sent > 0) {
           sent.push(item.id)
+          continue
+        }
+
+        // Cota diária da plataforma acabou para esta classe: nem tentou. Volta
+        // sem gastar tentativa (sai na próxima execução ou na repescagem) e o
+        // banco já marcou o aviso como não enviado.
+        if (result.reasons.daily_quota) {
+          released.push(item.id)
+          summary.halted = true
           continue
         }
 

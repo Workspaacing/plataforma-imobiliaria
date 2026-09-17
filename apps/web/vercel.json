@@ -28,7 +28,11 @@
     },
     {
       "path": "/api/cron/weekly-report",
-      "schedule": "0 10 * * 1"
+      "schedule": "0 10 * * 1,2"
+    },
+    {
+      "path": "/api/cron/organization-deletion",
+      "schedule": "50 7 * * *"
     }
   ]
 }

@@ -11,6 +11,7 @@ import {
 } from "@workspace/core/email/agenda-templates"
 import { buildVisitCalendar } from "@workspace/core/email/calendar"
 import { normalizeEmailAddress, isUuid } from "@workspace/core/email/sanitize"
+import { weeklyReportBrokersCsv } from "@workspace/core/email/weekly-report-csv"
 import {
   aiQuotaNoticeEmail,
   authorizationExpiringEmail,
@@ -250,7 +251,10 @@ export type VisitAssignedNotification = VisitReminderNotification & {
   assignedByName?: string | null
 }
 
-/** Relatório semanal ao gestor (cron de segunda). Um por pessoa, imobiliária e semana. */
+/**
+ * Relatório semanal ao gestor (cron de segunda, repescagem na terça). Um por
+ * pessoa, imobiliária e semana; com muitos corretores, leva o CSV completo.
+ */
 export type WeeklyReportNotification = {
   organizationSlug: string
   deliveryId: string
@@ -301,7 +305,11 @@ function invalidInput(kind: NotificationKind): NotificationSummary {
   return { ...emptySummary(kind), failed: 1, reasons: { invalid_input: 1 } }
 }
 
-async function deliver(kind: NotificationKind, outgoing: Outgoing[]): Promise<NotificationSummary> {
+async function deliver(
+  kind: NotificationKind,
+  organizationSlug: string,
+  outgoing: Outgoing[]
+): Promise<NotificationSummary> {
   const summary = emptySummary(kind)
   const items = outgoing.slice(0, MAX_RECIPIENTS)
 
@@ -321,6 +329,8 @@ async function deliver(kind: NotificationKind, outgoing: Outgoing[]): Promise<No
       tags: ["crm", kind],
       idempotencyKey: item.idempotencyKey,
       attachments: item.attachments,
+      // Prioridade na cota diária e cartão "Avisos não enviados hoje".
+      quota: { kind, organizationSlug },
     })
 
     if (result.ok) {
@@ -331,8 +341,13 @@ async function deliver(kind: NotificationKind, outgoing: Outgoing[]): Promise<No
     summary.failed += 1
     summary.reasons[result.reason] = (summary.reasons[result.reason] ?? 0) + 1
 
-    // Sem configuração ou sem cota: os próximos falhariam do mesmo jeito.
-    if (result.reason === "not_configured" || result.reason === "rate_limited") {
+    // Sem configuração ou sem cota (do provedor ou da plataforma): os próximos
+    // falhariam do mesmo jeito.
+    if (
+      result.reason === "not_configured" ||
+      result.reason === "rate_limited" ||
+      result.reason === "daily_quota"
+    ) {
       summary.skipped = items.length - index - 1
       break
     }
@@ -375,6 +390,7 @@ async function notifyNewLead(params: NewLeadNotification): Promise<NotificationS
 
   return deliver(
     "new_lead",
+    params.organizationSlug,
     recipients.map((recipient) => ({
       to: { email: recipient.email, name: recipient.fullName },
       email: newLeadEmail({
@@ -409,7 +425,7 @@ async function notifyLeadSlaNotice(
   const origin = buildTenantOrigin(params.organizationSlug)
   const brand = params.brand ?? (await loadOrganizationContext(params.organizationSlug))
 
-  return deliver("lead_sla_notice", [
+  return deliver("lead_sla_notice", params.organizationSlug, [
     {
       to: recipient,
       email: leadSlaNoticeEmail({
@@ -459,6 +475,7 @@ async function notifyCaptureRequest(
 
   return deliver(
     "capture_request",
+    params.organizationSlug,
     recipients.map((recipient) => ({
       to: { email: recipient.email, name: recipient.fullName },
       email: captureRequestEmail({
@@ -490,7 +507,7 @@ async function notifyTeamInvitation(
   const expiresAt =
     params.expiresAt instanceof Date ? params.expiresAt.toISOString() : params.expiresAt
 
-  return deliver("team_invitation", [
+  return deliver("team_invitation", params.organizationSlug, [
     {
       to: { email: to },
       email: teamInvitationEmail({
@@ -524,6 +541,7 @@ async function notifySubscription(
 
   return deliver(
     "subscription_notice",
+    params.organizationSlug,
     recipients.map((recipient) => ({
       to: recipient,
       email: subscriptionNoticeEmail({
@@ -561,6 +579,7 @@ async function notifyReferral(params: ReferralNoticeNotification): Promise<Notif
 
   return deliver(
     "referral_notice",
+    params.organizationSlug,
     recipients.map((recipient) => ({
       to: recipient,
       email: referralNoticeEmail({
@@ -600,6 +619,7 @@ async function notifyAiQuota(params: AiQuotaNoticeNotification): Promise<Notific
 
   return deliver(
     "ai_quota_notice",
+    params.organizationSlug,
     recipients.map((recipient) => ({
       to: recipient,
       email: aiQuotaNoticeEmail({
@@ -641,7 +661,7 @@ async function notifyAuthorizationExpiring(
   const origin = buildTenantOrigin(params.organizationSlug)
   const brand = params.brand ?? (await loadOrganizationContext(params.organizationSlug))
 
-  return deliver("authorization_expiring", [
+  return deliver("authorization_expiring", params.organizationSlug, [
     {
       to: recipient,
       email: authorizationExpiringEmail({
@@ -672,7 +692,7 @@ async function notifyDailyDigest(params: DailyDigestNotification): Promise<Notif
   const origin = buildTenantOrigin(params.organizationSlug)
   const brand = params.brand ?? (await loadOrganizationContext(params.organizationSlug))
 
-  return deliver("daily_digest", [
+  return deliver("daily_digest", params.organizationSlug, [
     {
       to: recipient,
       email: dailyDigestEmail({
@@ -719,7 +739,7 @@ async function notifyVisitReminder(
   const origin = buildTenantOrigin(params.organizationSlug)
   const brand = params.brand ?? (await loadOrganizationContext(params.organizationSlug))
 
-  return deliver("visit_reminder", [
+  return deliver("visit_reminder", params.organizationSlug, [
     {
       to: recipient,
       email: visitReminderEmail({
@@ -746,7 +766,7 @@ async function notifyVisitAssigned(
   const origin = buildTenantOrigin(params.organizationSlug)
   const brand = params.brand ?? (await loadOrganizationContext(params.organizationSlug))
 
-  return deliver("visit_assigned", [
+  return deliver("visit_assigned", params.organizationSlug, [
     {
       to: recipient,
       email: visitAssignedEmail({
@@ -762,6 +782,17 @@ async function notifyVisitAssigned(
   ])
 }
 
+/** Todos os corretores em CSV quando a lista passa do que cabe no corpo do e-mail. */
+function weeklyReportAttachments(report: WeeklyReportNotification["report"]): EmailAttachment[] {
+  const csv = weeklyReportBrokersCsv({
+    weekStart: report.weekStart,
+    weekEnd: report.weekEnd,
+    brokers: report.brokers,
+  })
+
+  return csv ? [csv] : []
+}
+
 async function notifyWeeklyReport(params: WeeklyReportNotification): Promise<NotificationSummary> {
   const recipient = normalizeRecipient(params.to)
 
@@ -772,7 +803,7 @@ async function notifyWeeklyReport(params: WeeklyReportNotification): Promise<Not
   const origin = buildTenantOrigin(params.organizationSlug)
   const brand = params.brand ?? (await loadOrganizationContext(params.organizationSlug))
 
-  return deliver("weekly_report", [
+  return deliver("weekly_report", params.organizationSlug, [
     {
       to: recipient,
       email: weeklyReportEmail({
@@ -782,6 +813,7 @@ async function notifyWeeklyReport(params: WeeklyReportNotification): Promise<Not
         recipientName: recipient.name,
       }),
       idempotencyKey: deriveIdempotencyKey("weekly_report", params.deliveryId, recipient.email),
+      attachments: weeklyReportAttachments(params.report),
     },
   ])
 }

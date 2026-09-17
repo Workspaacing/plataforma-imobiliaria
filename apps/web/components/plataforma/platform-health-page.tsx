@@ -2,6 +2,7 @@ import { summarizeHealth, type HealthStatus } from "@workspace/core/platform/hea
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card"
 
 import { PageHeading } from "@/components/crm/page-placeholder"
+import { EmailQuotaCard } from "@/components/plataforma/email-quota-card"
 import { HealthSectionCard } from "@/components/plataforma/health-section-card"
 import { HealthStatusBadge } from "@/components/plataforma/health-status-badge"
 import { PlatformRpcFailureAlert } from "@/components/plataforma/platform-rpc-failure-alert"
@@ -75,6 +76,8 @@ export async function PlatformHealthPage() {
       </Card>
 
       <PublicStatusSummaryCard snapshot={publicStatus} />
+
+      <EmailQuotaCard />
 
       {report.sections.map((section) => (
         <HealthSectionCard key={section.key} section={section} />

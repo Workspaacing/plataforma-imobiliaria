@@ -182,7 +182,13 @@ async function drainQueue(pushRuns: Promise<LeadAlertPushSummary>[]): Promise<Ru
           continue
         }
 
-        if (result.reasons.not_configured || result.reasons.rate_limited) {
+        // daily_quota: a cota do dia acabou até para lead novo (classe 1). O push
+        // deste lote já saiu; o que sobrou volta para a fila.
+        if (
+          result.reasons.not_configured ||
+          result.reasons.rate_limited ||
+          result.reasons.daily_quota
+        ) {
           summary.halted = true
           halted = true
           break

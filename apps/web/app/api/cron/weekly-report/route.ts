@@ -8,10 +8,16 @@ import {
 } from "@/lib/lembretes/weekly-report"
 
 /**
- * Relatório semanal ao gestor (Vercel Cron `0 10 * * 1` = segunda 07h de
- * Brasília; no Hobby dispara dentro da hora). Dono e gerentes com a preferência
- * ligada recebem os números da semana anterior (segunda a domingo): leads
- * recebidos, 1º contato mediano, visitas, propostas e ganhos por corretor.
+ * Relatório semanal ao gestor (Vercel Cron `0 10 * * 1,2` = segunda 07h de
+ * Brasília, com repescagem na terça no mesmo horário; no Hobby dispara dentro
+ * da hora). Dono e gerentes com a preferência ligada recebem os números da
+ * semana anterior (segunda a domingo): leads recebidos, 1º contato mediano,
+ * visitas, propostas e ganhos de todos os corretores com atividade — até 30 no
+ * corpo e a lista completa em CSV anexo.
+ *
+ * Repescagem: na terça o claim calcula a mesma semana e só pega quem ficou sem
+ * relatório na segunda (teto por execução, cota diária do e-mail ou falha); o
+ * que foi negado pela cota volta sem gastar tentativa (drainReminderQueue).
  *
  * Os números vêm prontos do banco (claim_weekly_reports chama
  * report_broker_performance e report_broker_visits, as funções da tela
@@ -25,7 +31,11 @@ import {
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
-/** Divide a cota diária da Brevo Free (300) com os demais avisos da segunda. */
+/**
+ * Por execução (segunda e terça). A cota diária é dividida por prioridade em
+ * lib/email/quota.ts: o relatório (classe 6) para quando o dia chega a 40% do
+ * limite, deixando o resto para lead novo, convites, lembretes e alertas.
+ */
 const MAX_EMAILS_PER_RUN = 40
 
 const BATCH_SIZE = 20

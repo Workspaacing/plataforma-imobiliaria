@@ -29,6 +29,17 @@ export type EmailMessage = {
   /** UUID; repetir o mesmo valor em até 30 min não duplica o envio. Sem ele, um novo por chamada. */
   idempotencyKey?: string
   attachments?: readonly EmailAttachment[]
+  /**
+   * Para a cota diária (lib/email/quota.ts): tipo do aviso (define a prioridade)
+   * e a imobiliária, para o cartão "Avisos não enviados hoje". Sem ele, conta
+   * como "other" (classe 4).
+   */
+  quota?: EmailQuotaTag
+}
+
+export type EmailQuotaTag = {
+  kind: string
+  organizationSlug?: string | null
 }
 
 export type EmailSendResult =
