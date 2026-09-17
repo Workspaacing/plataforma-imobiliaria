@@ -16,8 +16,7 @@ on:
     - cron: "17 6 * * *" # 03:17 em Brasília
   workflow_dispatch:
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
   group: backup-banco
@@ -39,6 +38,7 @@ jobs:
           sudo apt-get install -y -qq postgresql-client-17 age
 
       - name: Gerar dump cifrado
+        id: dump
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
           BACKUP_AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
@@ -49,7 +49,7 @@ jobs:
             exit 1
           fi
           stamp="$(date -u +%Y%m%dT%H%M%SZ)"
-          echo "STAMP=${stamp}" >> "$GITHUB_ENV"
+          echo "stamp=${stamp}" >> "$GITHUB_OUTPUT"
           # O dump nunca é gravado em claro: vai direto do pg_dump para o age.
           /usr/lib/postgresql/17/bin/pg_dump "${SUPABASE_DB_URL}" \
             --format=custom --no-owner --no-privileges \
@@ -58,9 +58,9 @@ jobs:
           ls -lh "backup-${stamp}.dump.age"
 
       - name: Guardar artefato cifrado
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: backup-banco-${{ env.STAMP }}
+          name: backup-banco-${{ steps.dump.outputs.stamp }}
           path: backup-*.dump.age
           retention-days: 30
           if-no-files-found: error
