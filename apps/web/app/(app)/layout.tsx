@@ -11,6 +11,7 @@ import { APP_NAME } from "@/components/crm/brand"
 import { CrmHeader } from "@/components/crm/crm-header"
 import { CrmLoadError } from "@/components/crm/crm-load-error"
 import { CrmSidebar } from "@/components/crm/crm-sidebar"
+import { OrganizationDeletionBanner } from "@/components/exclusao/organization-deletion-banner"
 import { PlatformAnnouncementBanner } from "@/components/crm/platform-announcement-banner"
 import { StatusIncidentBanner } from "@/components/crm/status-incident-banner"
 import { SupabaseSetupNotice } from "@/components/crm/supabase-setup-notice"
@@ -115,6 +116,13 @@ export default async function AppLayout({
           <CrmHeader
             supportSetupHref={platformConsoleHref ? `${platformConsoleHref}/saude` : null}
           />
+          {/* Exclusão da imobiliária agendada: explica o modo leitura e leva ao cancelamento. */}
+          <Suspense fallback={null}>
+            <OrganizationDeletionBanner
+              organizationId={membership.organizationId}
+              role={membership.role}
+            />
+          </Suspense>
           {/* Avisos de assinatura e da plataforma: não bloqueiam a página nem quebram se a RPC falhar. */}
           <Suspense fallback={null}>
             <SubscriptionBanner organizationId={membership.organizationId} role={membership.role} />

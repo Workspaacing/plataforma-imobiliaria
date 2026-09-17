@@ -1,6 +1,7 @@
 import { Suspense } from "react"
 import type { Metadata } from "next"
 import Link from "next/link"
+import { after } from "next/server"
 import {
   ArrowUpRightIcon,
   CalendarCheckIcon,
@@ -53,9 +54,11 @@ import {
   PainelChartSkeleton,
   PropertiesStatusCard,
 } from "@/components/painel/painel-charts"
+import { UndeliveredEmailsCard } from "@/components/painel/undelivered-emails-card"
 import { ROLE_PERMISSIONS_SETTINGS_PATH } from "@/components/shared/settings-config"
 import { ROLE_LABELS, TEAM_MANAGER_ROLES } from "@/lib/auth/roles"
 import { requireMembership } from "@/lib/auth/session"
+import { drainStoragePurgeQueue } from "@/lib/lixeira/storage"
 import { getDisplayPreferences } from "@/lib/preferencias/display"
 import { createClient } from "@/lib/supabase/server"
 
@@ -67,6 +70,8 @@ const TIME_ZONE = "America/Sao_Paulo"
 /** O Brasil não tem horário de verão desde 2019: Brasília é sempre UTC-3. */
 const BRASILIA_UTC_OFFSET = "-03:00"
 const ONE_DAY_MS = 24 * 60 * 60 * 1000
+/** Arquivos da fila do Storage removidos por visita ao Painel (depois da resposta). */
+const PAINEL_STORAGE_PURGE_BATCH = 50
 
 function getTodayRange(now: Date) {
   const today = new Intl.DateTimeFormat("en-CA", {
@@ -110,6 +115,25 @@ export default async function PainelPage({ searchParams }: PainelPageProps) {
 
   const supabase = await createClient()
   const organizationId = membership.organizationId
+
+  // Arquivos de registros apagados (lixeira, pedido do titular, rotina diária)
+  // saem do Storage aos poucos quando dono ou gerente abre o Painel, depois da
+  // resposta: não atrasa a página. O cliente é criado na renderização porque,
+  // em Server Component, cookies() não pode ser lido dentro do after().
+  if (TEAM_MANAGER_ROLES.includes(membership.role)) {
+    after(async () => {
+      try {
+        await drainStoragePurgeQueue(supabase, organizationId, {
+          limit: PAINEL_STORAGE_PURGE_BATCH,
+        })
+      } catch (error) {
+        console.error(
+          "[lixeira] limpeza do Storage pelo Painel falhou",
+          error instanceof Error ? error.name : "erro"
+        )
+      }
+    })
+  }
   const showGettingStarted =
     TEAM_MANAGER_ROLES.includes(membership.role) &&
     !(await getDisplayPreferences(user.id)).gettingStartedDismissed
@@ -265,6 +289,13 @@ export default async function PainelPage({ searchParams }: PainelPageProps) {
           <PainelCommissionCard userId={user.id} role={membership.role} />
         </Suspense>
       </div>
+
+      {/* Avisos que a cota diária de e-mail segurou: quem gerencia precisa saber. */}
+      {TEAM_MANAGER_ROLES.includes(membership.role) ? (
+        <Suspense fallback={null}>
+          <UndeliveredEmailsCard organizationId={organizationId} />
+        </Suspense>
+      ) : null}
 
       {/* Autorização vencendo: anunciar sem contrato vigente expõe a comissão. */}
       <div className="px-4 lg:px-6">

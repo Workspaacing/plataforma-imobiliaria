@@ -9,6 +9,7 @@ import {
 } from "@workspace/ui/components/card"
 
 import { PageHeading } from "@/components/crm/page-placeholder"
+import { DeleteAccountCard } from "@/components/exclusao/delete-account-card"
 import { PasswordForm } from "@/components/perfil/password-form"
 import { ProfileForm } from "@/components/perfil/profile-form"
 import { PushSettings, type PushDevice } from "@/components/push/push-settings"
@@ -18,6 +19,7 @@ import { ROLE_LABELS, TEAM_MANAGER_ROLES } from "@/lib/auth/roles"
 import { requireMembership, requireUser } from "@/lib/auth/session"
 import { todayInSaoPaulo } from "@/lib/configuracoes/dates"
 import { maskPhoneBr } from "@/lib/configuracoes/masks"
+import { getAccountDeletionBlockers } from "@/lib/exclusao/queries"
 import { getDisplayPreferences } from "@/lib/preferencias/display"
 import { getVapidConfig } from "@/lib/push/config"
 import { createClient } from "@/lib/supabase/server"
@@ -55,15 +57,17 @@ export default async function PerfilPage() {
   const supabase = await createClient()
   // Sem as chaves VAPID a opção de avisos no celular não aparece.
   const vapid = getVapidConfig()
-  const [{ data: profile, error }, pushDevices, display] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("full_name, phone, avatar_url, creci_number, creci_state, creci_valid_until")
-      .eq("id", user.id)
-      .maybeSingle(),
-    vapid ? loadPushDevices(supabase) : Promise.resolve(null),
-    getDisplayPreferences(user.id),
-  ])
+  const [{ data: profile, error }, pushDevices, display, accountDeletionBlockers] =
+    await Promise.all([
+      supabase
+        .from("profiles")
+        .select("full_name, phone, avatar_url, creci_number, creci_state, creci_valid_until")
+        .eq("id", user.id)
+        .maybeSingle(),
+      vapid ? loadPushDevices(supabase) : Promise.resolve(null),
+      getDisplayPreferences(user.id),
+      getAccountDeletionBlockers(),
+    ])
   const seesGettingStarted = TEAM_MANAGER_ROLES.includes(membership.role)
 
   if (error) {
@@ -159,6 +163,7 @@ export default async function PerfilPage() {
           <PasswordForm />
         </CardContent>
       </Card>
+      <DeleteAccountCard email={user.email} blockers={accountDeletionBlockers} />
     </PageShell>
   )
 }

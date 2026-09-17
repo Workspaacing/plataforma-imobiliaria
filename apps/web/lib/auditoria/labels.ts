@@ -21,6 +21,9 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   purge: "Excluiu permanentemente",
   anonymize: "Anonimizou os dados pessoais de",
   subject_request: "Atendeu pedido do titular (LGPD) sobre",
+  /** Exclusão da imobiliária (migração organization_and_account_deletion). */
+  deletion_scheduled: "Agendou a exclusão de",
+  deletion_canceled: "Cancelou a exclusão de",
 }
 
 /** Complemento do verbo, por tabela auditada. */
@@ -37,6 +40,7 @@ export const AUDIT_ENTITY_LABELS: Record<string, string> = {
   /** Exportação de relatório ou base: "Exportou os dados em planilha". */
   data_export: "em planilha",
   organization_permission_settings: "as permissões de exportação",
+  organizations: "toda a imobiliária",
 }
 
 const PROPERTY_FIELD_LABELS: Record<string, string> = {

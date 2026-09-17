@@ -7,6 +7,9 @@ type ServerClient = Awaited<ReturnType<typeof createClient>>
 /** Arquivos por chamada de remove (a Storage API aceita lotes). */
 const REMOVE_BATCH = 100
 
+/** Padrão ao abrir a Lixeira; o Painel passa um lote menor (roda depois da resposta). */
+const DEFAULT_LIMIT = 500
+
 /**
  * Remove do Storage os arquivos de registros já apagados ou anonimizados.
  *
@@ -15,11 +18,18 @@ const REMOVE_BATCH = 100
  * dono/gerente lê a fila, remove pela Storage API (políticas "lixeira: dono e
  * gerente ... fila de remoção") e baixa da fila o que sumiu. Sem service_role.
  * Falha não interrompe quem chamou: a fila continua e sai na próxima vez.
+ *
+ * Chamada ao abrir a Lixeira e, com lote pequeno, dentro de `after()` ao abrir o
+ * Painel (dono/gerente), para a fila não depender de alguém visitar a Lixeira.
  */
-export async function drainStoragePurgeQueue(supabase: ServerClient, organizationId: string) {
+export async function drainStoragePurgeQueue(
+  supabase: ServerClient,
+  organizationId: string,
+  { limit = DEFAULT_LIMIT }: { limit?: number } = {}
+) {
   const { data, error } = await supabase.rpc("list_storage_purge_queue", {
     p_organization_id: organizationId,
-    p_limit: 500,
+    p_limit: limit,
   })
 
   if (error || !data || data.length === 0) {
