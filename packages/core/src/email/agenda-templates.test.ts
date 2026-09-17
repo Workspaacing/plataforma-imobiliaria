@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest"
 
 import {
   dailyDigestEmail,
+  visitAssignedEmail,
   visitReminderEmail,
+  visitWhenLabel,
   weeklyReportEmail,
   type DailyDigestEmailParams,
 } from "./agenda-templates"
@@ -243,5 +245,57 @@ describe("weeklyReportEmail", () => {
         brokers: [],
       })
     ).toThrow(EmailTemplateError)
+  })
+})
+
+describe("visitAssignedEmail", () => {
+  const visit = {
+    id: VISIT_ID,
+    startsAt: "2026-09-17T12:00:00Z",
+    endsAt: "2026-09-17T13:00:00Z",
+    propertyCode: "IMV-000321",
+    propertyTitle: "Casa com quintal",
+    address: "Jardim Paulista, Ribeirão Preto/SP",
+    meetingPoint: null,
+    clientFirstName: "Pedro",
+  }
+
+  it("diz quem marcou, quando e traz o convite", () => {
+    const email = visitAssignedEmail({
+      origin: ORIGIN,
+      recipientName: "Carla",
+      assignedByName: "Júlia Assistente",
+      visit,
+      now: NOW,
+    })
+
+    expect(email.subject).toBe(
+      "Nova visita para você amanhã às 09:00: IMV-000321 · Casa com quintal"
+    )
+    expect(email.html).toContain("marcou uma visita para você amanhã às 09:00 com Pedro")
+    expect(email.text).toContain("Júlia Assistente")
+    expect(email.html).toContain(`${ORIGIN}${visitCalendarPath(VISIT_ID)}`)
+    expect(email.text).toContain("Meu perfil")
+  })
+
+  it("sem nome de quem marcou, fala da equipe", () => {
+    const email = visitAssignedEmail({ origin: ORIGIN, visit, now: NOW })
+
+    expect(email.text).toContain("Alguém da equipe marcou uma visita para você")
+  })
+
+  it("recusa visita sem horário válido", () => {
+    expect(() =>
+      visitAssignedEmail({ origin: ORIGIN, visit: { ...visit, startsAt: "amanhã" }, now: NOW })
+    ).toThrow(EmailTemplateError)
+  })
+})
+
+describe("visitWhenLabel", () => {
+  it("usa hoje, amanhã ou a data", () => {
+    expect(visitWhenLabel("2026-09-16T17:30:00Z", NOW)).toBe("hoje às 14:30")
+    expect(visitWhenLabel("2026-09-17T12:00:00Z", NOW)).toBe("amanhã às 09:00")
+    expect(visitWhenLabel("2026-09-20T13:00:00Z", NOW)).toBe("em 20/09 às 10:00")
+    expect(visitWhenLabel("inválido", NOW)).toBeNull()
   })
 })

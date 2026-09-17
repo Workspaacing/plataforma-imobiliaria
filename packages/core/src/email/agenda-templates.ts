@@ -295,25 +295,36 @@ export type VisitReminderEmailParams = {
   now?: Date
 }
 
+/** "hoje às 14:30", "amanhã às 09:00" ou "em 20/09/2026 às 10:00" (Brasília). */
+export function visitWhenLabel(startsAt: string, now: Date = new Date()): string | null {
+  const start = formatSaoPauloTime(startsAt)
+  const dayKey = toSaoPauloDateKey(startsAt)
+
+  if (!start || !dayKey) {
+    return null
+  }
+
+  const todayKey = toSaoPauloDateKey(now)
+
+  return dayKey === todayKey
+    ? `hoje às ${start}`
+    : todayKey && dayKey === addDaysToDateKey(todayKey, 1)
+      ? `amanhã às ${start}`
+      : `em ${formatDateKey(dayKey) ?? dayKey} às ${start}`
+}
+
 export function visitReminderEmail(params: VisitReminderEmailParams): RenderedEmail {
   const origin = requireOrigin(params.origin)
   const brand = resolveBrand(params.brand)
   const visitId = idOrNull(params.visit.id)
   const start = formatSaoPauloTime(params.visit.startsAt)
   const dayKey = toSaoPauloDateKey(params.visit.startsAt)
+  const when = visitWhenLabel(params.visit.startsAt, params.now ?? new Date())
 
-  if (!visitId || !start || !dayKey) {
+  if (!visitId || !start || !dayKey || !when) {
     throw new EmailTemplateError("Visita inválida para o lembrete.")
   }
 
-  const now = params.now ?? new Date()
-  const todayKey = toSaoPauloDateKey(now)
-  const when =
-    dayKey === todayKey
-      ? `hoje às ${start}`
-      : todayKey && dayKey === addDaysToDateKey(todayKey, 1)
-        ? `amanhã às ${start}`
-        : `em ${formatDateKey(dayKey) ?? dayKey} às ${start}`
   const line = visitLine(params.visit)
   const end = formatSaoPauloTime(params.visit.endsAt)
   const address = cleanText(params.visit.address, { maxLength: 200 })
@@ -352,6 +363,66 @@ export function visitReminderEmail(params: VisitReminderEmailParams): RenderedEm
       "Depois da visita, registre o retorno na agenda para não esquecer o próximo passo.",
     ],
     footer: `Você recebeu este e-mail porque é o corretor desta visita em ${brand.name} no CRM. Dá para desligar os lembretes em "Meu perfil".`,
+  })
+}
+
+// (b2) Visita marcada por outra pessoa --------------------------------------------
+
+export type VisitAssignedEmailParams = VisitReminderEmailParams & {
+  /** Quem marcou (ex.: a assistente); sem nome, "Alguém da equipe". */
+  assignedByName?: string | null
+}
+
+/** Aviso ao corretor quando outra pessoa marca ou remarca uma visita para ele. */
+export function visitAssignedEmail(params: VisitAssignedEmailParams): RenderedEmail {
+  const origin = requireOrigin(params.origin)
+  const brand = resolveBrand(params.brand)
+  const visitId = idOrNull(params.visit.id)
+  const start = formatSaoPauloTime(params.visit.startsAt)
+  const dayKey = toSaoPauloDateKey(params.visit.startsAt)
+  const when = visitWhenLabel(params.visit.startsAt, params.now ?? new Date())
+
+  if (!visitId || !start || !dayKey || !when) {
+    throw new EmailTemplateError("Visita inválida para o aviso.")
+  }
+
+  const line = visitLine(params.visit)
+  const end = formatSaoPauloTime(params.visit.endsAt)
+  const address = cleanText(params.visit.address, { maxLength: 200 })
+  const meeting = cleanText(params.visit.meetingPoint, { maxLength: 200 })
+  const client = cleanText(params.visit.clientFirstName, { maxLength: 40 })
+  const author = cleanText(params.assignedByName, { maxLength: 80 }) || "Alguém da equipe"
+
+  return renderEmail(params.brand, {
+    subject: `Nova visita para você ${when}: ${cleanText(line.property, { maxLength: 60 })}`,
+    preheader: `${author} marcou esta visita na sua agenda.`,
+    heading: "Visita marcada para você",
+    greeting: greetingFor(params.recipientName),
+    paragraphs: [
+      `${author} marcou uma visita para você ${when}${client ? ` com ${client}` : ""} ao imóvel ${line.property}.`,
+    ],
+    highlight: meeting ? `Ponto de encontro: ${meeting}` : null,
+    details: [
+      { label: "Horário", value: end ? `${start} às ${end}` : start },
+      { label: "Imóvel", value: line.property },
+      { label: "Endereço", value: address },
+      { label: "Cliente", value: client },
+    ],
+    action: {
+      label: "Abrir a visita na agenda",
+      url: requireLink(`/agenda?dia=${dayKey}`, origin),
+    },
+    secondaryActions: [
+      {
+        label: "Adicionar ao Google Agenda / Outlook",
+        url: requireLink(visitCalendarPath(visitId), origin),
+      },
+    ],
+    closing: [
+      "O convite da visita (arquivo .ics) vai em anexo: abra o arquivo no celular ou no computador para adicionar ao Google Agenda, ao Outlook ou ao Calendário da Apple.",
+      "Não pode ir? Avise quem marcou ou troque o corretor na agenda.",
+    ],
+    footer: `Você recebeu este e-mail porque é o corretor desta visita em ${brand.name} no CRM. Dá para desligar este aviso em "Meu perfil".`,
   })
 }
 
