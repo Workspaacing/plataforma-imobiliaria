@@ -74,6 +74,18 @@ const nextConfig: NextConfig = {
         source: "/api/imoveis/:id/ficha",
         headers: [{ key: "Content-Security-Policy", value: contentSecurityPolicy("'self'") }],
       },
+      {
+        // Service worker dos avisos no celular (public/sw.js), como no guia de PWA do
+        // Next.js (https://nextjs.org/docs/app/guides/progressive-web-apps): sem cache,
+        // para a versão nova valer na próxima visita, e CSP só com a própria origem.
+        // (Regra depois da geral: para a mesma chave, vale a última.)
+        source: "/sw.js",
+        headers: [
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Content-Security-Policy", value: "default-src 'self'; script-src 'self'" },
+        ],
+      },
     ]
   },
 }

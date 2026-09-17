@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "eslint",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "caixa:importar": "esbuild scripts/caixa-importar.ts --bundle --platform=node --target=node24 --format=cjs --conditions=react-server --log-level=warning --outfile=node_modules/.cache/caixa-importar/caixa-importar.cjs && node node_modules/.cache/caixa-importar/caixa-importar.cjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
@@ -41,6 +42,7 @@
     "recharts": "^3.10.1",
     "server-only": "^0.0.1",
     "stripe": "^22.6.2",
+    "web-push": "^3.6.7",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -48,6 +50,7 @@
     "@types/node": "^24.13.5",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/web-push": "^3.6.4",
     "@workspace/eslint-config": "*",
     "@workspace/typescript-config": "*",
     "eslint": "^10.10.0",

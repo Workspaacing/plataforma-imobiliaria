@@ -305,10 +305,10 @@ export type CaixaCatalogStatus = Pick<
 >
 
 /**
- * Estado do catálogo para a tela. `last_changed_at` é o "atualizado em" honesto:
- * é quando o catálogo mudou de verdade. `last_checked_at` só diz que
- * perguntamos à Caixa (a cada 30 minutos, quase sempre com resposta
- * "não mudou nada").
+ * Estado do catálogo para a tela. `lista_gerada_em` é a data que a própria
+ * Caixa declara no arquivo (a idade do dado); `last_changed_at` é quando a
+ * nossa cópia mudou de verdade. `last_checked_at` só diz que alguém tentou
+ * carregar (inclusive um arquivo igual ao anterior).
  */
 export async function getCaixaCatalogStatus(
   supabase: ServerSupabaseClient

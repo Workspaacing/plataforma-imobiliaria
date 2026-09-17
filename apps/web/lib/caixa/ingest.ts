@@ -4,116 +4,49 @@ import { createHash } from "node:crypto"
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js"
 
-import { parseCaixaCsv } from "@workspace/core/caixa/csv"
-import { caixaListingToRpcRow } from "@workspace/core/caixa/rpc-row"
+import {
+  CAIXA_MAX_FILE_BYTES,
+  caixaSyncFailed,
+  caixaSyncQuiet,
+  decodeCaixaCsvBytes,
+  EMPTY_CAIXA_SOURCE,
+  processCaixaListText,
+  type CaixaCatalogWriter,
+  type CaixaSourceFingerprint,
+  type CaixaSyncFailureReason,
+  type CaixaSyncOrigin,
+  type CaixaSyncOutcome,
+} from "@workspace/core/caixa/catalog-import"
 import { CAIXA_LIST_URL, CAIXA_ORIGIN } from "@workspace/core/caixa/source"
 import type { Database } from "@workspace/database/types"
 
 import { getSupabaseEnv } from "@/lib/supabase/env"
 
 /**
- * Sincronização do catálogo da Caixa por **requisição condicional**.
+ * Carga do catálogo da Caixa no servidor, em duas etapas separadas:
  *
- * A cada 30 minutos o cron pergunta se o arquivo mudou, mandando de volta o
- * `Last-Modified` (e o `ETag`, quando existe) da última carga:
- *
- * - `304 Not Modified` → não baixa, não analisa, não escreve no banco. Custa
- *   alguns cabeçalhos em vez de 2,83 MB;
- * - `200 OK` → baixa, valida e grava. Se o corpo vier idêntico ao anterior
- *   (comparação por SHA-256, para o caso de a resposta não trazer
- *   `Last-Modified`), o upsert é pulado do mesmo jeito.
- *
- * São 48 verificações por dia, quase todas de algumas centenas de bytes — menos
- * carga sobre a Caixa que um único download diário completo, e muito longe do
- * gatilho do bot manager (3 requisições em 60 s).
- *
- * **Falha não apaga nada e não repete na mesma execução.** Erro de rede, 5xx,
- * desafio de bot ou arquivo torto: registra o motivo, mantém o catálogo
- * anterior e espera os próximos 30 minutos. Insistir é exatamente o que dispara
- * o bloqueio, e contornar o desafio nunca é opção.
+ * 1. **obter o texto do CSV**
+ *    - `runCaixaCatalogImport`: o arquivo oficial que uma pessoa da equipe da
+ *      plataforma baixou no navegador e enviou em `/plataforma/caixa` (ou pelo
+ *      comando local `npm run caixa:importar`). É o caminho em uso;
+ *    - `runCaixaCatalogSync`: download direto do site da Caixa, com requisição
+ *      condicional. **Não está agendado**: o site responde 403 (proteção
+ *      anti-robô, que redireciona para um desafio) e contornar isso nunca é
+ *      opção. Fica aqui só para o dia em que a Caixa liberar o acesso;
+ * 2. **processar e gravar** — `processCaixaListText` (packages/core): mesmo
+ *    leitor, mesmas validações e as mesmas RPCs com `CAIXA_SERVER_KEY` (nunca
+ *    service_role) para as duas origens.
  */
 
-/** Linhas por chamada à RPC (o jsonb inteiro não cabe num POST do PostgREST). */
-const BATCH_SIZE = 500
-
-/** Piso de registros para a carga valer (o arquivo nacional tem ~8.100). */
-const MIN_LISTINGS = 1_000
+export type { CaixaSyncOutcome }
 
 /** Uma tentativa, 60 s. Sem laço de repetição. */
 const FETCH_TIMEOUT_MS = 60_000
 
-/** O arquivo tem ~2,9 MB; 20 MB é teto defensivo contra resposta inesperada. */
-const MAX_BYTES = 20 * 1024 * 1024
-
 const USER_AGENT =
-  "PlataformaImobiliariaCRM/1.0 (catalogo de imoveis da Caixa; verificacao condicional a cada 30 min)"
+  "PlataformaImobiliariaCRM/1.0 (catalogo de imoveis da Caixa; verificacao condicional)"
 
-type ServerClient = { supabase: SupabaseClient<Database>; serverKey: string }
-
-type SourceHeaders = {
-  lastModified: string | null
-  etag: string | null
-  digest: string | null
-}
-
-export type CaixaSyncOutcome =
-  | {
-      ok: true
-      /** `changed`: o catálogo mudou. `not_modified`/`unchanged`: nada a fazer. */
-      result: "changed" | "not_modified" | "unchanged"
-      generatedOn: string | null
-      received: number
-      accepted: number
-      inserted: number
-      updated: number
-      rejected: number
-      delisted: number
-      total: number
-      batches: number
-      /** Verificações sem mudança desde a mudança anterior. */
-      checksSinceChange: number
-    }
-  | {
-      ok: false
-      /** Motivo estável, sem texto livre: vai para o log e para a resposta. */
-      reason: string
-      detail?: string
-    }
-
-function failed(reason: string, detail?: string): CaixaSyncOutcome {
-  return detail ? { ok: false, reason, detail } : { ok: false, reason }
-}
-
-function quiet(result: "not_modified" | "unchanged", checksSinceChange: number): CaixaSyncOutcome {
-  return {
-    ok: true,
-    result,
-    generatedOn: null,
-    received: 0,
-    accepted: 0,
-    inserted: 0,
-    updated: 0,
-    rejected: 0,
-    delisted: 0,
-    total: 0,
-    batches: 0,
-    checksSinceChange,
-  }
-}
-
-function serverClient(serverKey: string): ServerClient | null {
-  const env = getSupabaseEnv()
-
-  if (!env) {
-    return null
-  }
-
-  const supabase = createClient<Database>(env.url, env.publishableKey, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-  })
-
-  return { supabase, serverKey }
-}
+type CatalogConnection = { supabase: SupabaseClient<Database>; serverKey: string }
 
 function readString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null
@@ -125,37 +58,241 @@ function readRecord(value: unknown): Record<string, unknown> {
     : {}
 }
 
-/** Registra a verificação que não mudou nada (ou que falhou). */
-async function recordCheck(
-  client: ServerClient,
-  result: "not_modified" | "unchanged" | "falha",
-  headers?: SourceHeaders,
-  failureReason?: string
-): Promise<number> {
-  const { data } = await client.supabase.rpc("record_caixa_check", {
-    p_server_key: client.serverKey,
-    p_result: result,
-    p_source_last_modified: headers?.lastModified ?? undefined,
-    p_source_etag: headers?.etag ?? undefined,
-    p_source_digest: headers?.digest ?? undefined,
-    p_failure_reason: failureReason,
+/** Cliente sem sessão (chave publishable) + chave do servidor exigida pelas RPCs. */
+function connect():
+  { ok: true; connection: CatalogConnection } | { ok: false; outcome: CaixaSyncOutcome } {
+  const serverKey = process.env.CAIXA_SERVER_KEY?.trim()
+
+  if (!serverKey) {
+    return { ok: false, outcome: caixaSyncFailed("sem_chave_do_servidor") }
+  }
+
+  const env = getSupabaseEnv()
+
+  if (!env) {
+    return { ok: false, outcome: caixaSyncFailed("supabase_nao_configurado") }
+  }
+
+  const supabase = createClient<Database>(env.url, env.publishableKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
   })
 
-  return Number(readRecord(data).checks_since_change ?? 0)
+  return { ok: true, connection: { supabase, serverKey } }
 }
+
+/** As RPCs do catálogo, com a chave do servidor e a origem do arquivo. */
+function catalogWriter({ supabase, serverKey }: CatalogConnection): CaixaCatalogWriter {
+  return {
+    async ingestBatch({ syncId, generatedOn, rows }) {
+      const { data, error } = await supabase.rpc("ingest_caixa_listings", {
+        p_server_key: serverKey,
+        p_sync_id: syncId,
+        p_generated_on: generatedOn ?? undefined,
+        p_rows: rows,
+      })
+
+      return error ? { ok: false, code: error.code ?? null } : { ok: true, data: readRecord(data) }
+    },
+    async finish({ syncId, generatedOn, rejected, source, origin }) {
+      const { data, error } = await supabase.rpc("finish_caixa_sync", {
+        p_server_key: serverKey,
+        p_sync_id: syncId,
+        p_generated_on: generatedOn ?? undefined,
+        p_rejected: rejected,
+        p_source_last_modified: source.lastModified ?? undefined,
+        p_source_etag: source.etag ?? undefined,
+        p_source_digest: source.digest ?? undefined,
+        p_origem: origin,
+      })
+
+      return error ? { ok: false, code: error.code ?? null } : { ok: true, data: readRecord(data) }
+    },
+    async recordCheck({ result, source, failureReason, origin }) {
+      const { data } = await supabase.rpc("record_caixa_check", {
+        p_server_key: serverKey,
+        p_result: result,
+        p_source_last_modified: source?.lastModified ?? undefined,
+        p_source_etag: source?.etag ?? undefined,
+        p_source_digest: source?.digest ?? undefined,
+        p_failure_reason: failureReason ?? undefined,
+        p_origem: origin,
+      })
+
+      return Number(readRecord(data).checks_since_change ?? 0)
+    },
+  }
+}
+
+/** Assinatura da última carga gravada (Last-Modified, ETag e SHA-256). */
+async function readPreviousSource(
+  connection: CatalogConnection
+): Promise<{ ok: true; previous: CaixaSourceFingerprint } | { ok: false; code: string | null }> {
+  const { data, error } = await connection.supabase.rpc("get_caixa_sync_state", {
+    p_server_key: connection.serverKey,
+  })
+
+  if (error) {
+    return { ok: false, code: error.code ?? null }
+  }
+
+  const state = readRecord(data)
+
+  return {
+    ok: true,
+    previous: {
+      lastModified: readString(state.source_last_modified),
+      etag: readString(state.source_etag),
+      digest: readString(state.source_digest),
+    },
+  }
+}
+
+/** SHA-256 (hex) dos bytes do arquivo: reenviar o mesmo arquivo não regrava nada. */
+export function digestCaixaListBytes(bytes: Uint8Array): string {
+  return createHash("sha256").update(bytes).digest("hex")
+}
+
+export type CaixaCatalogState = {
+  /** Data declarada pela Caixa no arquivo da última carga (ISO). */
+  generatedOn: string | null
+  /** Quando a última carga terminou. */
+  syncedAt: string | null
+  totalActive: number
+}
+
+/**
+ * Estado da última carga lido sem sessão (chave do servidor), para a rotina
+ * diária do lembrete. As telas leem `caixa_catalog_status` com a sessão.
+ */
+export async function readCaixaCatalogState(): Promise<
+  { ok: true; state: CaixaCatalogState } | { ok: false; reason: CaixaSyncFailureReason }
+> {
+  const connected = connect()
+
+  if (!connected.ok) {
+    return {
+      ok: false,
+      reason: connected.outcome.ok ? "estado_indisponivel" : connected.outcome.reason,
+    }
+  }
+
+  const { data, error } = await connected.connection.supabase.rpc("get_caixa_sync_state", {
+    p_server_key: connected.connection.serverKey,
+  })
+
+  if (error) {
+    return { ok: false, reason: "estado_indisponivel" }
+  }
+
+  const state = readRecord(data)
+
+  return {
+    ok: true,
+    state: {
+      generatedOn: readString(state.lista_gerada_em),
+      syncedAt: readString(state.sincronizado_em),
+      totalActive: Number(state.total_ativo ?? 0) || 0,
+    },
+  }
+}
+
+async function processText(
+  connection: CatalogConnection,
+  text: string,
+  source: CaixaSourceFingerprint,
+  previous: CaixaSourceFingerprint,
+  origin: CaixaSyncOrigin
+) {
+  return processCaixaListText(
+    { text, source, previous, origin, mode: "gravar", newSyncId: () => crypto.randomUUID() },
+    catalogWriter(connection)
+  )
+}
+
+// -----------------------------------------------------------------------------
+// Obter o texto: envio manual (o caminho em uso)
+// -----------------------------------------------------------------------------
+
+export type CaixaImportMeta = {
+  /** SHA-256 (hex) dos bytes do arquivo enviado (`digestCaixaListBytes`). */
+  digest: string
+  /**
+   * `true`: só valida e resume o arquivo — não conecta ao banco, não precisa
+   * da chave do servidor e não grava nada.
+   */
+  simulate?: boolean
+}
+
+const DIGEST_PATTERN = /^[0-9a-f]{64}$/
+
+/** Na simulação nenhuma RPC pode ser chamada; se for, é erro de programação. */
+const simulationWriter: CaixaCatalogWriter = {
+  ingestBatch: () => Promise.reject(new Error("simulação não grava lotes")),
+  finish: () => Promise.reject(new Error("simulação não fecha carga")),
+  recordCheck: () => Promise.reject(new Error("simulação não registra verificação")),
+}
+
+/**
+ * Carga do arquivo oficial enviado pela equipe da plataforma. `text` é o CSV
+ * já decodificado (`decodeCaixaCsvBytes`). Quem chama confere antes quem
+ * enviou (`requirePlatformAdmin`) e o tamanho do arquivo.
+ */
+export async function runCaixaCatalogImport(
+  text: string,
+  meta: CaixaImportMeta
+): Promise<CaixaSyncOutcome> {
+  const digest = meta.digest.toLowerCase()
+  const source: CaixaSourceFingerprint = {
+    ...EMPTY_CAIXA_SOURCE,
+    digest: DIGEST_PATTERN.test(digest) ? digest : null,
+  }
+
+  if (meta.simulate) {
+    return processCaixaListText(
+      {
+        text,
+        source,
+        previous: EMPTY_CAIXA_SOURCE,
+        origin: "envio_manual",
+        mode: "simular",
+        newSyncId: () => crypto.randomUUID(),
+      },
+      simulationWriter
+    )
+  }
+
+  const connected = connect()
+
+  if (!connected.ok) {
+    return connected.outcome
+  }
+
+  const state = await readPreviousSource(connected.connection)
+
+  if (!state.ok) {
+    return caixaSyncFailed("estado_indisponivel", state.code ?? undefined)
+  }
+
+  return processText(connected.connection, text, source, state.previous, "envio_manual")
+}
+
+// -----------------------------------------------------------------------------
+// Obter o texto: download direto (NÃO agendado; bloqueado pelo site da Caixa)
+// -----------------------------------------------------------------------------
 
 type DownloadResult =
   | { status: "not_modified" }
-  | { status: "ok"; text: string; headers: SourceHeaders }
-  | { status: "failed"; reason: string; detail?: string }
+  | { status: "ok"; text: string; source: CaixaSourceFingerprint }
+  | { status: "failed"; reason: CaixaSyncFailureReason; detail?: string }
 
 /**
- * Pergunta à Caixa se o arquivo mudou. Qualquer sinal de que não veio o CSV
- * esperado — fora do ar, redirecionamento para outro host (o desafio do bot
- * manager sai por aí), página HTML ou tamanho absurdo — vira falha, e falha
- * mantém o catálogo anterior.
+ * Pergunta à Caixa se o arquivo mudou (If-Modified-Since / If-None-Match).
+ * Qualquer sinal de que não veio o CSV esperado — fora do ar, redirecionamento
+ * para outro host (o desafio anti-robô sai por aí), página HTML ou tamanho
+ * absurdo — vira falha, e falha mantém o catálogo anterior. Uma tentativa só:
+ * insistir é o que dispara o bloqueio, e resolver o desafio nunca é opção.
  */
-async function downloadListFile(previous: SourceHeaders): Promise<DownloadResult> {
+async function downloadListFile(previous: CaixaSourceFingerprint): Promise<DownloadResult> {
   const headers: Record<string, string> = {
     "User-Agent": USER_AGENT,
     Accept: "text/csv,application/octet-stream;q=0.9,*/*;q=0.1",
@@ -182,7 +319,6 @@ async function downloadListFile(previous: SourceHeaders): Promise<DownloadResult
     return { status: "failed", reason: "download_falhou" }
   }
 
-  // O caso comum: nada mudou desde a última carga.
   if (response.status === 304) {
     return { status: "not_modified" }
   }
@@ -191,8 +327,6 @@ async function downloadListFile(previous: SourceHeaders): Promise<DownloadResult
     return { status: "failed", reason: "http_nao_ok", detail: String(response.status) }
   }
 
-  // O desafio do bot manager responde com 302 para outro host. Se acontecer,
-  // desistimos da rodada — nunca tentar resolver o desafio.
   if (response.url && !response.url.startsWith(`${CAIXA_ORIGIN}/`)) {
     return { status: "failed", reason: "redirecionado" }
   }
@@ -205,7 +339,7 @@ async function downloadListFile(previous: SourceHeaders): Promise<DownloadResult
 
   const declaredLength = Number(response.headers.get("content-length") ?? "0")
 
-  if (Number.isFinite(declaredLength) && declaredLength > MAX_BYTES) {
+  if (Number.isFinite(declaredLength) && declaredLength > CAIXA_MAX_FILE_BYTES) {
     return { status: "failed", reason: "arquivo_grande_demais", detail: String(declaredLength) }
   }
 
@@ -217,7 +351,7 @@ async function downloadListFile(previous: SourceHeaders): Promise<DownloadResult
     return { status: "failed", reason: "leitura_falhou" }
   }
 
-  if (buffer.byteLength > MAX_BYTES) {
+  if (buffer.byteLength > CAIXA_MAX_FILE_BYTES) {
     return { status: "failed", reason: "arquivo_grande_demais", detail: String(buffer.byteLength) }
   }
 
@@ -225,136 +359,61 @@ async function downloadListFile(previous: SourceHeaders): Promise<DownloadResult
 
   return {
     status: "ok",
-    // O arquivo é publicado em Windows-1252, não em UTF-8.
-    text: new TextDecoder("windows-1252").decode(bytes),
-    headers: {
+    text: decodeCaixaCsvBytes(bytes),
+    source: {
       lastModified: response.headers.get("last-modified"),
       etag: response.headers.get("etag"),
-      digest: createHash("sha256").update(bytes).digest("hex"),
+      digest: digestCaixaListBytes(bytes),
     },
   }
 }
 
+/**
+ * Download direto + carga. **Não chame em rotina agendada** enquanto o site da
+ * Caixa bloquear robôs: a rota /api/cron/caixa-catalog não usa mais esta função.
+ */
 export async function runCaixaCatalogSync(): Promise<CaixaSyncOutcome> {
-  const serverKey = process.env.CAIXA_SERVER_KEY?.trim()
+  const connected = connect()
 
-  if (!serverKey) {
-    return failed("sem_chave_do_servidor")
+  if (!connected.ok) {
+    return connected.outcome
   }
 
-  const client = serverClient(serverKey)
+  const { connection } = connected
+  const state = await readPreviousSource(connection)
 
-  if (!client) {
-    return failed("supabase_nao_configurado")
+  if (!state.ok) {
+    return caixaSyncFailed("estado_indisponivel", state.code ?? undefined)
   }
 
-  const { data: stateData, error: stateError } = await client.supabase.rpc("get_caixa_sync_state", {
-    p_server_key: client.serverKey,
-  })
-
-  if (stateError) {
-    return failed("estado_indisponivel", stateError.code ?? undefined)
-  }
-
-  const state = readRecord(stateData)
-  const previous: SourceHeaders = {
-    lastModified: readString(state.source_last_modified),
-    etag: readString(state.source_etag),
-    digest: readString(state.source_digest),
-  }
-
-  const downloaded = await downloadListFile(previous)
+  const writer = catalogWriter(connection)
+  const downloaded = await downloadListFile(state.previous)
 
   if (downloaded.status === "failed") {
-    await recordCheck(client, "falha", undefined, downloaded.reason)
-    return failed(downloaded.reason, downloaded.detail)
+    await writer.recordCheck({
+      result: "falha",
+      source: null,
+      failureReason: downloaded.reason,
+      origin: "download_automatico",
+    })
+    return caixaSyncFailed(downloaded.reason, downloaded.detail)
   }
 
   if (downloaded.status === "not_modified") {
-    return quiet("not_modified", await recordCheck(client, "not_modified"))
-  }
-
-  // Sem `Last-Modified` na resposta, o SHA-256 do corpo ainda evita mexer no
-  // banco à toa: baixou os 2,83 MB, mas não há o que gravar.
-  if (previous.digest && downloaded.headers.digest === previous.digest) {
-    return quiet("unchanged", await recordCheck(client, "unchanged", downloaded.headers))
-  }
-
-  const parsed = parseCaixaCsv(downloaded.text)
-
-  if (!parsed.ok) {
-    // Cabeçalho diferente = a Caixa mudou o formato. Abortar preserva o dado
-    // anterior; o log traz o cabeçalho encontrado para a correção ser rápida.
-    const reason = parsed.reason === "cabecalho" ? "cabecalho_mudou" : "arquivo_vazio"
-    await recordCheck(client, "falha", undefined, reason)
-    return failed(reason, parsed.foundHeader ?? undefined)
-  }
-
-  if (parsed.rows.length < MIN_LISTINGS) {
-    await recordCheck(client, "falha", undefined, "poucos_registros")
-    return failed("poucos_registros", String(parsed.rows.length))
-  }
-
-  const syncId = crypto.randomUUID()
-  const totals = { received: 0, accepted: 0, inserted: 0, updated: 0, rejected: 0 }
-  let batches = 0
-
-  for (let start = 0; start < parsed.rows.length; start += BATCH_SIZE) {
-    const batch = parsed.rows.slice(start, start + BATCH_SIZE).map(caixaListingToRpcRow)
-    const { data, error } = await client.supabase.rpc("ingest_caixa_listings", {
-      p_server_key: client.serverKey,
-      p_sync_id: syncId,
-      p_generated_on: parsed.generatedOn ?? undefined,
-      p_rows: batch,
+    const checks = await writer.recordCheck({
+      result: "not_modified",
+      source: null,
+      failureReason: null,
+      origin: "download_automatico",
     })
-
-    if (error) {
-      // Sem fechar a carga, nada é marcado como "saiu da lista": o catálogo
-      // anterior continua íntegro e a próxima verificação tenta de novo.
-      await recordCheck(client, "falha", undefined, "gravacao_falhou")
-      return failed("gravacao_falhou", error.code ?? undefined)
-    }
-
-    batches += 1
-
-    const counts = readRecord(data)
-    totals.received += Number(counts.received ?? 0)
-    totals.accepted += Number(counts.accepted ?? 0)
-    totals.inserted += Number(counts.inserted ?? 0)
-    totals.updated += Number(counts.updated ?? 0)
-    totals.rejected += Number(counts.rejected ?? 0)
+    return caixaSyncQuiet("not_modified", checks)
   }
 
-  const { data: finish, error: finishError } = await client.supabase.rpc("finish_caixa_sync", {
-    p_server_key: client.serverKey,
-    p_sync_id: syncId,
-    p_generated_on: parsed.generatedOn ?? undefined,
-    p_rejected: parsed.rejected.length + totals.rejected,
-    p_source_last_modified: downloaded.headers.lastModified ?? undefined,
-    p_source_etag: downloaded.headers.etag ?? undefined,
-    p_source_digest: downloaded.headers.digest ?? undefined,
-  })
-
-  if (finishError) {
-    await recordCheck(client, "falha", undefined, "fechamento_falhou")
-    return failed("fechamento_falhou", finishError.code ?? undefined)
-  }
-
-  const summary = readRecord(finish)
-
-  return {
-    ok: true,
-    result: "changed",
-    generatedOn: parsed.generatedOn,
-    received: totals.received,
-    accepted: totals.accepted,
-    inserted: totals.inserted,
-    updated: totals.updated,
-    // Linhas recusadas na leitura do arquivo + linhas recusadas no banco.
-    rejected: parsed.rejected.length + totals.rejected,
-    delisted: Number(summary.delisted ?? 0),
-    total: Number(summary.total ?? 0),
-    batches,
-    checksSinceChange: Number(summary.checks_since_change ?? 0),
-  }
+  return processText(
+    connection,
+    downloaded.text,
+    downloaded.source,
+    state.previous,
+    "download_automatico"
+  )
 }

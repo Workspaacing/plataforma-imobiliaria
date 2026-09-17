@@ -27,6 +27,8 @@
         "NOTIFICATION_SERVER_KEY",
         "CAIXA_SERVER_KEY",
         "CAIXA_PHOTOS_ENABLED",
+        "PLATFORM_ADMIN_EMAILS",
+        "PLATFORM_SERVER_KEY",
         "LEAD_INGEST_SERVER_KEY",
         "META_APP_SECRET",
         "META_WEBHOOK_VERIFY_TOKEN",
@@ -37,7 +39,10 @@
         "BREVO_API_KEY",
         "EMAIL_FROM_ADDRESS",
         "EMAIL_FROM_NAME",
-        "EMAIL_REPLY_TO"
+        "EMAIL_REPLY_TO",
+        "NEXT_PUBLIC_VAPID_PUBLIC_KEY",
+        "VAPID_PRIVATE_KEY",
+        "VAPID_SUBJECT"
       ],
       "outputs": [".next/**", "!.next/cache/**"]
     },
