@@ -1610,6 +1610,112 @@ export type Database = {
           },
         ]
       }
+      import_job_batches: {
+        Row: {
+          batch_index: number
+          created_at: string
+          failed_count: number
+          inserted_count: number
+          job_id: string
+          organization_id: string
+          results: Json
+          row_count: number
+          skipped_count: number
+          updated_count: number
+        }
+        Insert: {
+          batch_index: number
+          created_at?: string
+          failed_count?: number
+          inserted_count?: number
+          job_id: string
+          organization_id: string
+          results?: Json
+          row_count: number
+          skipped_count?: number
+          updated_count?: number
+        }
+        Update: {
+          batch_index?: number
+          created_at?: string
+          failed_count?: number
+          inserted_count?: number
+          job_id?: string
+          organization_id?: string
+          results?: Json
+          row_count?: number
+          skipped_count?: number
+          updated_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_job_batches_job_fkey"
+            columns: ["organization_id", "job_id"]
+            isOneToOne: false
+            referencedRelation: "import_jobs"
+            referencedColumns: ["organization_id", "id"]
+          },
+        ]
+      }
+      import_jobs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          duplicate_mode: Database["public"]["Enums"]["import_duplicate_mode"]
+          failed_count: number
+          finished_at: string | null
+          id: string
+          inserted_count: number
+          kind: Database["public"]["Enums"]["import_kind"]
+          options: Json
+          organization_id: string
+          skipped_count: number
+          total_rows: number
+          updated_at: string
+          updated_count: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          duplicate_mode?: Database["public"]["Enums"]["import_duplicate_mode"]
+          failed_count?: number
+          finished_at?: string | null
+          id?: string
+          inserted_count?: number
+          kind: Database["public"]["Enums"]["import_kind"]
+          options?: Json
+          organization_id: string
+          skipped_count?: number
+          total_rows: number
+          updated_at?: string
+          updated_count?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          duplicate_mode?: Database["public"]["Enums"]["import_duplicate_mode"]
+          failed_count?: number
+          finished_at?: string | null
+          id?: string
+          inserted_count?: number
+          kind?: Database["public"]["Enums"]["import_kind"]
+          options?: Json
+          organization_id?: string
+          skipped_count?: number
+          total_rows?: number
+          updated_at?: string
+          updated_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_jobs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invitations: {
         Row: {
           accepted_at: string | null
@@ -2244,6 +2350,7 @@ export type Database = {
           created_by: string | null
           email: string | null
           event_id: string | null
+          first_contact_at: string | null
           first_response_due_at: string | null
           id: string
           interest: string | null
@@ -2259,6 +2366,7 @@ export type Database = {
           property_id: string | null
           referrer: string | null
           routing_due_at: string | null
+          sla_breached_at: string | null
           sla_reassignments: number
           sla_warned_at: string | null
           source: Database["public"]["Enums"]["lead_source"]
@@ -2277,6 +2385,7 @@ export type Database = {
           created_by?: string | null
           email?: string | null
           event_id?: string | null
+          first_contact_at?: string | null
           first_response_due_at?: string | null
           id?: string
           interest?: string | null
@@ -2292,6 +2401,7 @@ export type Database = {
           property_id?: string | null
           referrer?: string | null
           routing_due_at?: string | null
+          sla_breached_at?: string | null
           sla_reassignments?: number
           sla_warned_at?: string | null
           source?: Database["public"]["Enums"]["lead_source"]
@@ -2310,6 +2420,7 @@ export type Database = {
           created_by?: string | null
           email?: string | null
           event_id?: string | null
+          first_contact_at?: string | null
           first_response_due_at?: string | null
           id?: string
           interest?: string | null
@@ -2325,6 +2436,7 @@ export type Database = {
           property_id?: string | null
           referrer?: string | null
           routing_due_at?: string | null
+          sla_breached_at?: string | null
           sla_reassignments?: number
           sla_warned_at?: string | null
           source?: Database["public"]["Enums"]["lead_source"]
@@ -2475,6 +2587,38 @@ export type Database = {
           },
         ]
       }
+      organization_permission_settings: {
+        Row: {
+          created_at: string
+          export_roles: Database["public"]["Enums"]["app_role"][]
+          organization_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          export_roles?: Database["public"]["Enums"]["app_role"][]
+          organization_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          export_roles?: Database["public"]["Enums"]["app_role"][]
+          organization_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_permission_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organizations: {
         Row: {
           brand: Json
@@ -2602,6 +2746,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           description: string | null
+          external_code: string | null
           features: string[]
           floor: number | null
           furnished: boolean
@@ -2649,6 +2794,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          external_code?: string | null
           features?: string[]
           floor?: number | null
           furnished?: boolean
@@ -2696,6 +2842,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          external_code?: string | null
           features?: string[]
           floor?: number | null
           furnished?: boolean
@@ -3529,6 +3676,30 @@ export type Database = {
         Returns: Json
       }
       caixa_catalog_facets: { Args: { p_uf?: string }; Returns: Json }
+      claim_authorization_alerts: {
+        Args: { p_limit?: number; p_server_key: string }
+        Returns: {
+          brand_color: string
+          days_left: number
+          ends_on: string
+          exclusive: boolean
+          id: string
+          milestone: number
+          organization_id: string
+          organization_name: string
+          organization_slug: string
+          property_city: string
+          property_code: string
+          property_id: string
+          property_neighborhood: string
+          property_state: string
+          property_title: string
+          recipient_email: string
+          recipient_is_manager: boolean
+          recipient_name: string
+          recipient_user_id: string
+        }[]
+      }
       claim_lead_deliveries: {
         Args: { p_limit?: number; p_server_key: string }
         Returns: {
@@ -3602,6 +3773,10 @@ export type Database = {
         }
         Returns: string
       }
+      dashboard_authorization_alerts: {
+        Args: { p_limit?: number; p_organization_id: string }
+        Returns: Json
+      }
       dashboard_leads_by_stage: {
         Args: { p_days?: number; p_organization_id: string }
         Returns: {
@@ -3647,6 +3822,7 @@ export type Database = {
         Args: {
           p_after_created_at?: string
           p_after_id?: string
+          p_export_id: string
           p_from?: string
           p_limit?: number
           p_organization_id: string
@@ -3676,6 +3852,7 @@ export type Database = {
         Args: {
           p_after_created_at?: string
           p_after_id?: string
+          p_export_id: string
           p_from?: string
           p_limit?: number
           p_organization_id: string
@@ -3706,6 +3883,7 @@ export type Database = {
         Args: {
           p_after_created_at?: string
           p_after_id?: string
+          p_export_id: string
           p_from?: string
           p_limit?: number
           p_organization_id: string
@@ -3739,6 +3917,7 @@ export type Database = {
         Args: {
           p_after_created_at?: string
           p_after_id?: string
+          p_export_id: string
           p_from?: string
           p_limit?: number
           p_organization_id: string
@@ -3837,6 +4016,10 @@ export type Database = {
           full_name: string
         }[]
       }
+      get_owned_listing_usage: {
+        Args: { p_organization_id: string }
+        Returns: number
+      }
       get_portal_feed: {
         Args: { p_org_slug: string; p_token: string }
         Returns: Json
@@ -3847,11 +4030,53 @@ export type Database = {
         Returns: Json
       }
       get_public_organization: { Args: { p_slug: string }; Returns: Json }
+      get_public_property: {
+        Args: { p_code: string; p_org_slug: string }
+        Returns: Json
+      }
+      get_public_sitemap: { Args: { p_org_slug: string }; Returns: Json }
       get_referral_state: {
         Args: { p_organization_id?: string; p_server_key?: string }
         Returns: Json
       }
       get_shared_proposal: { Args: { p_token: string }; Returns: Json }
+      import_batch: {
+        Args: {
+          p_batch_index: number
+          p_job_id: string
+          p_organization_id: string
+          p_rows: Json
+        }
+        Returns: Json
+      }
+      import_find_existing: {
+        Args: {
+          p_kind: Database["public"]["Enums"]["import_kind"]
+          p_organization_id: string
+          p_rows: Json
+        }
+        Returns: Json
+      }
+      import_finish: {
+        Args: {
+          p_file_duplicates?: number
+          p_invalid_rows?: number
+          p_job_id: string
+          p_organization_id: string
+        }
+        Returns: Json
+      }
+      import_start: {
+        Args: {
+          p_duplicate_mode: Database["public"]["Enums"]["import_duplicate_mode"]
+          p_job_id: string
+          p_kind: Database["public"]["Enums"]["import_kind"]
+          p_options?: Json
+          p_organization_id: string
+          p_total_rows: number
+        }
+        Returns: string
+      }
       ingest_caixa_listings: {
         Args: {
           p_generated_on?: string
@@ -4044,6 +4269,18 @@ export type Database = {
           p_organization_id: string
           p_provider: string
           p_server_key: string
+        }
+        Returns: undefined
+      }
+      record_report_export_rows: {
+        Args: {
+          p_dataset: string
+          p_export_id: string
+          p_from?: string
+          p_organization_id: string
+          p_rows: number
+          p_to?: string
+          p_user_id?: string
         }
         Returns: undefined
       }
@@ -4250,8 +4487,49 @@ export type Database = {
           valor_avaliacao: number
         }[]
       }
+      search_clients: {
+        Args: {
+          p_assigned_to?: string
+          p_kind?: Database["public"]["Enums"]["client_kind"]
+          p_limit?: number
+          p_offset?: number
+          p_organization_id: string
+          p_source?: string
+          p_tag?: string
+          p_term?: string
+          p_unassigned?: boolean
+        }
+        Returns: {
+          assigned_to: string
+          created_at: string
+          document: string
+          email: string
+          id: string
+          kind: Database["public"]["Enums"]["client_kind"]
+          name: string
+          phone: string
+          source: string
+          tags: string[]
+          total_count: number
+          trade_name: string
+          whatsapp: string
+        }[]
+      }
+      search_crm: {
+        Args: { p_limit?: number; p_organization_id: string; p_term: string }
+        Returns: {
+          code: string
+          entity: string
+          id: string
+          phone: string
+          place: string
+          status: string
+          title: string
+        }[]
+      }
       search_properties: {
         Args: {
+          p_authorization?: string
           p_limit?: number
           p_max_price?: number
           p_min_bedrooms?: number
@@ -4264,6 +4542,8 @@ export type Database = {
           p_type?: Database["public"]["Enums"]["property_type"]
         }
         Returns: {
+          authorization_ends_on: string
+          authorization_state: string
           broker_id: string
           captured_by: string
           city: string
@@ -4308,6 +4588,13 @@ export type Database = {
           p_server_key?: string
         }
         Returns: Json
+      }
+      set_export_roles: {
+        Args: {
+          p_organization_id: string
+          p_roles: Database["public"]["Enums"]["app_role"][]
+        }
+        Returns: Database["public"]["Enums"]["app_role"][]
       }
       set_referral_confirmation_notice: {
         Args: {
@@ -4354,6 +4641,15 @@ export type Database = {
         }
         Returns: Json
       }
+      settle_authorization_alerts: {
+        Args: {
+          p_failed?: string[]
+          p_released?: string[]
+          p_sent?: string[]
+          p_server_key: string
+        }
+        Returns: Json
+      }
       settle_lead_notifications: {
         Args: { p_failed?: string[]; p_sent?: string[]; p_server_key: string }
         Returns: Json
@@ -4361,6 +4657,20 @@ export type Database = {
       share_proposal: {
         Args: { p_days?: number; p_proposal_id: string; p_rotate?: boolean }
         Returns: Json
+      }
+      start_data_export: {
+        Args: {
+          p_dataset: string
+          p_from?: string
+          p_organization_id: string
+          p_period_preset?: string
+          p_to?: string
+          p_user_id?: string
+        }
+        Returns: {
+          allowed: boolean
+          export_id: string
+        }[]
       }
       submit_capture_request: {
         Args: {
@@ -4379,6 +4689,17 @@ export type Database = {
           p_org_slug: string
           p_page_slug: string
           p_payload: Json
+          p_server_key?: string
+        }
+        Returns: undefined
+      }
+      submit_property_lead: {
+        Args: {
+          p_client_key?: string
+          p_nonce?: string
+          p_org_slug: string
+          p_payload: Json
+          p_property_code: string
           p_server_key?: string
         }
         Returns: undefined
@@ -4483,6 +4804,8 @@ export type Database = {
         | "contrato"
         | "importacao"
       discount_request_status: "pending" | "approved" | "rejected"
+      import_duplicate_mode: "skip" | "update"
+      import_kind: "clients" | "leads" | "properties"
       key_status: "available" | "checked_out" | "lost"
       landing_status: "draft" | "published" | "archived"
       landing_template:
@@ -4774,6 +5097,8 @@ export const Constants = {
         "importacao",
       ],
       discount_request_status: ["pending", "approved", "rejected"],
+      import_duplicate_mode: ["skip", "update"],
+      import_kind: ["clients", "leads", "properties"],
       key_status: ["available", "checked_out", "lost"],
       landing_status: ["draft", "published", "archived"],
       landing_template: [

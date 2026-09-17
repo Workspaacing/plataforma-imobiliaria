@@ -15,12 +15,19 @@
 --   3. O funil por etapa sai do histórico (`lead_stage_events`) com conversão
 --      entre etapas e tempo em cada fase, em números verificáveis.
 --   4. A exportação só devolve as linhas do RLS, pagina por (created_at, id) sem
---      repetir registro, e o CPF do cliente só sai para dono e gerente.
---   5. Membro de outra imobiliária não tira nenhum número desta.
+--      repetir registro, e o CPF do cliente só sai para dono e gerente. Cada
+--      página exige o `p_export_id` de `start_data_export` com os mesmos
+--      filtros; o corretor só exporta depois que o dono o libera
+--      (`set_export_roles`) — antes disso a página responde 42501.
+--   5. Membro de outra imobiliária não tira nenhum número desta: nem abre a
+--      exportação, nem usa o id de exportação de outra pessoa.
 --   6. `anon` não executa nenhuma das RPCs.
+--   7. Atendimento e SLA medem o 1º contato (`leads.first_contact_at`): um
+--      "Registrar contato" dias depois não muda a mediana nem o "no prazo", e a
+--      coluna first_contact_at da exportação continua sendo o 1º contato.
 --
 -- Cenário (fuso irrelevante: tudo é relativo a now()):
---   b1  L1 entregue -5d, contato +10min (no prazo), ganho -2d
+--   b1  L1 entregue -5d, contato +10min (no prazo), ganho -2d, recontato -1d
 --       L2 entregue -4d, contato +5h   (fora do prazo), perdido -1d
 --       L3 entregue -3d, sem contato, continua em "Novo"
 --       2 imóveis captados, 2 propostas (1 aceita de R$ 500.000 em -1d)
@@ -44,6 +51,8 @@
 --   origens_do_b1                    : 3
 --   origens_do_b2_pelo_dono          : 2
 --   motivos_de_perda                 : "Fora do orçamento:1"
+--   primeiro_contato_na_exportacao   : true
+--   corretor_sem_liberacao           : "42501"
 --   b1_exporta_so_os_proprios_leads  : 3
 --   b1_nao_exporta_lead_do_colega    : true
 --   cpf_para_o_dono                  : "12345678909"
@@ -51,7 +60,8 @@
 --   b1_exporta_so_o_proprio_cliente  : 1
 --   paginacao_sem_repetir            : 3
 --   estranho_no_relatorio            : 0
---   estranho_na_exportacao           : 0
+--   estranho_inicia_exportacao       : "P0002"
+--   estranho_na_exportacao           : "42501"
 --   grant_relatorio_anon             : false
 --   grant_relatorio_authenticated    : true
 --   grant_exportacao_anon            : false
@@ -88,6 +98,8 @@ declare
   v_bool boolean;
   v_pagina1 timestamptz;
   v_pagina1_id uuid;
+  v_export uuid;
+  v_export_b1 uuid;
 begin
   -- ---------------------------------------------------------------------------
   -- Cenário
@@ -150,6 +162,10 @@ begin
   where lead_id = l1 and to_stage = 'won';
   update public.lead_stage_events set created_at = now() - interval '1 day'
   where lead_id = l2 and to_stage = 'lost';
+
+  -- "Registrar contato" 4 dias depois do 1º: last_contact_at muda, o 1º contato
+  -- (first_contact_at, gravado uma vez pelo trigger) não.
+  update public.leads set last_contact_at = now() - interval '1 day' where id = l1;
 
   -- Leads do b2 ------------------------------------------------------------
   insert into public.leads (organization_id, name, phone, source, stage, assigned_to, utm)
@@ -292,18 +308,57 @@ begin
   $q$ into v_int using org, v_inicio, v_fim, u_b2;
   r := r || jsonb_build_object('origens_do_b2_pelo_dono', v_int);
 
+  -- Exportação: cada página exige o registro aberto com os mesmos filtros.
+  execute 'select s.export_id from public.start_data_export($1, $2, $3, $4, null, null) s'
+  into v_export using org, 'clientes', v_inicio, v_fim;
+
   execute $q$
     select c.document
-    from public.export_clients_rows($1, $2, $3, null, null, null, 100) c
-    where c.id = $4
-  $q$ into v_text using org, v_inicio, v_fim, c1;
+    from public.export_clients_rows($1, $2, $3, $4, null, null, null, 100) c
+    where c.id = $5
+  $q$ into v_text using org, v_export, v_inicio, v_fim, c1;
   r := r || jsonb_build_object('cpf_para_o_dono', v_text);
+
+  execute 'select s.export_id from public.start_data_export($1, $2, $3, $4, null, null) s'
+  into v_export using org, 'leads', v_inicio, v_fim;
+
+  execute $q$
+    select e.first_contact_at = e.assigned_at + interval '10 minutes'
+    from public.export_leads_rows($1, $2, $3, $4, null, null, null, 500) e
+    where e.id = $5
+  $q$ into v_bool using org, v_export, v_inicio, v_fim, l1;
+  r := r || jsonb_build_object('primeiro_contato_na_exportacao', v_bool);
 
   reset role;
 
   -- ---------------------------------------------------------------------------
   -- 2. Sessão do corretor b1: só o próprio desempenho
   -- ---------------------------------------------------------------------------
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', u_b1, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+
+  -- Sem a liberação do dono, o corretor não exporta: a página responde 42501.
+  execute 'select s.export_id from public.start_data_export($1, $2, $3, $4, null, null) s'
+  into v_export using org, 'leads', v_inicio, v_fim;
+  begin
+    execute 'select count(*)::integer from public.export_leads_rows($1, $2, $3, $4, null, null, null, 500)'
+    into v_int using org, v_export, v_inicio, v_fim;
+    v_text := 'sem erro';
+  exception when others then
+    v_text := sqlstate;
+  end;
+  r := r || jsonb_build_object('corretor_sem_liberacao', v_text);
+
+  reset role;
+
+  -- O dono libera a exportação para corretores.
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', u_owner, 'role', 'authenticated')::text, true);
+  set local role authenticated;
+  execute 'select public.set_export_roles($1, $2)' using org, '{broker}'::public.app_role[];
+  reset role;
+
   perform set_config('request.jwt.claims',
     json_build_object('sub', u_b1, 'role', 'authenticated')::text, true);
   set local role authenticated;
@@ -352,44 +407,55 @@ begin
   $q$ into v_int using org, v_inicio, v_fim, u_b2;
   r := r || jsonb_build_object('origens_do_b1', v_int);
 
-  execute 'select count(*)::integer from public.export_leads_rows($1, $2, $3, null, null, null, 500)'
-  into v_int using org, v_inicio, v_fim;
+  execute 'select s.export_id from public.start_data_export($1, $2, $3, $4, null, null) s'
+  into v_export_b1 using org, 'leads', v_inicio, v_fim;
+
+  execute 'select count(*)::integer from public.export_leads_rows($1, $2, $3, $4, null, null, null, 500)'
+  into v_int using org, v_export_b1, v_inicio, v_fim;
   r := r || jsonb_build_object('b1_exporta_so_os_proprios_leads', v_int);
+
+  -- O registro guarda o id do colega pedido; a página continua só com os do b1.
+  execute 'select s.export_id from public.start_data_export($1, $2, $3, $4, $5, null) s'
+  into v_export using org, 'leads', v_inicio, v_fim, u_b2;
 
   execute $q$
     select not exists (
-      select 1 from public.export_leads_rows($1, $2, $3, $4, null, null, 500) e
+      select 1 from public.export_leads_rows($1, $2, $3, $4, $5, null, null, 500) e
       where e.name like 'Lead B2%'
     )
-  $q$ into v_bool using org, v_inicio, v_fim, u_b2;
+  $q$ into v_bool using org, v_export, v_inicio, v_fim, u_b2;
   r := r || jsonb_build_object('b1_nao_exporta_lead_do_colega', v_bool);
+
+  execute 'select s.export_id from public.start_data_export($1, $2, $3, $4, null, null) s'
+  into v_export using org, 'clientes', v_inicio, v_fim;
 
   execute $q$
     select c.document
-    from public.export_clients_rows($1, $2, $3, null, null, null, 100) c
-    where c.id = $4
-  $q$ into v_text using org, v_inicio, v_fim, c1;
+    from public.export_clients_rows($1, $2, $3, $4, null, null, null, 100) c
+    where c.id = $5
+  $q$ into v_text using org, v_export, v_inicio, v_fim, c1;
   r := r || jsonb_build_object('cpf_para_o_corretor', v_text);
 
-  execute 'select count(*)::integer from public.export_clients_rows($1, $2, $3, null, null, null, 100)'
-  into v_int using org, v_inicio, v_fim;
+  execute 'select count(*)::integer from public.export_clients_rows($1, $2, $3, $4, null, null, null, 100)'
+  into v_int using org, v_export, v_inicio, v_fim;
   r := r || jsonb_build_object('b1_exporta_so_o_proprio_cliente', v_int);
 
-  -- Paginação por (created_at, id): duas páginas de 2 sem repetir registro.
+  -- Paginação por (created_at, id): duas páginas de 2 sem repetir registro,
+  -- as duas no mesmo registro de exportação.
   execute $q$
     select e.created_at, e.id
-    from public.export_leads_rows($1, $2, $3, null, null, null, 2) e
+    from public.export_leads_rows($1, $2, $3, $4, null, null, null, 2) e
     order by e.created_at desc, e.id desc
     limit 1
-  $q$ into v_pagina1, v_pagina1_id using org, v_inicio, v_fim;
+  $q$ into v_pagina1, v_pagina1_id using org, v_export_b1, v_inicio, v_fim;
 
   execute $q$
     select count(distinct e.id)::integer from (
-      select id from public.export_leads_rows($1, $2, $3, null, null, null, 2)
+      select id from public.export_leads_rows($1, $2, $3, $4, null, null, null, 2)
       union all
-      select id from public.export_leads_rows($1, $2, $3, null, $4, $5, 2)
+      select id from public.export_leads_rows($1, $2, $3, $4, null, $5, $6, 2)
     ) e
-  $q$ into v_int using org, v_inicio, v_fim, v_pagina1, v_pagina1_id;
+  $q$ into v_int using org, v_export_b1, v_inicio, v_fim, v_pagina1, v_pagina1_id;
   r := r || jsonb_build_object('paginacao_sem_repetir', v_int);
 
   reset role;
@@ -405,9 +471,24 @@ begin
   into v_int using org, v_inicio, v_fim;
   r := r || jsonb_build_object('estranho_no_relatorio', v_int);
 
-  execute 'select count(*)::integer from public.export_leads_rows($1, $2, $3, null, null, null, 500)'
-  into v_int using org, v_inicio, v_fim;
-  r := r || jsonb_build_object('estranho_na_exportacao', v_int);
+  begin
+    execute 'select s.export_id from public.start_data_export($1, $2, $3, $4, null, null) s'
+    into v_export using org, 'leads', v_inicio, v_fim;
+    v_text := 'sem erro';
+  exception when others then
+    v_text := sqlstate;
+  end;
+  r := r || jsonb_build_object('estranho_inicia_exportacao', v_text);
+
+  -- Nem com o id de exportação do b1 (outro usuário) a página sai.
+  begin
+    execute 'select count(*)::integer from public.export_leads_rows($1, $2, $3, $4, null, null, null, 500)'
+    into v_int using org, v_export_b1, v_inicio, v_fim;
+    v_text := 'sem erro';
+  exception when others then
+    v_text := sqlstate;
+  end;
+  r := r || jsonb_build_object('estranho_na_exportacao', v_text);
 
   reset role;
 
@@ -434,7 +515,7 @@ begin
     'grant_exportacao_anon',
     has_function_privilege(
       'anon',
-      'public.export_clients_rows(uuid, timestamptz, timestamptz, uuid, timestamptz, uuid, integer)',
+      'public.export_clients_rows(uuid, uuid, timestamptz, timestamptz, uuid, timestamptz, uuid, integer)',
       'execute'
     )
   );
@@ -442,11 +523,11 @@ begin
     'grant_exportacao_authenticated',
     has_function_privilege(
       'authenticated',
-      'public.export_clients_rows(uuid, timestamptz, timestamptz, uuid, timestamptz, uuid, integer)',
+      'public.export_clients_rows(uuid, uuid, timestamptz, timestamptz, uuid, timestamptz, uuid, integer)',
       'execute'
     )
   );
 
-  raise exception 'RESULTADO: %', jsonb_pretty(r);
+  raise exception 'TESTE DE RELATORIOS (rollback): %', jsonb_pretty(r);
 end;
 $$;
