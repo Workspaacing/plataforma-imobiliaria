@@ -225,7 +225,8 @@ export function PlanRecommender({ prices }: { prices: CatalogPrices }) {
                 ))}
               </ToggleGroup>
               <FieldDescription>
-                Só contam fotos enviadas por aqui. Imóveis sem foto, importados por XML ou API,{" "}
+                Só contam imóveis com fotos hospedadas por aqui, inclusive as trazidas por link na
+                importação de planilhas. Imóveis sem foto, só com fotos no site de origem,{" "}
                 {OWNED_LISTING_RELEASED_STATUS_PLURAL_TEXT} ficam de fora.
               </FieldDescription>
             </FieldSet>

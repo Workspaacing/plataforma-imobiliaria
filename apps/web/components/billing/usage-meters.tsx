@@ -1,11 +1,14 @@
 import { TriangleAlertIcon } from "lucide-react"
 
 import {
+  formatBRL,
   formatLimit,
   isAtLimit,
   isNearLimit,
   OWNED_LISTING_RELEASED_STATUS_PLURAL_TEXT,
   OWNED_LISTING_RELEASED_STATUS_TEXT,
+  OWNED_LISTINGS_PACK_PRICE,
+  OWNED_LISTINGS_PACK_SIZE,
   OWNED_LISTINGS_SHORT_LABEL,
   PLAN_KEYS,
   PLANS,
@@ -40,15 +43,16 @@ function nextPlanFor(planKey: BillingPlanKey, key: MeterKey, used: number): Plan
 
 function ownedListingsWarning(meter: Meter, planKey: BillingPlanKey, usage: string) {
   const suggestion = nextPlanFor(planKey, meter.key, meter.used)
+  const pack = `, contrate pacotes de +${OWNED_LISTINGS_PACK_SIZE} imóveis por ${formatBRL(OWNED_LISTINGS_PACK_PRICE.month, { omitZeroCents: true })}/mês`
   const upgrade = suggestion
-    ? `, ou mude para o plano ${PLANS[suggestion].name}, com até ${pluralize(PLANS[suggestion].limits.owned_listings, "imóvel com foto", "imóveis com foto")}`
-    : ""
+    ? `${pack} ou mude para o plano ${PLANS[suggestion].name}, com até ${pluralize(PLANS[suggestion].limits.owned_listings, "imóvel com foto", "imóveis com foto")}`
+    : `${pack}`
 
   // O banco barra a PRIMEIRA foto de um imóvel novo, e também reativar um imóvel
   // com foto que estava vendido, alugado ou inativo.
   return isAtLimit(meter.limit, meter.used)
     ? `${usage} Para enviar fotos de outro imóvel, marque como ${OWNED_LISTING_RELEASED_STATUS_TEXT} um imóvel que saiu da carteira${upgrade}.`
-    : `${usage} Imóveis ${OWNED_LISTING_RELEASED_STATUS_PLURAL_TEXT} não contam: mantenha o status da carteira em dia${upgrade}.`
+    : `${usage} Imóveis ${OWNED_LISTING_RELEASED_STATUS_PLURAL_TEXT} ou na lixeira não contam: mantenha o status da carteira em dia${upgrade}.`
 }
 
 function warningText(meter: Meter, planKey: BillingPlanKey) {
@@ -169,8 +173,9 @@ export function UsageMeters({ overview, ownedListings, upgradeHref }: UsageMeter
 
       <p className="text-sm text-muted-foreground">
         {OWNED_LISTINGS_SHORT_LABEL} são os imóveis à venda ou para alugar com fotos hospedadas por
-        nós. Imóveis {OWNED_LISTING_RELEASED_STATUS_PLURAL_TEXT}, sem foto ou importados por XML ou
-        API não contam, e clientes e condomínios não têm limite.
+        nós, inclusive as trazidas por link na importação de planilhas. Imóveis{" "}
+        {OWNED_LISTING_RELEASED_STATUS_PLURAL_TEXT}, sem foto ou só com fotos no site de origem não
+        contam, e clientes e condomínios não têm limite.
       </p>
 
       {warnings.length > 0 ? (

@@ -14,6 +14,7 @@ import {
   EmptyTitle,
 } from "@workspace/ui/components/empty"
 
+import { OwnedListingsUsageNotice } from "@/components/billing/owned-listings-usage-notice"
 import { PageHeading } from "@/components/crm/page-placeholder"
 import { ListPagination } from "@/components/imoveis/list-pagination"
 import { PropertiesFilters } from "@/components/imoveis/properties-filters"
@@ -80,6 +81,12 @@ export default async function ImoveisPage({ searchParams }: ImoveisPageProps) {
         />
         {newPropertyButton}
       </div>
+
+      <OwnedListingsUsageNotice
+        organizationId={organizationId}
+        organizationSlug={membership.organization.slug}
+        isOwner={membership.role === "owner"}
+      />
 
       <Card>
         <CardContent>

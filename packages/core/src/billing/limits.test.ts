@@ -38,6 +38,20 @@ describe("computeLimits", () => {
     expect(computeLimits("equipe", 1.8).users).toBe(6)
   })
 
+  it("soma os pacotes de +10 imóveis ao limite de imóveis com foto", () => {
+    expect(computeLimits("corretor", 0, 1).owned_listings).toBe(15)
+    expect(computeLimits("imobiliaria", 2, 3)).toEqual({
+      ...PLANS.imobiliaria.limits,
+      users: 5,
+      owned_listings: 50,
+    })
+    expect(computeLimits("rede", 0, 0).owned_listings).toBe(150)
+    expect(computeLimits("equipe", 0, -2).owned_listings).toBe(50)
+    expect(computeLimits("equipe", 0, 1.9).owned_listings).toBe(60)
+    // Fotos por imóvel não mudam com o pacote.
+    expect(computeLimits("equipe", 0, 5).photos_per_listing).toBe(10)
+  })
+
   it("não altera o catálogo", () => {
     computeLimits("imobiliaria", 10)
     expect(PLANS.imobiliaria.limits.users).toBe(3)

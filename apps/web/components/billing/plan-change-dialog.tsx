@@ -2,13 +2,15 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { CircleAlertIcon, MinusIcon, PlusIcon } from "lucide-react"
+import { CircleAlertIcon } from "lucide-react"
 
 import {
   BILLING_INTERVAL_LABELS,
   clampExtraSeats,
   formatBRL,
   maxExtraSeats,
+  MAX_OWNED_LISTING_PACKS,
+  OWNED_LISTINGS_PACK_SIZE,
   PLANS,
   type BillingInterval,
   type PlanKey,
@@ -31,12 +33,6 @@ import {
   FieldLabel,
   FieldTitle,
 } from "@workspace/ui/components/field"
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupInput,
-} from "@workspace/ui/components/input-group"
 import { Separator } from "@workspace/ui/components/separator"
 import { Spinner } from "@workspace/ui/components/spinner"
 import { toast } from "@workspace/ui/components/toast"
@@ -45,16 +41,19 @@ import { BillingIntervalToggle } from "@/components/billing/billing-interval-tog
 import {
   monthlyEquivalent,
   pluralize,
+  resolvePackPrice,
   resolvePlanPricing,
   totalWithSeats,
   type CatalogPrices,
 } from "@/components/billing/plan-content"
 import {
   currentExtraSeats,
+  currentOwnedListingPacks,
   currentPaidPlan,
   type PricingAccount,
   type PricingBilling,
 } from "@/components/billing/pricing-account"
+import { parseQuantity, QuantityStepper } from "@/components/billing/quantity-stepper"
 import { useBillingRedirect } from "@/components/billing/use-billing-redirect"
 import { changeSubscription, startCheckout } from "@/lib/billing/actions"
 import { formatDate } from "@/lib/format"
@@ -62,7 +61,7 @@ import { formatDate } from "@/lib/format"
 /** Teto da tela; o servidor aceita até 500 e o plano pode limitar antes (clampExtraSeats). */
 const MAX_EXTRA_SEATS = 200
 
-type Choice = { plan: PlanKey; interval: BillingInterval; extraSeats: number }
+type Choice = { plan: PlanKey; interval: BillingInterval; extraSeats: number; packs: number }
 
 type PlanChangeDialogProps = {
   open: boolean
@@ -74,17 +73,11 @@ type PlanChangeDialogProps = {
   onOpenChange: (open: boolean) => void
 }
 
-function parseExtraSeats(value: string) {
-  const parsed = Number.parseInt(value, 10)
-  return Number.isFinite(parsed) ? Math.min(MAX_EXTRA_SEATS, Math.max(0, parsed)) : 0
-}
-
 /** Custo mensal equivalente, para saber se a troca aumenta ou reduz a assinatura. */
 function monthlyCost(prices: CatalogPrices, choice: Choice) {
-  const total = totalWithSeats(
-    resolvePlanPricing(prices, choice.plan, choice.interval),
-    choice.extraSeats
-  )
+  const total =
+    totalWithSeats(resolvePlanPricing(prices, choice.plan, choice.interval), choice.extraSeats) +
+    resolvePackPrice(prices, choice.interval) * choice.packs
   return choice.interval === "year" ? total / 12 : total
 }
 
@@ -108,8 +101,10 @@ export function PlanChangeDialog({
 }: PlanChangeDialogProps) {
   const router = useRouter()
   const seatsId = React.useId()
+  const packsId = React.useId()
   const currentPlan = currentPaidPlan(billing)
   const currentSeats = currentExtraSeats(billing)
+  const currentPacks = currentOwnedListingPacks(billing)
   const hasSubscription = billing.hasSubscription
   const details = PLANS[plan]
   const seatLimit = Math.min(MAX_EXTRA_SEATS, maxExtraSeats(plan))
@@ -118,14 +113,19 @@ export function PlanChangeDialog({
   const [extraSeatsInput, setExtraSeatsInput] = React.useState(
     String(hasSubscription ? clampExtraSeats(plan, currentSeats) : 0)
   )
+  // Os pacotes valem para qualquer plano: trocar de plano mantém os já contratados.
+  const [packsInput, setPacksInput] = React.useState(String(hasSubscription ? currentPacks : 0))
   const [error, setError] = React.useState<string | null>(null)
   const [isChanging, startChange] = React.useTransition()
   const { busy, run } = useBillingRedirect()
 
-  const extraSeats = Math.min(seatLimit, parseExtraSeats(extraSeatsInput))
-  const choice: Choice = { plan, interval, extraSeats }
+  const extraSeats = parseQuantity(extraSeatsInput, seatLimit)
+  const packs = parseQuantity(packsInput, MAX_OWNED_LISTING_PACKS)
+  const choice: Choice = { plan, interval, extraSeats, packs }
   const pricing = resolvePlanPricing(prices, plan, interval)
-  const total = totalWithSeats(pricing, extraSeats)
+  const packPrice = resolvePackPrice(prices, interval)
+  const total = totalWithSeats(pricing, extraSeats) + packPrice * packs
+  const listingLimit = details.limits.owned_listings + packs * OWNED_LISTINGS_PACK_SIZE
   const suffix = BILLING_INTERVAL_LABELS[interval].suffix
   const users = details.usersIncluded + extraSeats
   const belowUsage = users < billing.usersInUse
@@ -133,7 +133,8 @@ export function PlanChangeDialog({
     hasSubscription &&
     plan === currentPlan &&
     interval === billing.interval &&
-    extraSeats === currentSeats
+    extraSeats === currentSeats &&
+    packs === currentPacks
   const locked = isChanging || busy !== null
   const organizationName =
     account.organizations.find((organization) => organization.id === account.selectedOrganizationId)
@@ -152,6 +153,7 @@ export function PlanChangeDialog({
       plan: currentPlan,
       interval: billing.interval,
       extraSeats: currentSeats,
+      packs: currentPacks,
     })
     const after = monthlyCost(prices, choice)
     kind = after > before ? "upgrade" : after < before ? "downgrade" : "mixed"
@@ -177,7 +179,14 @@ export function PlanChangeDialog({
     if (!hasSubscription) {
       void run(
         plan,
-        () => startCheckout({ planKey: plan, interval, extraSeats, ...target }),
+        () =>
+          startCheckout({
+            planKey: plan,
+            interval,
+            extraSeats,
+            ownedListingPacks: packs,
+            ...target,
+          }),
         "Não foi possível iniciar o pagamento"
       )
       return
@@ -185,7 +194,13 @@ export function PlanChangeDialog({
 
     startChange(async () => {
       try {
-        const result = await changeSubscription({ planKey: plan, interval, extraSeats, ...target })
+        const result = await changeSubscription({
+          planKey: plan,
+          interval,
+          extraSeats,
+          ownedListingPacks: packs,
+          ...target,
+        })
 
         if (!result.ok) {
           setError(result.error)
@@ -240,39 +255,15 @@ export function PlanChangeDialog({
           {seatLimit > 0 ? (
             <Field>
               <FieldLabel htmlFor={seatsId}>Usuários extras</FieldLabel>
-              <InputGroup className="w-36">
-                <InputGroupAddon align="inline-start">
-                  <InputGroupButton
-                    size="icon-xs"
-                    aria-label="Remover um usuário extra"
-                    disabled={extraSeats <= 0 || locked}
-                    onClick={() => setExtraSeatsInput(String(Math.max(0, extraSeats - 1)))}
-                  >
-                    <MinusIcon />
-                  </InputGroupButton>
-                </InputGroupAddon>
-                <InputGroupInput
-                  id={seatsId}
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  max={seatLimit}
-                  value={extraSeatsInput}
-                  disabled={locked}
-                  onChange={(event) => setExtraSeatsInput(event.target.value)}
-                  onBlur={() => setExtraSeatsInput(String(extraSeats))}
-                />
-                <InputGroupAddon align="inline-end">
-                  <InputGroupButton
-                    size="icon-xs"
-                    aria-label="Adicionar um usuário extra"
-                    disabled={extraSeats >= seatLimit || locked}
-                    onClick={() => setExtraSeatsInput(String(Math.min(seatLimit, extraSeats + 1)))}
-                  >
-                    <PlusIcon />
-                  </InputGroupButton>
-                </InputGroupAddon>
-              </InputGroup>
+              <QuantityStepper
+                id={seatsId}
+                value={extraSeatsInput}
+                quantity={extraSeats}
+                max={seatLimit}
+                disabled={locked}
+                itemLabel="usuário extra"
+                onValueChange={setExtraSeatsInput}
+              />
               <FieldDescription>
                 {pluralize(details.usersIncluded, "usuário incluído", "usuários incluídos")} no
                 plano. Hoje a equipe usa {pluralize(billing.usersInUse, "usuário", "usuários")},
@@ -280,6 +271,29 @@ export function PlanChangeDialog({
               </FieldDescription>
             </Field>
           ) : null}
+
+          <Field>
+            <FieldLabel htmlFor={packsId}>
+              Pacotes de +{OWNED_LISTINGS_PACK_SIZE} imóveis com foto
+            </FieldLabel>
+            <QuantityStepper
+              id={packsId}
+              value={packsInput}
+              quantity={packs}
+              max={MAX_OWNED_LISTING_PACKS}
+              disabled={locked}
+              itemLabel="pacote de imóveis"
+              onValueChange={setPacksInput}
+            />
+            <FieldDescription>
+              O plano {details.name} inclui{" "}
+              {pluralize(details.limits.owned_listings, "imóvel com foto", "imóveis com foto")}.
+              Cada pacote soma mais {OWNED_LISTINGS_PACK_SIZE} por{" "}
+              {formatBRL(packPrice, { omitZeroCents: true })}
+              {suffix}: com {pluralize(packs, "pacote", "pacotes")}, o limite fica em{" "}
+              {pluralize(listingLimit, "imóvel", "imóveis")}.
+            </FieldDescription>
+          </Field>
         </FieldGroup>
 
         <Separator />
@@ -301,7 +315,21 @@ export function PlanChangeDialog({
               </dd>
             </>
           ) : null}
-          <dt className="font-medium">Total com {pluralize(users, "usuário", "usuários")}</dt>
+          {packs > 0 ? (
+            <>
+              <dt className="text-muted-foreground">
+                {pluralize(packs, "pacote", "pacotes")} de +{OWNED_LISTINGS_PACK_SIZE} imóveis
+              </dt>
+              <dd className="text-end tabular-nums">
+                {packs} × {formatBRL(packPrice, { omitZeroCents: true })}
+                {suffix}
+              </dd>
+            </>
+          ) : null}
+          <dt className="font-medium">
+            Total com {pluralize(users, "usuário", "usuários")} e{" "}
+            {pluralize(listingLimit, "imóvel com foto", "imóveis com foto")}
+          </dt>
           <dd className="text-end font-medium tabular-nums">
             {formatBRL(total, { omitZeroCents: true })}
             {suffix}
@@ -339,7 +367,10 @@ export function PlanChangeDialog({
           ) : (
             <li>O plano é liberado assim que a Stripe confirmar o pagamento.</li>
           )}
-          <li>Nenhum dado é apagado.</li>
+          <li>
+            Nenhum dado é apagado. Com menos pacotes, os imóveis acima do novo limite continuam no
+            ar; só a foto de um imóvel novo fica bloqueada até liberar vagas.
+          </li>
         </ul>
 
         {unchanged ? (

@@ -20,11 +20,18 @@ import {
   TRIAL_AI_CONVERSATIONS,
   TRIAL_DAYS,
   TRIAL_LIMITS,
+  MAX_OWNED_LISTING_PACKS,
+  OWNED_LISTINGS_ADDON_KEY,
+  OWNED_LISTINGS_PACK_PRICE,
+  OWNED_LISTINGS_PACK_SIZE,
+  addonLookupKey,
   clampExtraSeats,
+  clampOwnedListingPacks,
   isBillingInterval,
   isBillingPlanKey,
   isPlanKey,
   maxExtraSeats,
+  parseAddonLookupKey,
   parseLookupKey,
   planTotal,
   priceLookupKey,
@@ -231,7 +238,7 @@ describe("teste grátis", () => {
 })
 
 describe("ADDONS e condições", () => {
-  it("lista os add-ons em breve com preço formatado", () => {
+  it("lista os add-ons com preço formatado e só o de imóveis à venda", () => {
     expect(ADDONS.map((addon) => addon.key)).toEqual([
       "ai_conversations",
       "rental",
@@ -241,7 +248,7 @@ describe("ADDONS e condições", () => {
       "launches",
     ])
     for (const addon of ADDONS) {
-      expect(addon.status).toBe("soon")
+      expect(addon.status).toBe(addon.key === OWNED_LISTINGS_ADDON_KEY ? "available" : "soon")
       expect(addon.plans.length).toBeGreaterThan(0)
       expect(addon.priceLabel).toContain("R$")
     }
@@ -285,9 +292,13 @@ describe("ADDONS e condições", () => {
         ANNUAL_BOLETO_NOTE,
       ])
     )
+    // Foto baixada por link na importação conta; só não conta a que fica na origem.
     expect(IMPORTED_LISTINGS_NOTE).toBe(
-      "Imóveis importados por XML ou API não contam no limite: as fotos ficam na origem"
+      "Imóvel com fotos só em link para o site de origem não conta no limite; fotos trazidas por link na importação de planilhas são copiadas para cá e contam"
     )
+    for (const text of [...PLAN_CONDITIONS, ...ADDONS.map((addon) => addon.description)]) {
+      expect(text).not.toMatch(/importados? por XML ou API/i)
+    }
     expect(ANNUAL_BOLETO_NOTE).toBe(
       "No plano anual, o boleto é a forma sugerida e sai mais barato para os dois lados; o cartão continua disponível"
     )
@@ -345,6 +356,23 @@ describe("lookup keys", () => {
     }
   })
 
+  it("monta e lê as chaves do adicional de imóveis", () => {
+    expect(addonLookupKey("owned_listings", "month")).toBe("addon_owned_listings_monthly")
+    expect(addonLookupKey("owned_listings", "year")).toBe("addon_owned_listings_yearly")
+    for (const interval of BILLING_INTERVALS) {
+      expect(parseAddonLookupKey(addonLookupKey("owned_listings", interval))).toEqual({
+        addon: "owned_listings",
+        interval,
+      })
+      // Adicional não é plano nem assento.
+      expect(parseLookupKey(addonLookupKey("owned_listings", interval))).toBeNull()
+    }
+    expect(parseAddonLookupKey("addon_launches_monthly")).toBeNull()
+    expect(parseAddonLookupKey("addon_owned_listings_weekly")).toBeNull()
+    expect(parseAddonLookupKey("seat_corretor_monthly")).toBeNull()
+    expect(parseAddonLookupKey(null as unknown as string)).toBeNull()
+  })
+
   it("recusa chaves fora do padrão", () => {
     expect(parseLookupKey("plan_trial_monthly")).toBeNull()
     expect(parseLookupKey("plan_ouro_monthly")).toBeNull()
@@ -378,6 +406,23 @@ describe("assentos e totais", () => {
     expect(planTotal("imobiliaria", "month", 2)).toBe(24900 + 2 * 5900)
     expect(planTotal("equipe", "year", 3)).toBe(599000 + 3 * 69000)
     expect(planTotal("corretor", "month", 9)).toBe(8900 + 4900)
+  })
+
+  it("soma os pacotes de +10 imóveis no preço anunciado", () => {
+    expect(OWNED_LISTINGS_PACK_SIZE).toBe(10)
+    // Anual = 10 mensalidades, como plano e assento.
+    expect(OWNED_LISTINGS_PACK_PRICE).toEqual({ month: 1900, year: 19000 })
+    expect(ADDONS.find((addon) => addon.key === "owned_listings")?.description).toContain(
+      "R$ 190/ano"
+    )
+    // Queixa do Corretor: R$ 108 por 15 imóveis e R$ 127 por 25.
+    expect(planTotal("corretor", "month", 0, 1)).toBe(10800)
+    expect(planTotal("corretor", "month", 0, 2)).toBe(12700)
+    expect(planTotal("imobiliaria", "year", 1, 3)).toBe(249000 + 59000 + 3 * 19000)
+    expect(clampOwnedListingPacks(-1)).toBe(0)
+    expect(clampOwnedListingPacks(2.7)).toBe(2)
+    expect(clampOwnedListingPacks(Number.NaN)).toBe(0)
+    expect(clampOwnedListingPacks(10_000)).toBe(MAX_OWNED_LISTING_PACKS)
   })
 })
 

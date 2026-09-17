@@ -25,6 +25,8 @@ export type PricingBilling = {
   planKey: BillingPlanKey
   interval: BillingInterval | null
   seats: number
+  /** Pacotes de +10 imóveis contratados hoje. */
+  ownedListingPacks: number
   /** Membros ativos + convites pendentes: a nova assinatura não pode ficar abaixo. */
   usersInUse: number
   currentPeriodEnd: string | null
@@ -73,6 +75,11 @@ export function currentPaidPlan(billing: PricingBilling | null): PlanKey | null 
 export function currentExtraSeats(billing: PricingBilling | null) {
   const plan = currentPaidPlan(billing)
   return plan && billing ? Math.max(0, billing.seats - PLANS[plan].usersIncluded) : 0
+}
+
+/** Pacotes de +10 imóveis contratados hoje no plano pago em vigor. */
+export function currentOwnedListingPacks(billing: PricingBilling | null) {
+  return currentPaidPlan(billing) && billing ? billing.ownedListingPacks : 0
 }
 
 /** Motivo de os botões de assinatura estarem desabilitados; null quando liberados. */

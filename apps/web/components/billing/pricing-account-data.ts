@@ -122,6 +122,7 @@ export async function loadPricingAccount({
             planKey: overview.planKey,
             interval: overview.interval,
             seats: overview.seats,
+            ownedListingPacks: overview.ownedListingPacks,
             usersInUse: overview.usage.users,
             currentPeriodEnd: overview.currentPeriodEnd,
             hasSubscription: overview.hasSubscription,

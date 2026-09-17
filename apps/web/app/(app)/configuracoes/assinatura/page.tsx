@@ -2,7 +2,13 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { ArrowRightIcon, CircleAlertIcon, LockIcon, SettingsIcon } from "lucide-react"
 
-import { BILLING_INTERVAL_LABELS } from "@workspace/core/billing"
+import {
+  BILLING_INTERVAL_LABELS,
+  isPlanKey,
+  OWNED_LISTINGS_PACK_SIZE,
+  PLANS,
+  TRIAL_LIMITS,
+} from "@workspace/core/billing"
 import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -18,6 +24,7 @@ import {
 import { AiUsageCard } from "@/components/billing/ai-usage-card"
 import {
   loadBillingOverview,
+  loadCatalogPrices,
   loadOwnedListingUsage,
   loadRecentInvoices,
 } from "@/components/billing/billing-data"
@@ -33,7 +40,8 @@ import {
   isSubscriptionConfirmed,
   planDisplayName,
 } from "@/components/billing/overview-view"
-import { pluralize } from "@/components/billing/plan-content"
+import { OwnedListingPacksDialog } from "@/components/billing/owned-listing-packs-dialog"
+import { pluralize, resolvePackPrice } from "@/components/billing/plan-content"
 import { plansPageHref } from "@/components/billing/plans-page-link"
 import { UsageMeters } from "@/components/billing/usage-meters"
 import { PageHeading } from "@/components/crm/page-placeholder"
@@ -56,6 +64,19 @@ type AssinaturaPageProps = {
 
 function readCheckoutStatus(value: string | string[] | undefined): CheckoutReturnStatus | null {
   return value === "sucesso" || value === "cancelado" ? value : null
+}
+
+/** Imóveis com foto contratados: limite total e, havendo pacotes, a composição. */
+function ownedListingsLabel(overview: BillingOverview) {
+  const catalog = isPlanKey(overview.planKey) ? PLANS[overview.planKey].limits : TRIAL_LIMITS
+  const limit = overview.limits.owned_listings ?? catalog.owned_listings
+  const total = pluralize(limit, "imóvel", "imóveis")
+
+  if (overview.ownedListingPacks === 0) {
+    return total
+  }
+
+  return `${total} (${catalog.owned_listings} do plano + ${pluralize(overview.ownedListingPacks, "pacote", "pacotes")} de +${OWNED_LISTINGS_PACK_SIZE})`
 }
 
 function nextChargeLabel(overview: BillingOverview) {
@@ -106,16 +127,26 @@ export default async function AssinaturaPage({ searchParams }: AssinaturaPagePro
   // A escolha de plano fica em /planos, fora do painel, ligada a esta imobiliária.
   const plansHref = plansPageHref(membership.organization.slug)
 
-  const [overview, invoicesResult, referralPercent, aiUsage, ownedListings] = await Promise.all([
-    loadBillingOverview(membership.organizationId),
-    loadRecentInvoices(membership.organizationId),
-    getStoredReferralDiscountPercent(membership.organizationId),
-    loadAiUsageOverview(membership.organizationId),
-    loadOwnedListingUsage(membership.organizationId),
-  ])
+  const [overview, invoicesResult, referralPercent, aiUsage, ownedListings, catalogPrices] =
+    await Promise.all([
+      loadBillingOverview(membership.organizationId),
+      loadRecentInvoices(membership.organizationId),
+      getStoredReferralDiscountPercent(membership.organizationId),
+      loadAiUsageOverview(membership.organizationId),
+      loadOwnedListingUsage(membership.organizationId),
+      loadCatalogPrices(),
+    ])
 
   const stateMessage = overview ? describeBillingState(overview) : null
   const portalAvailable = stripeConfigured && overview !== null && overview.planKey !== "trial"
+  // Pacotes de +10 imóveis: mesma troca de assinatura do plano (só assinatura ativa ou em teste pago).
+  const paidPlan =
+    overview?.hasSubscription && isPlanKey(overview.planKey) ? overview.planKey : null
+  const packsChangeable =
+    overview !== null &&
+    stripeConfigured &&
+    !overview.platformBlocked &&
+    (overview.status === "active" || overview.status === "trialing")
 
   return (
     <PageShell
@@ -194,7 +225,7 @@ export default async function AssinaturaPage({ searchParams }: AssinaturaPagePro
               ) : null}
             </Card>
 
-            <Card>
+            <Card id="imoveis-extras" className="scroll-mt-20">
               <CardHeader>
                 <CardTitle>Plano atual</CardTitle>
                 <CardDescription>Resumo do que está contratado.</CardDescription>
@@ -209,6 +240,8 @@ export default async function AssinaturaPage({ searchParams }: AssinaturaPagePro
                   </dd>
                   <dt className="text-muted-foreground">Usuários contratados</dt>
                   <dd>{pluralize(overview.seats, "usuário", "usuários")}</dd>
+                  <dt className="text-muted-foreground">Imóveis com foto</dt>
+                  <dd>{ownedListingsLabel(overview)}</dd>
                   {overview.hasSubscription ? null : (
                     <>
                       <dt className="text-muted-foreground">Teste grátis até</dt>
@@ -242,6 +275,20 @@ export default async function AssinaturaPage({ searchParams }: AssinaturaPagePro
                       disabled={!portalAvailable}
                       describedBy={portalAvailable ? undefined : "portal-indisponivel"}
                     />
+                    {paidPlan && overview.interval && !overview.cancelAtPeriodEnd ? (
+                      <OwnedListingPacksDialog
+                        planKey={paidPlan}
+                        planName={PLANS[paidPlan].name}
+                        interval={overview.interval}
+                        extraSeats={Math.max(0, overview.seats - PLANS[paidPlan].usersIncluded)}
+                        currentPacks={overview.ownedListingPacks}
+                        planListings={PLANS[paidPlan].limits.owned_listings}
+                        packPrice={resolvePackPrice(catalogPrices, overview.interval)}
+                        ownedListingsInUse={ownedListings}
+                        currentPeriodEnd={overview.currentPeriodEnd}
+                        disabled={!packsChangeable}
+                      />
+                    ) : null}
                     {overview.hasSubscription && !overview.cancelAtPeriodEnd ? (
                       <BillingPortalButton
                         flow="subscription_cancel"
@@ -252,6 +299,16 @@ export default async function AssinaturaPage({ searchParams }: AssinaturaPagePro
                       </BillingPortalButton>
                     ) : null}
                   </div>
+                  {paidPlan ? null : (
+                    <p className="text-sm text-muted-foreground">
+                      Precisa de mais imóveis com foto? Escolha pacotes de +
+                      {OWNED_LISTINGS_PACK_SIZE} imóveis junto com o plano, em{" "}
+                      <a href={`${plansHref}#adicionais`} className="underline underline-offset-4">
+                        Ver planos
+                      </a>
+                      .
+                    </p>
+                  )}
                   {portalAvailable ? null : (
                     <p id="portal-indisponivel" className="text-sm text-muted-foreground">
                       {stripeConfigured

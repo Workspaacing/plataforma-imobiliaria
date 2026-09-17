@@ -103,7 +103,7 @@ function buildGroups(prices: CatalogPrices): ComparisonGroup[] {
     {
       // Só o que o banco não limita. Imóvel com foto tem linha própria (limit-owned_listings).
       id: "records",
-      label: "Clientes, condomínios e imóveis sem foto ou importados por XML ou API",
+      label: "Clientes, condomínios e imóveis sem foto ou só com fotos no site de origem",
       soon: false,
       description: sentence(IMPORTED_LISTINGS_NOTE),
       cells: byPlan(() => text("Sem limite")),

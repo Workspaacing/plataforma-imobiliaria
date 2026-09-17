@@ -137,10 +137,12 @@ const REDE_ONLY: readonly PlanKey[] = ["rede"]
 export const FEATURES: Record<FeatureKey, FeatureDefinition> = {
   feature_properties: {
     // Não é "ilimitado": imóvel à venda ou para alugar com foto hospedada por nós
-    // tem o limite `owned_listings` do plano, aplicado pelo banco.
+    // tem o limite `owned_listings` do plano (mais os pacotes extras), aplicado pelo
+    // banco. Foto baixada por link na importação de planilhas conta; só não conta
+    // imóvel cujas fotos ficam hospedadas na origem.
     label: "Cadastro de imóveis",
     description:
-      "Cadastro de imóveis com fotos, características e status. Imóveis à venda ou para alugar com fotos hospedadas por nós seguem o limite do plano; vendidos, alugados, inativos, sem foto ou importados por XML ou API não contam.",
+      "Cadastro de imóveis com fotos, características e status. Imóveis à venda ou para alugar com fotos hospedadas por nós seguem o limite do plano, que cresce com pacotes de +10 imóveis; fotos trazidas por link na importação de planilhas também contam. Vendidos, alugados, inativos, sem foto ou só com fotos hospedadas no site de origem não contam.",
     status: "available",
     group: "Imóveis e captação",
     plans: ALL,

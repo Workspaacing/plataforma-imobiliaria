@@ -75,8 +75,14 @@ const perMonth = (cents: number) => `${formatBRL(cents, { omitZeroCents: true })
 //   · imóvel com pelo menos uma foto no nosso bucket, e
 //   · que ainda está na carteira (decisão do dono em 16/09/2026: vendido,
 //     alugado ou inativo libera a vaga).
-// Imóvel sem foto, e imóvel importado por XML/API (a foto fica na origem), não
-// entram na conta. Nenhum texto pode chamar imóvel com foto de "ilimitado".
+// Imóvel sem foto, e imóvel cujas fotos são só links para o site de origem
+// (nada no nosso bucket), não entram na conta. Foto trazida por link na
+// importação de planilhas é BAIXADA para o bucket e conta como qualquer outra.
+// Nenhum texto pode chamar imóvel com foto de "ilimitado".
+//
+// O limite cresce com o adicional "+10 imóveis" (OWNED_LISTINGS_PACK_SIZE por
+// pacote): computeLimits soma os pacotes em `owned_listings`, e os gatilhos do
+// banco leem esse total (private.billing_limit).
 
 /** Status que tiram o imóvel da carteira e liberam a vaga de imóvel próprio. */
 export const OWNED_LISTING_RELEASED_STATUSES: readonly PropertyStatus[] = [
@@ -146,9 +152,7 @@ function definePlan(
 function coreBenefits(plan: Omit<PlanDefinition, "benefits">): PlanBenefit[] {
   return [
     ownedListingsBenefit(plan),
-    available(
-      "Sem limite para clientes, condomínios e imóveis sem foto ou importados por XML ou API"
-    ),
+    available("Sem limite para clientes, condomínios e imóveis sem foto"),
     available("Funil de leads em kanban, com propostas em PDF e link para o cliente"),
     available("Imóveis compatíveis com cada cliente: quem se interessa por cada imóvel"),
     available("Agenda, tarefas e controle de chaves"),
@@ -320,9 +324,10 @@ export const TRIAL_LIMITS: Record<LimitKey, number> = {
 
 // Regras das franquias exibidas em /planos (sem números: estes vêm de PLANS e ADDONS).
 /**
- * O limite de fotos é por imóvel próprio, não por GB. Imóvel importado de outro
- * sistema (XML ou API) aponta para a foto na origem e não consome nada nosso —
- * por isso fica fora do limite, e é o que torna a migração barata dos dois lados.
+ * O limite de fotos é por imóvel próprio, não por GB. Só fica fora do limite o
+ * imóvel cujas fotos continuam hospedadas no site de origem (a mídia guarda só o
+ * link e não consome nada nosso). A importação de planilhas BAIXA as fotos dos
+ * links para o nosso bucket: esses imóveis contam, como os de upload.
  * Imóvel com foto hospedada por nós NUNCA é "ilimitado": tem o limite do plano.
  */
 /**
@@ -337,7 +342,7 @@ export const LISTING_PHOTO_MAX_MB = LISTING_PHOTO_MAX_BYTES / (1024 * 1024)
 export const LISTING_PHOTO_SIZE_NOTE = `Cada foto fica com no máximo ${LISTING_PHOTO_MAX_MB} MB, em qualquer plano: fotos maiores são otimizadas automaticamente ao enviar`
 
 export const IMPORTED_LISTINGS_NOTE =
-  "Imóveis importados por XML ou API não contam no limite: as fotos ficam na origem"
+  "Imóvel com fotos só em link para o site de origem não conta no limite; fotos trazidas por link na importação de planilhas são copiadas para cá e contam"
 export const OWNED_LISTINGS_NOTE = `O limite de imóveis do plano vale só para imóveis à venda ou para alugar com fotos hospedadas por nós: imóvel sem foto ou marcado como ${OWNED_LISTING_RELEASED_STATUS_TEXT} não conta`
 export const AI_OVERAGE_NOTE = "O excedente de conversas de IA tem sempre um teto definido por você"
 /** Primeiro plano com franquia de IA (o Corretor não tem: ai_conversations = 0). */
@@ -388,16 +393,41 @@ export const ANNUAL_BOLETO_PLANS: readonly PlanKey[] = PLAN_KEYS
 export const ANNUAL_BOLETO_NOTE =
   "No plano anual, o boleto é a forma sugerida e sai mais barato para os dois lados; o cartão continua disponível"
 
+// ---------------------------------------------------------------------------
+// Adicional "+10 imóveis com foto": pacotes com quantidade na assinatura
+
+/** Chave do adicional em ADDONS, em billing_accounts.addon_keys e no lookup_key. */
+export const OWNED_LISTINGS_ADDON_KEY = "owned_listings"
+/** Imóveis com foto a mais por pacote. */
+export const OWNED_LISTINGS_PACK_SIZE = 10
+/**
+ * Centavos por pacote, no mesmo intervalo do plano (a Stripe não mistura
+ * intervalos numa assinatura). O anual vale 10 mensalidades, como plano e assento.
+ */
+export const OWNED_LISTINGS_PACK_PRICE: Record<BillingInterval, number> = {
+  month: 1900,
+  year: 19000,
+}
+/** Teto de pacotes por assinatura (2.000 imóveis a mais); o banco aceita até 1.000. */
+export const MAX_OWNED_LISTING_PACKS = 200
+
+/** Normaliza a quantidade de pacotes: inteiro ≥ 0 (inválido → 0), capado pelo teto. */
+export function clampOwnedListingPacks(packs: number): number {
+  const requested = Number.isFinite(packs) ? Math.max(0, Math.floor(packs)) : 0
+  return Math.min(requested, MAX_OWNED_LISTING_PACKS)
+}
+
 export type AddonDefinition = {
   key: string
   name: string
   description: string
   priceLabel: string
-  status: "soon"
+  /** "available": contratável na assinatura; "soon": só o preço anunciado. */
+  status: FeatureStatus
   plans: PlanKey[]
 }
 
-/** Adicionais exibidos em /planos como "em breve", sem compra na v1. */
+/** Adicionais exibidos em /planos. Os "em breve" não têm compra; o de imóveis já tem. */
 export const ADDONS: ReadonlyArray<AddonDefinition> = [
   {
     key: "ai_conversations",
@@ -426,11 +456,11 @@ export const ADDONS: ReadonlyArray<AddonDefinition> = [
     plans: ["corretor", "imobiliaria", "equipe", "rede"],
   },
   {
-    key: "owned_listings",
+    key: OWNED_LISTINGS_ADDON_KEY,
     name: "Imóveis próprios extras",
-    description: `Mais imóveis à venda ou para alugar com fotos hospedadas por nós, com o mesmo limite de fotos do plano. ${IMPORTED_LISTINGS_NOTE}.`,
-    priceLabel: `+10 imóveis por ${perMonth(1900)}`,
-    status: "soon",
+    description: `Mais imóveis à venda ou para alugar com fotos hospedadas por nós, com o mesmo limite de fotos do plano. Contrate quantos pacotes precisar na assinatura; no plano anual, cada pacote custa ${formatBRL(OWNED_LISTINGS_PACK_PRICE.year, { omitZeroCents: true })}/ano. ${IMPORTED_LISTINGS_NOTE}.`,
+    priceLabel: `+${OWNED_LISTINGS_PACK_SIZE} imóveis por ${perMonth(OWNED_LISTINGS_PACK_PRICE.month)}`,
+    status: "available",
     plans: ["corretor", "imobiliaria", "equipe", "rede"],
   },
   {
@@ -486,8 +516,9 @@ export function isBillingInterval(value: unknown): value is BillingInterval {
 }
 
 // ---------------------------------------------------------------------------
-// lookup_key dos Prices na Stripe: plan_{plano}_{monthly|yearly} e
-// seat_{plano}_{monthly|yearly}. O assento segue o intervalo do plano.
+// lookup_key dos Prices na Stripe: plan_{plano}_{monthly|yearly},
+// seat_{plano}_{monthly|yearly} e addon_{adicional}_{monthly|yearly}. Assento e
+// adicional seguem o intervalo do plano.
 
 const INTERVAL_SUFFIX: Record<BillingInterval, "monthly" | "yearly"> = {
   month: "monthly",
@@ -502,6 +533,32 @@ export function priceLookupKey(plan: PlanKey, interval: BillingInterval): string
 
 export function seatLookupKey(plan: PlanKey, interval: BillingInterval): string {
   return `seat_${plan}_${INTERVAL_SUFFIX[interval]}`
+}
+
+/** Adicionais que já têm compra (Price na Stripe). */
+export type PurchasableAddonKey = typeof OWNED_LISTINGS_ADDON_KEY
+
+export function addonLookupKey(addon: PurchasableAddonKey, interval: BillingInterval): string {
+  return `addon_${addon}_${INTERVAL_SUFFIX[interval]}`
+}
+
+const ADDON_LOOKUP_KEY_PATTERN = /^addon_([a-z_]+)_(monthly|yearly)$/
+
+/** Inverso de addonLookupKey; adicional sem compra ou chave fora do padrão → null. */
+export function parseAddonLookupKey(
+  key: string
+): { addon: PurchasableAddonKey; interval: BillingInterval } | null {
+  if (typeof key !== "string") {
+    return null
+  }
+
+  const match = ADDON_LOOKUP_KEY_PATTERN.exec(key)
+
+  if (match?.[1] !== OWNED_LISTINGS_ADDON_KEY) {
+    return null
+  }
+
+  return { addon: OWNED_LISTINGS_ADDON_KEY, interval: match[2] === "monthly" ? "month" : "year" }
 }
 
 /** Inverso de priceLookupKey/seatLookupKey. Qualquer outra chave (inclusive add-ons) → null. */
@@ -538,10 +595,17 @@ export function clampExtraSeats(plan: PlanKey, extraSeats: number): number {
   return Math.min(requested, maxExtraSeats(plan))
 }
 
-/** Total do ciclo em centavos: plano + usuários extras (capados pelo teto do plano). */
-export function planTotal(plan: PlanKey, interval: BillingInterval, extraSeats = 0): number {
+/** Total do ciclo em centavos: plano + usuários extras (capados) + pacotes de imóveis. */
+export function planTotal(
+  plan: PlanKey,
+  interval: BillingInterval,
+  extraSeats = 0,
+  ownedListingPacks = 0
+): number {
   const definition = PLANS[plan]
   return (
-    definition.prices[interval] + clampExtraSeats(plan, extraSeats) * definition.seatPrice[interval]
+    definition.prices[interval] +
+    clampExtraSeats(plan, extraSeats) * definition.seatPrice[interval] +
+    clampOwnedListingPacks(ownedListingPacks) * OWNED_LISTINGS_PACK_PRICE[interval]
   )
 }

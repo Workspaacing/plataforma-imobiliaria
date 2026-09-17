@@ -2,11 +2,14 @@
 // Puro (sem server-only): roda no servidor e no navegador. Catálogo, limites,
 // benefícios e textos vêm do core (`@workspace/core/billing`), a fonte única.
 import {
+  addonLookupKey,
   AI_PLAN_NOTE,
   BILLING_INTERVAL_LABELS,
   formatBRL,
   LISTING_PHOTO_MAX_MB,
   maxExtraSeats,
+  OWNED_LISTINGS_ADDON_KEY,
+  OWNED_LISTINGS_PACK_PRICE,
   PLAN_KEYS,
   PLANS,
   priceLookupKey,
@@ -45,6 +48,12 @@ export function resolvePlanPricing(
     price: isCents(price) ? price : PLANS[plan].prices[interval],
     seatPrice: isCents(seatPrice) ? seatPrice : PLANS[plan].seatPrice[interval],
   }
+}
+
+/** Preço de um pacote de +10 imóveis no intervalo: Stripe quando houver, senão o core. */
+export function resolvePackPrice(prices: CatalogPrices, interval: BillingInterval): number {
+  const price = prices[addonLookupKey(OWNED_LISTINGS_ADDON_KEY, interval)]
+  return isCents(price) ? price : OWNED_LISTINGS_PACK_PRICE[interval]
 }
 
 /** Total do intervalo com os usuários extras, em centavos. */

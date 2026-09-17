@@ -19,17 +19,27 @@ export const BILLING_ERROR_CODES = [
 
 export type BillingErrorCode = (typeof BILLING_ERROR_CODES)[number]
 
+/**
+ * O que conta no limite de imóveis com foto. Foto trazida por link na
+ * importação de planilhas é baixada para o nosso bucket e CONTA; só não conta o
+ * imóvel cujas fotos continuam hospedadas no site de origem.
+ */
+const OWNED_LISTINGS_COUNT_RULE =
+  "Imóveis vendidos, alugados, inativos ou só com fotos hospedadas no site de origem não contam; fotos trazidas por link na importação de planilhas contam."
+/** Saída para quem precisa de mais vagas: pacote de +10 imóveis ou plano maior. */
+const OWNED_LISTINGS_UPGRADE_HINT =
+  "contrate pacotes de +10 imóveis ou mude de plano em Configurações > Assinatura"
+
 const BILLING_ERROR_MESSAGES: Record<BillingErrorCode, string> = {
   assinatura_somente_leitura:
-    "A imobiliária está no modo leitura por falta de assinatura ativa: dá para ver e exportar tudo, mas não criar nem editar. O dono pode regularizar em Configurações > Assinatura.",
+    "A imobiliária está no modo leitura (sem assinatura ativa ou com exclusão agendada): dá para ver e exportar tudo, mas não criar nem editar. O dono pode regularizar em Configurações > Assinatura ou cancelar a exclusão em Configurações > Imobiliária.",
   limite_usuarios:
     "O limite de usuários do plano foi atingido (membros ativos e convites pendentes contam). Desative um acesso, cancele um convite ou contrate mais usuários em Configurações > Assinatura.",
   limite_landing_pages:
     "O limite de landing pages publicadas do plano foi atingido. Despublique uma página ou mude de plano em Configurações > Assinatura.",
   // Vem ao enviar a primeira foto de um imóvel e também ao reativar um imóvel com
   // foto (troca de status ou reserva por proposta).
-  limite_owned_listings:
-    "O limite de imóveis com fotos hospedadas por nós foi atingido. Imóveis vendidos, alugados, inativos ou importados por XML ou API não contam. Para liberar a vaga, marque como vendido, alugado ou inativo um imóvel que saiu da carteira, ou mude de plano em Configurações > Assinatura.",
+  limite_owned_listings: `O limite de imóveis com fotos hospedadas por nós foi atingido. ${OWNED_LISTINGS_COUNT_RULE} Para liberar a vaga, marque como vendido, alugado ou inativo um imóvel que saiu da carteira, ou ${OWNED_LISTINGS_UPGRADE_HINT}.`,
   limite_photos_per_listing:
     "Este imóvel já tem o número máximo de fotos do plano. Apague uma foto para enviar outra, ou mude de plano em Configurações > Assinatura.",
 }
@@ -147,7 +157,7 @@ function limitMessage(code: BillingErrorCode, error: unknown): string {
   }
 
   if (code === "limite_owned_listings") {
-    return `Seu plano permite ${plural(detail.limit, "imóvel", "imóveis")} com fotos hospedadas por nós na carteira e você já tem ${detail.usage}. Imóveis vendidos, alugados, inativos ou importados por XML ou API não contam. Para liberar a vaga, marque como vendido, alugado ou inativo um imóvel que saiu da carteira, ou mude de plano em Configurações > Assinatura.`
+    return `Seu plano permite ${plural(detail.limit, "imóvel", "imóveis")} com fotos hospedadas por nós na carteira e você já tem ${detail.usage}. ${OWNED_LISTINGS_COUNT_RULE} Para liberar a vaga, marque como vendido, alugado ou inativo um imóvel que saiu da carteira, ou ${OWNED_LISTINGS_UPGRADE_HINT}.`
   }
 
   if (code === "limite_photos_per_listing") {

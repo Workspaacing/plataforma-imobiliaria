@@ -226,9 +226,10 @@ export function PricingPage({ prices, account }: PricingPageProps) {
 
               <p className="text-center text-sm text-balance text-muted-foreground">
                 Valores em reais. Clientes e condomínios sem limite em todos os planos; imóveis{" "}
-                {OWNED_LISTING_RELEASED_STATUS_PLURAL_TEXT}, sem foto ou importados não contam no
-                limite de imóveis com foto. Itens “Em breve” ainda estão em construção e chegam sem
-                custo extra para quem já tem o plano.
+                {OWNED_LISTING_RELEASED_STATUS_PLURAL_TEXT}, sem foto ou só com fotos no site de
+                origem não contam no limite de imóveis com foto, que cresce com pacotes de +10
+                imóveis. Itens “Em breve” ainda estão em construção e chegam sem custo extra para
+                quem já tem o plano.
               </p>
 
               <NetworkBand support={support} />
@@ -249,7 +250,7 @@ export function PricingPage({ prices, account }: PricingPageProps) {
             <Section
               id="adicionais"
               title="Adicionais"
-              description="Extras para quando a operação crescer. Chegam em breve, com estes preços."
+              description="Extras para quando a operação crescer. Os pacotes de imóveis com foto já podem ser contratados; os demais chegam em breve, com estes preços."
             >
               <AddonsList />
             </Section>

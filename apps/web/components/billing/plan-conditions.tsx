@@ -60,7 +60,7 @@ const CONDITIONS: ReadonlyArray<{ icon: LucideIcon; title: string; description: 
     // Não é "ilimitado": imóvel com foto hospedada por nós tem o limite do plano.
     icon: ImagesIcon,
     title: "Limite só para imóvel com foto",
-    description: `Clientes, condomínios e imóveis sem foto ou importados por XML ou API não têm limite. Imóveis à venda ou para alugar com fotos hospedadas por nós seguem o limite do plano; ${OWNED_LISTING_RELEASED_STATUS_PLURAL_TEXT} não contam.`,
+    description: `Clientes, condomínios e imóveis sem foto ou só com fotos hospedadas no site de origem não têm limite. Imóveis à venda ou para alugar com fotos hospedadas por nós (inclusive as trazidas por link na importação de planilhas) seguem o limite do plano, que cresce com pacotes de +10 imóveis; ${OWNED_LISTING_RELEASED_STATUS_PLURAL_TEXT} não contam.`,
   },
 ]
 

@@ -5,7 +5,13 @@
 // valer quando os módulos existirem.
 
 import type { FeatureStatus } from "./features"
-import { PLANS, clampExtraSeats, type PlanKey } from "./plans"
+import {
+  PLANS,
+  clampExtraSeats,
+  clampOwnedListingPacks,
+  OWNED_LISTINGS_PACK_SIZE,
+  type PlanKey,
+} from "./plans"
 
 export const LIMIT_KEYS = [
   "users",
@@ -40,7 +46,8 @@ export const LIMITS: Record<LimitKey, LimitDefinition> = {
   landing_pages: { label: "Landing pages publicadas", status: "available", enforced: true },
   owned_listings: {
     // Só imóvel à venda ou para alugar com foto no nosso bucket conta; vendido,
-    // alugado, inativo, sem foto ou importado por XML/API fica de fora.
+    // alugado, inativo, sem foto ou só com link para a foto na origem fica de
+    // fora (foto baixada na importação de planilhas conta).
     label: "Imóveis à venda ou para alugar com fotos hospedadas por nós",
     status: "available",
     enforced: true,
@@ -64,14 +71,24 @@ export const LIMITS: Record<LimitKey, LimitDefinition> = {
 
 /**
  * Limites gravados em billing_accounts.limits: os do plano, com
- * `users` = incluídos + extras contratados, capado por usersMax.
+ * `users` = incluídos + extras contratados, capado por usersMax, e
+ * `owned_listings` = o do plano + OWNED_LISTINGS_PACK_SIZE por pacote do
+ * adicional "+10 imóveis" (os gatilhos do banco leem esse total).
  */
-export function computeLimits(plan: PlanKey, extraSeats: number): Record<LimitKey, number> {
+export function computeLimits(
+  plan: PlanKey,
+  extraSeats: number,
+  ownedListingPacks = 0
+): Record<LimitKey, number> {
   const definition = PLANS[plan]
+  const baseListings = definition.limits.owned_listings
 
   return {
     ...definition.limits,
     users: definition.usersIncluded + clampExtraSeats(plan, extraSeats),
+    owned_listings: isUnlimited(baseListings)
+      ? baseListings
+      : baseListings + clampOwnedListingPacks(ownedListingPacks) * OWNED_LISTINGS_PACK_SIZE,
   }
 }
 

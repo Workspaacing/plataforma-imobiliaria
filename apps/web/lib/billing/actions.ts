@@ -7,7 +7,10 @@ import type Stripe from "stripe"
 import { z } from "zod"
 
 import {
+  addonLookupKey,
   computeLimits,
+  MAX_OWNED_LISTING_PACKS,
+  OWNED_LISTINGS_ADDON_KEY,
   PLANS,
   priceLookupKey,
   seatLookupKey,
@@ -72,11 +75,17 @@ export type SubscriptionChoice = {
   planKey: PlanKey
   interval: BillingInterval
   extraSeats: number
+  /** Pacotes do adicional "+10 imóveis com foto"; ausente = nenhum. */
+  ownedListingPacks?: number
 }
+
+/** Escolha já validada: pacotes sempre presentes. */
+type ParsedChoice = Required<SubscriptionChoice>
 
 type CheckoutLineItem = Stripe.Checkout.SessionCreateParams.LineItem
 type SubscriptionItemUpdate = Stripe.SubscriptionUpdateParams.Item
 type CatalogPrice = { id: string; amount: number }
+type ChoicePrices = { plan: CatalogPrice; seat: CatalogPrice | null; pack: CatalogPrice | null }
 type PlanComposition = SubscriptionComposition & {
   plan: NonNullable<SubscriptionComposition["plan"]>
 }
@@ -85,7 +94,7 @@ const STRIPE_NOT_CONFIGURED =
   "Os pagamentos ainda não estão ativos nesta instalação. Tente novamente mais tarde ou fale com o suporte."
 const OWNER_ONLY = "Só o dono da imobiliária pode contratar, trocar ou cancelar a assinatura."
 const INVALID_CHOICE =
-  "Escolha um plano, o ciclo de cobrança e uma quantidade válida de usuários adicionais."
+  "Escolha um plano, o ciclo de cobrança e quantidades válidas de usuários adicionais e de pacotes de imóveis."
 const INVALID_PORTAL_FLOW = "Opção do portal de pagamentos inválida."
 const ACCOUNT_NOT_READY =
   "A assinatura desta imobiliária ainda não está pronta. Tente novamente em instantes ou fale com o suporte."
@@ -127,6 +136,7 @@ const choiceSchema = z.object({
   planKey: z.enum(PLAN_KEYS),
   interval: z.enum(["month", "year"]),
   extraSeats: z.number().int().min(0).max(MAX_EXTRA_SEATS),
+  ownedListingPacks: z.number().int().min(0).max(MAX_OWNED_LISTING_PACKS).default(0),
 })
 
 const portalSchema = z
@@ -259,7 +269,7 @@ function usersMaxError(planKey: PlanKey, extraSeats: number): string | null {
 
 function parseChoice(
   input: unknown
-): { ok: true; choice: SubscriptionChoice } | { ok: false; error: string } {
+): { ok: true; choice: ParsedChoice } | { ok: false; error: string } {
   const parsed = choiceSchema.safeParse(input)
 
   if (!parsed.success) {
@@ -286,17 +296,19 @@ async function retrieveSubscription(
   }
 }
 
-/** Preços ativos (id e valor em centavos) do plano e, se pedido, do assento. */
+/** Preços ativos (id e valor em centavos) do plano e, se pedidos, do assento e do pacote. */
 async function resolveCatalogPrices(
   stripe: Stripe,
   planKey: PlanKey,
   interval: BillingInterval,
-  withSeats: boolean
-): Promise<{ plan: CatalogPrice; seat: CatalogPrice | null } | null> {
+  withSeats: boolean,
+  withPacks = false
+): Promise<ChoicePrices | null> {
   const planLookupKey = priceLookupKey(planKey, interval)
   const seatKey = seatLookupKey(planKey, interval)
+  const packKey = addonLookupKey(OWNED_LISTINGS_ADDON_KEY, interval)
   const prices = await stripe.prices.list({
-    lookup_keys: withSeats ? [planLookupKey, seatKey] : [planLookupKey],
+    lookup_keys: [planLookupKey, ...(withSeats ? [seatKey] : []), ...(withPacks ? [packKey] : [])],
     active: true,
     limit: 10,
   })
@@ -310,13 +322,14 @@ async function resolveCatalogPrices(
 
   const plan = byLookupKey.get(planLookupKey)
   const seat = byLookupKey.get(seatKey) ?? null
+  const pack = byLookupKey.get(packKey) ?? null
 
-  if (!plan || (withSeats && !seat)) {
+  if (!plan || (withSeats && !seat) || (withPacks && !pack)) {
     console.error(`[billing] preço ativo não encontrado na Stripe para ${planLookupKey}`)
     return null
   }
 
-  return { plan, seat }
+  return { plan, seat, pack }
 }
 
 /**
@@ -393,40 +406,50 @@ function annualized(amount: number, interval: BillingInterval) {
 
 function currentAmount(composition: PlanComposition) {
   const planAmount = composition.plan.item.price.unit_amount ?? 0
-  const seatsAmount = composition.seatItems.reduce(
+  const extrasAmount = [...composition.seatItems, ...composition.ownedListingItems].reduce(
     (total, item) => total + (item.price.unit_amount ?? 0) * (item.quantity ?? 0),
     0
   )
 
-  return annualized(planAmount + seatsAmount, composition.plan.interval)
+  return annualized(planAmount + extrasAmount, composition.plan.interval)
 }
 
-/** Itens da assinatura na troca imediata: plano substituído, assentos ajustados. */
-function buildItemUpdates(
-  composition: PlanComposition,
-  prices: { plan: CatalogPrice; seat: CatalogPrice | null },
-  extraSeats: number
+/**
+ * Item com quantidade (assentos ou pacotes): reaproveita o primeiro existente
+ * (com o preço do novo ciclo), cria se não houver e apaga os duplicados.
+ */
+function quantityItemUpdates(
+  existing: Stripe.SubscriptionItem[],
+  price: CatalogPrice | null,
+  quantity: number
 ): SubscriptionItemUpdate[] {
-  const items: SubscriptionItemUpdate[] = [
-    { id: composition.plan.item.id, price: prices.plan.id, quantity: 1 },
-  ]
-  const [seatItem, ...duplicatedSeatItems] = composition.seatItems
+  const [item, ...duplicated] = existing
+  const items: SubscriptionItemUpdate[] = []
 
-  if (extraSeats > 0 && prices.seat) {
-    items.push(
-      seatItem
-        ? { id: seatItem.id, price: prices.seat.id, quantity: extraSeats }
-        : { price: prices.seat.id, quantity: extraSeats }
-    )
-  } else if (seatItem) {
-    items.push({ id: seatItem.id, deleted: true })
-  }
-
-  for (const item of duplicatedSeatItems) {
+  if (quantity > 0 && price) {
+    items.push(item ? { id: item.id, price: price.id, quantity } : { price: price.id, quantity })
+  } else if (item) {
     items.push({ id: item.id, deleted: true })
   }
 
+  for (const duplicate of duplicated) {
+    items.push({ id: duplicate.id, deleted: true })
+  }
+
   return items
+}
+
+/** Itens da assinatura na troca imediata: plano substituído, assentos e pacotes ajustados. */
+function buildItemUpdates(
+  composition: PlanComposition,
+  prices: ChoicePrices,
+  choice: ParsedChoice
+): SubscriptionItemUpdate[] {
+  return [
+    { id: composition.plan.item.id, price: prices.plan.id, quantity: 1 },
+    ...quantityItemUpdates(composition.seatItems, prices.seat, choice.extraSeats),
+    ...quantityItemUpdates(composition.ownedListingItems, prices.pack, choice.ownedListingPacks),
+  ]
 }
 
 /**
@@ -437,8 +460,8 @@ function buildItemUpdates(
 async function scheduleChangeAtPeriodEnd(
   stripe: Stripe,
   subscription: Stripe.Subscription,
-  choice: SubscriptionChoice,
-  prices: { plan: CatalogPrice; seat: CatalogPrice | null },
+  choice: ParsedChoice,
+  prices: ChoicePrices,
   idempotencyKey: string
 ) {
   const existingScheduleId = idOf(subscription.schedule)
@@ -462,6 +485,10 @@ async function scheduleChangeAtPeriodEnd(
 
   if (choice.extraSeats > 0 && prices.seat) {
     nextItems.push({ price: prices.seat.id, quantity: choice.extraSeats })
+  }
+
+  if (choice.ownedListingPacks > 0 && prices.pack) {
+    nextItems.push({ price: prices.pack.id, quantity: choice.ownedListingPacks })
   }
 
   // Fases sem `discounts` ficam sem desconto: copia os atuais (inclusive o cupom
@@ -597,7 +624,7 @@ export async function startCheckout(
     return { ok: false, error: STRIPE_NOT_CONFIGURED }
   }
 
-  const { planKey, interval, extraSeats } = parsed.choice
+  const { planKey, interval, extraSeats, ownedListingPacks } = parsed.choice
   const { membership } = owner.context
   const organizationId = membership.organizationId
 
@@ -616,7 +643,13 @@ export async function startCheckout(
       }
     }
 
-    const prices = await resolveCatalogPrices(stripe, planKey, interval, extraSeats > 0)
+    const prices = await resolveCatalogPrices(
+      stripe,
+      planKey,
+      interval,
+      extraSeats > 0,
+      ownedListingPacks > 0
+    )
 
     if (!prices) {
       return { ok: false, error: PLAN_UNAVAILABLE }
@@ -628,6 +661,10 @@ export async function startCheckout(
 
     if (extraSeats > 0 && prices.seat) {
       lineItems.push({ price: prices.seat.id, quantity: extraSeats })
+    }
+
+    if (ownedListingPacks > 0 && prices.pack) {
+      lineItems.push({ price: prices.pack.id, quantity: ownedListingPacks })
     }
 
     const session = await stripe.checkout.sessions.create(
@@ -653,7 +690,7 @@ export async function startCheckout(
       {
         // O retorno entra na chave: a mesma escolha feita no CRM e em /planos gera
         // sessões com URLs diferentes, e a Stripe recusa chave repetida com outros parâmetros.
-        idempotencyKey: `crm-checkout-${organizationId}-${planKey}-${interval}-${extraSeats}-${referralCoupon ?? "sem-cupom"}${returnTo ? `-${returnTo}` : ""}-${idempotencyWindow()}`,
+        idempotencyKey: `crm-checkout-${organizationId}-${planKey}-${interval}-${extraSeats}-p${ownedListingPacks}-${referralCoupon ?? "sem-cupom"}${returnTo ? `-${returnTo}` : ""}-${idempotencyWindow()}`,
       }
     )
 
@@ -670,7 +707,7 @@ export async function startCheckout(
 }
 
 /**
- * Troca de plano, ciclo ou usuários adicionais dentro do app (o Portal da Stripe
+ * Troca de plano, ciclo, usuários adicionais ou pacotes de +10 imóveis dentro do app (o Portal da Stripe
  * não troca assinatura com plano + assentos nem com Boleto):
  * - aumento de valor (upgrade ou mais usuários): agora, cobrando o proporcional;
  * - redução (downgrade ou menos usuários): no fim do ciclo, por agenda;
@@ -742,7 +779,8 @@ export async function changeSubscription(
     if (
       current.plan.key === choice.planKey &&
       current.plan.interval === choice.interval &&
-      current.extraSeats === choice.extraSeats
+      current.extraSeats === choice.extraSeats &&
+      current.ownedListingPacks === choice.ownedListingPacks
     ) {
       if (!scheduleId) {
         return { ok: false, error: SAME_CHOICE }
@@ -775,11 +813,14 @@ export async function changeSubscription(
       }
     }
 
+    // Menos pacotes segue a regra do downgrade: vale no fim do ciclo e não apaga
+    // nada; os imóveis acima do novo limite continuam, só a foto de imóvel novo trava.
     const prices = await resolveCatalogPrices(
       stripe,
       choice.planKey,
       choice.interval,
-      choice.extraSeats > 0
+      choice.extraSeats > 0,
+      choice.ownedListingPacks > 0
     )
 
     if (!prices) {
@@ -788,10 +829,12 @@ export async function changeSubscription(
 
     const previousTotal = currentAmount(current)
     const nextTotal = annualized(
-      prices.plan.amount + (prices.seat?.amount ?? 0) * choice.extraSeats,
+      prices.plan.amount +
+        (prices.seat?.amount ?? 0) * choice.extraSeats +
+        (prices.pack?.amount ?? 0) * choice.ownedListingPacks,
       choice.interval
     )
-    const idempotencyKey = `crm-change-${organizationId}-${choice.planKey}-${choice.interval}-${choice.extraSeats}-${idempotencyWindow()}`
+    const idempotencyKey = `crm-change-${organizationId}-${choice.planKey}-${choice.interval}-${choice.extraSeats}-p${choice.ownedListingPacks}-${idempotencyWindow()}`
 
     if (nextTotal < previousTotal) {
       if (subscription.cancel_at_period_end || subscription.cancel_at !== null) {
@@ -807,7 +850,7 @@ export async function changeSubscription(
       await releaseSchedule(stripe, scheduleId)
     }
 
-    const items = buildItemUpdates(current, prices, choice.extraSeats)
+    const items = buildItemUpdates(current, prices, choice)
     const charges = nextTotal > previousTotal
     // Cobrança automática (cartão): os itens só mudam com o pagamento aprovado
     // (pending update). Boleto/fatura (send_invoice) não aceita esse modo: a

@@ -4,9 +4,12 @@ import { unstable_cache } from "next/cache"
 import { cache } from "react"
 
 import {
+  addonLookupKey,
   diffCatalogPrice,
   FEATURES,
   formatCatalogPriceDivergenceWarning,
+  OWNED_LISTINGS_ADDON_KEY,
+  OWNED_LISTINGS_PACK_PRICE,
   PLANS,
   priceLookupKey,
   resolveBillingState,
@@ -40,6 +43,8 @@ export type BillingOverview = {
   planKey: BillingPlanKey
   interval: BillingInterval | null
   seats: number
+  /** Pacotes do adicional "+10 imóveis" contratados (já somados em limits.owned_listings). */
+  ownedListingPacks: number
   addonKeys: string[]
   limits: Partial<Record<LimitKey, number>>
   features: FeatureKey[]
@@ -177,6 +182,7 @@ function toBillingOverview(raw: unknown, organizationId: string): BillingOvervie
     planKey,
     interval: isBillingInterval(row.billing_interval) ? row.billing_interval : null,
     seats: readCount(row.seats),
+    ownedListingPacks: readCount(row.owned_listing_packs),
     addonKeys: Array.isArray(row.addon_keys)
       ? row.addon_keys.filter((key): key is string => typeof key === "string")
       : [],
@@ -304,12 +310,15 @@ export const listRecentInvoices = cache(
 
 const INTERVAL_KEYS: readonly BillingInterval[] = ["month", "year"]
 
-const CATALOG_LOOKUP_KEYS = PLAN_KEYS.flatMap((plan) =>
-  INTERVAL_KEYS.flatMap((interval) => [
-    priceLookupKey(plan, interval),
-    seatLookupKey(plan, interval),
-  ])
-)
+const CATALOG_LOOKUP_KEYS = [
+  ...PLAN_KEYS.flatMap((plan) =>
+    INTERVAL_KEYS.flatMap((interval) => [
+      priceLookupKey(plan, interval),
+      seatLookupKey(plan, interval),
+    ])
+  ),
+  ...INTERVAL_KEYS.map((interval) => addonLookupKey(OWNED_LISTINGS_ADDON_KEY, interval)),
+]
 
 /** Preços do core (centavos) por lookup_key: fallback sem Stripe ou em erro. */
 function getFallbackCatalogPrices(): Record<string, number> {
@@ -320,6 +329,10 @@ function getFallbackCatalogPrices(): Record<string, number> {
       prices[priceLookupKey(plan, interval)] = PLANS[plan].prices[interval]
       prices[seatLookupKey(plan, interval)] = PLANS[plan].seatPrice[interval]
     }
+  }
+
+  for (const interval of INTERVAL_KEYS) {
+    prices[addonLookupKey(OWNED_LISTINGS_ADDON_KEY, interval)] = OWNED_LISTINGS_PACK_PRICE[interval]
   }
 
   return prices

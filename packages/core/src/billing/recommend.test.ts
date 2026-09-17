@@ -110,7 +110,13 @@ describe("recommendPlan: menor custo que atende usuários e imóveis com foto", 
 
     expect(result).toMatchObject({ plan: "rede", extraSeats: 0, fitsOwnedListings: false })
     expect(result.reasons[0]).toBe(
-      "Nenhum plano comporta mais de 150 imóveis com foto hoje. O plano Rede é o que mais comporta, e o pacote de imóveis extras ainda está em breve."
+      "Nenhum plano comporta sozinho mais de 150 imóveis com foto. O plano Rede é o que mais comporta; para o restante, some 1 pacote de +10 imóveis por R$ 19/mês."
+    )
+  })
+
+  it("calcula os pacotes de +10 imóveis que faltam acima do maior limite", () => {
+    expect(recommendPlan({ teamSize: 12, ownedListings: 900 }).reasons[0]).toBe(
+      "Nenhum plano comporta sozinho mais de 150 imóveis com foto. O plano Rede é o que mais comporta; para o restante, some 75 pacotes de +10 imóveis por R$ 1.425/mês."
     )
   })
 
@@ -161,12 +167,12 @@ describe("recommendPlan: coerência", () => {
   it("explica a recomendação em pt-BR", () => {
     expect(recommendPlan({ teamSize: 1, ownedListings: 0 }).reasons).toEqual([
       "Para 1 pessoa e nenhum imóvel com foto, o plano Corretor é o de menor custo que atende.",
-      "Imóveis sem foto, importados por XML ou API, vendidos, alugados e inativos não contam no limite.",
+      "Imóveis sem foto, só com fotos hospedadas no site de origem, vendidos, alugados e inativos não contam no limite.",
     ])
     expect(recommendPlan({ teamSize: 2, ownedListings: 6 }).reasons).toEqual([
       "Para 2 pessoas e até 6 imóveis com foto, o plano Imobiliária é o de menor custo que atende.",
       "O plano Corretor sairia mais barato, mas comporta só 5 imóveis com foto.",
-      "Imóveis sem foto, importados por XML ou API, vendidos, alugados e inativos não contam no limite.",
+      "Imóveis sem foto, só com fotos hospedadas no site de origem, vendidos, alugados e inativos não contam no limite.",
     ])
     expect(recommendPlan({ teamSize: 5, ownedListings: 10 }).reasons).toContain(
       "Inclui 2 usuários extras além dos 3 do plano."

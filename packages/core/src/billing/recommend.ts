@@ -14,8 +14,11 @@
 // Valores em centavos; o anual custa 10 mensalidades em todos os planos, então a
 // ordem de custo é a mesma no mensal e no anual.
 
+import { formatBRL } from "./format"
 import {
   OWNED_LISTING_RELEASED_STATUS_PLURAL_TEXT,
+  OWNED_LISTINGS_PACK_PRICE,
+  OWNED_LISTINGS_PACK_SIZE,
   PLAN_KEYS,
   PLANS,
   planTotal,
@@ -131,13 +134,16 @@ export function recommendPlan(input: RecommendPlanInput): PlanRecommendation {
       )
     }
   } else {
+    const packs = Math.ceil(
+      (ownedListings - PLANS[plan].limits.owned_listings) / OWNED_LISTINGS_PACK_SIZE
+    )
     reasons.push(
-      `Nenhum plano comporta mais de ${PLANS[plan].limits.owned_listings} imóveis com foto hoje. O plano ${name} é o que mais comporta, e o pacote de imóveis extras ainda está em breve.`
+      `Nenhum plano comporta sozinho mais de ${PLANS[plan].limits.owned_listings} imóveis com foto. O plano ${name} é o que mais comporta; para o restante, some ${packs === 1 ? "1 pacote" : `${packs} pacotes`} de +${OWNED_LISTINGS_PACK_SIZE} imóveis por ${formatBRL(packs * OWNED_LISTINGS_PACK_PRICE.month, { omitZeroCents: true })}/mês.`
     )
   }
 
   reasons.push(
-    `Imóveis sem foto, importados por XML ou API, ${OWNED_LISTING_RELEASED_STATUS_PLURAL_TEXT} não contam no limite.`
+    `Imóveis sem foto, só com fotos hospedadas no site de origem, ${OWNED_LISTING_RELEASED_STATUS_PLURAL_TEXT} não contam no limite.`
   )
 
   if (extraSeats > 0) {

@@ -10,7 +10,12 @@ import {
   ItemTitle,
 } from "@workspace/ui/components/item"
 
-/** Adicionais "em breve", com preço, sem compra na v1: grade com preço e planos no rodapé. */
+import { AddonPurchaseButton } from "@/components/billing/addon-purchase-button"
+
+/**
+ * Adicionais com preço e planos no rodapé. Os "em breve" não têm compra; o
+ * contratável (pacotes de +10 imóveis) ganha a ação de contratar.
+ */
 export function AddonsList() {
   return (
     <div className="flex flex-col gap-4">
@@ -24,18 +29,25 @@ export function AddonsList() {
           >
             <ItemHeader className="basis-auto items-start">
               <ItemTitle className="line-clamp-none">{addon.name}</ItemTitle>
-              <Badge variant="outline">Em breve</Badge>
+              {addon.status === "available" ? (
+                <Badge variant="secondary">Disponível</Badge>
+              ) : (
+                <Badge variant="outline">Em breve</Badge>
+              )}
             </ItemHeader>
             <ItemContent>
               <ItemDescription className="line-clamp-none">{addon.description}</ItemDescription>
             </ItemContent>
-            <ItemFooter className="basis-auto flex-col items-start gap-1 border-t pt-3">
-              <p className="font-medium tabular-nums">{addon.priceLabel}</p>
-              <p className="text-muted-foreground">
-                {addon.plans.length < PLAN_KEYS.length
-                  ? `${addon.plans.length === 1 ? "Plano" : "Planos"}: ${addon.plans.map((plan) => PLANS[plan].name).join(", ")}`
-                  : "Todos os planos"}
-              </p>
+            <ItemFooter className="basis-auto flex-col items-start gap-2 border-t pt-3">
+              <div className="flex flex-col gap-1">
+                <p className="font-medium tabular-nums">{addon.priceLabel}</p>
+                <p className="text-muted-foreground">
+                  {addon.plans.length < PLAN_KEYS.length
+                    ? `${addon.plans.length === 1 ? "Plano" : "Planos"}: ${addon.plans.map((plan) => PLANS[plan].name).join(", ")}`
+                    : "Todos os planos"}
+                </p>
+              </div>
+              {addon.status === "available" ? <AddonPurchaseButton addonKey={addon.key} /> : null}
             </ItemFooter>
           </Item>
         ))}

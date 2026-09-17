@@ -3,13 +3,9 @@ import "server-only"
 import type Stripe from "stripe"
 
 import {
-  computeLimits,
-  FEATURES,
-  parseLookupKey,
-  planHasFeature,
-  type BillingInterval,
-  type FeatureKey,
-  type PlanKey,
+  describeSubscriptionItems as describeItems,
+  subscriptionBillingFields,
+  type SubscriptionComposition as CoreSubscriptionComposition,
 } from "@workspace/core/billing"
 
 import {
@@ -108,76 +104,38 @@ function pickCurrentSubscription(subscriptions: Stripe.Subscription[]): Stripe.S
   )
 }
 
-export type SubscriptionComposition = {
-  plan: { key: PlanKey; interval: BillingInterval; item: Stripe.SubscriptionItem } | null
-  seatItems: Stripe.SubscriptionItem[]
-  extraSeats: number
-  /** Maior fim de período entre os itens (unix, segundos); 0 sem itens. */
-  periodEnd: number
-}
+export type SubscriptionComposition = CoreSubscriptionComposition<Stripe.SubscriptionItem>
 
 /**
- * Plano, assentos extras e itens da assinatura, reconhecidos pelas lookup keys
- * do core. O `price` já vem completo em cada item (não precisa de expand).
+ * Plano, usuários extras, pacotes de +10 imóveis e itens da assinatura,
+ * reconhecidos pelas lookup keys do core (regra em @workspace/core/billing,
+ * testada com um evento de exemplo). O `price` já vem completo em cada item.
  */
 export function describeSubscriptionItems(
   subscription: Stripe.Subscription
 ): SubscriptionComposition {
-  const composition: SubscriptionComposition = {
-    plan: null,
-    seatItems: [],
-    extraSeats: 0,
-    periodEnd: 0,
-  }
-
-  for (const item of subscription.items.data) {
-    composition.periodEnd = Math.max(composition.periodEnd, item.current_period_end)
-
-    const parsed = item.price.lookup_key ? parseLookupKey(item.price.lookup_key) : null
-
-    if (!parsed) {
-      continue
-    }
-
-    if (parsed.kind === "plan") {
-      composition.plan = { key: parsed.plan, interval: parsed.interval, item }
-    } else {
-      composition.seatItems.push(item)
-      composition.extraSeats += item.quantity ?? 0
-    }
-  }
-
-  return composition
+  return describeItems(subscription.items.data)
 }
 
-/** Converte a assinatura (itens por lookup_key) no payload do resumo. */
+/**
+ * Converte a assinatura (itens por lookup_key) no payload do resumo: plano,
+ * limites com usuários extras e pacotes somados, recursos e adicionais.
+ */
 function toSyncPayload(
   subscription: Stripe.Subscription,
   customerId: string
 ): BillingSyncPayload | null {
-  const { plan, extraSeats, periodEnd } = describeSubscriptionItems(subscription)
+  const fields = subscriptionBillingFields(subscription.items.data)
 
-  if (!plan) {
+  if (!fields) {
     return null
   }
-
-  const planKey = plan.key
-  const limits = computeLimits(planKey, extraSeats)
-  const features = (Object.keys(FEATURES) as FeatureKey[]).filter((feature) =>
-    planHasFeature(planKey, feature)
-  )
 
   return {
     stripe_customer_id: customerId,
     stripe_subscription_id: subscription.id,
-    plan_key: planKey,
-    billing_interval: plan.interval,
     status: subscription.status,
-    seats: limits.users,
-    addon_keys: [],
-    limits,
-    features,
-    current_period_end: periodEnd > 0 ? new Date(periodEnd * 1000).toISOString() : null,
+    ...fields,
     // No billing flexível o portal agenda o cancelamento por cancel_at.
     cancel_at_period_end: subscription.cancel_at_period_end || subscription.cancel_at !== null,
   }

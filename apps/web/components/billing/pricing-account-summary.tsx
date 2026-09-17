@@ -104,7 +104,7 @@ export function PricingAccountSummary() {
         <ItemActions className="flex-wrap">
           {current && !reason && !billing.platformBlocked ? (
             <Button type="button" variant="outline" size="sm" onClick={() => choosePlan(current)}>
-              Alterar usuários extras
+              Alterar usuários e imóveis extras
             </Button>
           ) : null}
           {account.subscriptionHref ? (

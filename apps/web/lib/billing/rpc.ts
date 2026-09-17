@@ -48,6 +48,8 @@ export type BillingSyncPayload = {
   billing_interval?: BillingInterval | null
   status: string | null
   seats?: number
+  /** Pacotes do adicional "+10 imóveis" (0 a 1000); o total já vai em limits.owned_listings. */
+  owned_listing_packs?: number
   addon_keys?: string[]
   limits?: Record<string, number>
   features?: string[]
