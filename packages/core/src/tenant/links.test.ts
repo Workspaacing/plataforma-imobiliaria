@@ -9,6 +9,7 @@ import {
   buildLandingPagePathFor,
   buildLandingPageUrlFor,
   buildPortalFeedUrlFor,
+  buildTenantLinkPreviewFor,
   buildTenantOriginFor,
   buildTenantUrlFor,
 } from "./links"
@@ -85,5 +86,29 @@ describe("modo single-host", () => {
   it("caminhos relativos funcionam sem origem; URLs absolutas exigem NEXT_PUBLIC_SITE_URL", () => {
     expect(buildCapturePathFor(SINGLE_NO_ORIGIN, "teste")).toBe("/captar/teste")
     expect(() => buildCaptureUrlFor(SINGLE_NO_ORIGIN, "teste")).toThrow(/NEXT_PUBLIC_SITE_URL/)
+  })
+})
+
+describe("buildTenantLinkPreviewFor (prévia do link no cadastro)", () => {
+  function fill(preview: ReturnType<typeof buildTenantLinkPreviewFor>, slug: string) {
+    return preview ? `${preview.prefix}${slug}${preview.suffix}` : null
+  }
+
+  it("no modo subdomain mostra o endereço do CRM da imobiliária", () => {
+    const preview = buildTenantLinkPreviewFor(PROD)
+    expect(preview?.kind).toBe("crm")
+    expect(preview?.suffix).toBe(".seucrm.com.br")
+    expect(fill(preview, "teste")).toBe(buildTenantOriginFor(PROD, "teste"))
+    expect(fill(buildTenantLinkPreviewFor(DEV), "teste")).toBe(buildTenantOriginFor(DEV, "teste"))
+  })
+
+  it("no host único mostra o link público da captação (o CRM não usa o slug)", () => {
+    const preview = buildTenantLinkPreviewFor(SINGLE)
+    expect(preview?.kind).toBe("public-pages")
+    expect(fill(preview, "teste")).toBe(buildCaptureUrlFor(SINGLE, "teste"))
+  })
+
+  it("sem origem no host único não inventa link", () => {
+    expect(buildTenantLinkPreviewFor(SINGLE_NO_ORIGIN)).toBeNull()
   })
 })

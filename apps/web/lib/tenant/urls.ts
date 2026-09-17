@@ -24,8 +24,10 @@ import {
   buildLandingPageUrlFor,
   buildPortalFeedUrlFor,
   buildProposalShareUrlFor,
+  buildTenantLinkPreviewFor,
   buildTenantOriginFor,
   buildTenantUrlFor,
+  type TenantLinkPreview,
 } from "@workspace/core/tenant/links"
 import {
   resolveTenancyConfig,
@@ -39,7 +41,7 @@ import {
 } from "@workspace/core/tenant/slug"
 
 export { RESERVED_SUBDOMAINS }
-export type { RequestTenancy, TenancyConfig, TenancyMode, TenantHost }
+export type { RequestTenancy, TenancyConfig, TenancyMode, TenantHost, TenantLinkPreview }
 
 const DEVELOPMENT_SITE_ORIGIN = "http://localhost:3000"
 
@@ -156,6 +158,11 @@ export function supportsSharedSessionCookies(): boolean {
 }
 
 // Links públicos de cada imobiliária -------------------------------------------
+
+/** Prévia do link que o slug compõe (cadastro): subdomínio do CRM ou link da captação. */
+export function buildTenantLinkPreview(): TenantLinkPreview | null {
+  return buildTenantLinkPreviewFor(getTenancyConfig())
+}
 
 /** Caminho relativo da landing page no host em que ela é servida. */
 export function buildLandingPagePath(orgSlug: string, pageSlug: string): string {

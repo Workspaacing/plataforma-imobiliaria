@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { BuildingIcon, CircleAlertIcon, SearchIcon, UserIcon } from "lucide-react"
 import { Controller, useForm, useWatch } from "react-hook-form"
 
+import { finishTenantSlugInput, sanitizeTenantSlugInput } from "@workspace/core/tenant/slug"
 import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -43,10 +44,12 @@ import {
   isValidCnpj,
   normalizeCnpj,
   organizationSchema,
+  SLUG_MAX_LENGTH,
   slugify,
   type OrganizationKind,
   type OrganizationValues,
 } from "@/app/onboarding/schema"
+import type { TenantLinkPreview } from "@/lib/tenant/urls"
 
 const STATE_ITEMS = [
   { label: "Selecione", value: null },
@@ -61,16 +64,23 @@ type LookupFeedback = {
   message: string
 } | null
 
-export type SlugAffix = { position: "start" | "end"; text: string }
+/** Cidade e UF que a última consulta de CNPJ preencheu (para não apagar o que a pessoa digitou). */
+type LookupLocation = { city: string | null; state: string | null }
+
+/** A consulta só troca o valor se o campo está vazio ou ainda tem o que ela mesma preencheu. */
+function canReplaceWithLookup(current: string, lastFilled: string | null) {
+  return current.trim() === "" || current === lastFilled
+}
 
 export function OnboardingForm({
-  slugAffix,
+  linkPreview,
 }: {
   /**
-   * Texto ao lado do campo de endereço: ".seucrm.com.br" (modo subdomain) ou
-   * "captar/" (modo single-host, rotas longas).
+   * Link que o slug compõe, calculado no servidor para o modo atual:
+   * https://{slug}.raiz (subdomain) ou https://site/captar/{slug} (host único).
+   * `null` quando o host único não tem origem configurada.
    */
-  slugAffix: SlugAffix
+  linkPreview: TenantLinkPreview | null
 }) {
   const [isSubmitting, startSubmit] = React.useTransition()
   const [isLookingUp, startLookup] = React.useTransition()
@@ -78,6 +88,7 @@ export function OnboardingForm({
   const [lookupFeedback, setLookupFeedback] = React.useState<LookupFeedback>(null)
   const slugEditedRef = React.useRef(false)
   const lastLookupRef = React.useRef<string | null>(null)
+  const lookupLocationRef = React.useRef<LookupLocation>({ city: null, state: null })
 
   const form = useForm<OrganizationValues>({
     resolver: zodResolver(organizationSchema),
@@ -126,8 +137,29 @@ export function OnboardingForm({
 
       form.setValue("legalName", legalName, options)
 
-      if (city) form.setValue("city", city, options)
-      if (state) form.setValue("state", state, options)
+      // Cidade e UF andam juntas: se a pessoa digitou uma delas e ela diverge da
+      // Receita, nenhuma das duas muda (senão sairia "Campinas / DF"). O que está
+      // vazio, ou veio da consulta anterior, recebe o município da Receita.
+      const previous = lookupLocationRef.current
+      const currentCity = form.getValues("city")
+      const currentState = form.getValues("state")
+      const typedCity = !canReplaceWithLookup(currentCity, previous.city)
+      const typedState = !canReplaceWithLookup(currentState, previous.state)
+      const keptTypedLocation =
+        (typedCity && city !== null && currentCity.trim() !== city) ||
+        (typedState && state !== null && currentState !== state)
+
+      if (!keptTypedLocation) {
+        if (city && !typedCity) {
+          form.setValue("city", city, options)
+          previous.city = city
+        }
+
+        if (state && !typedState) {
+          form.setValue("state", state, options)
+          previous.state = state
+        }
+      }
 
       if (!form.getValues("name").trim()) {
         const name = tradeName ?? legalName
@@ -143,7 +175,9 @@ export function OnboardingForm({
           ? { type: "warning", message: result.warning }
           : {
               type: "success",
-              message: "Dados preenchidos a partir da Receita Federal. Confira antes de continuar.",
+              message: keptTypedLocation
+                ? "Razão social preenchida pela Receita Federal. A cidade e a UF que você digitou foram mantidas."
+                : "Dados preenchidos a partir da Receita Federal. Confira antes de continuar.",
             }
       )
     })
@@ -285,29 +319,32 @@ export function OnboardingForm({
               control={form.control}
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="org-slug">Endereço</FieldLabel>
+                  <FieldLabel htmlFor="org-slug">
+                    {isCompany ? "Link da imobiliária" : "Seu link"}
+                  </FieldLabel>
                   <InputGroup>
-                    {slugAffix.position === "start" ? (
-                      <InputGroupAddon>
-                        <InputGroupText>{slugAffix.text}</InputGroupText>
-                      </InputGroupAddon>
-                    ) : null}
                     <InputGroupInput
                       {...field}
                       id="org-slug"
                       autoComplete="off"
+                      autoCapitalize="none"
                       spellCheck={false}
-                      placeholder="horizonte-imoveis"
+                      placeholder="ex.: horizonte-imoveis"
                       aria-invalid={fieldState.invalid}
                       onChange={(event) => {
-                        const slug = event.target.value.toLowerCase().replace(/\s+/g, "-")
+                        const slug = sanitizeTenantSlugInput(event.target.value, SLUG_MAX_LENGTH)
                         slugEditedRef.current = slug.length > 0
                         field.onChange(slug)
                       }}
+                      onBlur={() => {
+                        const slug = finishTenantSlugInput(field.value, SLUG_MAX_LENGTH)
+                        if (slug !== field.value) field.onChange(slug)
+                        field.onBlur()
+                      }}
                     />
-                    {slugAffix.position === "end" ? (
+                    {linkPreview?.kind === "crm" ? (
                       <InputGroupAddon align="inline-end">
-                        <InputGroupText>{slugAffix.text}</InputGroupText>
+                        <InputGroupText>{linkPreview.suffix}</InputGroupText>
                       </InputGroupAddon>
                     ) : null}
                   </InputGroup>
@@ -315,8 +352,19 @@ export function OnboardingForm({
                     <FieldError errors={[fieldState.error]} />
                   ) : (
                     <FieldDescription>
-                      Endereço do CRM e dos links públicos{isCompany ? " da imobiliária" : ""}.
-                      Gerado a partir do nome: letras minúsculas, números e hífens simples.
+                      {linkPreview?.kind === "crm"
+                        ? "Vira o endereço do CRM e dos links públicos."
+                        : "Aparece nos links públicos, como o formulário de captação."}{" "}
+                      {linkPreview && field.value ? (
+                        <>
+                          Ficará assim:{" "}
+                          <span className="font-medium break-all text-foreground">
+                            {`${linkPreview.prefix}${field.value}${linkPreview.suffix}`}
+                          </span>
+                          .{" "}
+                        </>
+                      ) : null}
+                      Gerado a partir do nome; use letras sem acento, números e hífens.
                     </FieldDescription>
                   )}
                 </Field>
@@ -331,7 +379,7 @@ export function OnboardingForm({
           <FieldSet>
             <FieldLegend>Dados legais</FieldLegend>
             <FieldDescription>
-              Informe o CNPJ para preencher a razão social e o endereço automaticamente.
+              Informe o CNPJ para preencher a razão social, a cidade e a UF automaticamente.
             </FieldDescription>
             <FieldGroup>
               <Controller

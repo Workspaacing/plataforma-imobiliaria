@@ -89,3 +89,25 @@ export function getTenantSlugIssue(slug: string): TenantSlugIssue | null {
 export function isValidTenantSlug(value: unknown): value is string {
   return typeof value === "string" && getTenantSlugIssue(value) === null
 }
+
+/**
+ * Limpa o slug enquanto a pessoa digita: tira acentos, passa para minúsculas e
+ * troca qualquer outro caractere (espaço, vírgula, ponto, barra) por um único
+ * hífen, sem hífen no início. O hífen do fim fica, para dar para continuar
+ * digitando ("horizonte-" e depois "imoveis"); `finishTenantSlugInput` o
+ * remove ao sair do campo.
+ */
+export function sanitizeTenantSlugInput(value: string, maxLength = TENANT_SLUG_MAX_LENGTH): string {
+  return value
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+/, "")
+    .slice(0, maxLength)
+}
+
+/** Versão final do slug digitado (ao sair do campo): sem hífen no fim. */
+export function finishTenantSlugInput(value: string, maxLength = TENANT_SLUG_MAX_LENGTH): string {
+  return sanitizeTenantSlugInput(value, maxLength).replace(/-+$/, "")
+}

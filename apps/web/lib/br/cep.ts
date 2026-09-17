@@ -9,12 +9,20 @@ export type CepAddress = {
 }
 
 const TIMEOUT_MS = 5000
+
+/**
+ * Identificação nas consultas à BrasilAPI e ao ViaCEP. Sem ela o fetch do Node
+ * manda `User-Agent: node`, que o Cloudflare da BrasilAPI recusa (403 na
+ * consulta de CNPJ; 429 pelo servidor do Next), e a consulta nunca preenche.
+ */
+export const BR_LOOKUP_USER_AGENT = "PlataformaImobiliariaCRM/1.0 (consulta de CEP e CNPJ)"
 const ONE_MONTH_SECONDS = 60 * 60 * 24 * 30
 const POSTAL_CODE_PATTERN = /^\d{8}$/
 
 async function fetchJson(url: URL): Promise<Record<string, unknown> | null> {
   try {
     const response = await fetch(url, {
+      headers: { Accept: "application/json", "User-Agent": BR_LOOKUP_USER_AGENT },
       signal: AbortSignal.timeout(TIMEOUT_MS),
       next: { revalidate: ONE_MONTH_SECONDS },
     })

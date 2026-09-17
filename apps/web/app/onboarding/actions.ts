@@ -6,6 +6,7 @@ import { redirect } from "next/navigation"
 import { z } from "zod"
 
 import { normalizeReferralCode } from "@workspace/core/billing"
+import { pickOfficialCityName } from "@workspace/core/br/city"
 
 import {
   isBrazilianState,
@@ -23,6 +24,7 @@ import {
 import { HOME_PATH, LOGIN_PATH, ONBOARDING_PATH } from "@/lib/auth/routes"
 import { getCurrentUser } from "@/lib/auth/session"
 import { getReferralCookieOptions, REFERRAL_COOKIE_NAME } from "@/lib/billing/referral-cookie"
+import { BR_LOOKUP_USER_AGENT, lookupCep } from "@/lib/br/cep"
 import { translateDatabaseError } from "@/lib/configuracoes/errors"
 import { createClient } from "@/lib/supabase/server"
 import { buildTenantUrl, isSubdomainTenancy, isValidTenantSlug } from "@/lib/tenant/urls"
@@ -67,9 +69,9 @@ function mapCreateOrganizationError(error: DatabaseError): CreateOrganizationRes
           }
         : {
             ok: false,
-            error: "Este endereço já está em uso.",
+            error: "Este link já está em uso.",
             fieldErrors: {
-              slug: "Este endereço já está em uso. Escolha outro.",
+              slug: "Este link já está em uso. Escolha outro.",
             },
           }
     case "PGRST202":
@@ -232,8 +234,7 @@ export async function createOrganization(
   if (!isValidTenantSlug(createdSlug)) {
     return {
       ok: false,
-      error:
-        "A imobiliária foi criada, mas o endereço não serve como subdomínio. Fale com o suporte.",
+      error: "A imobiliária foi criada, mas o link não serve como subdomínio. Fale com o suporte.",
     }
   }
 
@@ -247,10 +248,37 @@ const brasilApiCnpjSchema = z.object({
   nome_fantasia: z.string().nullish(),
   municipio: z.string().nullish(),
   uf: z.string().nullish(),
+  cep: z.string().nullish(),
   descricao_situacao_cadastral: z.string().nullish(),
 })
 
 const CNPJ_LOOKUP_TIMEOUT_MS = 8000
+
+/** Tempo máximo para buscar a grafia oficial do município pelo CEP da empresa. */
+const CITY_NAME_TIMEOUT_MS = 3000
+
+/**
+ * A Receita manda o município sem acento ("BRASILIA"); o CEP da empresa traz
+ * "Brasília". Se a consulta do CEP falhar ou demorar, fica o nome da Receita.
+ */
+async function resolveCityName(receitaCity: string, postalCode: string | null | undefined) {
+  const digits = postalCode?.replace(/\D/g, "") ?? ""
+
+  if (digits.length !== 8) {
+    return receitaCity
+  }
+
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const address = await Promise.race([
+    lookupCep(digits),
+    new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), CITY_NAME_TIMEOUT_MS)
+    }),
+  ])
+  clearTimeout(timer)
+
+  return pickOfficialCityName(receitaCity, address?.city)
+}
 
 /** CNPJ normalizado (alfanumérico desde 2026): só este formato chega à URL. */
 const CNPJ_URL_PATTERN = /^[0-9A-Z]{12}[0-9]{2}$/
@@ -278,7 +306,7 @@ export async function lookupCnpj(value: string): Promise<CnpjLookupResult> {
 
   try {
     const response = await fetch(lookupUrl, {
-      headers: { Accept: "application/json" },
+      headers: { Accept: "application/json", "User-Agent": BR_LOOKUP_USER_AGENT },
       cache: "no-store",
       signal: AbortSignal.timeout(CNPJ_LOOKUP_TIMEOUT_MS),
     })
@@ -316,6 +344,7 @@ export async function lookupCnpj(value: string): Promise<CnpjLookupResult> {
 
     const company = parsed.data
     const uf = company.uf?.trim().toUpperCase() ?? null
+    const receitaCity = company.municipio?.trim() ? toTitleCase(company.municipio.trim()) : null
     const situation = company.descricao_situacao_cadastral?.trim().toUpperCase()
 
     return {
@@ -323,7 +352,7 @@ export async function lookupCnpj(value: string): Promise<CnpjLookupResult> {
       data: {
         legalName: company.razao_social.trim(),
         tradeName: company.nome_fantasia?.trim() ? toTitleCase(company.nome_fantasia.trim()) : null,
-        city: company.municipio?.trim() ? toTitleCase(company.municipio.trim()) : null,
+        city: receitaCity ? await resolveCityName(receitaCity, company.cep) : null,
         state: isBrazilianState(uf) ? uf : null,
       },
       warning:

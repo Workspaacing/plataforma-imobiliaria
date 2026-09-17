@@ -62,6 +62,37 @@ export function buildTenantUrlFor(config: TenancyConfig, slug: string, path = "/
   return `${buildTenantOriginFor(config, slug)}${normalizePath(path)}`
 }
 
+/**
+ * Prévia do link que o slug compõe, para o cadastro mostrar enquanto a pessoa
+ * digita: `prefix + slug + suffix`.
+ * - subdomain: o slug é o endereço do CRM e dos links públicos
+ *   (https://{slug}.raiz).
+ * - single-host: o CRM não usa o slug; ele só entra nos links públicos, como o
+ *   da captação (https://site/captar/{slug}).
+ * `null` no host único sem origem configurada (não há link absoluto para mostrar).
+ */
+export type TenantLinkPreview = {
+  kind: "crm" | "public-pages"
+  prefix: string
+  suffix: string
+}
+
+export function buildTenantLinkPreviewFor(config: TenancyConfig): TenantLinkPreview | null {
+  if (config.mode === "subdomain") {
+    return {
+      kind: "crm",
+      prefix: `${getProtocolForRootDomain(config.rootDomain)}://`,
+      suffix: `.${config.rootDomain}`,
+    }
+  }
+
+  if (!config.siteOrigin) {
+    return null
+  }
+
+  return { kind: "public-pages", prefix: `${config.siteOrigin}/captar/`, suffix: "" }
+}
+
 /** Caminho relativo da landing page no host em que ela é servida. */
 export function buildLandingPagePathFor(
   config: TenancyConfig,

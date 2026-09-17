@@ -17,7 +17,7 @@ import { getFirstName } from "@/components/crm/utils"
 import { signOut } from "@/lib/auth/actions"
 import { TENANT_PICKER_PATH } from "@/lib/auth/routes"
 import { getMemberships, requireUser } from "@/lib/auth/session"
-import { tryGetRootDomain } from "@/lib/tenant/urls"
+import { buildTenantLinkPreview } from "@/lib/tenant/urls"
 
 export const metadata: Metadata = {
   title: "Criar cadastro",
@@ -29,7 +29,7 @@ export default async function OnboardingPage() {
   const memberships = await getMemberships(user.id)
   const firstName = getFirstName(user.fullName)
   const hasOrganizations = memberships.length > 0
-  const rootDomain = tryGetRootDomain()
+  const linkPreview = buildTenantLinkPreview()
 
   return (
     <div className="flex min-h-svh flex-col bg-muted/40">
@@ -62,18 +62,12 @@ export default async function OnboardingPage() {
             <CardDescription>
               {firstName ? `${firstName}, ` : ""}
               {hasOrganizations
-                ? "cadastre mais uma imobiliária ou conta autônoma. Você será o dono dela e ela terá o próprio endereço."
+                ? "cadastre mais uma imobiliária ou conta autônoma. Você será o dono dela e ela terá o próprio link."
                 : "falta pouco. Diga como você atua e cadastre seus dados para começar a usar o CRM; você poderá convidar a equipe depois."}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <OnboardingForm
-              slugAffix={
-                rootDomain
-                  ? { position: "end", text: `.${rootDomain}` }
-                  : { position: "start", text: "captar/" }
-              }
-            />
+            <OnboardingForm linkPreview={linkPreview} />
           </CardContent>
         </Card>
       </main>

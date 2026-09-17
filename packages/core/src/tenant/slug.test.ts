@@ -1,6 +1,52 @@
 import { describe, expect, it } from "vitest"
 
-import { getTenantSlugIssue, isValidTenantSlug, RESERVED_SUBDOMAINS } from "./slug"
+import {
+  finishTenantSlugInput,
+  getTenantSlugIssue,
+  isValidTenantSlug,
+  RESERVED_SUBDOMAINS,
+  sanitizeTenantSlugInput,
+} from "./slug"
+
+describe("sanitizeTenantSlugInput (campo de link no cadastro)", () => {
+  it("tira acentos e maiúsculas do que a pessoa digita", () => {
+    expect(sanitizeTenantSlugInput("Horizonte Imóveis")).toBe("horizonte-imoveis")
+    expect(sanitizeTenantSlugInput("Imobiliária São João & Cia")).toBe("imobiliaria-sao-joao-cia")
+    expect(isValidTenantSlug(sanitizeTenantSlugInput("Construção Ágil"))).toBe(true)
+  })
+
+  it("não vira slug inválido quando digitam um endereço de rua", () => {
+    const slug = finishTenantSlugInput("Rua das Flores, 123 - Centro")
+    expect(slug).toBe("rua-das-flores-123-centro")
+    expect(isValidTenantSlug(slug)).toBe(true)
+  })
+
+  it("troca sequências de espaço ou pontuação por um único hífen", () => {
+    expect(sanitizeTenantSlugInput("a  b")).toBe("a-b")
+    expect(sanitizeTenantSlugInput("a--b")).toBe("a-b")
+    expect(sanitizeTenantSlugInput("a- b")).toBe("a-b")
+    expect(sanitizeTenantSlugInput("imob.sp_2026")).toBe("imob-sp-2026")
+  })
+
+  it("mantém o hífen do fim enquanto digita, mas não o do início", () => {
+    expect(sanitizeTenantSlugInput("horizonte ")).toBe("horizonte-")
+    expect(sanitizeTenantSlugInput("-horizonte")).toBe("horizonte")
+    expect(sanitizeTenantSlugInput("  ")).toBe("")
+  })
+
+  it("respeita o tamanho máximo", () => {
+    expect(sanitizeTenantSlugInput("a".repeat(80))).toHaveLength(60)
+    expect(sanitizeTenantSlugInput("a".repeat(80), 48)).toHaveLength(48)
+  })
+})
+
+describe("finishTenantSlugInput", () => {
+  it("remove o hífen do fim ao sair do campo", () => {
+    expect(finishTenantSlugInput("horizonte-")).toBe("horizonte")
+    expect(finishTenantSlugInput("horizonte-imoveis")).toBe("horizonte-imoveis")
+    expect(finishTenantSlugInput("Horizonte Imóveis!")).toBe("horizonte-imoveis")
+  })
+})
 
 describe("isValidTenantSlug", () => {
   it("aceita rótulos DNS simples", () => {

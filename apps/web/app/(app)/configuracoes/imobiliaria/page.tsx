@@ -230,7 +230,7 @@ export default async function ImobiliariaPage() {
         <CardHeader>
           <CardTitle>Portais: ZAP Imóveis, Viva Real e OLX</CardTitle>
           <CardDescription>
-            Um único feed no padrão VRSync atende os três portais do Grupo OLX.
+            Um único arquivo para os portais atende os três portais do Grupo OLX.
           </CardDescription>
           {isOwner ? (
             <CardAction>
@@ -242,18 +242,23 @@ export default async function ImobiliariaPage() {
           {feed ? (
             <>
               <Field>
-                <FieldLabel htmlFor="feed-url">URL do feed</FieldLabel>
-                <CopyField id="feed-url" value={feed.url} successMessage="URL do feed copiada." />
+                <FieldLabel htmlFor="feed-url">Endereço do arquivo para os portais</FieldLabel>
+                <CopyField
+                  id="feed-url"
+                  value={feed.url}
+                  successMessage="Endereço do arquivo para os portais copiado."
+                />
                 <FieldDescription>
-                  Quem tem esta URL consegue ler os anúncios publicados. Não divulgue fora do Canal
-                  Pro.
+                  Quem tem este endereço consegue ler os anúncios publicados. Não divulgue fora do
+                  Canal Pro.
                 </FieldDescription>
               </Field>
 
               <ol className="flex list-decimal flex-col gap-1 ps-5 text-sm text-muted-foreground">
-                <li>Copie a URL acima.</li>
+                <li>Copie o endereço acima.</li>
                 <li>
-                  No Canal Pro do Grupo OLX, cadastre-a como integração por feed (formato VRSync).
+                  No Canal Pro do Grupo OLX, cadastre-o como integração por feed (lá aparece como
+                  formato VRSync).
                 </li>
                 <li>
                   O portal lê o arquivo duas vezes ao dia: mudanças nos imóveis aparecem na leitura
@@ -265,10 +270,10 @@ export default async function ImobiliariaPage() {
 
               <div className="flex flex-col gap-3">
                 <div className="flex flex-col gap-1">
-                  <h2 className="font-medium">Prévia do feed</h2>
+                  <h2 className="font-medium">Prévia do arquivo para os portais</h2>
                   <p className="text-sm text-muted-foreground">
                     Imóveis ativos com a publicação nos portais marcada. Os que não cumprem as
-                    regras do VRSync ficam de fora até serem corrigidos, sem afetar os demais.
+                    regras dos portais ficam de fora até serem corrigidos, sem afetar os demais.
                   </p>
                 </div>
                 <FeedPreview preview={feed.preview} />

@@ -180,10 +180,10 @@ export function OrganizationForm({
         <FieldSeparator />
 
         <FieldSet>
-          <FieldLegend>Endereço público e plano</FieldLegend>
+          <FieldLegend>Link público e plano</FieldLegend>
           <div className="grid gap-5 sm:grid-cols-2">
             <Field>
-              <FieldLabel htmlFor="org-slug">Endereço (slug)</FieldLabel>
+              <FieldLabel htmlFor="org-slug">Link da imobiliária</FieldLabel>
               <Input id="org-slug" value={slug} readOnly spellCheck={false} />
               <FieldDescription>
                 Compõe os links públicos: formulário de captação e feed dos portais. Não muda aqui

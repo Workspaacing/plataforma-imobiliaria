@@ -38,7 +38,7 @@ export function isBrazilianState(value: unknown): value is BrazilianStateCode {
   return typeof value === "string" && BRAZILIAN_STATES.some((state) => state.code === value)
 }
 
-/** Tamanho máximo do endereço no cadastro (o subdomínio aceita até 60). */
+/** Tamanho máximo do link (slug) no cadastro (o subdomínio aceita até 60). */
 export const SLUG_MAX_LENGTH = 48
 
 const SLUG_HYPHENS_MESSAGE =
@@ -147,15 +147,15 @@ export const organizationSchema = z
     slug: z
       .string()
       .trim()
-      .min(3, "O endereço precisa ter pelo menos 3 caracteres.")
-      .max(SLUG_MAX_LENGTH, `O endereço pode ter no máximo ${SLUG_MAX_LENGTH} caracteres.`)
+      .min(3, "O link precisa ter pelo menos 3 caracteres.")
+      .max(SLUG_MAX_LENGTH, `O link pode ter no máximo ${SLUG_MAX_LENGTH} caracteres.`)
       // Mesma regra do subdomínio (@workspace/core/tenant/slug): sem hífen nas
       // pontas, sem "--" (inclui o prefixo IDN "xn--") e fora da lista reservada.
       .refine((slug) => getTenantSlugIssue(slug) !== "characters", SLUG_HYPHENS_MESSAGE)
       .refine((slug) => getTenantSlugIssue(slug) !== "hyphens", SLUG_HYPHENS_MESSAGE)
       .refine(
         (slug) => getTenantSlugIssue(slug) !== "reserved",
-        "Este endereço é reservado. Escolha outro."
+        "Este link é reservado. Escolha outro."
       ),
     // Só obrigatórios quando kind === "company" (ver superRefine abaixo).
     legalName: z.string().trim().max(200, "A razão social pode ter no máximo 200 caracteres."),
