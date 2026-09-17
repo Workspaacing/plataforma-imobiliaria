@@ -38,13 +38,11 @@ export default function AssinaturaLoading() {
       </div>
       <Card>
         <CardHeader>
-          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-5 w-24" />
           <Skeleton className="h-4 w-96 max-w-full" />
         </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
-          {[0, 1, 2, 3].map((plan) => (
-            <Skeleton key={plan} className="h-72 w-full" />
-          ))}
+        <CardContent>
+          <Skeleton className="h-8 w-40" />
         </CardContent>
       </Card>
       <Card>

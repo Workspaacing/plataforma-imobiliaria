@@ -1,6 +1,5 @@
 import "server-only"
 
-import Link from "next/link"
 import { SparklesIcon } from "lucide-react"
 
 import {
@@ -22,8 +21,8 @@ import {
 
 import { loadBillingOverview } from "@/components/billing/billing-data"
 import { overviewHasFeature } from "@/components/billing/overview-view"
+import { plansPageHref } from "@/components/billing/plans-page-link"
 import { hasRole, ORGANIZATION_VIEWER_ROLES } from "@/lib/auth/roles"
-import { SUBSCRIPTION_SETTINGS_PATH } from "@/lib/auth/routes"
 import { getOrganizationContext } from "@/lib/auth/session"
 
 type FeatureGateProps = {
@@ -58,6 +57,7 @@ export async function FeatureGate({ feature, fallback, children }: FeatureGatePr
       <FeatureUpgradeEmpty
         feature={feature}
         canManage={hasRole(membership.role, ORGANIZATION_VIEWER_ROLES)}
+        plansHref={plansPageHref(membership.organization.slug)}
       />
     )
   )
@@ -66,9 +66,12 @@ export async function FeatureGate({ feature, fallback, children }: FeatureGatePr
 export function FeatureUpgradeEmpty({
   feature,
   canManage,
+  plansHref = plansPageHref(),
 }: {
   feature: FeatureKey
   canManage: boolean
+  /** /planos (fora do painel), com a imobiliária atual no modo subdomain. */
+  plansHref?: string
 }) {
   const definition = FEATURES[feature]
   const firstPlan = PLAN_KEYS.find((plan) => planHasFeature(plan, feature))
@@ -88,7 +91,7 @@ export function FeatureUpgradeEmpty({
       </EmptyHeader>
       <EmptyContent>
         {canManage ? (
-          <Button render={<Link href={SUBSCRIPTION_SETTINGS_PATH} />} nativeButton={false}>
+          <Button render={<a href={plansHref} />} nativeButton={false}>
             Ver planos
           </Button>
         ) : (

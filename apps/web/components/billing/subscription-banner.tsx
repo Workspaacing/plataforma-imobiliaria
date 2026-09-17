@@ -5,8 +5,10 @@ import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/al
 
 import { loadBillingOverview } from "@/components/billing/billing-data"
 import { getBannerMessage } from "@/components/billing/overview-view"
+import { plansPageHref } from "@/components/billing/plans-page-link"
 import { hasRole, ORGANIZATION_VIEWER_ROLES, type Role } from "@/lib/auth/roles"
 import { SUBSCRIPTION_SETTINGS_PATH } from "@/lib/auth/routes"
+import { getOrganizationContext } from "@/lib/auth/session"
 
 type SubscriptionBannerProps = {
   organizationId: string
@@ -25,6 +27,14 @@ export async function SubscriptionBanner({ organizationId, role }: SubscriptionB
     return null
   }
 
+  const paymentPending = overview.state === "grace" && overview.hasSubscription
+  // Regularizar o pagamento é na assinatura; escolher um plano, em /planos (fora do painel).
+  const context = paymentPending ? null : await getOrganizationContext()
+  const organizationSlug =
+    context?.membership?.organizationId === organizationId
+      ? context.membership.organization.slug
+      : null
+
   const Icon =
     overview.state === "read_only"
       ? LockIcon
@@ -41,11 +51,11 @@ export async function SubscriptionBanner({ organizationId, role }: SubscriptionB
           {overview.platformBlocked ? (
             message.description
           ) : hasRole(role, ORGANIZATION_VIEWER_ROLES) ? (
-            <Link href={SUBSCRIPTION_SETTINGS_PATH}>
-              {overview.state === "grace" && overview.hasSubscription
-                ? "Regularizar o pagamento"
-                : "Ver planos e assinar"}
-            </Link>
+            paymentPending ? (
+              <Link href={SUBSCRIPTION_SETTINGS_PATH}>Regularizar o pagamento</Link>
+            ) : (
+              <a href={plansPageHref(organizationSlug)}>Ver planos e assinar</a>
+            )
           ) : (
             "Avise o dono da imobiliária para regularizar a assinatura."
           )}

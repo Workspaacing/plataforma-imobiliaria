@@ -8,17 +8,20 @@ type BillingIntervalToggleProps = {
   value: BillingInterval
   onValueChange: (value: BillingInterval) => void
   disabled?: boolean
+  size?: "sm" | "default" | "lg"
 }
 
 export function BillingIntervalToggle({
   value,
   onValueChange,
   disabled,
+  size = "default",
 }: BillingIntervalToggleProps) {
   return (
     <ToggleGroup
       aria-label="Período de cobrança"
       variant="outline"
+      size={size}
       value={[value]}
       disabled={disabled}
       onValueChange={(next) => {

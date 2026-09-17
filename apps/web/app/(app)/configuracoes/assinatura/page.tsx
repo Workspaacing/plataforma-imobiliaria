@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { CircleAlertIcon, LockIcon, SettingsIcon } from "lucide-react"
+import { ArrowRightIcon, CircleAlertIcon, LockIcon, SettingsIcon } from "lucide-react"
 
 import { BILLING_INTERVAL_LABELS } from "@workspace/core/billing"
 import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert"
@@ -15,11 +15,9 @@ import {
   CardTitle,
 } from "@workspace/ui/components/card"
 
-import { AddonsList } from "@/components/billing/addons-list"
 import { AiUsageCard } from "@/components/billing/ai-usage-card"
 import {
   loadBillingOverview,
-  loadCatalogPrices,
   loadOwnedListingUsage,
   loadRecentInvoices,
 } from "@/components/billing/billing-data"
@@ -36,7 +34,7 @@ import {
   planDisplayName,
 } from "@/components/billing/overview-view"
 import { pluralize } from "@/components/billing/plan-content"
-import { PlanSwitcher } from "@/components/billing/plan-switcher"
+import { plansPageHref } from "@/components/billing/plans-page-link"
 import { UsageMeters } from "@/components/billing/usage-meters"
 import { PageHeading } from "@/components/crm/page-placeholder"
 import { PageShell } from "@/components/shared/page-shell"
@@ -105,15 +103,16 @@ export default async function AssinaturaPage({ searchParams }: AssinaturaPagePro
   const checkoutStatus = readCheckoutStatus(checkout)
   const stripeConfigured = isStripeConfigured()
 
-  const [overview, prices, invoicesResult, referralPercent, aiUsage, ownedListings] =
-    await Promise.all([
-      loadBillingOverview(membership.organizationId),
-      loadCatalogPrices(),
-      loadRecentInvoices(membership.organizationId),
-      getStoredReferralDiscountPercent(membership.organizationId),
-      loadAiUsageOverview(membership.organizationId),
-      loadOwnedListingUsage(membership.organizationId),
-    ])
+  // A escolha de plano fica em /planos, fora do painel, ligada a esta imobiliária.
+  const plansHref = plansPageHref(membership.organization.slug)
+
+  const [overview, invoicesResult, referralPercent, aiUsage, ownedListings] = await Promise.all([
+    loadBillingOverview(membership.organizationId),
+    loadRecentInvoices(membership.organizationId),
+    getStoredReferralDiscountPercent(membership.organizationId),
+    loadAiUsageOverview(membership.organizationId),
+    loadOwnedListingUsage(membership.organizationId),
+  ])
 
   const stateMessage = overview ? describeBillingState(overview) : null
   const portalAvailable = stripeConfigured && overview !== null && overview.planKey !== "trial"
@@ -187,7 +186,7 @@ export default async function AssinaturaPage({ searchParams }: AssinaturaPagePro
                       Atualizar forma de pagamento
                     </BillingPortalButton>
                   ) : (
-                    <Button render={<a href="#planos" />} nativeButton={false}>
+                    <Button render={<a href={plansHref} />} nativeButton={false}>
                       Escolher um plano
                     </Button>
                   )}
@@ -276,7 +275,7 @@ export default async function AssinaturaPage({ searchParams }: AssinaturaPagePro
                 <UsageMeters
                   overview={overview}
                   ownedListings={ownedListings}
-                  upgradeHref={isOwner ? "#planos" : undefined}
+                  upgradeHref={isOwner ? plansHref : undefined}
                 />
               </CardContent>
             </Card>
@@ -284,29 +283,22 @@ export default async function AssinaturaPage({ searchParams }: AssinaturaPagePro
 
           {aiUsage ? <AiUsageCard overview={aiUsage} canManage={canManageAi} /> : null}
 
-          <Card id="planos" className="scroll-mt-4">
+          <Card>
             <CardHeader>
-              <CardTitle>
-                {overview.hasSubscription ? "Trocar de plano" : "Escolher um plano"}
-              </CardTitle>
+              <CardTitle>Planos</CardTitle>
               <CardDescription>
-                Upgrade na hora, com cobrança proporcional. Downgrade no próximo ciclo, sem apagar
-                nada.
+                Compare os planos, os adicionais e o que cada um inclui.
+                {isOwner
+                  ? " Upgrade na hora, com cobrança proporcional; downgrade no próximo ciclo, sem apagar nada."
+                  : " Só o dono da imobiliária pode assinar ou trocar de plano."}
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <PlanSwitcher
-                prices={prices}
-                currentPlanKey={overview.planKey}
-                currentInterval={overview.interval}
-                currentSeats={overview.seats}
-                usersInUse={overview.usage.users}
-                currentPeriodEnd={overview.currentPeriodEnd}
-                hasSubscription={overview.hasSubscription}
-                canManage={isOwner}
-                stripeConfigured={stripeConfigured}
-              />
-            </CardContent>
+            <CardFooter>
+              <Button render={<a href={plansHref} />} nativeButton={false}>
+                {overview.hasSubscription ? "Ver planos e trocar" : "Ver planos e assinar"}
+                <ArrowRightIcon data-icon="inline-end" />
+              </Button>
+            </CardFooter>
           </Card>
         </>
       ) : (
@@ -337,16 +329,6 @@ export default async function AssinaturaPage({ searchParams }: AssinaturaPagePro
               </AlertDescription>
             </Alert>
           )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Adicionais</CardTitle>
-          <CardDescription>Extras que chegam em breve, com os preços já definidos.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <AddonsList />
         </CardContent>
       </Card>
     </PageShell>

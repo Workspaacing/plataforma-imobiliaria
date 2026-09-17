@@ -42,6 +42,8 @@ function percent(ratio: number | null) {
 export function AiUsageCard({ overview, canManage }: AiUsageCardProps) {
   const unlimited = isUnlimited(overview.conversationsLimit)
   const included = overview.conversationsLimit !== 0
+  // Teste grátis não tem IA (o banco devolve franquia 0 em qualquer conta em teste).
+  const trial = overview.billingState === "trialing" || overview.planKey === "trial"
   const conversationRatio = usageRatio(overview.conversationsLimit, overview.conversationsUsed)
   const costRatio =
     overview.effectiveCapCents > 0 ? overview.costCents / overview.effectiveCapCents : 0
@@ -67,7 +69,16 @@ export function AiUsageCard({ overview, canManage }: AiUsageCardProps) {
       </CardHeader>
 
       <CardContent className="flex flex-col gap-6">
-        {!included ? (
+        {trial ? (
+          <Alert>
+            <SparklesIcon />
+            <AlertTitle>A IA começa quando você assina</AlertTitle>
+            <AlertDescription>
+              O teste grátis tem os recursos do plano, menos a IA. Assine um plano com conversas de
+              IA para usar o atendimento e os textos automáticos.
+            </AlertDescription>
+          </Alert>
+        ) : !included ? (
           <Alert>
             <SparklesIcon />
             <AlertTitle>IA não inclusa neste plano</AlertTitle>
@@ -179,7 +190,7 @@ export function AiUsageCard({ overview, canManage }: AiUsageCardProps) {
       </CardContent>
 
       {/* Sem franquia no plano, o excedente não libera nada: o corte é anterior. */}
-      {included ? (
+      {included && !trial ? (
         <CardFooter className="flex-col items-stretch gap-3 border-t">
           <AiOverageCapForm
             overageCapCents={overview.overageCapCents}

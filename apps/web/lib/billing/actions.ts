@@ -2,6 +2,7 @@
 
 import { createHash } from "node:crypto"
 
+import { headers } from "next/headers"
 import type Stripe from "stripe"
 import { z } from "zod"
 
@@ -14,8 +15,15 @@ import {
   type PlanKey,
 } from "@workspace/core/billing"
 
-import { SUBSCRIPTION_SETTINGS_PATH } from "@/lib/auth/routes"
-import { requireMembership, type MembershipContext } from "@/lib/auth/session"
+import type { CheckoutReturnStatus } from "@/components/billing/checkout-return-notice"
+import { PLANS_ORGANIZATION_PARAM, PLANS_PATH, SUBSCRIPTION_SETTINGS_PATH } from "@/lib/auth/routes"
+import {
+  getCurrentUser,
+  getMemberships,
+  requireMembership,
+  type Membership,
+  type MembershipContext,
+} from "@/lib/auth/session"
 import { couponIdsByDiscount, phaseDiscountParams } from "@/lib/billing/discounts"
 import {
   describeBillingError,
@@ -32,9 +40,28 @@ import {
   syncSubscriptionFromStripe,
   type SubscriptionComposition,
 } from "@/lib/billing/sync"
-import { buildTenantUrl } from "@/lib/tenant/urls"
+import {
+  buildAppUrl,
+  buildTenantUrl,
+  isSubdomainTenancy,
+  isValidTenantSlug,
+  parseTenantSlugFromHost,
+} from "@/lib/tenant/urls"
 
 export type BillingActionResult = { ok: true; url: string } | { ok: false; error: string }
+
+/** Página para onde a Stripe devolve: "planos" (fora do painel); sem valor, a assinatura no CRM. */
+export type BillingReturnTo = "planos"
+
+/**
+ * Pedido vindo de /planos (fora do painel): a imobiliária escolhida na página e
+ * o retorno para lá. O id é só uma escolha do navegador: a ação só o usa depois
+ * de conferir a membership ativa de dono (requireOwner).
+ */
+export type BillingTarget = {
+  organizationId?: string
+  returnTo?: BillingReturnTo
+}
 
 export type ChangeSubscriptionResult =
   { ok: true; effective: "now" | "period_end" } | { ok: false; error: string }
@@ -83,6 +110,8 @@ const CURRENT_PLAN_UNKNOWN =
   "Não foi possível identificar o plano atual da assinatura. Fale com o suporte."
 const USAGE_UNKNOWN =
   "Não foi possível conferir quantos usuários a imobiliária usa agora. Tente novamente em instantes."
+const SESSION_EXPIRED = "Sua sessão terminou. Entre de novo para continuar."
+const INVALID_REQUEST = "Pedido inválido. Recarregue a página e tente de novo."
 
 const MAX_EXTRA_SEATS = 500
 /** Cliques repetidos na mesma escolha, dentro de 10 min, reaproveitam a mesma operação. */
@@ -104,15 +133,105 @@ const portalSchema = z
   .object({ flow: z.enum(["payment_method_update", "subscription_cancel"]).optional() })
   .optional()
 
+/** Formato do id conferido em requireOwner (id malformado recebe o mesmo erro de sem acesso). */
+const targetSchema = z.object({
+  organizationId: z.string().optional(),
+  returnTo: z.enum(["planos"]).optional(),
+})
+
 type OwnerContext = { ok: true; context: MembershipContext } | { ok: false; error: string }
 
-/** Sessão e imobiliária atual (sem login, redireciona); só o dono age na assinatura. */
-async function requireOwner(): Promise<OwnerContext> {
-  const context = await requireMembership()
+function parseTarget(
+  input: unknown
+): { ok: true; target: BillingTarget } | { ok: false; error: string } {
+  const parsed = targetSchema.safeParse(input ?? {})
+  return parsed.success ? { ok: true, target: parsed.data } : { ok: false, error: INVALID_REQUEST }
+}
 
-  return context.membership.role === "owner"
-    ? { ok: true, context }
-    : { ok: false, error: OWNER_ONLY }
+/**
+ * Só o dono age na assinatura.
+ * - Sem `organizationId`: sessão e imobiliária atual (cookie no host único,
+ *   subdomínio no modo subdomain); sem login, redireciona.
+ * - Com `organizationId` (pedido de /planos): o id do navegador nunca concede
+ *   acesso. Vale só se estiver entre as memberships ATIVAS do usuário da sessão
+ *   (consulta com RLS) com papel de dono; senão, o mesmo erro de sem acesso.
+ */
+async function requireOwner(organizationId?: string): Promise<OwnerContext> {
+  if (organizationId === undefined) {
+    const context = await requireMembership()
+
+    return context.membership.role === "owner"
+      ? { ok: true, context }
+      : { ok: false, error: OWNER_ONLY }
+  }
+
+  const parsedId = z.guid().safeParse(organizationId)
+
+  if (!parsedId.success) {
+    return { ok: false, error: OWNER_ONLY }
+  }
+
+  const user = await getCurrentUser()
+
+  if (!user) {
+    return { ok: false, error: SESSION_EXPIRED }
+  }
+
+  const memberships = await getMemberships(user.id)
+  const membership = memberships.find((item) => item.organizationId === parsedId.data)
+
+  if (membership?.role !== "owner") {
+    return { ok: false, error: OWNER_ONLY }
+  }
+
+  // Defesa extra: /planos só existe no domínio raiz. Chamada de um subdomínio de
+  // imobiliária (ex.: script de uma landing page) só age sobre a própria imobiliária.
+  const hostSlug = parseTenantSlugFromHost((await headers()).get("host"))
+
+  if (hostSlug !== null && hostSlug !== membership.organization.slug) {
+    return { ok: false, error: OWNER_ONLY }
+  }
+
+  return {
+    ok: true,
+    context: { user, memberships, tenantSlug: membership.organization.slug, membership },
+  }
+}
+
+/**
+ * Endereço de volta da Stripe, montado só no servidor (env + slug do banco):
+ * - padrão: a assinatura no CRM, no endereço da imobiliária;
+ * - "planos": /planos no domínio raiz (ou no host único), com o slug em
+ *   `imobiliaria` no modo subdomain para a página reabrir na mesma imobiliária.
+ * `checkout` marca o retorno do Checkout (aviso de pagamento na página).
+ */
+function billingReturnUrl(
+  membership: Membership,
+  returnTo: BillingReturnTo | undefined,
+  checkout?: CheckoutReturnStatus
+): string {
+  const params = new URLSearchParams()
+
+  if (checkout) {
+    params.set("checkout", checkout)
+  }
+
+  let url: string
+
+  if (returnTo === "planos") {
+    const slug = membership.organization.slug
+
+    if (isSubdomainTenancy() && isValidTenantSlug(slug)) {
+      params.set(PLANS_ORGANIZATION_PARAM, slug)
+    }
+
+    url = buildAppUrl(PLANS_PATH)
+  } else {
+    url = buildTenantUrl(membership.organization.slug, SUBSCRIPTION_SETTINGS_PATH)
+  }
+
+  const query = params.toString()
+  return query ? `${url}?${query}` : url
 }
 
 function idOf(value: string | { id: string } | null | undefined): string | null {
@@ -439,15 +558,27 @@ async function findReferralCoupon(
   }
 }
 
-/** Primeira contratação pelo Checkout hospedado (quem já assina usa changeSubscription). */
-export async function startCheckout(input: SubscriptionChoice): Promise<BillingActionResult> {
+/**
+ * Primeira contratação pelo Checkout hospedado (quem já assina usa changeSubscription).
+ * De /planos, recebe a imobiliária escolhida e volta para lá (BillingTarget).
+ */
+export async function startCheckout(
+  input: SubscriptionChoice & BillingTarget
+): Promise<BillingActionResult> {
   const parsed = parseChoice(input)
 
   if (!parsed.ok) {
     return parsed
   }
 
-  const owner = await requireOwner()
+  const target = parseTarget(input)
+
+  if (!target.ok) {
+    return target
+  }
+
+  const { organizationId: requestedOrganizationId, returnTo } = target.target
+  const owner = await requireOwner(requestedOrganizationId)
 
   if (!owner.ok) {
     return owner
@@ -469,7 +600,6 @@ export async function startCheckout(input: SubscriptionChoice): Promise<BillingA
   const { planKey, interval, extraSeats } = parsed.choice
   const { membership } = owner.context
   const organizationId = membership.organizationId
-  const settingsUrl = buildTenantUrl(membership.organization.slug, SUBSCRIPTION_SETTINGS_PATH)
 
   try {
     const account = await getBillingAccountIds(organizationId)
@@ -517,11 +647,13 @@ export async function startCheckout(input: SubscriptionChoice): Promise<BillingA
         customer_update: { name: "auto", address: "auto" },
         metadata: { organization_id: organizationId },
         subscription_data: { metadata: { organization_id: organizationId } },
-        success_url: `${settingsUrl}?checkout=sucesso`,
-        cancel_url: `${settingsUrl}?checkout=cancelado`,
+        success_url: billingReturnUrl(membership, returnTo, "sucesso"),
+        cancel_url: billingReturnUrl(membership, returnTo, "cancelado"),
       },
       {
-        idempotencyKey: `crm-checkout-${organizationId}-${planKey}-${interval}-${extraSeats}-${referralCoupon ?? "sem-cupom"}-${idempotencyWindow()}`,
+        // O retorno entra na chave: a mesma escolha feita no CRM e em /planos gera
+        // sessões com URLs diferentes, e a Stripe recusa chave repetida com outros parâmetros.
+        idempotencyKey: `crm-checkout-${organizationId}-${planKey}-${interval}-${extraSeats}-${referralCoupon ?? "sem-cupom"}${returnTo ? `-${returnTo}` : ""}-${idempotencyWindow()}`,
       }
     )
 
@@ -544,9 +676,10 @@ export async function startCheckout(input: SubscriptionChoice): Promise<BillingA
  * - redução (downgrade ou menos usuários): no fim do ciclo, por agenda;
  * - mesmo valor: agora, sem cobrança.
  * Nada é apagado; reduzir exige que os usuários atuais caibam no novo limite.
+ * De /planos, recebe a imobiliária escolhida (BillingTarget; sem URL de retorno).
  */
 export async function changeSubscription(
-  input: SubscriptionChoice
+  input: SubscriptionChoice & BillingTarget
 ): Promise<ChangeSubscriptionResult> {
   const parsed = parseChoice(input)
 
@@ -554,7 +687,13 @@ export async function changeSubscription(
     return parsed
   }
 
-  const owner = await requireOwner()
+  const target = parseTarget(input)
+
+  if (!target.ok) {
+    return target
+  }
+
+  const owner = await requireOwner(target.target.organizationId)
 
   if (!owner.ok) {
     return owner
@@ -696,18 +835,25 @@ export async function changeSubscription(
 /**
  * Customer Portal: forma de pagamento, faturas, dados de cobrança e
  * cancelamento. Atalhos: payment_method_update e subscription_cancel.
+ * De /planos, recebe a imobiliária escolhida e volta para lá (BillingTarget).
  */
-export async function openBillingPortal(input?: {
-  flow?: BillingPortalFlow
-}): Promise<BillingActionResult> {
+export async function openBillingPortal(
+  input?: { flow?: BillingPortalFlow } & BillingTarget
+): Promise<BillingActionResult> {
   const parsed = portalSchema.safeParse(input)
 
   if (!parsed.success) {
     return { ok: false, error: INVALID_PORTAL_FLOW }
   }
 
+  const target = parseTarget(input)
+
+  if (!target.ok) {
+    return target
+  }
+
   const flow = parsed.data?.flow
-  const owner = await requireOwner()
+  const owner = await requireOwner(target.target.organizationId)
 
   if (!owner.ok) {
     return owner
@@ -720,8 +866,8 @@ export async function openBillingPortal(input?: {
   }
 
   const { membership } = owner.context
-  const settingsUrl = buildTenantUrl(membership.organization.slug, SUBSCRIPTION_SETTINGS_PATH)
-  const afterCompletion = { type: "redirect" as const, redirect: { return_url: settingsUrl } }
+  const returnUrl = billingReturnUrl(membership, target.target.returnTo)
+  const afterCompletion = { type: "redirect" as const, redirect: { return_url: returnUrl } }
 
   try {
     const account = await getBillingAccountIds(membership.organizationId)
@@ -748,7 +894,7 @@ export async function openBillingPortal(input?: {
 
     return await createPortalUrl(stripe, {
       customerId: account.stripeCustomerId,
-      returnUrl: settingsUrl,
+      returnUrl,
       flowData,
     })
   } catch (error) {

@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { CircleCheckIcon, InfoIcon } from "lucide-react"
 
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@workspace/ui/components/alert"
@@ -23,6 +23,7 @@ type CheckoutReturnNoticeProps = {
 export function CheckoutReturnNotice({ status, confirmed }: CheckoutReturnNoticeProps) {
   const router = useRouter()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [refreshes, setRefreshes] = React.useState(0)
   const waiting = status === "sucesso" && !confirmed
 
@@ -40,7 +41,12 @@ export function CheckoutReturnNotice({ status, confirmed }: CheckoutReturnNotice
   }, [waiting, refreshes, router])
 
   function dismiss() {
-    router.replace(pathname, { scroll: false })
+    // Só o retorno do pagamento some: outros parâmetros (ex.: ?imobiliaria=)
+    // continuam na URL.
+    const params = new URLSearchParams(searchParams)
+    params.delete("checkout")
+    const query = params.toString()
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
   }
 
   const dismissAction = (

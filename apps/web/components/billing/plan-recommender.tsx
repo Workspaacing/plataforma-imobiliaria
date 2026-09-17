@@ -40,6 +40,7 @@ import {
 import { Separator } from "@workspace/ui/components/separator"
 import { ToggleGroup, ToggleGroupItem } from "@workspace/ui/components/toggle-group"
 
+import { PlanActionButton } from "@/components/billing/plan-action-button"
 import {
   pluralize,
   resolvePlanPricing,
@@ -47,6 +48,7 @@ import {
   totalWithSeats,
   type CatalogPrices,
 } from "@/components/billing/plan-content"
+import { useOptionalPricing } from "@/components/billing/pricing-provider"
 
 const MAX_TEAM_SIZE = 500
 
@@ -95,6 +97,7 @@ function parseTeamSize(value: string) {
 }
 
 export function PlanRecommender({ prices }: { prices: CatalogPrices }) {
+  const pricing = useOptionalPricing()
   const teamSizeId = React.useId()
   const [teamSizeInput, setTeamSizeInput] = React.useState("3")
   const [doesRentals, setDoesRentals] = React.useState(false)
@@ -129,7 +132,7 @@ export function PlanRecommender({ prices }: { prices: CatalogPrices }) {
 
   if (aiConversations > 0) {
     reasons.push(
-      `${pluralize(aiConversations, "conversa", "conversas")} de IA no WhatsApp por mês (em breve).`
+      `${pluralize(aiConversations, "conversa", "conversas")} de IA no WhatsApp por mês (em breve). O teste grátis não inclui a IA: ela começa quando você assina.`
     )
   }
 
@@ -288,14 +291,23 @@ export function PlanRecommender({ prices }: { prices: CatalogPrices }) {
           </dl>
         </CardContent>
         <CardFooter>
-          <Button
-            className="w-full sm:w-auto"
-            render={<Link href={signUpHref(recommendation.plan)} />}
-            nativeButton={false}
-          >
-            Testar o {plan.name} por {TRIAL_DAYS} dias
-            <ArrowRightIcon data-icon="inline-end" />
-          </Button>
+          {/* Com conta conectada (/planos logado), o mesmo botão dos cartões: assinar ou trocar. */}
+          {pricing?.account ? (
+            <PlanActionButton
+              plan={recommendation.plan}
+              size="default"
+              className="w-full sm:w-auto"
+            />
+          ) : (
+            <Button
+              className="w-full sm:w-auto"
+              render={<Link href={signUpHref(recommendation.plan)} />}
+              nativeButton={false}
+            >
+              Testar o {plan.name} por {TRIAL_DAYS} dias
+              <ArrowRightIcon data-icon="inline-end" />
+            </Button>
+          )}
         </CardFooter>
       </Card>
     </div>

@@ -1,4 +1,5 @@
 import {
+  AI_FIRST_PLAN,
   AI_OVERAGE_NOTE,
   ANNUAL_BOLETO_NOTE,
   GRACE_DAYS,
@@ -7,7 +8,6 @@ import {
   OWNED_LISTING_RELEASED_STATUS_TEXT,
   PLAN_KEYS,
   PLANS,
-  TRIAL_AI_CONVERSATIONS,
   TRIAL_BASE_PLAN,
   TRIAL_DAYS,
 } from "@workspace/core/billing"
@@ -26,7 +26,8 @@ const QUESTIONS: ReadonlyArray<{ id: string; question: string; answer: string[] 
     id: "teste",
     question: "O teste grátis pede cartão?",
     answer: [
-      `Não. São ${TRIAL_DAYS} dias com os recursos do plano ${PLANS[TRIAL_BASE_PLAN].name} (com ${TRIAL_AI_CONVERSATIONS} conversas de IA), sem cartão e sem compromisso. Você escolhe o plano só se quiser continuar.`,
+      `Não. São ${TRIAL_DAYS} dias com os recursos do plano ${PLANS[TRIAL_BASE_PLAN].name}, menos a IA, sem cartão e sem compromisso. Você escolhe o plano só se quiser continuar.`,
+      "A IA começa quando você assina um plano com IA.",
     ],
   },
   {
@@ -59,6 +60,7 @@ const QUESTIONS: ReadonlyArray<{ id: string; question: string; answer: string[] 
     answer: [
       "É um lead atendido pelo agente de IA no WhatsApp dentro de 24 horas, com até 40 mensagens. Se o mesmo lead volta no dia seguinte, conta como outra conversa.",
       "O agente está chegando. Quando a franquia do mês acaba, o lead passa para um corretor e nunca fica sem resposta.",
+      `A IA não faz parte do teste grátis: ela começa quando você assina o plano ${PLANS[AI_FIRST_PLAN].name} ou maior.`,
       `${AI_OVERAGE_NOTE}.`,
     ],
   },

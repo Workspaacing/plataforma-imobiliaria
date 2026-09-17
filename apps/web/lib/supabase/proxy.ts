@@ -14,6 +14,8 @@ import {
   isRootOnlyPath,
   isWebhookPath,
   LOGIN_PATH,
+  PLANS_ACCOUNT_INTERNAL_PATH,
+  PLANS_PATH,
   PROPOSAL_SHARE_PATH_PREFIX,
   sanitizeRedirectPath,
   TENANT_PICKER_PATH,
@@ -347,6 +349,22 @@ async function withSession(request: NextRequest, context: RouteContext) {
     const destination = sanitizeRedirectPath(request.nextUrl.searchParams.get("next"), homePath)
 
     return redirectWithSession(new URL(destination, context.origin), response, sessionHeaders)
+  }
+
+  // Planos: visitante recebe a página estática (ISR); quem entrou, a versão da
+  // conta (dinâmica), no mesmo endereço e sem piscar. A página confere a sessão
+  // e as memberships de novo: aqui só se escolhe qual versão renderizar.
+  if (isAuthenticated && normalizePathname(pathname) === PLANS_PATH) {
+    const accountUrl = request.nextUrl.clone()
+    accountUrl.pathname = PLANS_ACCOUNT_INTERNAL_PATH
+
+    return withSessionState(
+      NextResponse.rewrite(accountUrl, {
+        request: { headers: forwardedHeaders(request, context.tenantSlug) },
+      }),
+      response,
+      sessionHeaders
+    )
   }
 
   // CRM no domínio raiz (modo subdomain): escolher a imobiliária (ou ir direto à única).

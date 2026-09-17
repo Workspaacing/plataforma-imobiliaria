@@ -28,6 +28,16 @@ export const INVITATION_PATH_PREFIX = "/convite/"
 /** Página pública de planos (Pagamentos/Assinatura): domínio raiz e host único. */
 export const PLANS_PATH = "/planos"
 
+/**
+ * Versão de /planos para quem entrou (conta, imobiliária e botões de assinar).
+ * O proxy reescreve /planos para cá quando há sessão: a versão sem login segue
+ * estática (ISR) e a da conta é renderizada a cada pedido, sem piscar.
+ */
+export const PLANS_ACCOUNT_INTERNAL_PATH = "/planos/conta"
+
+/** Parâmetro de /planos com o slug da imobiliária escolhida (modo subdomain, na raiz). */
+export const PLANS_ORGANIZATION_PARAM = "imobiliaria"
+
 /** Assinatura da imobiliária no CRM (rota normal, com membership). */
 export const SUBSCRIPTION_SETTINGS_PATH = "/configuracoes/assinatura"
 
