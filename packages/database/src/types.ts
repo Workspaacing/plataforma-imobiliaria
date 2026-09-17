@@ -888,15 +888,19 @@ export type Database = {
       }
       clients: {
         Row: {
+          anonymized_at: string | null
           assigned_to: string | null
           birth_date: string | null
           city: string | null
           complement: string | null
           created_at: string
           created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
           document: string | null
           email: string | null
           id: string
+          identification_kept_until: string | null
           kind: Database["public"]["Enums"]["client_kind"]
           lgpd_consent_at: string | null
           lgpd_legal_basis: string | null
@@ -917,15 +921,19 @@ export type Database = {
           whatsapp: string | null
         }
         Insert: {
+          anonymized_at?: string | null
           assigned_to?: string | null
           birth_date?: string | null
           city?: string | null
           complement?: string | null
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           document?: string | null
           email?: string | null
           id?: string
+          identification_kept_until?: string | null
           kind?: Database["public"]["Enums"]["client_kind"]
           lgpd_consent_at?: string | null
           lgpd_legal_basis?: string | null
@@ -946,15 +954,19 @@ export type Database = {
           whatsapp?: string | null
         }
         Update: {
+          anonymized_at?: string | null
           assigned_to?: string | null
           birth_date?: string | null
           city?: string | null
           complement?: string | null
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           document?: string | null
           email?: string | null
           id?: string
+          identification_kept_until?: string | null
           kind?: Database["public"]["Enums"]["client_kind"]
           lgpd_consent_at?: string | null
           lgpd_legal_basis?: string | null
@@ -1619,28 +1631,90 @@ export type Database = {
           },
         ]
       }
+      data_erasure_receipts: {
+        Row: {
+          entity: string
+          executed_at: string
+          executed_by: string | null
+          files_queued: number
+          id: string
+          identification_kept_until: string | null
+          legal_holds: string[]
+          organization_id: string
+          outcome: string
+          reason: string
+          record_id: string
+        }
+        Insert: {
+          entity: string
+          executed_at?: string
+          executed_by?: string | null
+          files_queued?: number
+          id?: string
+          identification_kept_until?: string | null
+          legal_holds?: string[]
+          organization_id: string
+          outcome: string
+          reason: string
+          record_id: string
+        }
+        Update: {
+          entity?: string
+          executed_at?: string
+          executed_by?: string | null
+          files_queued?: number
+          id?: string
+          identification_kept_until?: string | null
+          legal_holds?: string[]
+          organization_id?: string
+          outcome?: string
+          reason?: string
+          record_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_erasure_receipts_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_preferences: {
         Row: {
           created_at: string
           daily_digest: boolean
+          getting_started_dismissed_at: string | null
+          large_text: boolean
+          task_reminders: boolean
           updated_at: string
           user_id: string
+          visit_assigned: boolean
           visit_reminders: boolean
           weekly_report: boolean
         }
         Insert: {
           created_at?: string
           daily_digest?: boolean
+          getting_started_dismissed_at?: string | null
+          large_text?: boolean
+          task_reminders?: boolean
           updated_at?: string
           user_id: string
+          visit_assigned?: boolean
           visit_reminders?: boolean
           weekly_report?: boolean
         }
         Update: {
           created_at?: string
           daily_digest?: boolean
+          getting_started_dismissed_at?: string | null
+          large_text?: boolean
+          task_reminders?: boolean
           updated_at?: string
           user_id?: string
+          visit_assigned?: boolean
           visit_reminders?: boolean
           weekly_report?: boolean
         }
@@ -1707,6 +1781,8 @@ export type Database = {
           organization_id: string
           skipped_count: number
           total_rows: number
+          undone_at: string | null
+          undone_by: string | null
           updated_at: string
           updated_count: number
         }
@@ -1723,6 +1799,8 @@ export type Database = {
           organization_id: string
           skipped_count?: number
           total_rows: number
+          undone_at?: string | null
+          undone_by?: string | null
           updated_at?: string
           updated_count?: number
         }
@@ -1739,6 +1817,8 @@ export type Database = {
           organization_id?: string
           skipped_count?: number
           total_rows?: number
+          undone_at?: string | null
+          undone_by?: string | null
           updated_at?: string
           updated_count?: number
         }
@@ -2384,11 +2464,15 @@ export type Database = {
           consent_at: string | null
           created_at: string
           created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
           email: string | null
           event_id: string | null
           first_contact_at: string | null
           first_response_due_at: string | null
           id: string
+          import_job_id: string | null
+          imported_at: string | null
           interest: string | null
           landing_page_id: string | null
           landing_url: string | null
@@ -2419,11 +2503,15 @@ export type Database = {
           consent_at?: string | null
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           email?: string | null
           event_id?: string | null
           first_contact_at?: string | null
           first_response_due_at?: string | null
           id?: string
+          import_job_id?: string | null
+          imported_at?: string | null
           interest?: string | null
           landing_page_id?: string | null
           landing_url?: string | null
@@ -2454,11 +2542,15 @@ export type Database = {
           consent_at?: string | null
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           email?: string | null
           event_id?: string | null
           first_contact_at?: string | null
           first_response_due_at?: string | null
           id?: string
+          import_job_id?: string | null
+          imported_at?: string | null
           interest?: string | null
           landing_page_id?: string | null
           landing_url?: string | null
@@ -2487,6 +2579,13 @@ export type Database = {
             columns: ["organization_id", "client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "leads_import_job_fkey"
+            columns: ["organization_id", "import_job_id"]
+            isOneToOne: false
+            referencedRelation: "import_jobs"
             referencedColumns: ["organization_id", "id"]
           },
           {
@@ -2891,6 +2990,7 @@ export type Database = {
           accepts_exchange: boolean
           accepts_pets: boolean
           address_display: Database["public"]["Enums"]["address_display"]
+          anonymized_at: string | null
           bathrooms: number | null
           bedrooms: number | null
           broker_id: string | null
@@ -2902,6 +3002,8 @@ export type Database = {
           condominium_id: string | null
           created_at: string
           created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
           description: string | null
           external_code: string | null
           features: string[]
@@ -2941,6 +3043,7 @@ export type Database = {
           accepts_exchange?: boolean
           accepts_pets?: boolean
           address_display?: Database["public"]["Enums"]["address_display"]
+          anonymized_at?: string | null
           bathrooms?: number | null
           bedrooms?: number | null
           broker_id?: string | null
@@ -2952,6 +3055,8 @@ export type Database = {
           condominium_id?: string | null
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           description?: string | null
           external_code?: string | null
           features?: string[]
@@ -2991,6 +3096,7 @@ export type Database = {
           accepts_exchange?: boolean
           accepts_pets?: boolean
           address_display?: Database["public"]["Enums"]["address_display"]
+          anonymized_at?: string | null
           bathrooms?: number | null
           bedrooms?: number | null
           broker_id?: string | null
@@ -3002,6 +3108,8 @@ export type Database = {
           condominium_id?: string | null
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           description?: string | null
           external_code?: string | null
           features?: string[]
@@ -4254,6 +4362,10 @@ export type Database = {
         }
         Returns: string
       }
+      anonymize_from_trash: {
+        Args: { p_confirmation: string; p_entity: string; p_record_id: string }
+        Returns: Json
+      }
       apply_referral_recalculation: {
         Args: {
           p_count?: string[]
@@ -4361,6 +4473,49 @@ export type Database = {
           recipient_email: string
           recipient_name: string
           sla_minutes: number
+        }[]
+      }
+      claim_task_reminders: {
+        Args: { p_limit?: number; p_server_key: string }
+        Returns: {
+          due_at: string
+          id: string
+          organization_id: string
+          organization_slug: string
+          push_targets: Json
+          recipient_user_id: string
+          task_id: string
+          task_title: string
+        }[]
+      }
+      claim_visit_assignment_notices: {
+        Args: { p_limit?: number; p_server_key: string }
+        Returns: {
+          address_display: Database["public"]["Enums"]["address_display"]
+          appointment_id: string
+          appointment_status: Database["public"]["Enums"]["appointment_status"]
+          assigned_by_name: string
+          brand_color: string
+          city: string
+          client_first_name: string
+          ends_at: string
+          id: string
+          meeting_point: string
+          neighborhood: string
+          organization_id: string
+          organization_name: string
+          organization_slug: string
+          property_code: string
+          property_id: string
+          property_title: string
+          push_targets: Json
+          recipient_email: string
+          recipient_name: string
+          recipient_user_id: string
+          starts_at: string
+          state: string
+          street: string
+          street_number: string
         }[]
       }
       claim_visit_reminders: {
@@ -4511,6 +4666,10 @@ export type Database = {
           p_rotate?: boolean
         }
         Returns: string
+      }
+      erase_subject_data: {
+        Args: { p_confirmation: string; p_entity: string; p_record_id: string }
+        Returns: Json
       }
       export_clients_rows: {
         Args: {
@@ -4774,6 +4933,24 @@ export type Database = {
         Args: { p_organization_id: string; p_rows: Json }
         Returns: number
       }
+      import_photos_claim: {
+        Args: { p_job_id: string; p_limit?: number; p_organization_id: string }
+        Returns: Json
+      }
+      import_photos_complete: {
+        Args: {
+          p_error_code?: string
+          p_item_id: string
+          p_job_id: string
+          p_organization_id: string
+          p_storage_path?: string
+        }
+        Returns: Json
+      }
+      import_photos_status: {
+        Args: { p_job_id: string; p_organization_id: string }
+        Returns: Json
+      }
       import_start: {
         Args: {
           p_duplicate_mode: Database["public"]["Enums"]["import_duplicate_mode"]
@@ -4784,6 +4961,14 @@ export type Database = {
           p_total_rows: number
         }
         Returns: string
+      }
+      import_undo_apply: {
+        Args: { p_job_id: string; p_organization_id: string }
+        Returns: Json
+      }
+      import_undo_prepare: {
+        Args: { p_job_id: string; p_limit?: number; p_organization_id: string }
+        Returns: Json
       }
       ingest_caixa_listings: {
         Args: {
@@ -4898,6 +5083,28 @@ export type Database = {
           sort_key: string
         }[]
       }
+      list_storage_purge_queue: {
+        Args: { p_limit: number; p_organization_id: string }
+        Returns: {
+          bucket_id: string
+          object_path: string
+        }[]
+      }
+      list_trash: {
+        Args: { p_organization_id: string }
+        Returns: {
+          anonymized_at: string
+          code: string
+          deleted_at: string
+          deleted_by_name: string
+          entity: string
+          identification_kept_until: string
+          label: string
+          legal_holds: string[]
+          purge_after: string
+          record_id: string
+        }[]
+      }
       log_access_event: {
         Args: { p_action?: string; p_entity: string; p_entity_id: string }
         Returns: undefined
@@ -4912,6 +5119,10 @@ export type Database = {
           p_wamid?: string
         }
         Returns: Json
+      }
+      move_to_trash: {
+        Args: { p_entity: string; p_record_id: string }
+        Returns: undefined
       }
       platform_ai_costs: { Args: { p_server_key: string }; Returns: Json }
       platform_audit_event_filters: {
@@ -5223,6 +5434,10 @@ export type Database = {
           p_server_key: string
         }
         Returns: string
+      }
+      purge_from_trash: {
+        Args: { p_confirmation: string; p_entity: string; p_record_id: string }
+        Returns: Json
       }
       queue_whatsapp_message: {
         Args: {
@@ -5597,6 +5812,10 @@ export type Database = {
         }
         Returns: Json
       }
+      restore_from_trash: {
+        Args: { p_entity: string; p_record_id: string }
+        Returns: undefined
+      }
       review_proposal_discount: {
         Args: { p_approve: boolean; p_note?: string; p_request_id: string }
         Returns: Json
@@ -5893,6 +6112,28 @@ export type Database = {
         Args: {
           p_delivered?: string[]
           p_gone?: string[]
+          p_server_key: string
+        }
+        Returns: Json
+      }
+      settle_storage_purge_queue: {
+        Args: { p_organization_id: string }
+        Returns: number
+      }
+      settle_task_reminders: {
+        Args: {
+          p_failed?: string[]
+          p_released?: string[]
+          p_sent?: string[]
+          p_server_key: string
+        }
+        Returns: Json
+      }
+      settle_visit_assignment_notices: {
+        Args: {
+          p_failed?: string[]
+          p_released?: string[]
+          p_sent?: string[]
           p_server_key: string
         }
         Returns: Json
