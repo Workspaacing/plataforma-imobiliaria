@@ -15,6 +15,12 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   export: "Exportou os dados",
   print: "Imprimiu os dados",
   import: "Importou",
+  /** Lixeira (migração trash_bin_and_subject_erasure). */
+  trash: "Moveu para a lixeira",
+  restore: "Restaurou da lixeira",
+  purge: "Excluiu permanentemente",
+  anonymize: "Anonimizou os dados pessoais de",
+  subject_request: "Atendeu pedido do titular (LGPD) sobre",
 }
 
 /** Complemento do verbo, por tabela auditada. */
@@ -138,6 +144,10 @@ const COMMON_FIELD_LABELS: Record<string, string> = {
   organization_id: "imobiliária",
   created_by: "quem cadastrou",
   created_at: "data de cadastro",
+  deleted_at: "lixeira",
+  deleted_by: "quem excluiu",
+  anonymized_at: "anonimização",
+  identification_kept_until: "prazo de guarda da identificação",
 }
 
 const FIELD_LABELS_BY_ENTITY: Record<string, Record<string, string>> = {

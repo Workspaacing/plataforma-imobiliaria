@@ -246,6 +246,7 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
         portalWarnings={portalValidation.warnings.map((issue) => issue.message)}
         organizationName={membership.organization.name}
         organizationSlug={membership.organization.slug}
+        canDelete={canDeletePropertyRecords(role)}
       />
 
       {canEdit && issueMessages.length > 0 ? (

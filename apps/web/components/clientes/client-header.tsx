@@ -9,6 +9,7 @@ import { Button } from "@workspace/ui/components/button"
 
 import { DeleteClientButton } from "@/components/clientes/delete-client-button"
 import { getInitials } from "@/components/crm/utils"
+import { SubjectErasureButton } from "@/components/lixeira/subject-erasure-button"
 import { CLIENTS_PATH, getClientSourceLabel } from "@/lib/clientes/constants"
 import { formatPhone, mailtoHref, telHref, whatsappHref } from "@/lib/clientes/format"
 import { getMemberName, type MemberOption } from "@/lib/clientes/options"
@@ -114,6 +115,14 @@ export function ClientHeader({ client, members, canEdit, canDelete }: ClientHead
             </Button>
           ) : null}
           {canDelete ? <DeleteClientButton clientId={client.id} /> : null}
+          {canDelete ? (
+            <SubjectErasureButton
+              entity="client"
+              recordId={client.id}
+              name={client.name}
+              redirectTo={CLIENTS_PATH}
+            />
+          ) : null}
         </div>
       ) : null}
     </div>

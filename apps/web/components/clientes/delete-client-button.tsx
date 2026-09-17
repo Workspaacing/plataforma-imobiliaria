@@ -15,7 +15,7 @@ export function DeleteClientButton({ clientId }: { clientId: string }) {
       label="Excluir"
       showLabel
       title="Excluir este cliente?"
-      description="A ficha, o histórico, os perfis de busca, os compartilhamentos e os documentos (inclusive os arquivos) serão apagados. Visitas e tarefas ligadas a ele também. Esta ação não pode ser desfeita."
+      description="O cliente sai das listas e buscas e fica na lixeira por 30 dias (dono e gerente restauram em Configurações > Lixeira). Depois é apagado de vez, com histórico e documentos — ou, se tiver proposta aceita, comissão ou autorização assinada, os dados pessoais são anonimizados e o que a lei obriga fica guardado."
       confirmLabel="Excluir cliente"
       onDone={() => router.push(CLIENTS_PATH)}
     />

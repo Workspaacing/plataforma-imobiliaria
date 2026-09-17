@@ -39,6 +39,7 @@ import {
   type NewLeadFormValues,
 } from "@/lib/leads/schemas"
 import type { LeadDetailExtras } from "@/lib/leads/types"
+import { moveToTrash } from "@/lib/lixeira/actions"
 
 const RENUMBER_BATCH_SIZE = 25
 
@@ -557,7 +558,7 @@ export async function markLeadContacted(leadId: string): Promise<ActionResult> {
 }
 
 // -----------------------------------------------------------------------------
-// Exclusão (LGPD: eliminação)
+// Exclusão: lixeira de 30 dias (definitiva pela lixeira ou pela rotina diária)
 // -----------------------------------------------------------------------------
 
 export async function deleteLead(leadId: string): Promise<ActionResult> {
@@ -566,31 +567,12 @@ export async function deleteLead(leadId: string): Promise<ActionResult> {
   }
 
   const { membership } = await requireMembership()
-  const action = "excluir leads"
 
   if (!canDeleteLeads(membership.role)) {
-    return { ok: false, error: permissionDeniedMessage(action) }
+    return { ok: false, error: permissionDeniedMessage("excluir leads") }
   }
 
-  const supabase = await createLeadsClient()
-  const { data, error } = await supabase
-    .from("leads")
-    .delete()
-    .eq("id", leadId)
-    .eq("organization_id", membership.organizationId)
-    .select("id")
-
-  if (error) {
-    return { ok: false, error: translateDatabaseError(error, action) }
-  }
-
-  if (data.length === 0) {
-    return { ok: false, error: permissionDeniedMessage(action) }
-  }
-
-  revalidateLeads()
-
-  return { ok: true, message: "Lead excluído." }
+  return moveToTrash("lead", leadId)
 }
 
 // -----------------------------------------------------------------------------

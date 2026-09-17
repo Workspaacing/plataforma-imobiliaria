@@ -44,7 +44,7 @@ export function DeleteLeadButton({ leadId, leadName, onDeleted }: DeleteLeadButt
         return
       }
 
-      toast.add({ title: result.message ?? "Lead excluído.", type: "success" })
+      toast.add({ title: result.message ?? "Lead movido para a lixeira.", type: "success" })
       setOpen(false)
       onDeleted()
     })
@@ -60,8 +60,9 @@ export function DeleteLeadButton({ leadId, leadName, onDeleted }: DeleteLeadButt
         <AlertDialogHeader>
           <AlertDialogTitle>Excluir este lead?</AlertDialogTitle>
           <AlertDialogDescription>
-            {leadName}. Os dados de contato e a origem saem do funil. Um cliente já criado a partir
-            dele continua na base. Esta ação não pode ser desfeita.
+            {leadName} sai do funil, das buscas e dos relatórios e fica na lixeira por 30 dias (dono
+            e gerente restauram em Configurações &gt; Lixeira). Depois é apagado de vez. Um cliente
+            já criado a partir dele continua na base.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

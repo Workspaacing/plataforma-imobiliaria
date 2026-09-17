@@ -29,11 +29,14 @@ export function PropertyHeader({
   portalWarnings,
   organizationName,
   organizationSlug,
+  canDelete = false,
 }: {
   property: Tables<"properties">
   coverPath: string | null
   score: number
   canEdit: boolean
+  /** Dono e gerente: botão "Excluir" (lixeira). */
+  canDelete?: boolean
   requirementIssues: string[]
   completeHref: string
   portalErrors: string[]
@@ -150,6 +153,7 @@ export function PropertyHeader({
             completeHref={completeHref}
             whatsappHref={whatsappHref}
             publicUrl={publicUrl}
+            canDelete={canDelete}
           />
           <PortalPublishCard
             propertyId={property.id}

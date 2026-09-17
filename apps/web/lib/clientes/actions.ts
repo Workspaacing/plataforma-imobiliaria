@@ -11,10 +11,11 @@ import {
   toFieldErrors,
   type ActionResultWithData,
 } from "@/lib/clientes/action-result"
-import { CLIENT_DOCUMENTS_BUCKET, CLIENTS_PATH } from "@/lib/clientes/constants"
+import { CLIENTS_PATH } from "@/lib/clientes/constants"
 import { permissionDeniedMessage, translateDatabaseError } from "@/lib/clientes/db-errors"
 import { canCreateClients, canDeleteClientData } from "@/lib/clientes/permissions"
 import { clientFormSchema, toClientRow, type ClientFormValues } from "@/lib/clientes/schemas"
+import { moveToTrash } from "@/lib/lixeira/actions"
 import { createClient } from "@/lib/supabase/server"
 
 const idSchema = z.guid()
@@ -149,58 +150,23 @@ export async function updateClientRecord(
   return { ok: true, data: { id: clientId }, message: "Cliente atualizado." }
 }
 
-/** Exclui o cliente (dono/gerente), inclusive os arquivos no Storage (LGPD: eliminação). */
+/**
+ * Exclui o cliente (dono/gerente): vai para a lixeira por 30 dias. A exclusão
+ * definitiva (com os arquivos do Storage) sai da lixeira ou da rotina diária,
+ * que respeitam a guarda legal (ver lib/lixeira).
+ */
 export async function deleteClientRecord(clientId: string): Promise<ActionResult> {
   if (!idSchema.safeParse(clientId).success) {
     return { ok: false, error: "Cliente inválido." }
   }
 
   const { membership } = await requireMembership()
-  const action = "excluir clientes"
 
   if (!canDeleteClientData(membership.role)) {
-    return { ok: false, error: permissionDeniedMessage(action) }
+    return { ok: false, error: permissionDeniedMessage("excluir clientes") }
   }
 
-  const supabase = await createClient()
-  const { data: documents } = await supabase
-    .from("client_documents")
-    .select("storage_path")
-    .eq("client_id", clientId)
-    .eq("organization_id", membership.organizationId)
-
-  const { data, error } = await supabase
-    .from("clients")
-    .delete()
-    .eq("id", clientId)
-    .eq("organization_id", membership.organizationId)
-    .select("id")
-
-  if (error) {
-    return { ok: false, error: translateDatabaseError(error, action) }
-  }
-
-  if (data.length === 0) {
-    return { ok: false, error: permissionDeniedMessage(action) }
-  }
-
-  if (documents && documents.length > 0) {
-    const { error: storageError } = await supabase.storage
-      .from(CLIENT_DOCUMENTS_BUCKET)
-      .remove(documents.map((document) => document.storage_path))
-
-    if (storageError) {
-      console.error(
-        "[clientes] arquivos do cliente excluído não saíram do Storage:",
-        storageError.name
-      )
-    }
-  }
-
-  revalidatePath(CLIENTS_PATH)
-  revalidatePath("/painel")
-
-  return { ok: true, message: "Cliente excluído." }
+  return moveToTrash("client", clientId)
 }
 
 /** Consulta o CEP no servidor (ViaCEP/BrasilAPI). */

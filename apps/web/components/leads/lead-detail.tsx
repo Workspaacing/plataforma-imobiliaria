@@ -62,6 +62,7 @@ import { ACTIVITY_ICONS } from "@/components/clientes/activity-icons"
 import { AssignRouletteButton } from "@/components/leads/assign-roulette-button"
 import { ConvertLeadDialog } from "@/components/leads/convert-lead-dialog"
 import { DeleteLeadButton } from "@/components/leads/delete-lead-button"
+import { SubjectErasureButton } from "@/components/lixeira/subject-erasure-button"
 import { LeadActivityForm } from "@/components/leads/lead-activity-form"
 import {
   LeadAdPlatformBadges,
@@ -786,7 +787,16 @@ export function LeadDetail({
               <span />
             )}
             {canDeleteLeads(role) ? (
-              <DeleteLeadButton leadId={lead.id} leadName={lead.name} onDeleted={onDeleted} />
+              <div className="flex flex-wrap gap-2">
+                <SubjectErasureButton
+                  entity="lead"
+                  recordId={lead.id}
+                  name={lead.name}
+                  size="sm"
+                  onDone={onDeleted}
+                />
+                <DeleteLeadButton leadId={lead.id} leadName={lead.name} onDeleted={onDeleted} />
+              </div>
             ) : null}
           </div>
         </>

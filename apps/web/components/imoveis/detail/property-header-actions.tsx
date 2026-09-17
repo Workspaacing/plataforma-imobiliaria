@@ -32,6 +32,7 @@ import {
 import { Spinner } from "@workspace/ui/components/spinner"
 import { toast } from "@workspace/ui/components/toast"
 
+import { MovePropertyToTrashButton } from "@/components/lixeira/move-property-to-trash-button"
 import { changePropertyStatusAction } from "@/lib/imoveis/property-actions"
 
 function isPropertyStatus(value: unknown): value is PropertyStatus {
@@ -50,10 +51,13 @@ export function PropertyHeaderActions({
   completeHref,
   whatsappHref,
   publicUrl,
+  canDelete = false,
 }: {
   propertyId: string
   status: PropertyStatus
   canEdit: boolean
+  /** Dono e gerente: "Excluir" move para a lixeira. */
+  canDelete?: boolean
   requirementIssues: string[]
   completeHref: string
   /** Link wa.me com o texto pronto (sem endereço nem dados do proprietário). */
@@ -97,6 +101,7 @@ export function PropertyHeaderActions({
         Compartilhar no WhatsApp
         <span className="sr-only"> (abre em nova aba)</span>
       </Button>
+      {canDelete ? <MovePropertyToTrashButton propertyId={propertyId} /> : null}
     </div>
   )
 }
