@@ -7,6 +7,7 @@ import {
   LEAD_MESSAGE_MAX_LENGTH,
   LEAD_NAME_MAX_LENGTH,
   LEAD_TYPOLOGY_MAX_LENGTH,
+  type LandingLeadOrigin,
   type LeadClickIds,
   type LeadUtm,
 } from "@/lib/leads-publicos/constants"
@@ -72,6 +73,8 @@ export const LEAD_CONTACT_STEP_FIELDS: readonly (keyof LandingLeadValues)[] = ["
 
 export type LandingLeadContext = {
   utm: LeadUtm
+  /** Origem do link (?origem=), já validada. */
+  origin?: LandingLeadOrigin | null
   clickIds: LeadClickIds
   referrer: string | null
   landingUrl: string | null
@@ -97,6 +100,7 @@ export function toLandingLeadPayload(
   if (values.propertyId) payload.property_id = values.propertyId
   if (values.interest) payload.interest = values.interest
   if (values.typology) payload.typology = values.typology
+  if (context.origin) payload.origin = context.origin
   if (context.landingUrl) payload.landing_url = context.landingUrl
   if (context.referrer) payload.referrer = context.referrer
 

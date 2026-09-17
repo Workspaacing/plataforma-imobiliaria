@@ -24,6 +24,23 @@ export function getLandingPublicUrl(organizationSlug: string, pageSlug: string):
 }
 
 /** Prefixo exibido no campo de endereço, ex.: "teste.localhost:3000/lp/". */
+/**
+ * Link da landing que já marca a origem do lead (?origem=instagram para a bio,
+ * ?origem=whatsapp para mensagens), com os UTMs do canal para o relatório de
+ * origem. A origem é validada de novo no envio e no banco.
+ */
+export function withLandingLeadOrigin(publicUrl: string, origin: "instagram" | "whatsapp"): string {
+  try {
+    const url = new URL(publicUrl)
+    url.searchParams.set("origem", origin)
+    url.searchParams.set("utm_source", origin)
+    url.searchParams.set("utm_medium", origin === "instagram" ? "bio" : "mensagem")
+    return url.toString()
+  } catch {
+    return publicUrl
+  }
+}
+
 export function getLandingPublicUrlPrefix(organizationSlug: string): string | null {
   try {
     return displayUrl(buildTenantUrl(organizationSlug, "/lp/"))

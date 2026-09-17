@@ -1,4 +1,9 @@
-import type { LeadClickIds, LeadInterest, LeadUtm } from "@/lib/leads-publicos/constants"
+import type {
+  LandingLeadOrigin,
+  LeadClickIds,
+  LeadInterest,
+  LeadUtm,
+} from "@/lib/leads-publicos/constants"
 
 /**
  * Corpo de p_payload em submit_landing_lead (chaves opcionais vazias são
@@ -15,6 +20,8 @@ export type LandingLeadPayload = {
   /** Nome da tipologia escolhida (até 80). */
   typology?: string
   utm: LeadUtm
+  /** Origem do link (?origem=): instagram ou whatsapp; sem ela, "Landing page". */
+  origin?: LandingLeadOrigin
   /** gclid, gbraid, wbraid, fbclid, fbc, fbp (cada um até 255). */
   click_ids: LeadClickIds
   /** URL da landing sem dados pessoais (até 500). */

@@ -9,6 +9,7 @@ import {
 import {
   sanitizeClickIds,
   sanitizeLandingUrl,
+  sanitizeLeadOrigin,
   sanitizeReferrer,
   sanitizeUtm,
 } from "@/lib/leads-publicos/attribution"
@@ -148,6 +149,7 @@ export async function submitLandingLead(
   const attribution = isRecord(input.attribution) ? input.attribution : {}
   const payload = toLandingLeadPayload(parsed.data, {
     utm: sanitizeUtm(attribution.utm),
+    origin: sanitizeLeadOrigin(attribution.origin),
     clickIds: sanitizeClickIds(attribution.clickIds),
     referrer: sanitizeReferrer(attribution.referrer),
     landingUrl: sanitizeLandingUrl(attribution.landingUrl),

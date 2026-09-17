@@ -22,7 +22,8 @@ import {
  *
  * Roda em dois lugares:
  * - logo depois da resposta do webhook (`after()`), que é o caminho normal;
- * - no cron /api/cron/lead-ingest, que é a rede de segurança para quando a
+ * - em /api/cron/lead-ingest (pg_cron a cada 5 min quando há entrega vencida,
+ *   ou a rotina diária da Vercel), que é a rede de segurança para quando a
  *   Meta não responde na hora (ela desiste de reenviar em 36 h; nossa fila
  *   tenta 6 vezes com espera crescente).
  *

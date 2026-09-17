@@ -230,7 +230,7 @@ describe("validateImportRows: leads", () => {
       phone: "21998765432",
       stage: "contacted",
       interest: "rent",
-      source: "social",
+      source: "instagram",
     })
   })
 

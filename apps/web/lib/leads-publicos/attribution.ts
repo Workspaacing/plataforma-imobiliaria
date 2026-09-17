@@ -11,13 +11,16 @@ import {
   ATTRIBUTION_COOKIE_NAME,
   CLICK_ID_KEYS,
   CLICK_ID_MAX_LENGTH,
+  LANDING_LEAD_ORIGINS,
   LANDING_URL_MAX_LENGTH,
+  LEAD_ORIGIN_PARAM,
   REFERRER_MAX_LENGTH,
   URL_CLICK_ID_KEYS,
   UTM_COOKIE_MAX_AGE_SECONDS,
   UTM_COOKIE_NAME,
   UTM_KEYS,
   UTM_MAX_LENGTH,
+  type LandingLeadOrigin,
   type LeadClickIds,
   type LeadUtm,
 } from "@/lib/leads-publicos/constants"
@@ -82,6 +85,22 @@ export function utmFromSearch(search: string): LeadUtm {
   }
 
   return sanitizeUtm(raw)
+}
+
+/** Origem do link ("instagram" ou "whatsapp", sem diferenciar maiúsculas); o resto é null. */
+export function sanitizeLeadOrigin(value: unknown): LandingLeadOrigin | null {
+  if (typeof value !== "string") return null
+
+  const origin = value.trim().toLowerCase()
+
+  return (LANDING_LEAD_ORIGINS as readonly string[]).includes(origin)
+    ? (origin as LandingLeadOrigin)
+    : null
+}
+
+/** Lê ?origem= de uma query string. */
+export function originFromSearch(search: string): LandingLeadOrigin | null {
+  return sanitizeLeadOrigin(new URLSearchParams(search).get(LEAD_ORIGIN_PARAM))
 }
 
 /** Só as chaves de CLICK_ID_KEYS, até 255 caracteres e com o alfabeto esperado. */
@@ -224,6 +243,8 @@ export function captureAttribution() {
 
 export type LeadAttribution = {
   utm: LeadUtm
+  /** ?origem= do link (bio do Instagram, WhatsApp). */
+  origin: LandingLeadOrigin | null
   clickIds: LeadClickIds
   referrer: string | null
   landingUrl: string | null
@@ -232,7 +253,7 @@ export type LeadAttribution = {
 /** Atribuição atual para o envio (URL > cookies; _fbc/_fbp do Meta quando existirem). */
 export function readLeadAttribution(): LeadAttribution {
   if (typeof window === "undefined") {
-    return { utm: {}, clickIds: {}, referrer: null, landingUrl: null }
+    return { utm: {}, origin: null, clickIds: {}, referrer: null, landingUrl: null }
   }
 
   const { search, href } = window.location
@@ -243,6 +264,7 @@ export function readLeadAttribution(): LeadAttribution {
 
   return {
     utm: hasUtm(utmFromUrl) ? utmFromUrl : sanitizeUtm(readJsonCookie(UTM_COOKIE_NAME)),
+    origin: originFromSearch(search),
     clickIds: sanitizeClickIds({
       ...clickIds,
       ...(metaFbc ? { fbc: metaFbc } : {}),

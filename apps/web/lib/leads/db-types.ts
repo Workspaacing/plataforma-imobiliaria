@@ -12,6 +12,8 @@ import type { Enums, Tables, TablesInsert, TablesUpdate } from "@workspace/datab
 
 export type LeadStage = Enums<"lead_stage">
 export type LeadSource = Enums<"lead_source">
+/** Canal de `lead_contact_events` (ligação, WhatsApp, e-mail, presencial). */
+export type LeadContactChannel = Enums<"lead_contact_channel">
 
 /** `leads.interest` é texto livre no banco; o app usa estes valores. */
 export type LeadInterest = "buy" | "rent" | "invest" | "sell" | "info"

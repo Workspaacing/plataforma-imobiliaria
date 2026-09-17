@@ -1,7 +1,7 @@
 import { LEAD_SLA_DEFAULT_MINUTES } from "@workspace/core/leads/routing"
 
 import type { ClientSource } from "@/lib/clientes/constants"
-import type { LeadInterest, LeadSource, LeadStage } from "@/lib/leads/db-types"
+import type { LeadContactChannel, LeadInterest, LeadSource, LeadStage } from "@/lib/leads/db-types"
 
 export const LEADS_PATH = "/leads"
 
@@ -84,6 +84,8 @@ export const LEAD_SOURCES = [
   "portal",
   "website",
   "social",
+  "instagram",
+  "whatsapp",
   "referral",
   "manual",
   "other",
@@ -94,6 +96,8 @@ export const LEAD_SOURCE_LABELS: Record<LeadSource, string> = {
   portal: "Portal",
   website: "Site",
   social: "Redes sociais",
+  instagram: "Instagram",
+  whatsapp: "WhatsApp",
   referral: "Indicação",
   manual: "Cadastro manual",
   other: "Outro",
@@ -102,6 +106,8 @@ export const LEAD_SOURCE_LABELS: Record<LeadSource, string> = {
 /** Origens que a equipe escolhe no cadastro manual (landing page vem só do formulário público). */
 export const MANUAL_LEAD_SOURCES = [
   "manual",
+  "instagram",
+  "whatsapp",
   "portal",
   "website",
   "social",
@@ -122,10 +128,32 @@ export const LEAD_SOURCE_TO_CLIENT_SOURCE: Record<LeadSource, ClientSource> = {
   website: "site",
   portal: "portal",
   social: "redes_sociais",
+  instagram: "redes_sociais",
+  whatsapp: "outro",
   referral: "indicacao",
   manual: "outro",
   other: "outro",
 }
+
+// -----------------------------------------------------------------------------
+// Contato registrado (enum lead_contact_channel)
+// -----------------------------------------------------------------------------
+export const LEAD_CONTACT_CHANNELS = [
+  "call",
+  "whatsapp",
+  "email",
+  "in_person",
+] as const satisfies readonly LeadContactChannel[]
+
+export const LEAD_CONTACT_CHANNEL_LABELS: Record<LeadContactChannel, string> = {
+  call: "Ligação",
+  whatsapp: "WhatsApp",
+  email: "E-mail",
+  in_person: "Presencial",
+}
+
+/** Resposta de "Conseguiu falar?": Sim é contato; Não é só a tentativa. */
+export type LeadContactInput = { channel: LeadContactChannel; reached: boolean }
 
 // -----------------------------------------------------------------------------
 // Interesse (leads.interest)

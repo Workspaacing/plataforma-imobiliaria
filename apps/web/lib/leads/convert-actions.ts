@@ -439,11 +439,8 @@ export async function convertLeadToClient(
   }
 
   const nextStage: LeadStage = PROMOTE_TO_QUALIFIED.includes(lead.stage) ? "qualified" : lead.stage
+  // Converter em cliente não é contato: o 1º contato vem só do registro de contato.
   const patch: LeadUpdate = { client_id: clientId, stage: nextStage }
-
-  if (!lead.last_contact_at) {
-    patch.last_contact_at = new Date().toISOString()
-  }
 
   if (role === "broker" && !lead.assigned_to) {
     patch.assigned_to = user.id

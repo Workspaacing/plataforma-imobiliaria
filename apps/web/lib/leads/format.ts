@@ -13,7 +13,7 @@ import type { Json } from "@workspace/database/types"
 
 import { formatDate } from "@/lib/format"
 import { formatPhoneDisplay } from "@/lib/captacao/masks"
-import { LEAD_RESPONSE_TARGET_MINUTES } from "@/lib/leads/constants"
+import { LEAD_RESPONSE_TARGET_MINUTES, OPEN_LEAD_STAGES } from "@/lib/leads/constants"
 import type { LeadStage } from "@/lib/leads/db-types"
 
 const MINUTE = 60_000
@@ -61,12 +61,13 @@ export function formatElapsedShort(iso: string, nowMs: number) {
 }
 
 /**
- * Lead em "Novo" ainda sem o primeiro contato (cronômetro rodando). Olha o
+ * Lead em aberto ainda sem o primeiro contato (cronômetro rodando). Olha o
  * primeiro contato, que o banco grava uma vez só: registrar um novo contato ou
- * mexer no último não reabre nem encerra o prazo.
+ * mexer no último não reabre nem encerra o prazo. Mudar a etapa não é contato:
+ * o lead arrastado de "Novo" para "Em contato" sem registro continua aqui.
  */
 export function isLeadWithoutContact(lead: { stage: LeadStage; firstContactAt: string | null }) {
-  return lead.stage === "new" && !lead.firstContactAt
+  return OPEN_LEAD_STAGES.includes(lead.stage) && !lead.firstContactAt
 }
 
 // -----------------------------------------------------------------------------

@@ -11,6 +11,7 @@ import {
   LEAD_DUPLICATES_MAX,
   LEAD_RESPONSE_TARGET_MINUTES,
   LEADS_LIST_LIMIT,
+  OPEN_LEAD_STAGES,
 } from "@/lib/leads/constants"
 import { createLeadsClient, type LeadsServerClient } from "@/lib/leads/db"
 import type { LeadRow } from "@/lib/leads/db-types"
@@ -511,8 +512,9 @@ export async function getLeadSummary(
 
   const [waiting, overdue, today] = await Promise.all([
     base().eq("stage", "new").is("first_contact_at", null),
+    // Fora do prazo: qualquer etapa em aberto sem 1º contato (mudar a etapa não é contato).
     base()
-      .eq("stage", "new")
+      .in("stage", [...OPEN_LEAD_STAGES])
       .is("first_contact_at", null)
       .or(
         `first_response_due_at.lte."${nowIso}",and(first_response_due_at.is.null,created_at.lt."${overdueBefore}")`

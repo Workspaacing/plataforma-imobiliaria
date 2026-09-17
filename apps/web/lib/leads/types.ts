@@ -1,6 +1,6 @@
 import type { Enums } from "@workspace/database/types"
 
-import type { LeadRow, LeadSource, LeadStage } from "@/lib/leads/db-types"
+import type { LeadContactChannel, LeadRow, LeadSource, LeadStage } from "@/lib/leads/db-types"
 import {
   detectAdPlatforms,
   readClickIdsFromUrl,
@@ -209,7 +209,20 @@ export type LeadAssignmentHistoryEvent = {
   toName: string | null
 }
 
-export type LeadHistoryEvent = LeadStageHistoryEvent | LeadAssignmentHistoryEvent
+/** Contato ou tentativa registrada pela equipe (`lead_contact_events`). */
+export type LeadContactHistoryEvent = {
+  kind: "contact"
+  id: string
+  at: string
+  actorName: string
+  reasonLabel: null
+  channel: LeadContactChannel
+  /** true: conseguiu falar (conta como contato); false: só a tentativa. */
+  reached: boolean
+}
+
+export type LeadHistoryEvent =
+  LeadStageHistoryEvent | LeadAssignmentHistoryEvent | LeadContactHistoryEvent
 
 /** Dados que só existem depois da conversão (ficha do cliente e histórico). */
 export type LeadDetailExtras = {
@@ -241,7 +254,7 @@ export type LeadSlaSettings = {
 export type LeadSummaryCounts = {
   /** Etapa "Novo" e nenhum contato registrado. */
   newWithoutContact: number
-  /** Dos acima, os que passaram da meta de primeiro contato. */
+  /** Leads em aberto (qualquer etapa) sem 1º contato que passaram da meta. */
   overdue: number
   /** Entraram hoje (fuso de Brasília). */
   today: number

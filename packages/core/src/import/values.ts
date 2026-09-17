@@ -210,7 +210,8 @@ export function parseLeadStage(raw: string | null | undefined): ImportLeadStage 
   return lookup(LEAD_STAGES, raw)
 }
 
-export type ImportLeadSource = "portal" | "website" | "social" | "referral" | "manual" | "other"
+export type ImportLeadSource =
+  "portal" | "website" | "social" | "instagram" | "whatsapp" | "referral" | "manual" | "other"
 
 const LEAD_SOURCES = dictionary<ImportLeadSource>({
   portal: [
@@ -227,16 +228,9 @@ const LEAD_SOURCES = dictionary<ImportLeadSource>({
     "grupo zap",
   ],
   website: ["site", "site proprio", "pagina", "internet", "google"],
-  social: [
-    "redes sociais",
-    "rede social",
-    "instagram",
-    "facebook",
-    "meta",
-    "tiktok",
-    "youtube",
-    "linkedin",
-  ],
+  social: ["redes sociais", "rede social", "facebook", "meta", "tiktok", "youtube", "linkedin"],
+  instagram: ["instagram", "insta", "ig", "direct do instagram"],
+  whatsapp: ["whatsapp", "whats", "zap zap", "wpp"],
   referral: ["indicacao", "indicado", "indicacao de cliente", "parceiro"],
   manual: [
     "cadastro manual",
@@ -245,7 +239,6 @@ const LEAD_SOURCES = dictionary<ImportLeadSource>({
     "plantao",
     "telefone",
     "ligacao",
-    "whatsapp",
     "placa",
     "loja",
   ],

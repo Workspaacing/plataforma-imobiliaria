@@ -19,7 +19,12 @@ import {
 import { getOrganizationMembers } from "@/lib/clientes/members"
 import { getMemberName } from "@/lib/clientes/options"
 import { sendNotificationEmail } from "@/lib/email"
-import { LEAD_STAGE_LABELS, LEADS_PATH } from "@/lib/leads/constants"
+import {
+  LEAD_CONTACT_CHANNEL_LABELS,
+  LEAD_CONTACT_CHANNELS,
+  LEAD_STAGE_LABELS,
+  LEADS_PATH,
+} from "@/lib/leads/constants"
 import { createLeadsClient, type LeadsServerClient } from "@/lib/leads/db"
 import type { LeadUpdate } from "@/lib/leads/db-types"
 import {
@@ -232,7 +237,7 @@ export async function moveLead(input: MoveLeadInput): Promise<ActionResult> {
 
   const { data: current, error: loadError } = await supabase
     .from("leads")
-    .select("id, stage, last_contact_at, client_id")
+    .select("id, stage, client_id")
     .eq("id", leadId)
     .eq("organization_id", membership.organizationId)
     .maybeSingle()
@@ -260,13 +265,8 @@ export async function moveLead(input: MoveLeadInput): Promise<ActionResult> {
     patch.lost_reason = null
   }
 
-  // "Em contato" registra o contato agora; sair de "Novo" sem contato também conta.
-  if (
-    (stage === "contacted" && current.stage !== "contacted") ||
-    (current.stage === "new" && stage !== "new" && !current.last_contact_at)
-  ) {
-    patch.last_contact_at = new Date().toISOString()
-  }
+  // Mudar a etapa não é contato: o 1º contato vem só de "Registrar contato" ou
+  // do WhatsApp com "Conseguiu falar? Sim" (lead_contact_events).
 
   const { data, error } = await supabase
     .from("leads")
@@ -489,15 +489,27 @@ export async function assignLeadFromRoulette(leadId: string): Promise<ActionResu
 // Contato
 // -----------------------------------------------------------------------------
 
+const registerLeadContactSchema = z.object({
+  leadId: leadIdSchema,
+  channel: z.enum(LEAD_CONTACT_CHANNELS, "Escolha o canal do contato."),
+  reached: z.boolean(),
+})
+
+export type RegisterLeadContactInput = z.infer<typeof registerLeadContactSchema>
+
 /**
- * Registra que houve contato agora ("Registrar contato" e o WhatsApp da ficha);
- * lead em "Novo" passa para "Em contato". Atualiza só o último contato: o
- * primeiro (`first_contact_at`, base do prazo e dos relatórios) o banco grava
- * uma única vez.
+ * "Registrar contato" e a volta do WhatsApp ("Conseguiu falar?"). Grava em
+ * `lead_contact_events` com o canal: `reached` (Sim) vira contato no lead pelo
+ * banco — último contato e, na primeira vez, o 1º contato (base do prazo e dos
+ * relatórios) — e o lead em "Novo" passa para "Em contato"; "Não" grava só a
+ * tentativa, sem tirar o lead de "fora do prazo". O instante é sempre o do
+ * servidor.
  */
-export async function markLeadContacted(leadId: string): Promise<ActionResult> {
-  if (!leadIdSchema.safeParse(leadId).success) {
-    return { ok: false, error: "Lead inválido." }
+export async function registerLeadContact(input: RegisterLeadContactInput): Promise<ActionResult> {
+  const parsed = registerLeadContactSchema.safeParse(input)
+
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Contato inválido." }
   }
 
   const { membership } = await requireMembership()
@@ -507,10 +519,11 @@ export async function markLeadContacted(leadId: string): Promise<ActionResult> {
     return { ok: false, error: permissionDeniedMessage(action) }
   }
 
+  const { leadId, channel, reached } = parsed.data
   const supabase = await createLeadsClient()
   const { data: current, error: loadError } = await supabase
     .from("leads")
-    .select("stage")
+    .select("stage, first_contact_at")
     .eq("id", leadId)
     .eq("organization_id", membership.organizationId)
     .maybeSingle()
@@ -526,34 +539,36 @@ export async function markLeadContacted(leadId: string): Promise<ActionResult> {
     }
   }
 
-  const patch: LeadUpdate = { last_contact_at: new Date().toISOString() }
-
-  if (current.stage === "new") {
-    patch.stage = "contacted"
-  }
-
-  const { data, error } = await supabase
-    .from("leads")
-    .update(patch)
-    .eq("id", leadId)
-    .eq("organization_id", membership.organizationId)
-    .select("id")
+  const { error } = await supabase.from("lead_contact_events").insert({
+    organization_id: membership.organizationId,
+    lead_id: leadId,
+    channel,
+    reached,
+  })
 
   if (error) {
     return { ok: false, error: translateDatabaseError(error, action) }
   }
 
-  if (data.length === 0) {
-    return { ok: false, error: permissionDeniedMessage(action) }
-  }
-
   revalidateLeads(leadId)
+
+  const channelLabel = LEAD_CONTACT_CHANNEL_LABELS[channel]
+
+  if (!reached) {
+    return {
+      ok: true,
+      message: current.first_contact_at
+        ? `Tentativa por ${channelLabel} registrada.`
+        : `Tentativa por ${channelLabel} registrada. O 1º contato continua pendente.`,
+    }
+  }
 
   return {
     ok: true,
-    message: patch.stage
-      ? "Contato registrado. Lead movido para Em contato."
-      : "Contato registrado.",
+    message:
+      current.stage === "new"
+        ? `Contato por ${channelLabel} registrado. Lead movido para Em contato.`
+        : `Contato por ${channelLabel} registrado.`,
   }
 }
 

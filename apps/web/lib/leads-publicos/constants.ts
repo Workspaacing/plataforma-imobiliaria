@@ -38,6 +38,15 @@ export const LEAD_NAME_MAX_LENGTH = 120
 export const LEAD_MESSAGE_MAX_LENGTH = 2000
 export const LEAD_TYPOLOGY_MAX_LENGTH = 80
 export const UTM_MAX_LENGTH = 150
+
+/**
+ * Origem marcada pelo link (?origem=instagram, ?origem=whatsapp): o lead entra
+ * com essa origem em vez de "Landing page". Lista fechada, validada de novo no
+ * banco (submit_landing_lead).
+ */
+export const LEAD_ORIGIN_PARAM = "origem"
+export const LANDING_LEAD_ORIGINS = ["instagram", "whatsapp"] as const
+export type LandingLeadOrigin = (typeof LANDING_LEAD_ORIGINS)[number]
 export const CLICK_ID_MAX_LENGTH = 255
 export const REFERRER_MAX_LENGTH = 500
 export const LANDING_URL_MAX_LENGTH = 500

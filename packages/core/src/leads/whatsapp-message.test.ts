@@ -2,8 +2,11 @@ import { describe, expect, it } from "vitest"
 
 import {
   buildLeadWhatsappMessage,
+  findUnknownTemplateVariables,
   LEAD_WHATSAPP_MESSAGE_MAX_LENGTH,
   leadFirstName,
+  renderWhatsappTemplate,
+  whatsappPropertyLabel,
   withWhatsappText,
 } from "./whatsapp-message"
 
@@ -67,5 +70,46 @@ describe("withWhatsappText", () => {
   it("texto vazio mantém o link sem mensagem", () => {
     expect(withWhatsappText(href, "   ")).toBe(href)
     expect(withWhatsappText(href, null)).toBe(href)
+  })
+})
+describe("renderWhatsappTemplate", () => {
+  it("troca as quatro variáveis, sem diferenciar acento e maiúsculas", () => {
+    expect(
+      renderWhatsappTemplate("Olá, {nome}! Aqui é {corretor}. Segue o {Imóvel}: {link}", {
+        nome: "Maria",
+        corretor: "Carlos",
+        imovel: whatsappPropertyLabel({ code: "IMV-1", title: "Casa 3 quartos" }),
+        link: "https://exemplo.com/imovel/imob/IMV-1",
+      })
+    ).toBe(
+      "Olá, Maria! Aqui é Carlos. Segue o Casa 3 quartos (código IMV-1): https://exemplo.com/imovel/imob/IMV-1"
+    )
+  })
+
+  it("variável sem valor sai sem deixar pontuação solta nem espaço duplo", () => {
+    expect(renderWhatsappTemplate("Olá, {nome}! Tudo bem?  {link}", {})).toBe("Olá! Tudo bem?")
+    expect(renderWhatsappTemplate("Oi {nome}, confirmo a visita.", { nome: "" })).toBe(
+      "Oi, confirmo a visita."
+    )
+  })
+
+  it("mantém as quebras de linha e as chaves desconhecidas", () => {
+    expect(renderWhatsappTemplate("Olá, {nome}!\n\nDocumentos: {telefone}", { nome: "Ana" })).toBe(
+      "Olá, Ana!\n\nDocumentos: {telefone}"
+    )
+  })
+
+  it("não passa do teto do link", () => {
+    expect(renderWhatsappTemplate("x".repeat(1200), {})).toHaveLength(
+      LEAD_WHATSAPP_MESSAGE_MAX_LENGTH
+    )
+  })
+})
+
+describe("findUnknownTemplateVariables", () => {
+  it("aponta só as variáveis que não existem", () => {
+    expect(
+      findUnknownTemplateVariables("{nome} {IMÓVEL} {corretor} {link} {telefone} {cpf}")
+    ).toEqual(["{telefone}", "{cpf}"])
   })
 })
