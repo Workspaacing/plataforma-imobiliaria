@@ -50,6 +50,15 @@ export const CRON_PATH_PREFIX = "/api/cron"
  */
 export const PLATFORM_ADMIN_PATH_PREFIX = "/plataforma"
 
+/**
+ * Página de status pública (/status) e seu JSON (/api/status, e a sonda
+ * /api/status/ping chamada pelo banco a cada minuto). Públicas, sem sessão e
+ * atendidas no domínio raiz: o cliente precisa ver o status mesmo sem conseguir
+ * entrar.
+ */
+export const STATUS_PAGE_PATH = "/status"
+export const STATUS_API_PATH_PREFIX = "/api/status"
+
 /** Programa Indique e ganhe (dentro de configurações). */
 export const REFERRALS_SETTINGS_PATH = "/configuracoes/indicacoes"
 
@@ -102,6 +111,8 @@ const PUBLIC_PREFIXES = [
   "/lp",
   REFERRAL_LINK_PATH_PREFIX,
   PROPOSAL_SHARE_PATH_PREFIX,
+  STATUS_PAGE_PATH,
+  STATUS_API_PATH_PREFIX,
 ]
 
 /** Rotas que só fazem sentido para quem ainda não entrou. */
@@ -125,6 +136,8 @@ const ROOT_HOST_PREFIXES = [
   REFERRAL_LINK_PATH_PREFIX,
   PROPOSAL_SHARE_PATH_PREFIX,
   PLATFORM_ADMIN_PATH_PREFIX,
+  STATUS_PAGE_PATH,
+  STATUS_API_PATH_PREFIX,
   ...ROOT_ONLY_PREFIXES,
 ]
 

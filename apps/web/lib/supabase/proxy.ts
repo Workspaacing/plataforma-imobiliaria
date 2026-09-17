@@ -55,6 +55,9 @@ const SESSIONLESS_PREFIXES = [
   "/api/feeds",
   PROPOSAL_SHARE_PATH_PREFIX,
   WEBHOOKS_PATH_PREFIX,
+  // Página de status e seu JSON: públicos e em cache de CDN (sem Set-Cookie de sessão).
+  "/status",
+  "/api/status",
 ]
 
 function isSessionlessPath(pathname: string) {

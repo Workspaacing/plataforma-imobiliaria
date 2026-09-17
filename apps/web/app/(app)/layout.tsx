@@ -12,6 +12,7 @@ import { CrmHeader } from "@/components/crm/crm-header"
 import { CrmLoadError } from "@/components/crm/crm-load-error"
 import { CrmSidebar } from "@/components/crm/crm-sidebar"
 import { PlatformAnnouncementBanner } from "@/components/crm/platform-announcement-banner"
+import { StatusIncidentBanner } from "@/components/crm/status-incident-banner"
 import { SupabaseSetupNotice } from "@/components/crm/supabase-setup-notice"
 import { ServiceWorkerRegistration } from "@/components/push/service-worker-registration"
 import { ROLE_LABELS } from "@/lib/auth/roles"
@@ -112,6 +113,10 @@ export default async function AppLayout({
           </Suspense>
           <Suspense fallback={null}>
             <PlatformAnnouncementBanner role={membership.role} />
+          </Suspense>
+          {/* Incidente ou manutenção em andamento na página de status pública. */}
+          <Suspense fallback={null}>
+            <StatusIncidentBanner />
           </Suspense>
           <div className="flex flex-1 flex-col">{children}</div>
         </SidebarInset>

@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { ChevronsUpDownIcon, CircleUserRoundIcon, LogOutIcon } from "lucide-react"
+import { ActivityIcon, ChevronsUpDownIcon, CircleUserRoundIcon, LogOutIcon } from "lucide-react"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar"
 import {
@@ -23,6 +23,7 @@ import {
 
 import { getInitials } from "@/components/crm/utils"
 import { cancelPushBeforeSignOut } from "@/components/push/cancel-push-on-sign-out"
+import { getStatusPageHref } from "@/components/status/links"
 import { signOut } from "@/lib/auth/actions"
 
 export type NavUserData = {
@@ -78,6 +79,13 @@ export function NavUser({ user }: { user: NavUserData }) {
               <DropdownMenuItem render={<Link href="/perfil" />}>
                 <CircleUserRoundIcon />
                 Meu perfil
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                render={<a href={getStatusPageHref()} target="_blank" rel="noopener" />}
+              >
+                <ActivityIcon />
+                Status do sistema
+                <span className="sr-only"> (abre em nova aba)</span>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
