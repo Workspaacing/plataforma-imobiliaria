@@ -13,6 +13,12 @@ import { isLeadIngestConfigured } from "@/lib/integracoes/rpc"
  * busca. Cada entrega tem 6 tentativas com espera crescente; depois disso fica
  * registrada como recusada, com o motivo visível em /configuracoes/integracoes.
  *
+ * Quem chama: o pg_cron do banco a cada 5 min, só quando há entrega vencida
+ * (private.ping_lead_ingest_webhook, com os segredos lead_ingest_webhook_url e
+ * lead_ingest_webhook_secret no Vault), e a rotina diária da Vercel
+ * (vercel.json) como última rede — o plano Hobby não agenda em minutos. Sem os
+ * segredos, uma entrega que falhou pode levar até 24 h para entrar.
+ *
  * Autorização: `Authorization: Bearer ${CRON_SECRET}` (comparação em tempo
  * constante), igual às outras rotas agendadas. Resposta e logs só com
  * contagens — nenhum dado de lead.

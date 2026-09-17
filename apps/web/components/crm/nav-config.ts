@@ -15,6 +15,7 @@ import {
   LayoutDashboardIcon,
   LayoutTemplateIcon,
   ListTodoIcon,
+  MessageSquareTextIcon,
   PlugIcon,
   PlugZapIcon,
   SettingsIcon,
@@ -155,6 +156,12 @@ export const NAV_GROUPS: NavGroup[] = [
         url: "/configuracoes/comissoes",
         icon: HandCoinsIcon,
         roles: TEAM_MANAGER_ROLES,
+      },
+      {
+        // Sem `roles`: toda a equipe vê os modelos; só dono e gerente editam (RLS).
+        title: "Mensagens de WhatsApp",
+        url: "/configuracoes/mensagens-whatsapp",
+        icon: MessageSquareTextIcon,
       },
       {
         title: "Previsão de vendas",

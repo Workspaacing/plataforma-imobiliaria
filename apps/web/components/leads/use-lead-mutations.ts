@@ -7,10 +7,10 @@ import { toast } from "@workspace/ui/components/toast"
 import type { ActionResult } from "@/lib/auth/action-result"
 import {
   assignLead as assignLeadAction,
-  markLeadContacted,
   moveLead as moveLeadAction,
+  registerLeadContact,
 } from "@/lib/leads/actions"
-import { LEAD_STAGE_LABELS } from "@/lib/leads/constants"
+import { LEAD_STAGE_LABELS, OPEN_LEAD_STAGES, type LeadContactInput } from "@/lib/leads/constants"
 import type { LeadStage } from "@/lib/leads/db-types"
 import { compareLeadOrder, planLeadPosition } from "@/lib/leads/position"
 import type { LeadItem } from "@/lib/leads/types"
@@ -133,17 +133,21 @@ export function useLeadMutations(leads: LeadItem[], { managePositions }: UseLead
     }
 
     const reason = stage === "lost" ? (lostReason ?? lead.lostReason ?? FALLBACK_LOST_REASON) : null
-    const touchesContact =
-      (stage === "contacted" && lead.stage !== "contacted") ||
-      (lead.stage === "new" && stage !== "new" && !lead.lastContactAt)
+    // Mudar a etapa não é contato: o 1º contato continua pendente até "Registrar
+    // contato" ou o WhatsApp com "Conseguiu falar? Sim".
+    const patch: LeadPatch = { stage, lostReason: reason }
 
-    const contactAt = new Date().toISOString()
-    const patch: LeadPatch = {
-      stage,
-      lostReason: reason,
-      lastContactAt: touchesContact ? contactAt : lead.lastContactAt,
-      // O banco grava o primeiro contato uma vez só (leads_before_write).
-      firstContactAt: lead.firstContactAt ?? (touchesContact ? contactAt : null),
+    if (
+      lead.stage === "new" &&
+      stage !== "new" &&
+      !lead.firstContactAt &&
+      OPEN_LEAD_STAGES.includes(stage)
+    ) {
+      toast.add({
+        title: "1º contato ainda não registrado",
+        description:
+          "Mudar a etapa não conta como contato. Use “Registrar contato” ou o WhatsApp do lead para sair de “fora do prazo”.",
+      })
     }
 
     if (position !== null) {
@@ -204,10 +208,11 @@ export function useLeadMutations(leads: LeadItem[], { managePositions }: UseLead
   }
 
   /**
-   * "Registrar contato" e o botão WhatsApp da ficha: atualiza o último contato e,
-   * na primeira vez, o primeiro — o que tira o lead de "fora do prazo" na hora.
+   * "Registrar contato" e a volta do WhatsApp ("Conseguiu falar?"). Só o Sim
+   * atualiza o último contato e, na primeira vez, o primeiro — o que tira o lead
+   * de "fora do prazo" na hora. O Não grava a tentativa e não muda o lead.
    */
-  function markContacted(leadId: string) {
+  function registerContact(leadId: string, contact: LeadContactInput) {
     const lead = optimisticLeads.find((item) => item.id === leadId)
 
     if (!lead) return
@@ -216,18 +221,20 @@ export function useLeadMutations(leads: LeadItem[], { managePositions }: UseLead
 
     run(
       {
-        patches: [
-          {
-            id: leadId,
-            patch: {
-              lastContactAt: contactAt,
-              firstContactAt: lead.firstContactAt ?? contactAt,
-              stage: lead.stage === "new" ? "contacted" : lead.stage,
-            },
-          },
-        ],
+        patches: contact.reached
+          ? [
+              {
+                id: leadId,
+                patch: {
+                  lastContactAt: contactAt,
+                  firstContactAt: lead.firstContactAt ?? contactAt,
+                  stage: lead.stage === "new" ? "contacted" : lead.stage,
+                },
+              },
+            ]
+          : [],
       },
-      () => markLeadContacted(leadId),
+      () => registerLeadContact({ leadId, ...contact }),
       "Não foi possível registrar o contato",
       true
     )
@@ -242,6 +249,6 @@ export function useLeadMutations(leads: LeadItem[], { managePositions }: UseLead
     confirmLostMove,
     cancelLostMove,
     assignLead,
-    markContacted,
+    registerContact,
   }
 }

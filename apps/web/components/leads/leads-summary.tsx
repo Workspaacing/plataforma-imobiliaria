@@ -83,9 +83,9 @@ export function LeadsSummary({
       {/* O resumo aparece em toda visita a /leads: daqui sai o padrão do celular. */}
       <LeadsPhoneDefaultView />
       <SummaryCard
-        label="Leads novos fora do prazo"
+        label="Leads fora do prazo"
         value={show(counts.overdue)}
-        hint={`Primeiro contato não feito dentro de ${slaMinutes} min.`}
+        hint={`Sem primeiro contato registrado em ${slaMinutes} min (mudar a etapa não conta).`}
         icon={TimerIcon}
         highlight={!counts.failed && counts.overdue > 0}
       />

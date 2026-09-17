@@ -22,7 +22,8 @@ import { isLeadIngestConfigured, registerLeadDelivery } from "@/lib/integracoes/
  * O evento traz só o ID do lead. A Meta espera resposta em poucos segundos e
  * reenvia por até 36 h, então: gravamos a entrega como pendente, respondemos
  * 200 e buscamos os dados no Graph API depois da resposta (`after`). Se isso
- * falhar, o cron /api/cron/lead-ingest tenta de novo. A idempotência é o
+ * falhar, /api/cron/lead-ingest tenta de novo (pg_cron a cada 5 min com os
+ * segredos lead_ingest_webhook_* no Vault; senão, 1 vez por dia). A idempotência é o
  * `leadgen_id` em lead_integration_deliveries.
  *
  * Nada de segredo ou dado pessoal em log.

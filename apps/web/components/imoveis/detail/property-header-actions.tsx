@@ -7,7 +7,6 @@ import {
   CheckIcon,
   ChevronDownIcon,
   LinkIcon,
-  MessageCircleIcon,
   PencilIcon,
   PrinterIcon,
 } from "lucide-react"
@@ -32,6 +31,7 @@ import {
 import { Spinner } from "@workspace/ui/components/spinner"
 import { toast } from "@workspace/ui/components/toast"
 
+import { PropertyWhatsappShareButton } from "@/components/imoveis/detail/property-whatsapp-share-button"
 import { MovePropertyToTrashButton } from "@/components/lixeira/move-property-to-trash-button"
 import { changePropertyStatusAction } from "@/lib/imoveis/property-actions"
 
@@ -92,15 +92,11 @@ export function PropertyHeaderActions({
         Imprimir ficha
         <span className="sr-only"> (abre o PDF em nova aba)</span>
       </Button>
-      <Button
-        variant="outline"
-        render={<a href={whatsappHref} target="_blank" rel="noopener noreferrer" />}
-        nativeButton={false}
-      >
-        <MessageCircleIcon data-icon="inline-start" />
-        Compartilhar no WhatsApp
-        <span className="sr-only"> (abre em nova aba)</span>
-      </Button>
+      <PropertyWhatsappShareButton
+        propertyId={propertyId}
+        whatsappHref={whatsappHref}
+        publicUrl={publicUrl}
+      />
       {canDelete ? <MovePropertyToTrashButton propertyId={propertyId} /> : null}
     </div>
   )

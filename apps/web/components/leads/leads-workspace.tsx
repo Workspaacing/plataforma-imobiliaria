@@ -97,7 +97,7 @@ export function LeadsWorkspace({
           role={role}
           onOpenLead={openLead}
           onMoveLead={mutations.moveLead}
-          onMarkContacted={mutations.markContacted}
+          onMarkContacted={mutations.registerContact}
         />
       ) : (
         <KanbanBoard
@@ -132,8 +132,8 @@ export function LeadsWorkspace({
         onAssign={(assigneeId) => {
           if (selectedLead) mutations.assignLead(selectedLead.id, assigneeId)
         }}
-        onMarkContacted={() => {
-          if (selectedLead) mutations.markContacted(selectedLead.id)
+        onMarkContacted={(contact) => {
+          if (selectedLead) mutations.registerContact(selectedLead.id, contact)
         }}
         onConverted={() => {
           if (selectedLead) loadExtras(selectedLead.id)

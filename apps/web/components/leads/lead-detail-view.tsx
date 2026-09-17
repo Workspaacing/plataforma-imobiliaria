@@ -82,7 +82,7 @@ export function LeadDetailView({
         isPending={mutations.isPending}
         onStageChange={(stage) => mutations.moveLead(current.id, stage, null)}
         onAssign={(assigneeId) => mutations.assignLead(current.id, assigneeId)}
-        onMarkContacted={() => mutations.markContacted(current.id)}
+        onMarkContacted={(contact) => mutations.registerContact(current.id, contact)}
         onConverted={() => router.refresh()}
         onActivityAdded={() => router.refresh()}
         onDeleted={() => router.push(LEADS_PATH)}

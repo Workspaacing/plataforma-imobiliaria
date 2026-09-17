@@ -4,6 +4,7 @@ import {
   GiftIcon,
   HandCoinsIcon,
   GlobeIcon,
+  MessageSquareTextIcon,
   PlugIcon,
   PlugZapIcon,
   ShieldCheckIcon,
@@ -25,6 +26,7 @@ import { IMPORT_ROLES, IMPORT_SETTINGS_PATH } from "@/lib/importacao/constants"
 import { INTEGRATIONS_SETTINGS_PATH } from "@/lib/integracoes/constants"
 import { TRASH_ROLES, TRASH_SETTINGS_PATH } from "@/lib/lixeira/constants"
 import { FORECAST_SETTINGS_PATH } from "@/lib/previsao/constants"
+import { WHATSAPP_TEMPLATES_SETTINGS_PATH } from "@/lib/whatsapp-templates/constants"
 
 /** Índice de configurações (estilo Stripe). */
 export const SETTINGS_INDEX_PATH = "/configuracoes"
@@ -126,6 +128,14 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
         icon: ShuffleIcon,
         href: LEAD_ROUTING_SETTINGS_PATH,
         roles: sidebarRoles(LEAD_ROUTING_SETTINGS_PATH, TEAM_MANAGER_ROLES),
+      },
+      {
+        title: "Mensagens de WhatsApp",
+        navTitle: "WhatsApp",
+        description: "Modelos de mensagem com nome do cliente, imóvel e link para a equipe usar.",
+        icon: MessageSquareTextIcon,
+        href: WHATSAPP_TEMPLATES_SETTINGS_PATH,
+        // Sem `roles`: toda a equipe vê os modelos; só dono e gerente editam.
       },
       {
         title: "Papéis e permissões",

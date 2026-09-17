@@ -33,8 +33,8 @@ import {
 import { formatDateTime } from "@/lib/format"
 import type { Role } from "@/lib/auth/roles"
 import { getMemberName, type MemberOption } from "@/lib/clientes/options"
-import { markLeadContacted } from "@/lib/leads/actions"
-import { getLeadInterestLabel } from "@/lib/leads/constants"
+import { registerLeadContact } from "@/lib/leads/actions"
+import { getLeadInterestLabel, type LeadContactInput } from "@/lib/leads/constants"
 import type { LeadStage } from "@/lib/leads/db-types"
 import {
   isLeadPhoneViewport,
@@ -57,10 +57,11 @@ type LeadsTableProps = {
   onOpenLead: (leadId: string) => void
   onMoveLead: (leadId: string, stage: LeadStage, index: number | null) => void
   /**
-   * Registro de contato ao abrir o WhatsApp pelo cartão do celular. Sem ele, a
+   * Registro de contato na volta do WhatsApp do cartão do celular ("Conseguiu
+   * falar?", com canal WhatsApp). Sem ele, a
    * lista chama a Server Action direto (sem atualização otimista).
    */
-  onMarkContacted?: (leadId: string) => void
+  onMarkContacted?: (leadId: string, contact: LeadContactInput) => void
 }
 
 /** Visão em lista (telefone mascarado: o completo fica no detalhe). */
@@ -78,14 +79,14 @@ export function LeadsTable({
   const [, startContact] = React.useTransition()
   const senderName = members.find((member) => member.id === currentUserId)?.name ?? null
 
-  function markContacted(leadId: string) {
+  function markContacted(leadId: string, contact: LeadContactInput) {
     if (onMarkContacted) {
-      onMarkContacted(leadId)
+      onMarkContacted(leadId, contact)
       return
     }
 
     startContact(async () => {
-      const result = await markLeadContacted(leadId)
+      const result = await registerLeadContact({ leadId, ...contact })
 
       if (!result.ok) {
         toast.add({
@@ -199,7 +200,7 @@ export function LeadsTable({
             senderName={senderName}
             onOpen={() => onOpenLead(lead.id)}
             onMoveStage={(stage) => onMoveLead(lead.id, stage, null)}
-            onContact={() => markContacted(lead.id)}
+            onContact={(contact) => markContacted(lead.id, contact)}
           />
         ))}
       </MobileCardList>
@@ -216,7 +217,7 @@ type LeadMobileCardProps = {
   senderName: string | null
   onOpen: () => void
   onMoveStage: (stage: LeadStage) => void
-  onContact: () => void
+  onContact: (contact: LeadContactInput) => void
 }
 
 /**

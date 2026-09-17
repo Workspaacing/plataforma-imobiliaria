@@ -71,6 +71,7 @@ import {
 } from "@/components/leads/lead-badges"
 import { LeadHistoryTimeline } from "@/components/leads/lead-history"
 import { LeadStageSelect } from "@/components/leads/lead-stage-select"
+import { LeadContactDialog } from "@/components/leads/lead-contact-dialog"
 import { LeadWhatsappButton } from "@/components/leads/lead-whatsapp-button"
 import { TaskFormDialog } from "@/components/tarefas/task-form-dialog"
 import { canScheduleAppointments } from "@/lib/agenda/permissions"
@@ -90,6 +91,7 @@ import {
   LEAD_SOURCE_LABELS,
   LEAD_STAGE_LABELS,
   LEADS_PATH,
+  type LeadContactInput,
 } from "@/lib/leads/constants"
 import type { LeadStage } from "@/lib/leads/db-types"
 import {
@@ -141,7 +143,8 @@ export type LeadDetailProps = {
   isPending: boolean
   onStageChange: (stage: LeadStage) => void
   onAssign: (assigneeId: string | null) => void
-  onMarkContacted: () => void
+  /** "Registrar contato" e a volta do WhatsApp: canal e se conseguiu falar. */
+  onMarkContacted: (contact: LeadContactInput) => void
   onConverted: (result: ConvertLeadResult) => void
   onActivityAdded: () => void
   onDeleted: () => void
@@ -329,15 +332,12 @@ export function LeadDetail({
             </Button>
           ) : null}
           {canEdit ? (
-            <Button
-              size="sm"
-              variant={withoutContact ? "default" : "outline"}
+            <LeadContactDialog
+              leadName={lead.name}
+              highlight={withoutContact}
               disabled={isPending}
-              onClick={onMarkContacted}
-            >
-              <PhoneCallIcon data-icon="inline-start" />
-              Registrar contato
-            </Button>
+              onRegister={onMarkContacted}
+            />
           ) : null}
         </div>
       </DetailSection>

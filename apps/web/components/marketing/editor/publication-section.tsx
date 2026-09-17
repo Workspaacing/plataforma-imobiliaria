@@ -42,7 +42,11 @@ import {
 } from "@/lib/marketing/constants"
 import { countChars } from "@/lib/marketing/schemas"
 import { slugify } from "@/lib/marketing/slug"
-import { getLandingPublicUrl, getLandingPublicUrlPrefix } from "@/lib/marketing/urls"
+import {
+  getLandingPublicUrl,
+  getLandingPublicUrlPrefix,
+  withLandingLeadOrigin,
+} from "@/lib/marketing/urls"
 
 function Counter({ count, max }: { count: number; max: number }) {
   return (
@@ -231,6 +235,28 @@ export function PublicationSection({
           </FieldDescription>
         ) : null}
       </Field>
+
+      {publicUrl ? (
+        <Field>
+          <FieldLabel htmlFor="lp-url-instagram">Link para a bio do Instagram</FieldLabel>
+          <CopyField
+            id="lp-url-instagram"
+            value={withLandingLeadOrigin(publicUrl, "instagram")}
+            successMessage="Link para a bio do Instagram copiado."
+          />
+          <FieldDescription>
+            Quem chega por este link entra como lead de origem Instagram (e o mesmo vale para o link
+            de WhatsApp abaixo, com origem WhatsApp). Assim o relatório de origem mostra se a bio
+            traz clientes.
+          </FieldDescription>
+          <CopyField
+            id="lp-url-whatsapp"
+            label="Link para mensagens de WhatsApp"
+            value={withLandingLeadOrigin(publicUrl, "whatsapp")}
+            successMessage="Link para WhatsApp copiado."
+          />
+        </Field>
+      ) : null}
 
       <FieldSeparator />
 

@@ -1,7 +1,7 @@
-import { ArrowRightLeftIcon, UserRoundIcon } from "lucide-react"
+import { ArrowRightLeftIcon, PhoneCallIcon, PhoneMissedIcon, UserRoundIcon } from "lucide-react"
 
 import { formatDateTime } from "@/lib/format"
-import { LEAD_STAGE_LABELS } from "@/lib/leads/constants"
+import { LEAD_CONTACT_CHANNEL_LABELS, LEAD_STAGE_LABELS } from "@/lib/leads/constants"
 import { formatRelativeShort } from "@/lib/leads/format"
 import type { LeadHistoryEvent } from "@/lib/leads/types"
 
@@ -16,8 +16,28 @@ function assignmentTitle(event: Extract<LeadHistoryEvent, { kind: "assignment" }
   return event.fromName ? `${event.fromName} → ${to}` : `Responsável: ${to}`
 }
 
+/** "Contato por WhatsApp" ou "Tentativa por Ligação, sem resposta". */
+function contactTitle(event: Extract<LeadHistoryEvent, { kind: "contact" }>) {
+  const channel = LEAD_CONTACT_CHANNEL_LABELS[event.channel]
+  return event.reached ? `Contato por ${channel}` : `Tentativa por ${channel}, sem resposta`
+}
+
+function eventView(event: LeadHistoryEvent) {
+  switch (event.kind) {
+    case "stage":
+      return { Icon: ArrowRightLeftIcon, title: stageTitle(event) }
+    case "assignment":
+      return { Icon: UserRoundIcon, title: assignmentTitle(event) }
+    case "contact":
+      return {
+        Icon: event.reached ? PhoneCallIcon : PhoneMissedIcon,
+        title: contactTitle(event),
+      }
+  }
+}
+
 /**
- * Linha do tempo do lead (`lead_stage_events` + `lead_assignment_events`), do
+ * Linha do tempo do lead (etapas, responsáveis e contatos registrados), do
  * mais antigo para o mais recente: "Novo → Em contato · por Ana · há 2 h".
  */
 export function LeadHistoryTimeline({
@@ -34,8 +54,7 @@ export function LeadHistoryTimeline({
   return (
     <ol className="flex flex-col gap-1.5 text-sm" aria-label="Linha do tempo do lead">
       {events.map((event) => {
-        const Icon = event.kind === "stage" ? ArrowRightLeftIcon : UserRoundIcon
-        const title = event.kind === "stage" ? stageTitle(event) : assignmentTitle(event)
+        const { Icon, title } = eventView(event)
 
         return (
           <li key={`${event.kind}-${event.id}`} className="flex items-start gap-2">
