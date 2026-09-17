@@ -4,11 +4,15 @@ import * as React from "react"
 
 import { formatBytes, formatSizeChange } from "@workspace/core/media/format"
 
+import {
+  confirmLandingAssetUploadAction,
+  requestLandingAssetUploadAction,
+} from "@/lib/marketing/asset-upload-actions"
 import { LANDING_ASSETS_BUCKET, LANDING_MAX_IMAGE_BYTES } from "@/lib/marketing/constants"
 import { translateLandingStorageError } from "@/lib/marketing/errors"
 import { getImagePreparationMessage, prepareImage } from "@/lib/media/compress-image"
 import { UPLOADS_BLOCKED_MESSAGE, isStorageForbiddenError } from "@/lib/media/upload-errors"
-import { createClient } from "@/lib/supabase/client"
+import { uploadWithTicket } from "@/lib/storage/signed-upload-client"
 
 /** `banner`: JPEG até 1920 px (fundo, banners, compartilhamento). `logo`: até 512 px com transparência. */
 export type LandingAssetKind = "banner" | "logo"
@@ -19,17 +23,18 @@ export type LandingUploadResult =
   { ok: true; path: string; sizeLabel: string } | { ok: false; error: string }
 
 /**
- * Otimiza a imagem no navegador e envia direto ao bucket landing-assets, no
- * caminho {organization_id}/landing/{page_id}/{uuid}.{ext}. O RLS do Storage
- * confere o papel; o caminho é conferido de novo pela Server Action que salva
- * a seção.
+ * Otimiza a imagem no navegador e envia ao bucket landing-assets com um token
+ * de URL assinada: a Server Action confere o papel e a página e escolhe o
+ * caminho {organization_id}/landing/{page_id}/{uuid}.{ext}; o navegador envia
+ * sem sessão; outra Server Action confere tamanho e tipo gravados. O caminho é
+ * conferido de novo pela Server Action que salva a seção.
  */
 export function useLandingAssetUpload({
-  organizationId,
   pageId,
   uploadsBlocked = false,
 }: {
-  organizationId: string
+  /** Não é mais usado: o caminho do arquivo é decidido no servidor. */
+  organizationId?: string
   pageId: string
   /** Assinatura em modo leitura: não tenta enviar. */
   uploadsBlocked?: boolean
@@ -62,17 +67,20 @@ export function useLandingAssetUpload({
           }
         }
 
-        const path = `${organizationId}/landing/${pageId}/${crypto.randomUUID()}.${main.extension}`
         setPhase("uploading")
 
-        const supabase = createClient()
-        const { error } = await supabase.storage
-          .from(LANDING_ASSETS_BUCKET)
-          .upload(path, main.blob, {
-            contentType: main.type,
-            cacheControl: "31536000",
-            upsert: false,
-          })
+        const ticket = await requestLandingAssetUploadAction(pageId, {
+          extension: main.extension,
+        })
+
+        if (!ticket.ok) {
+          return { ok: false, error: ticket.error }
+        }
+
+        const { error } = await uploadWithTicket(LANDING_ASSETS_BUCKET, ticket.data, main.blob, {
+          contentType: main.type,
+          cacheControl: "31536000",
+        })
 
         if (error) {
           return {
@@ -83,7 +91,17 @@ export function useLandingAssetUpload({
           }
         }
 
-        return { ok: true, path, sizeLabel: formatSizeChange(file.size, main.bytes) }
+        const confirmed = await confirmLandingAssetUploadAction(pageId, ticket.data.path)
+
+        if (!confirmed.ok) {
+          return { ok: false, error: confirmed.error }
+        }
+
+        return {
+          ok: true,
+          path: ticket.data.path,
+          sizeLabel: formatSizeChange(file.size, main.bytes),
+        }
       } catch {
         return {
           ok: false,
@@ -94,7 +112,7 @@ export function useLandingAssetUpload({
         setPhase(null)
       }
     },
-    [organizationId, pageId, uploadsBlocked]
+    [pageId, uploadsBlocked]
   )
 
   return { upload, isUploading: pendingCount > 0, phase }

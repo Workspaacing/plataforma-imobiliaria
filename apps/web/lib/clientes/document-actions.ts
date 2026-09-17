@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
 import { CLIENT_DOCUMENT_PDF_MAX_BYTES } from "@workspace/core/media/limits"
+import { uploadedObjectProblemMessage } from "@workspace/core/media/uploaded-object"
 
 import type { ActionResult } from "@/lib/auth/action-result"
 import { requireMembership } from "@/lib/auth/session"
@@ -16,15 +17,24 @@ import {
   CLIENTS_PATH,
 } from "@/lib/clientes/constants"
 import { permissionDeniedMessage, translateDatabaseError } from "@/lib/clientes/db-errors"
+import { buildClientDocumentPath, type ClientDocumentMimeType } from "@/lib/clientes/documents"
 import { canDeleteClientData } from "@/lib/clientes/permissions"
+import { UPLOADS_BLOCKED_MESSAGE } from "@/lib/media/upload-errors"
+import {
+  createSignedUpload,
+  inspectUploadedObject,
+  removeUnregisteredUploads,
+} from "@/lib/storage/signed-upload"
+import type { SignedUploadActionResult } from "@/lib/storage/signed-upload-ticket"
 import { createClient } from "@/lib/supabase/server"
 
 const idSchema = z.guid()
 
-const registerDocumentSchema = z
+const UPLOAD_ACTION = "enviar documentos deste cliente"
+
+const documentFileSchema = z
   .object({
     clientId: z.guid(),
-    storagePath: z.string().min(1).max(512),
     name: z.string().trim().min(1, "Arquivo sem nome.").max(200, "Nome de arquivo longo demais."),
     mimeType: z.enum(CLIENT_DOCUMENT_MIME_TYPES, {
       error: "Formato não aceito. Envie PDF, JPG, PNG ou WebP.",
@@ -44,11 +54,84 @@ const registerDocumentSchema = z
     }
   )
 
+const registerDocumentSchema = documentFileSchema.and(
+  z.object({ storagePath: z.string().min(1).max(512) })
+)
+
+export type RequestClientDocumentUploadInput = z.input<typeof documentFileSchema>
 export type RegisterClientDocumentInput = z.input<typeof registerDocumentSchema>
+
+/** PDF até 10 MB; imagem até o limite geral (o bucket ainda aplica o dele). */
+function maxBytesFor(mimeType: ClientDocumentMimeType) {
+  return mimeType === "application/pdf" ? CLIENT_DOCUMENT_PDF_MAX_BYTES : CLIENT_DOCUMENT_MAX_BYTES
+}
+
+/**
+ * Autoriza o envio de UM documento já preparado no navegador: confere o papel,
+ * formato e tamanho, escolhe o caminho `{org}/clients/{cliente}/{uuid}-{nome}`
+ * e gera o token de envio. O RLS do Storage (quem edita o cliente e assinatura
+ * fora do modo leitura) é testado pelo próprio Storage ao gerar o token.
+ */
+export async function requestClientDocumentUpload(
+  input: RequestClientDocumentUploadInput
+): Promise<SignedUploadActionResult> {
+  const parsed = documentFileSchema.safeParse(input)
+
+  if (!parsed.success) {
+    return { ok: false, error: parsed.error.issues[0]?.message ?? "Arquivo inválido." }
+  }
+
+  const { membership } = await requireMembership()
+
+  if (membership.role === "finance") {
+    return { ok: false, error: permissionDeniedMessage(UPLOAD_ACTION) }
+  }
+
+  const { clientId, name } = parsed.data
+  const path = buildClientDocumentPath(
+    membership.organizationId,
+    clientId,
+    name,
+    crypto.randomUUID()
+  )
+  const supabase = await createClient()
+  const signed = await createSignedUpload(supabase, CLIENT_DOCUMENTS_BUCKET, path)
+
+  if (!signed.ok) {
+    return signed.forbidden
+      ? { ok: false, error: UPLOADS_BLOCKED_MESSAGE, blocked: true }
+      : { ok: false, error: "Não foi possível autorizar o envio agora. Tente novamente." }
+  }
+
+  return { ok: true, data: signed.ticket }
+}
+
+/**
+ * Apaga o arquivo enviado se nenhuma linha o registra. O RLS do bucket também
+ * só deixa o autor apagar arquivo sem registro (dono e gerente apagam qualquer um).
+ */
+async function discardUnregisteredDocument(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  organizationId: string,
+  storagePath: string
+) {
+  const { data, error } = await supabase
+    .from("client_documents")
+    .select("id")
+    .eq("organization_id", organizationId)
+    .eq("storage_path", storagePath)
+    .limit(1)
+
+  if (error || (data?.length ?? 0) > 0) return
+
+  await removeUnregisteredUploads(supabase, CLIENT_DOCUMENTS_BUCKET, [storagePath])
+}
 
 /**
  * Registra a linha do documento depois que o navegador enviou o arquivo ao
- * bucket privado. O caminho precisa ser da imobiliária e do cliente informados.
+ * bucket privado com o token de `requestClientDocumentUpload`. O caminho
+ * precisa ser da imobiliária e do cliente informados; tamanho e tipo são lidos
+ * do bucket. Se o registro falhar, o arquivo sem registro é apagado.
  */
 export async function registerClientDocument(
   input: RegisterClientDocumentInput
@@ -63,13 +146,12 @@ export async function registerClientDocument(
   }
 
   const { membership } = await requireMembership()
-  const action = "enviar documentos deste cliente"
 
   if (membership.role === "finance") {
-    return { ok: false, error: permissionDeniedMessage(action) }
+    return { ok: false, error: permissionDeniedMessage(UPLOAD_ACTION) }
   }
 
-  const { clientId, storagePath, name, mimeType, sizeBytes } = parsed.data
+  const { clientId, storagePath, name, mimeType } = parsed.data
   const prefix = `${membership.organizationId}/clients/${clientId}/`
   const fileSegment = storagePath.slice(prefix.length)
 
@@ -78,17 +160,36 @@ export async function registerClientDocument(
   }
 
   const supabase = await createClient()
+  const maxBytes = maxBytesFor(mimeType)
+  const uploaded = await inspectUploadedObject(supabase, CLIENT_DOCUMENTS_BUCKET, storagePath, {
+    allowedTypes: CLIENT_DOCUMENT_MIME_TYPES,
+    maxBytes,
+    expectedType: mimeType,
+  })
+
+  if (!uploaded.ok) {
+    await discardUnregisteredDocument(supabase, membership.organizationId, storagePath)
+    return {
+      ok: false,
+      error: uploadedObjectProblemMessage(uploaded.problem, {
+        formats: "PDF, JPG, PNG ou WebP",
+        maxBytes,
+      }),
+    }
+  }
+
   const { error } = await supabase.from("client_documents").insert({
     organization_id: membership.organizationId,
     client_id: clientId,
     name,
     storage_path: storagePath,
     mime_type: mimeType,
-    size_bytes: sizeBytes,
+    size_bytes: uploaded.size,
   })
 
   if (error) {
-    return { ok: false, error: translateDatabaseError(error, action) }
+    await discardUnregisteredDocument(supabase, membership.organizationId, storagePath)
+    return { ok: false, error: translateDatabaseError(error, UPLOAD_ACTION) }
   }
 
   revalidatePath(`${CLIENTS_PATH}/${clientId}`)

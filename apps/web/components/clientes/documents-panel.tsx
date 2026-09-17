@@ -39,9 +39,9 @@ import {
   deleteClientDocument,
   getClientDocumentDownloadUrl,
   registerClientDocument,
+  requestClientDocumentUpload,
 } from "@/lib/clientes/document-actions"
 import {
-  buildClientDocumentPath,
   formatFileSize,
   getDocumentKindLabel,
   isAllowedDocumentMimeType,
@@ -49,7 +49,7 @@ import {
 } from "@/lib/clientes/documents"
 import { getImagePreparationMessage, prepareImage } from "@/lib/media/compress-image"
 import { UPLOADS_BLOCKED_MESSAGE, isStorageForbiddenError } from "@/lib/media/upload-errors"
-import { createClient } from "@/lib/supabase/client"
+import { uploadWithTicket } from "@/lib/storage/signed-upload-client"
 
 export type DocumentRowView = {
   id: string
@@ -62,7 +62,8 @@ export type DocumentRowView = {
 
 type DocumentsPanelProps = {
   clientId: string
-  organizationId: string
+  /** Não é mais usado: o caminho do arquivo é decidido no servidor. */
+  organizationId?: string
   documents: DocumentRowView[]
   canUpload: boolean
   canDelete: boolean
@@ -153,7 +154,6 @@ async function prepareDocument(
 
 export function DocumentsPanel({
   clientId,
-  organizationId,
   documents,
   canUpload,
   canDelete,
@@ -167,7 +167,6 @@ export function DocumentsPanel({
 
   function uploadFiles(files: File[]) {
     startUpload(async () => {
-      const supabase = createClient()
       const optimized: string[] = []
       let uploaded = 0
 
@@ -188,10 +187,32 @@ export function DocumentsPanel({
         const { blob, name, mimeType, sizeLabel } = prepared.document
         setProgress(`${name}: enviando…${sizeLabel ? ` (${sizeLabel})` : ""}`)
 
-        const path = buildClientDocumentPath(organizationId, clientId, name, crypto.randomUUID())
-        const { error: uploadError } = await supabase.storage
-          .from(CLIENT_DOCUMENTS_BUCKET)
-          .upload(path, blob, { contentType: mimeType, upsert: false })
+        // O servidor confere a permissão, escolhe o caminho e devolve o token de envio.
+        const ticket = await requestClientDocumentUpload({
+          clientId,
+          name: name.slice(0, 200),
+          mimeType,
+          sizeBytes: blob.size,
+        })
+
+        if (!ticket.ok) {
+          toast.add({
+            title: `"${file.name}" não foi enviado`,
+            description: ticket.error,
+            type: "error",
+          })
+          // Modo leitura: os próximos arquivos seriam recusados do mesmo jeito.
+          if (ticket.blocked) break
+          continue
+        }
+
+        const path = ticket.data.path
+        const { error: uploadError } = await uploadWithTicket(
+          CLIENT_DOCUMENTS_BUCKET,
+          ticket.data,
+          blob,
+          { contentType: mimeType }
+        )
 
         if (uploadError) {
           toast.add({
@@ -213,8 +234,7 @@ export function DocumentsPanel({
         })
 
         if (!result.ok) {
-          // Tenta não deixar arquivo órfão (só dono/gerente conseguem remover pelo RLS).
-          await supabase.storage.from(CLIENT_DOCUMENTS_BUCKET).remove([path])
+          // A Server Action apaga o arquivo sem registro: não fica órfão no bucket.
           toast.add({
             title: `"${file.name}" não foi registrado`,
             description: result.error,

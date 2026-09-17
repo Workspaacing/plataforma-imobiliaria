@@ -14,7 +14,6 @@ import {
 import { formatBytes } from "@workspace/core/media/format"
 import { detectFileKind } from "@workspace/core/media/image-type"
 import {
-  buildPropertyDocumentPath,
   getPropertyDocumentValidity,
   isPropertyDocumentKind,
   isPropertyDocumentMimeType,
@@ -101,10 +100,11 @@ import {
   deletePropertyDocumentAction,
   getPropertyDocumentDownloadUrlAction,
   registerPropertyDocumentAction,
+  requestPropertyDocumentUploadAction,
 } from "@/lib/imoveis/document-actions"
 import { getImagePreparationMessage, prepareImage } from "@/lib/media/compress-image"
 import { isStorageForbiddenError, UPLOADS_BLOCKED_MESSAGE } from "@/lib/media/upload-errors"
-import { createClient } from "@/lib/supabase/client"
+import { uploadWithTicket } from "@/lib/storage/signed-upload-client"
 
 /** PDF e imagens; HEIC do iPhone é aceito e convertido para JPEG. */
 const FILE_ACCEPT = [
@@ -183,13 +183,7 @@ async function prepareFile(
   }
 }
 
-function UploadDocumentDialog({
-  organizationId,
-  propertyId,
-}: {
-  organizationId: string
-  propertyId: string
-}) {
+function UploadDocumentDialog({ propertyId }: { propertyId: string }) {
   const [open, setOpen] = React.useState(false)
   const [kind, setKind] = React.useState<PropertyDocumentKind | null>(null)
   const [file, setFile] = React.useState<File | null>(null)
@@ -228,18 +222,27 @@ function UploadDocumentDialog({
       }
 
       const { blob, mimeType } = prepared.file
-      const path = buildPropertyDocumentPath(
-        organizationId,
-        propertyId,
-        crypto.randomUUID(),
-        mimeType
-      )
-      const supabase = createClient()
 
       setProgress(`Enviando (${formatBytes(blob.size)})…`)
-      const { error: uploadError } = await supabase.storage
-        .from(PROPERTY_DOCUMENTS_BUCKET)
-        .upload(path, blob, { contentType: mimeType, upsert: false })
+      // O servidor confere a permissão, escolhe o caminho e devolve o token de envio.
+      const ticket = await requestPropertyDocumentUploadAction(propertyId, {
+        mimeType,
+        sizeBytes: blob.size,
+      })
+
+      if (!ticket.ok) {
+        setProgress(null)
+        setErrors({ form: ticket.error })
+        return
+      }
+
+      const path = ticket.data.path
+      const { error: uploadError } = await uploadWithTicket(
+        PROPERTY_DOCUMENTS_BUCKET,
+        ticket.data,
+        blob,
+        { contentType: mimeType }
+      )
 
       if (uploadError) {
         setProgress(null)
@@ -263,8 +266,7 @@ function UploadDocumentDialog({
       setProgress(null)
 
       if (!result.ok) {
-        // Não deixa arquivo órfão no bucket.
-        await supabase.storage.from(PROPERTY_DOCUMENTS_BUCKET).remove([path])
+        // A Server Action apaga o arquivo sem registro: não fica órfão no bucket.
         setErrors({ form: result.error })
         return
       }
@@ -453,14 +455,14 @@ function DeleteDocumentButton({
 }
 
 export function DocumentsTab({
-  organizationId,
   propertyId,
   documents,
   today,
   canManage,
   uploadsBlocked,
 }: {
-  organizationId: string
+  /** Não é mais usado: o caminho do arquivo é decidido no servidor. */
+  organizationId?: string
   propertyId: string
   documents: PropertyDocumentItem[]
   /** AAAA-MM-DD em São Paulo, calculado no servidor. */
@@ -530,7 +532,7 @@ export function DocumentsTab({
           </CardDescription>
           {canManage && !uploadsBlocked ? (
             <CardAction>
-              <UploadDocumentDialog organizationId={organizationId} propertyId={propertyId} />
+              <UploadDocumentDialog propertyId={propertyId} />
             </CardAction>
           ) : null}
         </CardHeader>

@@ -67,15 +67,16 @@ import {
   registerPropertyImagesAction,
   removeMediaAction,
   reorderMediaAction,
+  requestPropertyPhotoUploadAction,
   setCoverMediaAction,
   updateMediaCaptionAction,
 } from "@/lib/imoveis/media-actions"
 import type { MediaSource } from "@/lib/imoveis/mappers"
 import { REMOVE_MEDIA_DENIED_MESSAGE } from "@/lib/imoveis/permissions"
 import { getImagePreparationMessage, prepareImage } from "@/lib/media/compress-image"
-import { getPropertyPhotoUrls, propertyPhotoObjectPaths, thumbPathFor } from "@/lib/media/paths"
+import { getPropertyPhotoUrls } from "@/lib/media/paths"
 import { UPLOADS_BLOCKED_MESSAGE, isStorageForbiddenError } from "@/lib/media/upload-errors"
-import { createClient } from "@/lib/supabase/client"
+import { uploadWithTicket } from "@/lib/storage/signed-upload-client"
 
 /** Otimizar e enviar no máximo 2 fotos ao mesmo tempo: não trava o celular. */
 const UPLOAD_CONCURRENCY = 2
@@ -385,22 +386,24 @@ function MediaCard({
 
 /**
  * Fotos do imóvel. Cada arquivo é otimizado no navegador (JPEG de até 1600 px,
- * sem EXIF/GPS) e ganha uma miniatura WebP de 400 px (`__thumb.webp`) antes de
- * ir direto para o bucket property-media (o RLS do Storage confere se o usuário
- * edita o imóvel). As linhas são registradas depois via Server Action.
+ * sem EXIF/GPS) e ganha uma miniatura WebP de 400 px (`__thumb.webp`). Depois
+ * uma Server Action confere a edição do imóvel e o limite de fotos e devolve
+ * tokens de envio (URL assinada); o navegador envia sem sessão ao bucket
+ * property-media. O registro no banco (que confere tamanho e tipo gravados)
+ * também é Server Action.
  *
  * A ordem muda arrastando o botão de mover (ou, pelo teclado, Espaço para pegar
  * e setas para mover). A lista reage na hora e a ordem inteira é gravada de uma
  * vez por `reorderMediaAction`; se o banco recusar, ela volta ao que estava.
  */
 export function PropertyMediaManager({
-  organizationId,
   propertyId,
   media,
   canDelete,
   uploadsBlocked = false,
 }: {
-  organizationId: string
+  /** Não é mais usado: o caminho do arquivo é decidido no servidor. */
+  organizationId?: string
   propertyId: string
   media: readonly MediaSource[]
   canDelete: boolean
@@ -586,8 +589,6 @@ export function PropertyMediaManager({
     setSummary(null)
     setUploads(accepted.map(({ file, key }) => ({ key, name: file.name, status: "queued" })))
 
-    const supabase = createClient()
-    const bucket = supabase.storage.from(PROPERTY_MEDIA_BUCKET)
     const uploadedPaths: (string | null)[] = accepted.map(() => null)
     const failures = new Map<string, string>()
     let beforeBytes = 0
@@ -625,12 +626,28 @@ export function PropertyMediaManager({
         sizeLabel: formatSizeChange(entry.file.size, main.bytes),
       })
 
-      const path = `${organizationId}/properties/${propertyId}/${crypto.randomUUID()}.${main.extension}`
-      const { error } = await bucket.upload(path, main.blob, {
-        contentType: main.type,
-        cacheControl: STORAGE_CACHE_CONTROL,
-        upsert: false,
+      // Token pedido só agora (depois da otimização): o caminho vem do servidor.
+      const tickets = await requestPropertyPhotoUploadAction(propertyId, {
+        extension: main.extension,
+        thumbnail: Boolean(thumb),
       })
+
+      if (!tickets.ok) {
+        if (tickets.blocked) blocked = true
+        failures.set(entry.key, tickets.error)
+        return
+      }
+
+      const path = tickets.data.main.path
+      const { error } = await uploadWithTicket(
+        PROPERTY_MEDIA_BUCKET,
+        tickets.data.main,
+        main.blob,
+        {
+          contentType: main.type,
+          cacheControl: STORAGE_CACHE_CONTROL,
+        }
+      )
 
       if (error) {
         if (isStorageForbiddenError(error)) {
@@ -646,12 +663,11 @@ export function PropertyMediaManager({
       beforeBytes += entry.file.size
       afterBytes += main.bytes
 
-      if (thumb) {
+      if (thumb && tickets.data.thumb) {
         // Sem miniatura a UI usa a foto principal; não vale perder a foto por isso.
-        await bucket.upload(thumbPathFor(path), thumb.blob, {
+        await uploadWithTicket(PROPERTY_MEDIA_BUCKET, tickets.data.thumb, thumb.blob, {
           contentType: thumb.type,
           cacheControl: STORAGE_CACHE_CONTROL,
-          upsert: false,
         })
       }
     }
@@ -676,11 +692,9 @@ export function PropertyMediaManager({
     const paths = uploadedPaths.filter((path): path is string => path !== null)
 
     if (paths.length > 0) {
+      // Se o registro falhar, a própria Server Action apaga os arquivos sem registro.
       const result = await registerPropertyImagesAction(propertyId, paths)
-      if (!result.ok) {
-        // Sem a linha no banco a foto e a miniatura ficariam órfãs no bucket.
-        await bucket.remove(paths.flatMap(propertyPhotoObjectPaths))
-      } else {
+      if (result.ok) {
         setSummary(
           `${paths.length === 1 ? "1 foto otimizada" : `${paths.length} fotos otimizadas`}: ${formatSizeChange(beforeBytes, afterBytes)}`
         )

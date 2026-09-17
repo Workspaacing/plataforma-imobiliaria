@@ -1,11 +1,16 @@
 "use server"
 
 import { MAX_PROPERTY_PHOTOS } from "@workspace/core/media/limits"
+import {
+  expectedContentTypeForPath,
+  uploadedObjectProblemMessage,
+} from "@workspace/core/media/uploaded-object"
 
 import type { ActionResult } from "@/lib/auth/action-result"
 import {
   ACCEPTED_IMAGE_TYPES,
   CAPTION_MAX_LENGTH,
+  MAX_IMAGE_BYTES,
   PROPERTY_MEDIA_BUCKET,
 } from "@/lib/imoveis/constants"
 import { translateDbError } from "@/lib/imoveis/db-errors"
@@ -17,11 +22,25 @@ import {
   refreshImobScore,
   revalidatePropertyPaths,
 } from "@/lib/imoveis/server-context"
-import { propertyPhotoObjectPaths } from "@/lib/media/paths"
-import { photoLimitMessage } from "@/lib/media/upload-errors"
+import { propertyPhotoObjectPaths, thumbPathFor } from "@/lib/media/paths"
+import { UPLOADS_BLOCKED_MESSAGE, photoLimitMessage } from "@/lib/media/upload-errors"
+import {
+  createSignedUpload,
+  inspectUploadedObject,
+  removeUnregisteredUploads,
+} from "@/lib/storage/signed-upload"
+import type {
+  SignedUploadActionResult,
+  SignedUploadTicket,
+} from "@/lib/storage/signed-upload-ticket"
 
 const MAX_IMAGES_PER_CALL = 50
 const EXTENSIONS = new Set(Object.values(ACCEPTED_IMAGE_TYPES))
+
+/** Tipos aceitos no bucket property-media (a foto principal é JPEG; a miniatura, WebP). */
+const PHOTO_CONTENT_TYPES = ["image/jpeg", "image/webp"] as const
+const PHOTO_RULES = { allowedTypes: PHOTO_CONTENT_TYPES, maxBytes: MAX_IMAGE_BYTES }
+const PHOTO_FORMATS_LABEL = "JPG ou WebP"
 
 type ImageRow = {
   id: string
@@ -69,9 +88,62 @@ function isExpectedStoragePath(path: string, organizationId: string, propertyId:
   return Boolean(match && isUuid(match[1]) && EXTENSIONS.has((match[2] ?? "").toLowerCase()))
 }
 
+export type PropertyPhotoUploadTickets = {
+  main: SignedUploadTicket
+  /** Sem miniatura a UI usa a foto principal. */
+  thumb: SignedUploadTicket | null
+}
+
 /**
- * Registra fotos que o navegador já enviou ao bucket (o RLS do Storage validou
- * o envio). Novas fotos entram no fim; a primeira vira capa se não houver.
+ * Autoriza o envio de UMA foto já otimizada no navegador: confere a edição do
+ * imóvel e o limite de fotos, escolhe o caminho e gera os tokens de envio da
+ * foto e da miniatura. O RLS do Storage (edição do imóvel e assinatura fora do
+ * modo leitura) é testado pelo próprio Storage ao gerar o token.
+ */
+export async function requestPropertyPhotoUploadAction(
+  propertyId: string,
+  input: { extension: string; thumbnail: boolean }
+): Promise<SignedUploadActionResult<PropertyPhotoUploadTickets>> {
+  const extension = String(input?.extension ?? "").toLowerCase()
+
+  if (!EXTENSIONS.has(extension)) {
+    return { ok: false, error: "Formato não aceito. Envie JPG, PNG, WebP ou HEIC." }
+  }
+
+  const loaded = await getPropertyActionContext(propertyId)
+  if (!loaded.ok) return loaded
+
+  const { supabase, organizationId, property } = loaded.context
+  const { images, error: loadError } = await loadImages(supabase, organizationId, property.id)
+
+  if (loadError) {
+    return { ok: false, error: translateDbError(loadError, "enviar fotos para este imóvel") }
+  }
+  if (images.length >= MAX_PROPERTY_PHOTOS) {
+    return { ok: false, error: photoLimitMessage(MAX_PROPERTY_PHOTOS) }
+  }
+
+  const path = `${organizationId}/properties/${property.id}/${crypto.randomUUID()}.${extension}`
+  const main = await createSignedUpload(supabase, PROPERTY_MEDIA_BUCKET, path)
+
+  if (!main.ok) {
+    return main.forbidden
+      ? { ok: false, error: UPLOADS_BLOCKED_MESSAGE, blocked: true }
+      : { ok: false, error: "Não foi possível autorizar o envio agora. Tente novamente." }
+  }
+
+  const thumb = input?.thumbnail
+    ? await createSignedUpload(supabase, PROPERTY_MEDIA_BUCKET, thumbPathFor(path))
+    : null
+
+  return { ok: true, data: { main: main.ticket, thumb: thumb?.ok ? thumb.ticket : null } }
+}
+
+/**
+ * Registra fotos que o navegador já enviou ao bucket com os tokens de
+ * `requestPropertyPhotoUploadAction`. Tamanho e tipo são lidos do bucket (não
+ * do navegador). Se algo falhar, as fotos (e miniaturas) sem registro são
+ * apagadas. Novas fotos entram no fim; a primeira vira capa se não houver.
  */
 export async function registerPropertyImagesAction(
   propertyId: string,
@@ -105,13 +177,44 @@ export async function registerPropertyImagesAction(
     }
   }
 
+  // Só o que ainda não está no banco pode ser apagado em caso de falha.
+  const registered = new Set(images.map((image) => image.storage_path))
+  const discard = () =>
+    removeUnregisteredUploads(
+      supabase,
+      PROPERTY_MEDIA_BUCKET,
+      paths.filter((path) => !registered.has(path)).flatMap(propertyPhotoObjectPaths)
+    )
+
   if (images.length + paths.length > MAX_PROPERTY_PHOTOS) {
+    await discard()
     return {
       ok: false,
       error:
         images.length >= MAX_PROPERTY_PHOTOS
           ? photoLimitMessage(MAX_PROPERTY_PHOTOS)
           : `Este imóvel aceita até ${MAX_PROPERTY_PHOTOS} fotos e já tem ${images.length}. Envie no máximo ${MAX_PROPERTY_PHOTOS - images.length}.`,
+    }
+  }
+
+  const checks = await Promise.all(
+    paths.map((path) =>
+      inspectUploadedObject(supabase, PROPERTY_MEDIA_BUCKET, path, {
+        ...PHOTO_RULES,
+        expectedType: expectedContentTypeForPath(path),
+      })
+    )
+  )
+  const problem = checks.find((check) => !check.ok)
+
+  if (problem && !problem.ok) {
+    await discard()
+    return {
+      ok: false,
+      error: uploadedObjectProblemMessage(problem.problem, {
+        formats: PHOTO_FORMATS_LABEL,
+        maxBytes: MAX_IMAGE_BYTES,
+      }),
     }
   }
 
@@ -130,6 +233,9 @@ export async function registerPropertyImagesAction(
   )
 
   if (error) {
+    // Sem a linha no banco a foto e a miniatura ficariam órfãs no bucket. Com
+    // caminho duplicado (pedido repetido) o arquivo já é de outra linha: fica.
+    if (error.code !== "23505") await discard()
     return {
       ok: false,
       error: translateDbError(error, "adicionar fotos a este imóvel"),

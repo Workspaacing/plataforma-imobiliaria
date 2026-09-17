@@ -1,4 +1,5 @@
-// Leitura das variáveis públicas do Supabase. Sem `server-only`: o cliente do navegador também usa.
+// Leitura das variáveis públicas do Supabase. Sem `server-only`: o navegador também usa
+// (URL pública de imagens e envio por URL assinada, sem sessão).
 // As referências precisam ser literais (process.env.NEXT_PUBLIC_...) para o Next.js inlinar os valores.
 
 export type SupabaseEnv = {
