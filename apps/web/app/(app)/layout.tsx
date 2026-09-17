@@ -88,7 +88,13 @@ export default async function AppLayout({
             avatarUrl: user.avatarUrl,
           }}
         />
-        <SidebarInset>
+        {/*
+          min-w-0: sem ele, a área principal (item flex ao lado da barra lateral)
+          cresce até a largura mínima do conteúdo. O quadro de leads, com as
+          colunas lado a lado, esticava a página inteira em vez de rolar só dentro
+          do quadro, e o conteúdo passava por baixo da barra lateral.
+        */}
+        <SidebarInset className="min-w-0">
           <CrmHeader />
           {/* Aviso de assinatura: não bloqueia a página nem quebra se a RPC falhar. */}
           <Suspense fallback={null}>
