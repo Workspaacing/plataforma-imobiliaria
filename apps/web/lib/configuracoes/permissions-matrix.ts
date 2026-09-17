@@ -1,4 +1,9 @@
 import { ROLES, type Role } from "@/lib/auth/roles"
+import {
+  canExportData,
+  DEFAULT_EXPORT_ROLES,
+  normalizeExportRoles,
+} from "@/lib/configuracoes/export-permissions"
 
 /**
  * O que cada papel pode fazer, em uma frase por área, para a tela de Equipe.
@@ -37,9 +42,9 @@ export const ROLE_PERMISSION_AREAS: RolePermissionArea[] = [
       owner: "Vê, cadastra, edita e exclui qualquer cliente, documento e compartilhamento.",
       manager: "Vê, cadastra, edita e exclui qualquer cliente, documento e compartilhamento.",
       broker:
-        "Cadastra clientes e trabalha os que são dele (responsável ou compartilhados com ele). Não exclui.",
+        "Cadastra clientes e trabalha os que são dele (responsável ou compartilhados com ele). Vê o contato do proprietário só dos imóveis em que é corretor ou captador, sem editar. Não exclui.",
       capturer:
-        "Cadastra clientes e trabalha os que cadastrou ou que são proprietários de algum imóvel. Não exclui.",
+        "Cadastra clientes e trabalha os que cadastrou e os proprietários dos imóveis em que é captador ou corretor. Não vê o proprietário de imóvel alheio. Não exclui.",
       assistant: "Vê, cadastra e edita qualquer cliente e anexa documentos. Não exclui.",
       finance: "Só leitura das fichas e dos documentos.",
     },
@@ -98,8 +103,10 @@ export const ROLE_PERMISSION_AREAS: RolePermissionArea[] = [
     id: "historico",
     title: "Histórico de alterações",
     byRole: {
-      owner: "Vê o histórico (quem mudou o quê e quando) do imóvel e do cliente.",
-      manager: "Vê o histórico (quem mudou o quê e quando) do imóvel e do cliente.",
+      owner:
+        "Vê o histórico (quem mudou o quê e quando) do imóvel e do cliente e o registro de exportações.",
+      manager:
+        "Vê o histórico (quem mudou o quê e quando) do imóvel e do cliente e o registro de exportações.",
       broker: "Não vê o histórico de alterações.",
       capturer: "Não vê o histórico de alterações.",
       assistant: "Não vê o histórico de alterações.",
@@ -108,13 +115,41 @@ export const ROLE_PERMISSION_AREAS: RolePermissionArea[] = [
   },
 ]
 
+/**
+ * Exportação em CSV: a única área configurável (o dono escolhe os papéis em
+ * /configuracoes/permissoes), então o texto depende da configuração atual.
+ */
+export function exportPermissionText(role: Role, exportRoles: readonly Role[]) {
+  if (role === "owner") {
+    return "Exporta relatórios e a base em CSV e decide quais papéis também exportam. Cada exportação fica registrada."
+  }
+
+  if (!canExportData(role, normalizeExportRoles(exportRoles))) {
+    return "Não exporta dados em CSV. O dono pode liberar."
+  }
+
+  return role === "manager"
+    ? "Exporta relatórios e a base em CSV, com CPF/CNPJ. Cada exportação fica registrada."
+    : "Exporta em CSV só os registros ligados a ele, sem CPF/CNPJ. Cada exportação fica registrada."
+}
+
 /** Uma linha por área para o papel escolhido. */
-export function getRolePermissions(role: Role) {
-  return ROLE_PERMISSION_AREAS.map((area) => ({
-    id: area.id,
-    title: area.title,
-    text: area.byRole[role],
-  }))
+export function getRolePermissions(
+  role: Role,
+  exportRoles: readonly Role[] = DEFAULT_EXPORT_ROLES
+) {
+  return [
+    ...ROLE_PERMISSION_AREAS.map((area) => ({
+      id: area.id,
+      title: area.title,
+      text: area.byRole[role],
+    })),
+    {
+      id: "exportacao",
+      title: "Exportação de dados",
+      text: exportPermissionText(role, exportRoles),
+    },
+  ]
 }
 
 export const ROLE_PERMISSION_ROLES: readonly Role[] = ROLES

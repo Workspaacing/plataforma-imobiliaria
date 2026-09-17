@@ -3,6 +3,7 @@ import "server-only"
 import { normalizeEmailAddress, isUuid } from "@workspace/core/email/sanitize"
 import {
   aiQuotaNoticeEmail,
+  authorizationExpiringEmail,
   captureRequestEmail,
   leadSlaNoticeEmail,
   newLeadEmail,
@@ -10,6 +11,7 @@ import {
   subscriptionNoticeEmail,
   teamInvitationEmail,
   type AiQuotaNoticeKind,
+  type AuthorizationExpiringItem,
   type LeadSlaNoticeKind,
   type ReferralNoticeKind,
   type RenderedEmail,
@@ -49,6 +51,7 @@ export type NotificationKind =
   | "subscription_notice"
   | "referral_notice"
   | "ai_quota_notice"
+  | "authorization_expiring"
 
 /** Evita a consulta às RPCs públicas quando quem chama já tem nome e cor. */
 export type NotificationBrand = { name?: string | null; primaryColor?: string | null }
@@ -79,8 +82,9 @@ export type NewLeadNotification = {
 
 /**
  * Aviso do SLA de primeiro contato (prazo acabando, lead redistribuído ou
- * perdido), reservado pelo banco na fila private.lead_notifications: o
- * destinatário já vem decidido de lá.
+ * perdido; e, para a gestão, prazo estourado sem outro corretor no rodízio),
+ * reservado pelo banco na fila private.lead_notifications: o destinatário já
+ * vem decidido de lá.
  */
 export type LeadSlaNoticeNotification = {
   organizationSlug: string
@@ -99,6 +103,8 @@ export type LeadSlaNoticeNotification = {
   slaMinutes: number
   minutesLeft?: number | null
   dueAt?: Date | string | null
+  /** sla_breached: nome do corretor que continua com o lead (opcional). */
+  assigneeName?: string | null
   brand?: NotificationBrand | null
 }
 
@@ -179,6 +185,22 @@ export type AiQuotaNoticeNotification = {
   brand?: NotificationBrand | null
 }
 
+/**
+ * Autorização de venda/locação vencendo (cron diário): um e-mail por pessoa com
+ * todos os imóveis que chegaram a um marco (30, 15, 7 ou 1 dia). A fila do banco
+ * (private.authorization_alert_notifications) garante um aviso por marco.
+ */
+export type AuthorizationExpiringNotification = {
+  organizationSlug: string
+  /** Ids dos avisos da fila que este e-mail cobre: formam a chave de idempotência. */
+  alertIds: readonly string[]
+  to: EmailAddress
+  /** Dono ou gerente (muda o motivo no rodapé). */
+  isManager: boolean
+  items: readonly AuthorizationExpiringItem[]
+  brand?: NotificationBrand | null
+}
+
 export type NotificationParams = {
   new_lead: NewLeadNotification
   lead_sla_notice: LeadSlaNoticeNotification
@@ -187,6 +209,7 @@ export type NotificationParams = {
   subscription_notice: SubscriptionNoticeNotification
   referral_notice: ReferralNoticeNotification
   ai_quota_notice: AiQuotaNoticeNotification
+  authorization_expiring: AuthorizationExpiringNotification
 }
 
 export type NotificationSummary = {
@@ -337,6 +360,7 @@ async function notifyLeadSlaNotice(
         slaMinutes: params.slaMinutes,
         minutesLeft: params.minutesLeft,
         dueAt: params.dueAt,
+        assigneeName: params.assigneeName,
       }),
       // Uma vez por aviso da fila (o banco já reserva cada um).
       idempotencyKey: deriveIdempotencyKey("lead_sla_notice", params.alertId, recipient.email),
@@ -536,6 +560,40 @@ async function notifyAiQuota(params: AiQuotaNoticeNotification): Promise<Notific
   )
 }
 
+async function notifyAuthorizationExpiring(
+  params: AuthorizationExpiringNotification
+): Promise<NotificationSummary> {
+  const recipient = normalizeRecipient(params.to)
+  const alertIds = [...new Set(params.alertIds.filter((id) => isUuid(id)))].sort()
+
+  if (!recipient || alertIds.length === 0 || params.items.length === 0) {
+    return invalidInput("authorization_expiring")
+  }
+
+  const origin = buildTenantOrigin(params.organizationSlug)
+  const brand = params.brand ?? (await loadOrganizationContext(params.organizationSlug))
+
+  return deliver("authorization_expiring", [
+    {
+      to: recipient,
+      email: authorizationExpiringEmail({
+        origin,
+        brand,
+        recipientName: recipient.name,
+        isManager: params.isManager,
+        items: params.items,
+      }),
+      // Os mesmos avisos para a mesma pessoa não saem duas vezes (a fila do banco
+      // já reserva cada um; isto cobre uma nova tentativa dentro de 30 min).
+      idempotencyKey: deriveIdempotencyKey(
+        "authorization_expiring",
+        alertIds.join(","),
+        recipient.email
+      ),
+    },
+  ])
+}
+
 const HANDLERS: {
   [K in NotificationKind]: (params: NotificationParams[K]) => Promise<NotificationSummary>
 } = {
@@ -546,6 +604,7 @@ const HANDLERS: {
   subscription_notice: notifySubscription,
   referral_notice: notifyReferral,
   ai_quota_notice: notifyAiQuota,
+  authorization_expiring: notifyAuthorizationExpiring,
 }
 
 function logSummary(summary: NotificationSummary) {

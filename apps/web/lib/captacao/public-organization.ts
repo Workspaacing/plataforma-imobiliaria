@@ -36,7 +36,13 @@ export type PublicOrganization = {
   state: string | null
   phone: string | null
   email: string | null
+  /** CRECI J da imobiliária (organizations.creci). */
   creci: string | null
+  /**
+   * CRECI F do dono, só quando não há CRECI J (corretor autônomo). A RPC não
+   * devolve nenhum outro dado do perfil.
+   */
+  ownerCreci: { number: string; state: string | null } | null
   /** Contrato do módulo de Configurações: primary_color (hex) e logo_url (https). */
   brand: OrganizationBrand
 }
@@ -50,6 +56,8 @@ const organizationSchema = z.object({
   phone: z.string().nullish(),
   email: z.string().nullish(),
   creci: z.string().nullish(),
+  owner_creci_number: z.string().nullish(),
+  owner_creci_state: z.string().nullish(),
   brand: z.unknown(),
 })
 
@@ -68,6 +76,29 @@ export function normalizeSlug(value: string) {
 
 function clean(value: string | null | undefined) {
   return value?.trim() ? value.trim() : null
+}
+
+/**
+ * Registro profissional para exibir nas páginas públicas: "CRECI 1234-J" da
+ * imobiliária ou, sem ele, "CRECI 12345-F/SP" do dono (corretor autônomo).
+ */
+export function publicCreciLabel(
+  organization: Pick<PublicOrganization, "creci" | "ownerCreci">
+): string | null {
+  const creci = clean(organization.creci?.replace(/^creci\s*/i, ""))
+
+  if (creci) {
+    return `CRECI ${creci}`
+  }
+
+  const owner = organization.ownerCreci
+  const number = clean(owner?.number.replace(/^creci\s*/i, "").replace(/[\s-]*f$/i, ""))
+
+  if (!number) {
+    return null
+  }
+
+  return owner?.state ? `CRECI ${number}-F/${owner.state}` : `CRECI ${number}-F`
 }
 
 /** Dados públicos da imobiliária pelo slug; null se não existir. Memoizado por requisição. */
@@ -95,6 +126,8 @@ export const getPublicOrganization = cache(
     }
 
     const organization = parsed.data
+    const creci = clean(organization.creci)
+    const ownerCreciNumber = clean(organization.owner_creci_number)
 
     return {
       slug,
@@ -103,7 +136,11 @@ export const getPublicOrganization = cache(
       state: clean(organization.state),
       phone: clean(organization.phone),
       email: clean(organization.email),
-      creci: clean(organization.creci),
+      creci,
+      ownerCreci:
+        !creci && ownerCreciNumber
+          ? { number: ownerCreciNumber, state: clean(organization.owner_creci_state) }
+          : null,
       brand: readOrganizationBrand(organization.brand),
     }
   }

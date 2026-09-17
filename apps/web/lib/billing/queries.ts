@@ -21,7 +21,12 @@ import {
 import { hasRole, ORGANIZATION_VIEWER_ROLES } from "@/lib/auth/roles"
 import { getOrganizationContext } from "@/lib/auth/session"
 import { describeBillingError } from "@/lib/billing/errors"
-import { BillingRpcError, fetchBillingOverview, getBillingAccountIds } from "@/lib/billing/rpc"
+import {
+  BillingRpcError,
+  fetchBillingOverview,
+  fetchOwnedListingUsage,
+  getBillingAccountIds,
+} from "@/lib/billing/rpc"
 import { getStripe, getStripeMode, isStripeConfigured } from "@/lib/billing/stripe"
 
 export { isStripeConfigured }
@@ -202,6 +207,29 @@ export const getBillingOverview = cache(
       return overview
     } catch (error) {
       logQueryFailure("get_billing_overview", error)
+      return null
+    }
+  }
+)
+
+/**
+ * Imóveis com foto que contam no limite do plano, para o medidor da assinatura.
+ * A contagem é a do banco (a mesma do gatilho que barra a foto), nunca refeita
+ * aqui. Memoizado por requisição; em erro devolve null e registra só o código.
+ */
+export const getOwnedListingUsage = cache(
+  async (organizationId: string): Promise<number | null> => {
+    try {
+      const data = await fetchOwnedListingUsage(organizationId)
+
+      if (typeof data === "number" && Number.isInteger(data) && data >= 0) {
+        return data
+      }
+
+      console.error("[billing] get_owned_listing_usage respondeu num formato inesperado")
+      return null
+    } catch (error) {
+      logQueryFailure("get_owned_listing_usage", error)
       return null
     }
   }

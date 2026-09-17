@@ -26,8 +26,10 @@ const BILLING_ERROR_MESSAGES: Record<BillingErrorCode, string> = {
     "O limite de usuários do plano foi atingido (membros ativos e convites pendentes contam). Desative um acesso, cancele um convite ou contrate mais usuários em Configurações > Assinatura.",
   limite_landing_pages:
     "O limite de landing pages publicadas do plano foi atingido. Despublique uma página ou mude de plano em Configurações > Assinatura.",
+  // Vem ao enviar a primeira foto de um imóvel e também ao reativar um imóvel com
+  // foto (troca de status ou reserva por proposta).
   limite_owned_listings:
-    "O limite de imóveis com fotos hospedadas por nós foi atingido. Imóveis importados por XML ou API não contam: as fotos deles ficam na origem. Apague as fotos de um imóvel que não está mais na carteira ou mude de plano em Configurações > Assinatura.",
+    "O limite de imóveis com fotos hospedadas por nós foi atingido. Imóveis vendidos, alugados, inativos ou importados por XML ou API não contam. Para liberar a vaga, marque como vendido, alugado ou inativo um imóvel que saiu da carteira, ou mude de plano em Configurações > Assinatura.",
   limite_photos_per_listing:
     "Este imóvel já tem o número máximo de fotos do plano. Apague uma foto para enviar outra, ou mude de plano em Configurações > Assinatura.",
 }
@@ -145,7 +147,7 @@ function limitMessage(code: BillingErrorCode, error: unknown): string {
   }
 
   if (code === "limite_owned_listings") {
-    return `Seu plano permite ${plural(detail.limit, "imóvel", "imóveis")} com fotos hospedadas por nós e você já tem ${detail.usage}. Imóveis importados por XML ou API não contam. Apague as fotos de um imóvel que saiu da carteira ou mude de plano em Configurações > Assinatura.`
+    return `Seu plano permite ${plural(detail.limit, "imóvel", "imóveis")} com fotos hospedadas por nós na carteira e você já tem ${detail.usage}. Imóveis vendidos, alugados, inativos ou importados por XML ou API não contam. Para liberar a vaga, marque como vendido, alugado ou inativo um imóvel que saiu da carteira, ou mude de plano em Configurações > Assinatura.`
   }
 
   if (code === "limite_photos_per_listing") {

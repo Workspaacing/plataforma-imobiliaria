@@ -40,6 +40,10 @@ const CONSTRAINT_MESSAGES: Record<string, string> = {
   property_media_one_cover_per_property: "O imóvel já tem uma foto de capa. Tente novamente.",
   property_media_storage_path_key: "Este arquivo já foi registrado.",
   properties_organization_code_key: "Já existe um imóvel com este código.",
+  properties_organization_external_code_key:
+    "Já existe um imóvel com este código do sistema anterior nesta imobiliária.",
+  properties_external_code_format:
+    "Código do sistema anterior inválido: use até 60 caracteres, sem espaços nas pontas nem quebra de linha.",
   properties_condominium_fkey: "O condomínio selecionado não existe mais nesta imobiliária.",
   property_owners_client_fkey: "O cliente selecionado não existe mais nesta imobiliária.",
   listing_authorizations_owner_client_fkey:

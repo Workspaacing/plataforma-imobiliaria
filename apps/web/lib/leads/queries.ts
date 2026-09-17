@@ -510,10 +510,10 @@ export async function getLeadSummary(
       .eq("organization_id", organizationId)
 
   const [waiting, overdue, today] = await Promise.all([
-    base().eq("stage", "new").is("last_contact_at", null),
+    base().eq("stage", "new").is("first_contact_at", null),
     base()
       .eq("stage", "new")
-      .is("last_contact_at", null)
+      .is("first_contact_at", null)
       .or(
         `first_response_due_at.lte."${nowIso}",and(first_response_due_at.is.null,created_at.lt."${overdueBefore}")`
       ),

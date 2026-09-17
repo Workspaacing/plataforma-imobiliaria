@@ -15,7 +15,7 @@ import { createClient as createSessionClient } from "@/lib/supabase/server"
  *   `billing_server_key` do Vault): get_billing_account_ids,
  *   sync_billing_account, list_billing_reminders e as RPCs do Indique e ganhe.
  *   Nunca service_role.
- * - Com sessão (RLS): get_billing_overview.
+ * - Com sessão (RLS): get_billing_overview e get_owned_listing_usage.
  *
  * As respostas são validadas antes de sair deste arquivo.
  */
@@ -656,6 +656,23 @@ export async function listReferralReferrers(input: {
 /** Resposta crua de get_billing_overview (validada em queries.ts). Usa a sessão. */
 export async function fetchBillingOverview(organizationId: string): Promise<unknown> {
   const operation = "get_billing_overview"
+  const supabase = await createSessionClient()
+  const { data, error } = await supabase.rpc(operation, { p_organization_id: organizationId })
+
+  if (error) {
+    throw toRpcError(operation, error)
+  }
+
+  return data
+}
+
+/**
+ * Imóveis com foto que contam no limite `owned_listings`, com a sessão do
+ * usuário. O banco devolve a mesma contagem que o gatilho usa para barrar
+ * (private.owned_listing_count); não membro recebe 42501.
+ */
+export async function fetchOwnedListingUsage(organizationId: string): Promise<unknown> {
+  const operation = "get_owned_listing_usage"
   const supabase = await createSessionClient()
   const { data, error } = await supabase.rpc(operation, { p_organization_id: organizationId })
 

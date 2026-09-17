@@ -7,6 +7,7 @@ import {
   toEpochMs,
   type LeadSlaState,
 } from "@workspace/core/leads/routing"
+import { withWhatsappText } from "@workspace/core/leads/whatsapp-message"
 
 import type { Json } from "@workspace/database/types"
 
@@ -59,9 +60,13 @@ export function formatElapsedShort(iso: string, nowMs: number) {
   return formatDurationShort(nowMs - time)
 }
 
-/** Lead em "Novo" ainda sem nenhum contato registrado (cronômetro rodando). */
-export function isLeadWithoutContact(lead: { stage: LeadStage; lastContactAt: string | null }) {
-  return lead.stage === "new" && !lead.lastContactAt
+/**
+ * Lead em "Novo" ainda sem o primeiro contato (cronômetro rodando). Olha o
+ * primeiro contato, que o banco grava uma vez só: registrar um novo contato ou
+ * mexer no último não reabre nem encerra o prazo.
+ */
+export function isLeadWithoutContact(lead: { stage: LeadStage; firstContactAt: string | null }) {
+  return lead.stage === "new" && !lead.firstContactAt
 }
 
 // -----------------------------------------------------------------------------
@@ -71,7 +76,7 @@ export function isLeadWithoutContact(lead: { stage: LeadStage; lastContactAt: st
 /** Campos de prazo que os selos e avisos leem (subconjunto de `LeadItem`). */
 export type LeadSlaFields = {
   stage: LeadStage
-  lastContactAt: string | null
+  firstContactAt: string | null
   createdAt: string
   assignedAt?: string | null
   firstResponseDueAt?: string | null
@@ -190,9 +195,18 @@ export function maskLeadPhone(value: string | null | undefined) {
   return `(${digits.slice(0, 2)}) ${hidden}-${digits.slice(-4)}`
 }
 
-export function leadWhatsappHref(value: string | null | undefined) {
+/**
+ * Conversa no WhatsApp em um clique (wa.me), opcionalmente com a mensagem já
+ * escrita. O telefone só vai no link que o próprio usuário abre — nunca em log.
+ */
+export function leadWhatsappHref(value: string | null | undefined, message?: string | null) {
   const digits = leadPhoneDigits(value)
-  return digits.length === 10 || digits.length === 11 ? `https://wa.me/55${digits}` : null
+
+  if (digits.length !== 10 && digits.length !== 11) {
+    return null
+  }
+
+  return withWhatsappText(`https://wa.me/55${digits}`, message)
 }
 
 export function leadTelHref(value: string | null | undefined) {

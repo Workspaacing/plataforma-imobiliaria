@@ -14,6 +14,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   download: "Baixou um arquivo",
   export: "Exportou os dados",
   print: "Imprimiu os dados",
+  import: "Importou",
 }
 
 /** Complemento do verbo, por tabela auditada. */
@@ -23,6 +24,11 @@ export const AUDIT_ENTITY_LABELS: Record<string, string> = {
   client_documents: "um documento do cliente",
   memberships: "o acesso de um membro",
   leads: "o lead",
+  /** Importação de clientes, leads ou imóveis: "Importou uma planilha". */
+  import_jobs: "uma planilha",
+  /** Exportação de relatório ou base: "Exportou os dados em planilha". */
+  data_export: "em planilha",
+  organization_permission_settings: "as permissões de exportação",
 }
 
 const PROPERTY_FIELD_LABELS: Record<string, string> = {
@@ -108,6 +114,10 @@ const MEMBERSHIP_FIELD_LABELS: Record<string, string> = {
   user_id: "pessoa",
 }
 
+const PERMISSION_SETTINGS_FIELD_LABELS: Record<string, string> = {
+  export_roles: "papéis que exportam",
+}
+
 const COMMON_FIELD_LABELS: Record<string, string> = {
   id: "identificador",
   organization_id: "imobiliária",
@@ -120,6 +130,7 @@ const FIELD_LABELS_BY_ENTITY: Record<string, Record<string, string>> = {
   clients: CLIENT_FIELD_LABELS,
   client_documents: DOCUMENT_FIELD_LABELS,
   memberships: MEMBERSHIP_FIELD_LABELS,
+  organization_permission_settings: PERMISSION_SETTINGS_FIELD_LABELS,
 }
 
 /** Nome de coluna do banco em português. Campo desconhecido volta legível. */

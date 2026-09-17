@@ -72,7 +72,15 @@ export type LeadItem = {
   referrer: string | null
   consentAt: string | null
   lostReason: string | null
+  /** Último contato registrado (muda a cada "Registrar contato" ou WhatsApp). */
   lastContactAt: string | null
+  /** Primeiro contato: gravado uma vez pelo banco, base do prazo e dos relatórios. */
+  firstContactAt: string | null
+  /**
+   * Prazo do 1º contato estourado sem outro corretor elegível no rodízio: o lead
+   * ficou com o responsável e a gestão foi avisada.
+   */
+  slaBreachedAt: string | null
   createdAt: string
   updatedAt: string
   /**
@@ -146,6 +154,8 @@ export function toLeadItem(row: LeadRow, refs: LeadRefs, options: LeadItemOption
     consentAt: row.consent_at,
     lostReason: row.lost_reason,
     lastContactAt: row.last_contact_at,
+    firstContactAt: row.first_contact_at ?? null,
+    slaBreachedAt: row.sla_breached_at ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     hasDuplicate: refs.duplicateFlags.get(row.id) ?? false,

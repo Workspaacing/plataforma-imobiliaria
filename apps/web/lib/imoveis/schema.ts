@@ -34,6 +34,9 @@ import {
 
 const MAX_MONEY = 999_999_999_999.99
 
+/** Mesmo limite do CHECK properties_external_code_format. */
+export const EXTERNAL_CODE_MAX_LENGTH = 60
+
 function text(max: number, label: string) {
   return z.string().trim().max(max, `${label} pode ter no máximo ${max} caracteres.`)
 }
@@ -126,6 +129,8 @@ export const propertyFormSchema = z
     condominiumId: optionalId("Condomínio inválido."),
     capturedBy: optionalId("Captador inválido."),
     brokerId: optionalId("Corretor inválido."),
+    // Código do imóvel no sistema anterior (vem da importação; a busca acha por ele).
+    externalCode: text(EXTERNAL_CODE_MAX_LENGTH, "O código no sistema anterior"),
 
     salePrice: money("O preço de venda", { positive: true }),
     rentPrice: money("O preço de locação", { positive: true }),
@@ -223,6 +228,7 @@ export type PropertyEditableColumns = Pick<
   | "condominium_id"
   | "captured_by"
   | "broker_id"
+  | "external_code"
   | "sale_price"
   | "rent_price"
   | "condo_fee"
@@ -271,6 +277,8 @@ export function formValuesToColumns(values: PropertyFormValues): PropertyEditabl
     condominium_id: values.condominiumId || null,
     captured_by: values.capturedBy || null,
     broker_id: values.brokerId || null,
+    // O banco recusa caractere de controle (tab colado de planilha): vira espaço.
+    external_code: nullableText(values.externalCode.replace(/\p{Cc}/gu, " ")),
     // Preço de uma finalidade que não se aplica fica vazio, para não confundir o feed.
     sale_price: hasSale ? toNullableNumber(parseBrlInput(values.salePrice)) : null,
     rent_price: hasRent ? toNullableNumber(parseBrlInput(values.rentPrice)) : null,

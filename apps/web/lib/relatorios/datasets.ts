@@ -49,6 +49,12 @@ import { createClient } from "@/lib/supabase/server"
  * já enxerga) e quem decide as COLUNAS SENSÍVEIS é o papel, dentro da própria
  * RPC: CPF/CNPJ e data de nascimento do cliente e os ids de clique do lead só
  * saem para dono e gerente.
+ *
+ * E ninguém exporta sem registro: `startReportExport` abre a exportação em
+ * `audit_events` (quem, quando, conjunto, filtros) e diz se o papel pode
+ * exportar. As RPCs da base recusam página sem esse registro e somam nele as
+ * linhas que devolvem; os relatórios agregados informam a contagem por
+ * `record_report_export_rows`. Nenhum dado exportado é gravado.
  */
 
 export const REPORT_DATASETS = [
@@ -93,6 +99,72 @@ const DATASET_FILE_PREFIX: Record<ReportDataset, string> = {
 
 export function reportDatasetFilePrefix(dataset: ReportDataset) {
   return DATASET_FILE_PREFIX[dataset]
+}
+
+// -----------------------------------------------------------------------------
+// Registro da exportação
+// -----------------------------------------------------------------------------
+
+/** Exportação já registrada e permitida, repassada a cada página. */
+export type ExportRun = {
+  exportId: string
+}
+
+export type StartReportExportResult =
+  { ok: true; allowed: true; run: ExportRun } | { ok: true; allowed: false } | { ok: false }
+
+/**
+ * Registra a tentativa (permitida ou não) antes de qualquer linha sair. Os
+ * filtros enviados aqui são os mesmos que as páginas vão usar: o banco recusa
+ * página com período, corretor ou conjunto diferente do registro.
+ */
+export async function startReportExport(
+  dataset: ReportDataset,
+  scope: ReportScope
+): Promise<StartReportExportResult> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .rpc("start_data_export", {
+      p_organization_id: scope.organizationId,
+      p_dataset: dataset,
+      p_from: scope.period.from,
+      p_to: scope.period.to,
+      ...(scope.broker ? { p_user_id: scope.broker } : {}),
+      ...(scope.period.preset ? { p_period_preset: scope.period.preset } : {}),
+    })
+    .maybeSingle()
+
+  if (error || !data) {
+    console.error("[relatorios] falha ao registrar a exportação:", error?.code ?? "sem retorno")
+    return { ok: false }
+  }
+
+  return data.allowed
+    ? { ok: true, allowed: true, run: { exportId: data.export_id } }
+    : { ok: true, allowed: false }
+}
+
+/** Quantidade de linhas de um relatório agregado, gravada no registro. */
+async function recordReportRows(
+  dataset: ReportDataset,
+  scope: ReportScope,
+  run: ExportRun,
+  rows: number
+) {
+  const supabase = await createClient()
+  const { error } = await supabase.rpc("record_report_export_rows", {
+    p_organization_id: scope.organizationId,
+    p_export_id: run.exportId,
+    p_dataset: dataset,
+    p_rows: rows,
+    p_from: scope.period.from,
+    p_to: scope.period.to,
+    ...(scope.broker ? { p_user_id: scope.broker } : {}),
+  })
+
+  if (error) {
+    throw new Error(`record_report_export_rows: ${error.code ?? "erro"}`)
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -142,7 +214,7 @@ function labelOf<T extends string>(
 
 export type ReportCsvDataset = {
   columns: readonly string[]
-  stream(scope: ReportScope): ReadableStream<Uint8Array>
+  stream(scope: ReportScope, run: ExportRun): ReadableStream<Uint8Array>
 }
 
 const brokersDataset: ReportCsvDataset = {
@@ -166,11 +238,10 @@ const brokersDataset: ReportCsvDataset = {
     "Propostas fechadas",
     "Valor fechado (R$)",
   ],
-  stream(scope) {
+  stream(scope, run) {
     return createSingleCsvStream(this.columns, async () => {
       const report = await loadBrokerReport(scope)
-
-      return report.rows.map((row) => [
+      const rows = report.rows.map((row) => [
         row.name,
         row.role ? ROLE_LABELS[row.role] : null,
         row.active,
@@ -190,6 +261,9 @@ const brokersDataset: ReportCsvDataset = {
         row.proposalsClosed,
         row.proposalsClosedAmount,
       ])
+
+      await recordReportRows("corretores", scope, run, rows.length)
+      return rows
     })
   },
 }
@@ -208,11 +282,10 @@ const funnelDataset: ReportCsvDataset = {
     "Mediana em horas",
     "Média em horas",
   ],
-  stream(scope) {
+  stream(scope, run) {
     return createSingleCsvStream(this.columns, async () => {
       const report = await loadFunnelReport(scope)
-
-      return report.stages.map((stage) => [
+      const rows = report.stages.map((stage) => [
         stage.label,
         stage.entered,
         stage.advanced,
@@ -225,6 +298,9 @@ const funnelDataset: ReportCsvDataset = {
         stage.medianHours,
         stage.avgHours,
       ])
+
+      await recordReportRows("funil", scope, run, rows.length)
+      return rows
     })
   },
 }
@@ -243,11 +319,10 @@ const sourcesDataset: ReportCsvDataset = {
     "Em aberto",
     "Conversão (%)",
   ],
-  stream(scope) {
+  stream(scope, run) {
     return createSingleCsvStream(this.columns, async () => {
       const report = await loadSourceReport(scope)
-
-      return report.rows.map((row) => [
+      const rows = report.rows.map((row) => [
         row.sourceLabel,
         row.landingPageName,
         row.utmSource,
@@ -260,29 +335,38 @@ const sourcesDataset: ReportCsvDataset = {
         row.openLeads,
         ratePercent(row.winRate),
       ])
+
+      await recordReportRows("origens", scope, run, rows.length)
+      return rows
     })
   },
 }
 
 const lostReasonsDataset: ReportCsvDataset = {
   columns: ["Motivo da perda", "Leads perdidos", "Fatia das perdas (%)"],
-  stream(scope) {
+  stream(scope, run) {
     return createSingleCsvStream(this.columns, async () => {
       const report = await loadLostReasonReport(scope)
-
-      return report.rows.map((row) => [
+      const rows = report.rows.map((row) => [
         row.reason ?? NO_LOST_REASON_LABEL,
         row.total,
         ratePercent(row.share),
       ])
+
+      await recordReportRows("motivos-perda", scope, run, rows.length)
+      return rows
     })
   },
 }
 
-/** Parâmetros comuns das RPCs de exportação paginada. */
-function pageArgs(scope: ReportScope, cursor: ExportCursor | null) {
+/**
+ * Parâmetros comuns das RPCs de exportação paginada. Período e corretor são os
+ * mesmos de `startReportExport`: o banco confere com o registro.
+ */
+function pageArgs(scope: ReportScope, run: ExportRun, cursor: ExportCursor | null) {
   return {
     p_organization_id: scope.organizationId,
+    p_export_id: run.exportId,
     p_from: scope.period.from,
     p_to: scope.period.to,
     p_limit: EXPORT_PAGE_SIZE,
@@ -316,10 +400,10 @@ const leadsDataset: ReportCsvDataset = {
     "Motivo da perda",
     "Ids de clique",
   ],
-  stream(scope) {
+  stream(scope, run) {
     return createPagedCsvStream(this.columns, async (cursor) => {
       const supabase = await createClient()
-      const { data, error } = await supabase.rpc("export_leads_rows", pageArgs(scope, cursor))
+      const { data, error } = await supabase.rpc("export_leads_rows", pageArgs(scope, run, cursor))
 
       if (error) {
         throw new Error(`export_leads_rows: ${error.code ?? "erro"}`)
@@ -374,10 +458,13 @@ const propertiesDataset: ReportCsvDataset = {
     "ImobScore",
     "Nos portais",
   ],
-  stream(scope) {
+  stream(scope, run) {
     return createPagedCsvStream(this.columns, async (cursor) => {
       const supabase = await createClient()
-      const { data, error } = await supabase.rpc("export_properties_rows", pageArgs(scope, cursor))
+      const { data, error } = await supabase.rpc(
+        "export_properties_rows",
+        pageArgs(scope, run, cursor)
+      )
 
       if (error) {
         throw new Error(`export_properties_rows: ${error.code ?? "erro"}`)
@@ -431,10 +518,13 @@ const clientsDataset: ReportCsvDataset = {
     "Responsável",
     "Consentimento LGPD em",
   ],
-  stream(scope) {
+  stream(scope, run) {
     return createPagedCsvStream(this.columns, async (cursor) => {
       const supabase = await createClient()
-      const { data, error } = await supabase.rpc("export_clients_rows", pageArgs(scope, cursor))
+      const { data, error } = await supabase.rpc(
+        "export_clients_rows",
+        pageArgs(scope, run, cursor)
+      )
 
       if (error) {
         throw new Error(`export_clients_rows: ${error.code ?? "erro"}`)
@@ -479,10 +569,13 @@ const proposalsDataset: ReportCsvDataset = {
     "Válida até",
     "Decidida em",
   ],
-  stream(scope) {
+  stream(scope, run) {
     return createPagedCsvStream(this.columns, async (cursor) => {
       const supabase = await createClient()
-      const { data, error } = await supabase.rpc("export_proposals_rows", pageArgs(scope, cursor))
+      const { data, error } = await supabase.rpc(
+        "export_proposals_rows",
+        pageArgs(scope, run, cursor)
+      )
 
       if (error) {
         throw new Error(`export_proposals_rows: ${error.code ?? "erro"}`)

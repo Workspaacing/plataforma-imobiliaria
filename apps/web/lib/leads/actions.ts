@@ -488,7 +488,12 @@ export async function assignLeadFromRoulette(leadId: string): Promise<ActionResu
 // Contato
 // -----------------------------------------------------------------------------
 
-/** Registra que houve contato agora; lead em "Novo" passa para "Em contato". */
+/**
+ * Registra que houve contato agora ("Registrar contato" e o WhatsApp da ficha);
+ * lead em "Novo" passa para "Em contato". Atualiza só o último contato: o
+ * primeiro (`first_contact_at`, base do prazo e dos relatórios) o banco grava
+ * uma única vez.
+ */
 export async function markLeadContacted(leadId: string): Promise<ActionResult> {
   if (!leadIdSchema.safeParse(leadId).success) {
     return { ok: false, error: "Lead inválido." }

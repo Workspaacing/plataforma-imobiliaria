@@ -9,7 +9,7 @@ import type { Tables } from "@workspace/database/types"
 import type { ActionResult } from "@/lib/auth/action-result"
 import { requireMembership } from "@/lib/auth/session"
 import { PROPERTY_STATUSES } from "@/lib/imoveis/constants"
-import { translateDbError } from "@/lib/imoveis/db-errors"
+import { translateDbError, type DbErrorLike } from "@/lib/imoveis/db-errors"
 import { isUuid } from "@/lib/imoveis/ids"
 import {
   summarizeMedia,
@@ -61,6 +61,18 @@ export type SavePropertyResult =
       warnings: string[]
     }
   | { ok: false; error: string; fieldErrors?: PropertyFieldErrors }
+
+const EXTERNAL_CODE_CONFLICT = "Já existe outro imóvel com este código no sistema anterior."
+
+/** Violação do índice único (organization_id, external_code). */
+function isExternalCodeConflict(error: DbErrorLike | null) {
+  return (
+    error?.code === "23505" &&
+    `${error.message ?? ""} ${error.details ?? ""}`.includes(
+      "properties_organization_external_code_key"
+    )
+  )
+}
 
 function fieldErrorsFrom(error: z.ZodError<PropertyFormValues>): PropertyFieldErrors {
   const result: PropertyFieldErrors = {}
@@ -276,6 +288,13 @@ export async function savePropertyAction(input: SavePropertyInput): Promise<Save
       .eq("id", existing.id)
       .select("id, code")
 
+    if (isExternalCodeConflict(error)) {
+      return {
+        ok: false,
+        error: EXTERNAL_CODE_CONFLICT,
+        fieldErrors: { externalCode: EXTERNAL_CODE_CONFLICT },
+      }
+    }
     if (error) {
       return { ok: false, error: translateDbError(error, "editar este imóvel") }
     }
@@ -300,6 +319,13 @@ export async function savePropertyAction(input: SavePropertyInput): Promise<Save
       .select("id, code")
       .single()
 
+    if (isExternalCodeConflict(error)) {
+      return {
+        ok: false,
+        error: EXTERNAL_CODE_CONFLICT,
+        fieldErrors: { externalCode: EXTERNAL_CODE_CONFLICT },
+      }
+    }
     if (error || !data) {
       return {
         ok: false,

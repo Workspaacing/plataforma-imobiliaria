@@ -8,6 +8,7 @@ export const PROPERTY_FORM_STEPS = [
     fields: [
       "title",
       "description",
+      "externalCode",
       "purpose",
       "usage",
       "type",
@@ -86,7 +87,7 @@ export function isPropertyFormStepKey(value: unknown): value is PropertyFormStep
 
 /** Etapa onde se corrige um problema do VRSync (campo de validateVrsyncListing). */
 export function findStepForPortalIssue(field: string): PropertyFormStepKey {
-  if (field === "title" || field === "description") return "dados"
+  if (field === "title" || field === "description" || field === "externalCode") return "dados"
   if (field.startsWith("prices.")) return "valores"
   if (field.startsWith("address.")) return "endereco"
   if (field === "livingArea" || field === "lotArea") return "caracteristicas"

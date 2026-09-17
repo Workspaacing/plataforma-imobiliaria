@@ -2,8 +2,6 @@
 
 import { revalidatePath } from "next/cache"
 
-import { CLIENT_KIND_LABELS } from "@workspace/core/properties/enums"
-
 import {
   addOwnerInputSchema,
   ownerShareFormSchema,
@@ -12,24 +10,11 @@ import {
 } from "@/components/imoveis/detail/schemas"
 import type { OwnerClientOption } from "@/components/imoveis/detail/types"
 import type { ActionResult } from "@/lib/auth/action-result"
-import { requireMembership } from "@/lib/auth/session"
+import { searchClientOptions } from "@/lib/clientes/search-actions"
 import { translateDbError } from "@/lib/imoveis/db-errors"
 import { isUuid } from "@/lib/imoveis/ids"
 import { REMOVE_OWNER_DENIED_MESSAGE, canDeletePropertyRecords } from "@/lib/imoveis/permissions"
 import { getPropertyActionContext, revalidatePropertyPaths } from "@/lib/imoveis/server-context"
-import { createClient } from "@/lib/supabase/server"
-
-const SEARCH_LIMIT = 20
-
-/** Remove curingas do LIKE (% _ *) e barra invertida; limita o tamanho. */
-function sanitizeSearchTerm(value: unknown) {
-  if (typeof value !== "string") return ""
-  return value
-    .replace(/[%_*\\]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 80)
-}
 
 function revalidateOwnerPaths(propertyId: string, clientId: string | null) {
   revalidatePropertyPaths(propertyId)
@@ -37,35 +22,16 @@ function revalidateOwnerPaths(propertyId: string, clientId: string | null) {
 }
 
 /**
- * Busca de clientes para o combobox de proprietários. O RLS limita ao que o
- * papel enxerga (corretor: os seus e compartilhados; captador: os que criou
- * ou que já são proprietários).
+ * Busca de clientes para o combobox de proprietários: a mesma busca sem acento
+ * dos outros combobox de cliente (RPC `search_clients`). O RLS limita ao que o
+ * papel enxerga (corretor: os seus, os compartilhados e os proprietários dos
+ * imóveis em que é corretor ou captador; captador: os que criou e os
+ * proprietários dos imóveis em que é captador ou corretor).
  */
 export async function searchClientsForOwnerAction(query: string): Promise<OwnerClientOption[]> {
-  const { membership } = await requireMembership()
-  const term = sanitizeSearchTerm(query)
-  const supabase = await createClient()
+  const options = await searchClientOptions(query)
 
-  let request = supabase
-    .from("clients")
-    .select("id, name, kind, trade_name")
-    .eq("organization_id", membership.organizationId)
-    .order("name")
-    .limit(SEARCH_LIMIT)
-
-  if (term) {
-    request = request.ilike("name", `%${term}%`)
-  }
-
-  const { data, error } = await request
-
-  if (error) return []
-
-  return (data ?? []).map((client) => ({
-    id: client.id,
-    label: client.name,
-    description: [CLIENT_KIND_LABELS[client.kind], client.trade_name].filter(Boolean).join(" · "),
-  }))
+  return options.map((option) => ({ ...option, description: option.description ?? "" }))
 }
 
 export async function addPropertyOwnerAction(

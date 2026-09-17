@@ -6,6 +6,14 @@ import {
   getVisitorClientKey,
   readServerKey,
 } from "@/lib/captacao/server-request"
+import { normalizePublicOrgSlug } from "@/lib/imovel-publico/queries"
+import { normalizePublicPropertyCode } from "@/lib/imovel-publico/urls"
+import type {
+  IssueLandingFormTokenResult,
+  LandingAntiBotFields,
+  LeadFieldErrors,
+  SubmitLandingLeadResult,
+} from "@/lib/leads-publicos/actions"
 import {
   sanitizeClickIds,
   sanitizeLandingUrl,
@@ -18,88 +26,70 @@ import {
   toLandingLeadPayload,
   type LandingLeadValues,
 } from "@/lib/leads-publicos/schemas"
-import { landingTokenScope, normalizeOrgSlug, normalizePageSlug } from "@/lib/leads-publicos/slugs"
 import { createLandingAnonClient } from "@/lib/leads-publicos/supabase"
 
-export type LeadFieldErrors = Partial<Record<keyof LandingLeadValues, string>>
-
-export type LandingAntiBotFields = {
-  /** Token assinado emitido por issueLandingFormToken quando o formulário montou. */
-  token: string
-  /** Honeypot: campo invisível que pessoas não preenchem. */
-  website: string
-}
-
-export type SubmitLandingLeadInput = {
+export type SubmitPropertyLeadInput = {
   orgSlug: string
-  pageSlug: string
+  propertyCode: string
   values: LandingLeadValues
   antiBot: LandingAntiBotFields
   /** { utm, clickIds, referrer, landingUrl } do navegador: saneado de novo aqui. */
   attribution?: unknown
-  /** UUID gerado no navegador e repetido nos eventos do Pixel/Google. */
+  /** UUID gerado no navegador (idempotência do envio). */
   eventId?: unknown
 }
 
-export type SubmitLandingLeadResult =
-  | { ok: true }
-  | {
-      ok: false
-      error: string
-      fieldErrors?: LeadFieldErrors
-      expired?: boolean
-    }
-
-export type IssueLandingFormTokenResult = { ok: true; token: string } | { ok: false; error: string }
-
-const PAGE_UNAVAILABLE = "Esta página não está mais disponível."
+const PROPERTY_UNAVAILABLE = "Este imóvel não está mais disponível."
 const GENERIC_ERROR = "Não foi possível enviar agora. Tente novamente em instantes."
 const RELOAD_ERROR = "Não foi possível enviar o formulário. Recarregue a página e tente de novo."
 const MAX_DB_MESSAGE_LENGTH = 300
 
-function readSlugs(orgSlug: unknown, pageSlug: unknown) {
-  const org = normalizeOrgSlug(String(orgSlug ?? ""))
-  const page = normalizePageSlug(String(pageSlug ?? ""))
+function readTarget(orgSlug: unknown, propertyCode: unknown) {
+  const org = normalizePublicOrgSlug(String(orgSlug ?? ""))
+  const code = normalizePublicPropertyCode(String(propertyCode ?? ""))
 
-  return org && page ? { org, page } : null
+  return org && code ? { org, code } : null
+}
+
+/**
+ * Escopo do token antirrobô (lib/captacao/anti-bot.ts). O prefixo impede usar
+ * aqui um token de landing page (`lp:`) ou de /captar e vice-versa.
+ */
+function propertyTokenScope(orgSlug: string, code: string) {
+  return `imovel:${orgSlug}:${code}`
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
-/**
- * Emite o token antirrobô do formulário. A landing page é estática (ISR), então
- * o token não pode ir no HTML: o formulário pede um ao montar.
- */
-export async function issueLandingFormToken(
+/** Token antirrobô do formulário: a página é estática (ISR), então é pedido ao montar. */
+export async function issuePropertyFormToken(
   orgSlug: string,
-  pageSlug: string
+  propertyCode: string
 ): Promise<IssueLandingFormTokenResult> {
-  const slugs = readSlugs(orgSlug, pageSlug)
+  const target = readTarget(orgSlug, propertyCode)
 
-  if (!slugs) {
-    return { ok: false, error: PAGE_UNAVAILABLE }
+  if (!target) {
+    return { ok: false, error: PROPERTY_UNAVAILABLE }
   }
 
-  return {
-    ok: true,
-    token: issueFormToken(landingTokenScope(slugs.org, slugs.page)),
-  }
+  return { ok: true, token: issueFormToken(propertyTokenScope(target.org, target.code)) }
 }
 
 /**
- * Envio do formulário de lead de uma landing page publicada. Robôs (honeypot
- * preenchido ou envio rápido demais) recebem a mesma resposta de sucesso, sem
- * gravar nada. Nunca registra dados pessoais no log.
+ * Formulário de interesse da página pública do imóvel: mesmo fluxo das landing
+ * pages (honeypot, token com tempo mínimo, chave do servidor, nonce, hash do
+ * IP, consentimento e limites no banco). O lead nasce ligado ao imóvel. Robôs
+ * recebem sucesso sem gravar nada. Nunca registra dados pessoais no log.
  */
-export async function submitLandingLead(
-  input: SubmitLandingLeadInput
+export async function submitPropertyLead(
+  input: SubmitPropertyLeadInput
 ): Promise<SubmitLandingLeadResult> {
-  const slugs = readSlugs(input?.orgSlug, input?.pageSlug)
+  const target = readTarget(input?.orgSlug, input?.propertyCode)
 
-  if (!slugs) {
-    return { ok: false, error: PAGE_UNAVAILABLE }
+  if (!target) {
+    return { ok: false, error: PROPERTY_UNAVAILABLE }
   }
 
   const antiBot = input.antiBot
@@ -108,7 +98,7 @@ export async function submitLandingLead(
     return { ok: true }
   }
 
-  const tokenCheck = checkFormToken(antiBot.token, landingTokenScope(slugs.org, slugs.page))
+  const tokenCheck = checkFormToken(antiBot.token, propertyTokenScope(target.org, target.code))
 
   if (tokenCheck === "too-fast") {
     return { ok: true }
@@ -122,7 +112,12 @@ export async function submitLandingLead(
     }
   }
 
-  const parsed = landingLeadSchema.safeParse(input.values)
+  // Imóvel e tipologia vêm da própria página, nunca do formulário.
+  const parsed = landingLeadSchema.safeParse({
+    ...(isRecord(input.values) ? input.values : {}),
+    propertyId: "",
+    typology: "",
+  })
 
   if (!parsed.success) {
     const fieldErrors: LeadFieldErrors = {}
@@ -151,17 +146,15 @@ export async function submitLandingLead(
     clickIds: sanitizeClickIds(attribution.clickIds),
     referrer: sanitizeReferrer(attribution.referrer),
     landingUrl: sanitizeLandingUrl(attribution.landingUrl),
-    // Sem um UUID válido do navegador, o lead é gravado mesmo assim (sem deduplicação).
     eventId: isUuid(input.eventId) ? input.eventId.toLowerCase() : crypto.randomUUID(),
   })
 
   try {
-    // Hash HMAC do IP; sem IP ou sem CAPTURE_FORM_SECRET vem null e não é enviado.
     const clientKey = await getVisitorClientKey()
     const supabase = createLandingAnonClient()
-    const { error } = await supabase.rpc("submit_landing_lead", {
-      p_org_slug: slugs.org,
-      p_page_slug: slugs.page,
+    const { error } = await supabase.rpc("submit_property_lead", {
+      p_org_slug: target.org,
+      p_property_code: target.code,
       p_payload: payload,
       p_server_key: serverKey,
       p_nonce: createRequestNonce(),
@@ -184,13 +177,11 @@ export async function submitLandingLead(
               : "Recebemos vários envios seus agora há pouco. Aguarde alguns minutos e tente de novo.",
         }
       case "42501":
-        // Chave do servidor ou nonce recusados.
-        console.error("Envio de lead de landing page recusado (42501)")
+        console.error("Envio de lead da página do imóvel recusado (42501)")
         return { ok: false, error: RELOAD_ERROR }
       case "P0002":
-        return { ok: false, error: PAGE_UNAVAILABLE }
+        return { ok: false, error: PROPERTY_UNAVAILABLE }
       case "22023": {
-        // Validações da própria função, já em pt-BR.
         const message = error.message?.trim()
 
         return {
@@ -203,13 +194,13 @@ export async function submitLandingLead(
       }
       default:
         console.error(
-          `Falha ao registrar lead de landing page (código ${error.code || "desconhecido"})`
+          `Falha ao registrar lead da página do imóvel (código ${error.code || "desconhecido"})`
         )
         return { ok: false, error: GENERIC_ERROR }
     }
   } catch (cause) {
     console.error(
-      `Falha ao registrar lead de landing page (${cause instanceof Error ? cause.name : "erro"})`
+      `Falha ao registrar lead da página do imóvel (${cause instanceof Error ? cause.name : "erro"})`
     )
     return { ok: false, error: GENERIC_ERROR }
   }

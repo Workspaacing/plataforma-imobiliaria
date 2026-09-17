@@ -1,5 +1,11 @@
 import "server-only"
 
+import {
+  AUTHORIZATION_LIST_FILTERS,
+  isAuthorizationListFilter,
+  type AuthorizationListFilter,
+  type AuthorizationState,
+} from "@workspace/core/properties/authorization-alerts"
 import type { Tables } from "@workspace/database/types"
 
 import {
@@ -20,6 +26,8 @@ export type PropertyListFilters = {
   minPrice: number | null
   maxPrice: number | null
   minBedrooms: number | null
+  /** Autorização vencendo (30 dias) ou vencida; só imóveis em carteira. */
+  authorization: AuthorizationListFilter | ""
   page: number
 }
 
@@ -32,6 +40,7 @@ export const PROPERTY_LIST_PARAMS = {
   minPrice: "precoMin",
   maxPrice: "precoMax",
   minBedrooms: "quartos",
+  authorization: "autorizacao",
   page: "pagina",
 } as const
 
@@ -50,6 +59,10 @@ function positiveInteger(value: string, max: number) {
   return Number.isSafeInteger(parsed) && parsed <= max ? parsed : null
 }
 
+function parseAuthorizationFilter(value: string): AuthorizationListFilter | "" {
+  return isAuthorizationListFilter(value) ? value : ""
+}
+
 export function parsePropertyListFilters(params: SearchParams): PropertyListFilters {
   return {
     q: first(params[PROPERTY_LIST_PARAMS.q]).slice(0, 100),
@@ -59,6 +72,7 @@ export function parsePropertyListFilters(params: SearchParams): PropertyListFilt
     minPrice: positiveInteger(first(params[PROPERTY_LIST_PARAMS.minPrice]), 999_999_999_999),
     maxPrice: positiveInteger(first(params[PROPERTY_LIST_PARAMS.maxPrice]), 999_999_999_999),
     minBedrooms: positiveInteger(first(params[PROPERTY_LIST_PARAMS.minBedrooms]), 99),
+    authorization: parseAuthorizationFilter(first(params[PROPERTY_LIST_PARAMS.authorization])),
     page: Math.max(1, positiveInteger(first(params[PROPERTY_LIST_PARAMS.page]), 100_000) ?? 1),
   }
 }
@@ -71,7 +85,8 @@ export function hasActiveFilters(filters: PropertyListFilters) {
     filters.type ||
     filters.minPrice != null ||
     filters.maxPrice != null ||
-    filters.minBedrooms != null
+    filters.minBedrooms != null ||
+    filters.authorization
   )
 }
 
@@ -86,6 +101,7 @@ export function filtersToSearchParams(filters: PropertyListFilters) {
   if (filters.maxPrice != null) params.set(PROPERTY_LIST_PARAMS.maxPrice, String(filters.maxPrice))
   if (filters.minBedrooms != null)
     params.set(PROPERTY_LIST_PARAMS.minBedrooms, String(filters.minBedrooms))
+  if (filters.authorization) params.set(PROPERTY_LIST_PARAMS.authorization, filters.authorization)
   return params
 }
 
@@ -110,6 +126,22 @@ export type PropertyListItem = Pick<
   coverPath: string | null
   /** Nome do proprietário que casou com a busca (para explicar o resultado). */
   matchedOwner: string | null
+  /** Situação da autorização hoje (null se o banco não informou). */
+  authorizationState: AuthorizationState | null
+  /** Último dia coberto pela autorização (AAAA-MM-DD). */
+  authorizationEndsOn: string | null
+}
+
+const AUTHORIZATION_STATES: readonly AuthorizationState[] = [
+  "none",
+  "active",
+  "expiring",
+  "expired",
+  "upcoming",
+]
+
+function toAuthorizationState(value: string | null): AuthorizationState | null {
+  return AUTHORIZATION_STATES.find((state) => state === value) ?? null
 }
 
 export type PropertyListResult = {
@@ -129,6 +161,9 @@ export async function listProperties(
   // Tudo no Postgres (public.search_properties): filtros, busca por endereço e
   // por nome do proprietário, capa, paginação e total. `security invoker`, então
   // o RLS de properties e de clients continua decidindo o que aparece.
+  const authorizationParam = filters.authorization
+    ? AUTHORIZATION_LIST_FILTERS[filters.authorization]
+    : undefined
   const { data, error } = await supabase.rpc("search_properties", {
     p_organization_id: organizationId,
     // `undefined` sai do corpo do POST e o Postgres usa o default da função.
@@ -139,6 +174,7 @@ export async function listProperties(
     p_min_price: filters.minPrice ?? undefined,
     p_max_price: filters.maxPrice ?? undefined,
     p_min_bedrooms: filters.minBedrooms ?? undefined,
+    p_authorization: authorizationParam,
     p_limit: PROPERTIES_PAGE_SIZE,
     p_offset: (filters.page - 1) * PROPERTIES_PAGE_SIZE,
   })
@@ -166,6 +202,8 @@ export async function listProperties(
     published_to_portals: row.published_to_portals,
     coverPath: row.cover_path,
     matchedOwner: row.matched_owner,
+    authorizationState: toAuthorizationState(row.authorization_state),
+    authorizationEndsOn: row.authorization_ends_on,
   }))
 
   // O total vem repetido em cada linha, então uma página vazia não o traz. Nesse
@@ -185,6 +223,7 @@ export async function listProperties(
       p_min_price: filters.minPrice ?? undefined,
       p_max_price: filters.maxPrice ?? undefined,
       p_min_bedrooms: filters.minBedrooms ?? undefined,
+      p_authorization: authorizationParam,
       p_limit: 1,
       p_offset: 0,
     })

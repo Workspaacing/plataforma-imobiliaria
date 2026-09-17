@@ -4,7 +4,9 @@ import { createClient } from "@supabase/supabase-js"
 import { z } from "zod"
 
 import { cleanText, isUuid, normalizeEmailAddress } from "@workspace/core/email/sanitize"
+import { LEAD_SLA_NOTICE_KINDS } from "@workspace/core/email/templates"
 
+import { getNotificationRecipients } from "@/lib/email/recipients"
 import { getSupabaseEnv } from "@/lib/supabase/env"
 
 /**
@@ -18,8 +20,14 @@ import { getSupabaseEnv } from "@/lib/supabase/env"
  * do erro. Os logs nunca levam e-mail, telefone ou nome — só códigos e contagens.
  */
 
-/** Tipos enfileirados pelo banco (mesma lista do check de private.lead_notifications). */
-export const LEAD_ALERT_KINDS = ["assigned", "sla_warning", "sla_reassigned", "sla_lost"] as const
+/**
+ * Tipos que o app sabe enviar: o aviso de lead novo e os modelos de SLA do
+ * pacote de e-mail (inclusive `sla_breached`, o aviso à gestão de prazo
+ * estourado sem redistribuição). Se a fila do banco (check de
+ * private.lead_notifications) ganhar um tipo sem modelo em
+ * LEAD_SLA_NOTICE_KINDS, o claim o descarta e registra só a contagem.
+ */
+export const LEAD_ALERT_KINDS = ["assigned", ...LEAD_SLA_NOTICE_KINDS] as const
 
 export type LeadAlertKind = (typeof LEAD_ALERT_KINDS)[number]
 
@@ -41,6 +49,24 @@ export type LeadAlert = {
   slaMinutes: number
   recipientEmail: string
   recipientName: string | null
+  /**
+   * `sla_breached`: nome de quem continua com o lead, para o e-mail da gestão.
+   * `null` nos outros tipos ou quando não deu para saber com segurança.
+   */
+  assigneeName: string | null
+}
+
+const SUPPORTED_KINDS: ReadonlySet<string> = new Set(LEAD_ALERT_KINDS)
+
+/** Linha com `kind` preenchido que o app ainda não sabe enviar. */
+function isUnsupportedKind(row: unknown) {
+  if (typeof row !== "object" || row === null || !("kind" in row)) {
+    return false
+  }
+
+  const kind = (row as { kind: unknown }).kind
+
+  return typeof kind === "string" && kind !== "" && !SUPPORTED_KINDS.has(kind)
 }
 
 /** O banco recorta em 200 por chamada; o mesmo teto aqui evita pedir mais do que vem. */
@@ -109,7 +135,59 @@ function toAlert(row: z.infer<typeof rowSchema>): LeadAlert | null {
     slaMinutes,
     recipientEmail,
     recipientName: cleanText(row.recipient_name, { maxLength: 120 }) || null,
+    assigneeName: null,
   }
+}
+
+/**
+ * Nome do responsável atual do lead para os avisos `sla_breached`.
+ *
+ * A fila não traz esse nome; quem traz é get_notification_recipients (tipo
+ * new_lead), que devolve o responsável ativo do lead ou, sem ele, dono e
+ * gerentes. Como o `sla_breached` nunca vai para o próprio responsável, só vale
+ * como nome uma resposta com UMA pessoa diferente do destinatário; qualquer outra
+ * fica sem nome, e o modelo do e-mail diz "o corretor responsável".
+ *
+ * Uma consulta por lead (vários gestores recebem o mesmo aviso). O e-mail que a
+ * RPC devolve só serve para essa comparação e não sai daqui.
+ */
+async function withAssigneeNames(alerts: LeadAlert[]): Promise<LeadAlert[]> {
+  const breached = alerts.filter((alert) => alert.kind === "sla_breached")
+
+  if (breached.length === 0) {
+    return alerts
+  }
+
+  const assigneeByLead = new Map<string, Promise<{ email: string; name: string } | null>>()
+
+  for (const alert of breached) {
+    if (assigneeByLead.has(alert.leadId)) continue
+
+    assigneeByLead.set(
+      alert.leadId,
+      getNotificationRecipients({
+        kind: "new_lead",
+        subjectId: alert.leadId,
+        organizationId: alert.organizationId,
+      })
+        .then((recipients) => {
+          const [only] = recipients
+          const name = cleanText(only?.fullName, { maxLength: 60 })
+          return recipients.length === 1 && only && name ? { email: only.email, name } : null
+        })
+        .catch(() => null)
+    )
+  }
+
+  return Promise.all(
+    alerts.map(async (alert) => {
+      const assignee = alert.kind === "sla_breached" ? await assigneeByLead.get(alert.leadId) : null
+
+      return assignee && assignee.email !== alert.recipientEmail
+        ? { ...alert, assigneeName: assignee.name }
+        : alert
+    })
+  )
 }
 
 /**
@@ -153,13 +231,18 @@ export async function claimLeadAlerts(limit: number): Promise<LeadAlert[]> {
 
     const alerts: LeadAlert[] = []
     let discarded = 0
+    let unsupported = 0
 
     for (const row of data) {
       const parsed = rowSchema.safeParse(row)
       const alert = parsed.success ? toAlert(parsed.data) : null
 
       if (!alert) {
-        discarded += 1
+        if (isUnsupportedKind(row)) {
+          unsupported += 1
+        } else {
+          discarded += 1
+        }
         continue
       }
 
@@ -170,7 +253,13 @@ export async function claimLeadAlerts(limit: number): Promise<LeadAlert[]> {
       console.error(`[leads/alerts] claim: ${discarded} aviso(s) com dados inválidos descartado(s)`)
     }
 
-    return alerts
+    if (unsupported > 0) {
+      console.error(
+        `[leads/alerts] claim: ${unsupported} aviso(s) de tipo ainda sem modelo de e-mail descartado(s)`
+      )
+    }
+
+    return await withAssigneeNames(alerts)
   } catch (cause) {
     console.error(
       `[leads/alerts] claim_lead_notifications falhou (${cause instanceof Error ? cause.name : "erro"})`

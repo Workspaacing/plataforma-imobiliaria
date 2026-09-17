@@ -3,63 +3,103 @@ import "server-only"
 import { cache } from "react"
 import { z } from "zod"
 
+import type { Tables } from "@workspace/database/types"
+
 import { CLIENTS_PAGE_SIZE } from "@/lib/clientes/constants"
 import { UNASSIGNED_FILTER, type ClientListFilters } from "@/lib/clientes/filters"
-import { buildClientSearchFilter } from "@/lib/clientes/search"
 import { createClient } from "@/lib/supabase/server"
 
-const CLIENT_LIST_COLUMNS =
-  "id, kind, name, trade_name, document, email, phone, whatsapp, assigned_to, source, tags, created_at"
+export type ClientListRow = Pick<
+  Tables<"clients">,
+  | "id"
+  | "kind"
+  | "name"
+  | "trade_name"
+  | "document"
+  | "email"
+  | "phone"
+  | "whatsapp"
+  | "assigned_to"
+  | "source"
+  | "tags"
+  | "created_at"
+>
 
-export async function listClients(organizationId: string, filters: ClientListFilters) {
-  const supabase = await createClient()
-  const from = (filters.pagina - 1) * CLIENTS_PAGE_SIZE
-
-  let query = supabase
-    .from("clients")
-    .select(CLIENT_LIST_COLUMNS, { count: "exact" })
-    .eq("organization_id", organizationId)
-
-  if (filters.busca) {
-    query = query.or(buildClientSearchFilter(filters.busca))
-  }
-
-  if (filters.tipo) {
-    query = query.eq("kind", filters.tipo)
-  }
-
-  if (filters.responsavel === UNASSIGNED_FILTER) {
-    query = query.is("assigned_to", null)
-  } else if (filters.responsavel) {
-    query = query.eq("assigned_to", filters.responsavel)
-  }
-
-  if (filters.origem) {
-    query = query.eq("source", filters.origem)
-  }
-
-  if (filters.etiqueta) {
-    query = query.contains("tags", [filters.etiqueta])
-  }
-
-  const { data, count, error } = await query
-    .order("created_at", { ascending: false })
-    .order("id")
-    .range(from, from + CLIENTS_PAGE_SIZE - 1)
-
-  if (error) {
-    // Página além do fim (PGRST103): lista vazia, sem tratar como falha.
-    return {
-      rows: [],
-      total: count ?? 0,
-      failed: error.code !== "PGRST103",
-    }
-  }
-
-  return { rows: data, total: count ?? data.length, failed: false }
+export type ClientListResult = {
+  rows: ClientListRow[]
+  total: number
+  failed: boolean
 }
 
-export type ClientListRow = Awaited<ReturnType<typeof listClients>>["rows"][number]
+/**
+ * Lista de clientes pela RPC `search_clients` (security invoker: o RLS de
+ * clients decide o que aparece). A busca ignora acento e maiúsculas no nome,
+ * nome fantasia e e-mail ("Joao" acha "João"), acha telefone e WhatsApp pelos
+ * dígitos em qualquer formato e o documento (CPF/CNPJ).
+ */
+export async function listClients(
+  organizationId: string,
+  filters: ClientListFilters
+): Promise<ClientListResult> {
+  const supabase = await createClient()
+  // `undefined` sai do corpo do POST e o Postgres usa o default da função.
+  const args = {
+    p_organization_id: organizationId,
+    p_term: filters.busca || undefined,
+    p_kind: filters.tipo || undefined,
+    p_unassigned: filters.responsavel === UNASSIGNED_FILTER || undefined,
+    p_assigned_to:
+      filters.responsavel && filters.responsavel !== UNASSIGNED_FILTER
+        ? filters.responsavel
+        : undefined,
+    p_source: filters.origem || undefined,
+    p_tag: filters.etiqueta || undefined,
+  }
+
+  const { data, error } = await supabase.rpc("search_clients", {
+    ...args,
+    p_limit: CLIENTS_PAGE_SIZE,
+    p_offset: (filters.pagina - 1) * CLIENTS_PAGE_SIZE,
+  })
+
+  if (error) {
+    return { rows: [], total: 0, failed: true }
+  }
+
+  // A RPC declara as colunas como não nulas, mas as opcionais do cadastro
+  // chegam null: o tipo da lista volta a ser o da tabela.
+  const rows: ClientListRow[] = data.map((row) => ({
+    id: row.id,
+    kind: row.kind,
+    name: row.name,
+    trade_name: row.trade_name,
+    document: row.document,
+    email: row.email,
+    phone: row.phone,
+    whatsapp: row.whatsapp,
+    assigned_to: row.assigned_to,
+    source: row.source,
+    tags: row.tags,
+    created_at: row.created_at,
+  }))
+
+  let total = data[0]?.total_count ?? 0
+
+  // O total vem repetido em cada linha, então a página além da última não o
+  // traz. Só nesse caso raro uma segunda chamada (uma linha) distingue "a busca
+  // não achou nada" de "esta página não existe".
+  if (rows.length === 0 && filters.pagina > 1) {
+    const { data: firstPage } = await supabase.rpc("search_clients", {
+      ...args,
+      p_limit: 1,
+      p_offset: 0,
+    })
+
+    total = firstPage?.[0]?.total_count ?? 0
+  }
+
+  return { rows, total, failed: false }
+}
 
 /** Etiquetas já usadas nos clientes visíveis (para o filtro e sugestões). */
 export async function listClientTags(organizationId: string) {
