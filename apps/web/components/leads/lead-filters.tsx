@@ -4,6 +4,7 @@ import * as React from "react"
 import { useRouter } from "next/navigation"
 import { FilterXIcon, KanbanIcon, ListIcon } from "lucide-react"
 
+import { withLeadView } from "@workspace/core/leads/initial-view"
 import { Button } from "@workspace/ui/components/button"
 import {
   Select,
@@ -26,6 +27,7 @@ import {
   MINE_FILTER,
   UNASSIGNED_FILTER,
   type LeadListFilters,
+  type LeadView,
 } from "@/lib/leads/filters"
 import type { LeadLandingPageRef } from "@/lib/leads/types"
 
@@ -51,6 +53,11 @@ type LeadFiltersProps = {
   campaigns: string[]
   /** Gestão filtra por qualquer membro; os demais só "Meus" e "Sem responsável". */
   showMemberOptions: boolean
+  /**
+   * Visão que o servidor mostra sem `?visao=` para este aparelho (lista no
+   * celular, quadro no computador). Outra visão vai sempre explícita no endereço.
+   */
+  defaultView?: LeadView
 }
 
 function FilterSelect({
@@ -90,16 +97,25 @@ export function LeadFilters({
   landingPages,
   campaigns,
   showMemberOptions,
+  defaultView = "quadro",
 }: LeadFiltersProps) {
   const router = useRouter()
   const [isPending, startTransition] = React.useTransition()
 
-  function navigate(changes: Partial<LeadListFilters>) {
+  function replace(href: string) {
     startTransition(() => {
-      router.replace(buildLeadListHref({ ...filters, ...changes }), {
-        scroll: false,
-      })
+      router.replace(href, { scroll: false })
     })
+  }
+
+  function navigate(changes: Partial<LeadListFilters>) {
+    const next = { ...filters, ...changes }
+    const href = buildLeadListHref(next)
+
+    // `buildLeadListHref` omite o quadro fora do celular. Se o padrão do servidor
+    // for a lista (User-Agent de celular numa tela larga, como o telefone deitado),
+    // sem `visao` explícita o quadro nunca seria mostrado.
+    replace(next.visao === defaultView ? href : withLeadView(href, next.visao))
   }
 
   const assigneeItems: Item[] = [
@@ -180,13 +196,8 @@ export function LeadFilters({
       {hasActiveLeadFilters(filters) ? (
         <Button
           variant="ghost"
-          onClick={() =>
-            startTransition(() =>
-              router.replace(filters.visao === "lista" ? `${LEADS_PATH}?visao=lista` : LEADS_PATH, {
-                scroll: false,
-              })
-            )
-          }
+          // Limpa só os filtros: a visão (quadro ou lista) fica no endereço.
+          onClick={() => replace(withLeadView(LEADS_PATH, filters.visao))}
         >
           <FilterXIcon data-icon="inline-start" />
           Limpar filtros

@@ -2,12 +2,18 @@ import { createHash, timingSafeEqual } from "node:crypto"
 
 import { sendNotificationEmail, type NotificationSummary } from "@/lib/email"
 import { claimLeadAlerts, settleLeadAlerts, type LeadAlert } from "@/lib/leads/alerts"
+import { pushLeadAlerts, type LeadAlertPushSummary } from "@/lib/push/lead-alerts"
 import { isValidTenantSlug } from "@/lib/tenant/urls"
 
 /**
  * Drena a fila de avisos de lead do banco (private.lead_notifications) e envia
  * os e-mails: "você recebeu um novo lead" (assigned) e os avisos do SLA de
  * primeiro contato (prazo acabando, redistribuído, perdido).
+ *
+ * Com as chaves VAPID configuradas, cada lote também vira push no celular de
+ * quem ligou os avisos em "Meu perfil": o push começa junto com os e-mails do
+ * lote (sem esperar nem atrasar o e-mail) e sai uma vez por aviso, mesmo que o
+ * e-mail volte para a fila. A resposta espera os pushes (função serverless).
  *
  * Chamada por GET (Vercel Cron, 1x/dia no plano Hobby — rede de segurança) e
  * por POST (o banco chama por webhook com pg_net assim que enfileira um aviso,
@@ -45,6 +51,8 @@ type RunSummary = {
   /** Parou no meio: e-mail sem configuração ou cota diária estourada. */
   halted: boolean
   reasons: Record<string, number>
+  /** Push no celular (zeros quando as chaves VAPID não estão configuradas). */
+  push: LeadAlertPushSummary
 }
 
 function reply(status: number, body: Record<string, unknown>) {
@@ -113,7 +121,11 @@ async function sendAlert(alert: LeadAlert): Promise<NotificationSummary> {
   })
 }
 
-async function drainQueue(): Promise<RunSummary> {
+/**
+ * @param pushRuns recebe o push de cada lote, iniciado antes dos e-mails; quem
+ * chama espera todos antes de responder.
+ */
+async function drainQueue(pushRuns: Promise<LeadAlertPushSummary>[]): Promise<RunSummary> {
   const summary: RunSummary = {
     batches: 0,
     claimed: 0,
@@ -125,6 +137,7 @@ async function drainQueue(): Promise<RunSummary> {
     truncated: false,
     halted: false,
     reasons: {},
+    push: { attempted: 0, delivered: 0, removed: 0, failed: 0 },
   }
 
   let budget = MAX_RECIPIENTS_PER_RUN
@@ -142,6 +155,12 @@ async function drainQueue(): Promise<RunSummary> {
     summary.batches += 1
     summary.claimed += alerts.length
     budget -= alerts.length
+
+    // Push em paralelo aos e-mails deste lote (nunca rejeita). Slug inválido
+    // fica de fora, como no e-mail.
+    pushRuns.push(
+      pushLeadAlerts(alerts.filter((alert) => isValidTenantSlug(alert.organizationSlug)))
+    )
 
     const sent: string[] = []
 
@@ -205,14 +224,24 @@ async function handle(request: Request) {
     return reply(401, { error: "unauthorized" })
   }
 
-  const summary = await drainQueue()
+  const pushRuns: Promise<LeadAlertPushSummary>[] = []
+  const summary = await drainQueue(pushRuns)
+
+  for (const push of await Promise.all(pushRuns)) {
+    summary.push.attempted += push.attempted
+    summary.push.delivered += push.delivered
+    summary.push.removed += push.removed
+    summary.push.failed += push.failed
+  }
 
   if (summary.failed > 0 || summary.invalidSlug > 0 || summary.truncated || summary.halted) {
     console.error(
-      `[leads/cron] ${summary.sent}/${summary.claimed} aviso(s) enviado(s), ${summary.failed} devolvido(s) à fila, ${summary.invalidSlug} com slug inválido${summary.truncated ? " (limite por execução atingido)" : ""}${summary.halted ? " (envio interrompido: configuração ou cota)" : ""}`
+      `[leads/cron] ${summary.sent}/${summary.claimed} aviso(s) enviado(s), ${summary.failed} devolvido(s) à fila, ${summary.invalidSlug} com slug inválido${summary.truncated ? " (limite por execução atingido)" : ""}${summary.halted ? " (envio interrompido: configuração ou cota)" : ""}; push ${summary.push.delivered}/${summary.push.attempted}`
     )
   } else {
-    console.info(`[leads/cron] ${summary.sent}/${summary.claimed} aviso(s) enviado(s)`)
+    console.info(
+      `[leads/cron] ${summary.sent}/${summary.claimed} aviso(s) enviado(s); push ${summary.push.delivered}/${summary.push.attempted}`
+    )
   }
 
   return reply(200, { ok: true, ...summary })

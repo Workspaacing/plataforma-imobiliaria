@@ -47,6 +47,7 @@ import { toast } from "@workspace/ui/components/toast"
 import { ToggleGroup, ToggleGroupItem } from "@workspace/ui/components/toggle-group"
 
 import { OptionCombobox, type ComboboxOption } from "@/components/propostas/option-combobox"
+import { ProposalNegotiationPanel } from "@/components/propostas/proposal-negotiation-panel"
 import { FormDraftNotice } from "@/lib/forms/draft/form-draft-notice"
 import { useFormDraft } from "@/lib/forms/draft/use-form-draft"
 import { useFormDraftScope } from "@/lib/forms/draft/use-form-draft-scope"
@@ -80,6 +81,10 @@ const EMPTY_VALUES: ProposalFormValues = {
   paymentTerms: "",
   conditions: "",
   validUntil: "",
+  downPayment: "",
+  financingAmount: "",
+  exchangeDescription: "",
+  paymentDeadline: "",
 }
 
 function withFallback(options: ComboboxOption[], value: string | undefined, label: string) {
@@ -272,13 +277,13 @@ function ProposalForm({ onDone, ...props }: ProposalFormProps & { onDone: () => 
 
       if (!saved.ok) {
         setDiscountBlock(null)
-        setFormError(`A contraproposta foi registrada, mas o valor não foi salvo: ${saved.error}`)
+        setFormError(`A contraproposta foi registrada, mas a mudança não foi salva: ${saved.error}`)
         return
       }
 
       draft.clear()
       toast.add({
-        title: "Contraproposta registrada com o valor novo.",
+        title: "Contraproposta registrada com a mudança.",
         description: "Peça a aprovação do gerente antes de reenviar a proposta.",
         type: "success",
       })
@@ -289,7 +294,8 @@ function ProposalForm({ onDone, ...props }: ProposalFormProps & { onDone: () => 
 
   const title = editing ? (readOnly ? "Detalhes da proposta" : "Editar proposta") : "Nova proposta"
   const description = editing
-    ? (editing.readOnlyReason ?? "Atualize os dados enquanto a proposta estiver em negociação.")
+    ? (editing.readOnlyReason ??
+      "Registre cada contraproposta e cada nova oferta como rodada. Abaixo, atualize imóvel, cliente, corretor e finalidade.")
     : "A proposta começa como rascunho. Depois, marque como enviada quando apresentá-la."
 
   return (
@@ -298,6 +304,17 @@ function ProposalForm({ onDone, ...props }: ProposalFormProps & { onDone: () => 
         <DialogTitle>{title}</DialogTitle>
         <DialogDescription>{description}</DialogDescription>
       </DialogHeader>
+      {/* Fora do <form>: o painel tem o próprio formulário de rodada. */}
+      {editing ? (
+        <ProposalNegotiationPanel
+          proposalId={editing.id}
+          readOnly={readOnly}
+          onDiscountApprovalNeeded={(proposalId) => {
+            onDone()
+            onDiscountApprovalNeeded?.(proposalId)
+          }}
+        />
+      ) : null}
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="flex flex-col gap-6">
         <UnsavedChangesGuard when={!readOnly && isDirty} />
         <FieldGroup>
@@ -312,9 +329,9 @@ function ProposalForm({ onDone, ...props }: ProposalFormProps & { onDone: () => 
           {blockedDiscount ? (
             <Alert variant="destructive">
               <BadgePercentIcon />
-              <AlertTitle>Este valor precisa da aprovação do gerente</AlertTitle>
+              <AlertTitle>Esta mudança precisa da aprovação do gerente</AlertTitle>
               <AlertDescription>
-                {blockedDiscount.message} Como a proposta já foi enviada, o valor novo entra como
+                {blockedDiscount.message} Como a proposta já foi enviada, a mudança entra como
                 contraproposta; depois é só pedir a aprovação e reenviar.
               </AlertDescription>
             </Alert>
@@ -445,96 +462,198 @@ function ProposalForm({ onDone, ...props }: ProposalFormProps & { onDone: () => 
                 </Field>
               )}
             />
-            <Controller
-              name="amount"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid} data-disabled={readOnly || undefined}>
-                  <FieldLabel htmlFor="proposta-valor">Valor</FieldLabel>
-                  <InputGroup>
-                    <InputGroupAddon>
-                      <InputGroupText>R$</InputGroupText>
-                    </InputGroupAddon>
-                    <InputGroupInput
+            {/* Na edição, valor e condições mudam por rodada (painel de negociação). */}
+            {editing ? null : (
+              <Controller
+                name="amount"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid} data-disabled={readOnly || undefined}>
+                    <FieldLabel htmlFor="proposta-valor">Valor</FieldLabel>
+                    <InputGroup>
+                      <InputGroupAddon>
+                        <InputGroupText>R$</InputGroupText>
+                      </InputGroupAddon>
+                      <InputGroupInput
+                        {...field}
+                        id="proposta-valor"
+                        inputMode="numeric"
+                        placeholder="0,00"
+                        disabled={readOnly}
+                        aria-invalid={fieldState.invalid}
+                        onChange={(event) => field.onChange(maskBrlInput(event.target.value))}
+                      />
+                    </InputGroup>
+                    {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
+                  </Field>
+                )}
+              />
+            )}
+          </div>
+          {editing ? null : (
+            <>
+              <div className="grid gap-5 sm:grid-cols-2">
+                <Controller
+                  name="downPayment"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="proposta-sinal">Sinal (opcional)</FieldLabel>
+                      <InputGroup>
+                        <InputGroupAddon>
+                          <InputGroupText>R$</InputGroupText>
+                        </InputGroupAddon>
+                        <InputGroupInput
+                          {...field}
+                          value={field.value ?? ""}
+                          id="proposta-sinal"
+                          inputMode="numeric"
+                          placeholder="0,00"
+                          aria-invalid={fieldState.invalid}
+                          onChange={(event) => field.onChange(maskBrlInput(event.target.value))}
+                        />
+                      </InputGroup>
+                      {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
+                    </Field>
+                  )}
+                />
+                <Controller
+                  name="financingAmount"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="proposta-financiamento">
+                        Financiamento (opcional)
+                      </FieldLabel>
+                      <InputGroup>
+                        <InputGroupAddon>
+                          <InputGroupText>R$</InputGroupText>
+                        </InputGroupAddon>
+                        <InputGroupInput
+                          {...field}
+                          value={field.value ?? ""}
+                          id="proposta-financiamento"
+                          inputMode="numeric"
+                          placeholder="0,00"
+                          aria-invalid={fieldState.invalid}
+                          onChange={(event) => field.onChange(maskBrlInput(event.target.value))}
+                        />
+                      </InputGroup>
+                      {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
+                    </Field>
+                  )}
+                />
+              </div>
+              <Controller
+                name="exchangeDescription"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="proposta-permuta">Permuta (opcional)</FieldLabel>
+                    <Textarea
                       {...field}
-                      id="proposta-valor"
-                      inputMode="numeric"
-                      placeholder="0,00"
+                      value={field.value ?? ""}
+                      id="proposta-permuta"
+                      rows={2}
+                      maxLength={1000}
+                      placeholder="Ex.: apartamento de 2 quartos no Tatuapé, avaliado em R$ 450 mil"
+                      aria-invalid={fieldState.invalid}
+                    />
+                    {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
+                  </Field>
+                )}
+              />
+              <Controller
+                name="paymentDeadline"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="proposta-prazo">Prazo (opcional)</FieldLabel>
+                    <Input
+                      {...field}
+                      value={field.value ?? ""}
+                      id="proposta-prazo"
+                      maxLength={300}
+                      placeholder="Ex.: saldo em 60 dias, na escritura"
+                      aria-invalid={fieldState.invalid}
+                    />
+                    {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
+                  </Field>
+                )}
+              />
+            </>
+          )}
+          {editing ? null : (
+            <>
+              <Controller
+                name="validUntil"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field
+                    data-invalid={fieldState.invalid}
+                    data-disabled={readOnly || undefined}
+                    className="sm:max-w-[calc(50%-0.625rem)]"
+                  >
+                    <FieldLabel htmlFor="proposta-validade">Validade (opcional)</FieldLabel>
+                    <Input
+                      {...field}
+                      id="proposta-validade"
+                      type="date"
                       disabled={readOnly}
                       aria-invalid={fieldState.invalid}
-                      onChange={(event) => field.onChange(maskBrlInput(event.target.value))}
                     />
-                  </InputGroup>
-                  {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
-                </Field>
-              )}
-            />
-          </div>
-          <Controller
-            name="validUntil"
-            control={form.control}
-            render={({ field, fieldState }) => (
-              <Field
-                data-invalid={fieldState.invalid}
-                data-disabled={readOnly || undefined}
-                className="sm:max-w-[calc(50%-0.625rem)]"
-              >
-                <FieldLabel htmlFor="proposta-validade">Validade (opcional)</FieldLabel>
-                <Input
-                  {...field}
-                  id="proposta-validade"
-                  type="date"
-                  disabled={readOnly}
-                  aria-invalid={fieldState.invalid}
-                />
-                {fieldState.invalid ? (
-                  <FieldError errors={[fieldState.error]} />
-                ) : (
-                  <FieldDescription>
-                    Depois dessa data, a proposta aparece como vencida.
-                  </FieldDescription>
+                    {fieldState.invalid ? (
+                      <FieldError errors={[fieldState.error]} />
+                    ) : (
+                      <FieldDescription>
+                        Depois dessa data, a proposta aparece como vencida.
+                      </FieldDescription>
+                    )}
+                  </Field>
                 )}
-              </Field>
-            )}
-          />
-          <Controller
-            name="paymentTerms"
-            control={form.control}
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid} data-disabled={readOnly || undefined}>
-                <FieldLabel htmlFor="proposta-pagamento">Forma de pagamento (opcional)</FieldLabel>
-                <Textarea
-                  {...field}
-                  id="proposta-pagamento"
-                  rows={3}
-                  maxLength={5000}
-                  placeholder="Ex.: 30% de entrada e financiamento bancário do restante"
-                  disabled={readOnly}
-                  aria-invalid={fieldState.invalid}
-                />
-                {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
-              </Field>
-            )}
-          />
-          <Controller
-            name="conditions"
-            control={form.control}
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid} data-disabled={readOnly || undefined}>
-                <FieldLabel htmlFor="proposta-condicoes">Condições (opcional)</FieldLabel>
-                <Textarea
-                  {...field}
-                  id="proposta-condicoes"
-                  rows={3}
-                  maxLength={5000}
-                  placeholder="Ex.: desocupação em 60 dias, móveis planejados inclusos"
-                  disabled={readOnly}
-                  aria-invalid={fieldState.invalid}
-                />
-                {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
-              </Field>
-            )}
-          />
+              />
+              <Controller
+                name="paymentTerms"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid} data-disabled={readOnly || undefined}>
+                    <FieldLabel htmlFor="proposta-pagamento">
+                      Forma de pagamento (opcional)
+                    </FieldLabel>
+                    <Textarea
+                      {...field}
+                      id="proposta-pagamento"
+                      rows={3}
+                      maxLength={5000}
+                      placeholder="Ex.: 30% de entrada e financiamento bancário do restante"
+                      disabled={readOnly}
+                      aria-invalid={fieldState.invalid}
+                    />
+                    {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
+                  </Field>
+                )}
+              />
+              <Controller
+                name="conditions"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid} data-disabled={readOnly || undefined}>
+                    <FieldLabel htmlFor="proposta-condicoes">Condições (opcional)</FieldLabel>
+                    <Textarea
+                      {...field}
+                      id="proposta-condicoes"
+                      rows={3}
+                      maxLength={5000}
+                      placeholder="Ex.: desocupação em 60 dias, móveis planejados inclusos"
+                      disabled={readOnly}
+                      aria-invalid={fieldState.invalid}
+                    />
+                    {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
+                  </Field>
+                )}
+              />
+            </>
+          )}
         </FieldGroup>
         <DialogFooter>
           <DialogClose render={<Button type="button" variant="outline" />}>

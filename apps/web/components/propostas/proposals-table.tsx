@@ -18,6 +18,7 @@ import {
 
 import { formatPercent } from "@workspace/core/comissoes"
 import type { FormDraftScope } from "@workspace/core/forms/draft"
+import { formatRoundTitle } from "@workspace/core/proposals/rounds"
 import { LISTING_PURPOSE_LABELS } from "@workspace/core/properties/enums"
 import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert"
 import {
@@ -53,6 +54,7 @@ import {
 import { toast } from "@workspace/ui/components/toast"
 import { cn } from "@workspace/ui/lib/utils"
 
+import { MobileCard, MobileCardList } from "@/components/mobile-cards/mobile-card"
 import {
   DiscountApprovalDialog,
   type DiscountApprovalTarget,
@@ -227,6 +229,179 @@ function ProposalDeliveryCell({ row }: { row: ProposalTableRow }) {
   }
 
   return <span className="text-muted-foreground">—</span>
+}
+
+/**
+ * Rodada vigente da negociação, discreta ao lado do valor. Só aparece depois
+ * da proposta inicial (rodada 1 é o caso comum e não precisa de aviso).
+ */
+function ProposalRoundNote({ row }: { row: ProposalTableRow }) {
+  if (row.roundNumber <= 1) return null
+
+  return (
+    <span
+      className="text-xs text-muted-foreground"
+      title={formatRoundTitle(row.roundNumber, row.roundKind)}
+    >
+      Rodada {row.roundNumber}
+    </span>
+  )
+}
+
+function ProposalValidity({ row }: { row: ProposalTableRow }) {
+  if (!row.validUntil) {
+    return <span className="text-muted-foreground">Sem validade</span>
+  }
+
+  return (
+    <span className={cn(row.isExpired && "font-medium text-destructive")}>
+      {row.isExpired ? "Venceu em " : ""}
+      {formatDateOnly(row.validUntil)}
+    </span>
+  )
+}
+
+function ProposalStatusBadges({
+  row,
+  onOpenDiscount,
+}: {
+  row: ProposalTableRow
+  onOpenDiscount: () => void
+}) {
+  return (
+    <>
+      <Badge variant={PROPOSAL_STATUS_BADGE[row.status]}>
+        {PROPOSAL_STATUS_LABELS[row.status]}
+      </Badge>
+      {row.isExpired ? <Badge variant="destructive">Vencida</Badge> : null}
+      {row.discount ? (
+        <ProposalDiscountBadge discount={row.discount} onOpen={onOpenDiscount} />
+      ) : null}
+    </>
+  )
+}
+
+type ProposalRowActions = {
+  onEdit: (row: ProposalTableRow) => void
+  onShare: (row: ProposalTableRow) => void
+  onDiscount: (row: ProposalTableRow) => void
+  onTransition: (row: ProposalTableRow, to: ProposalStatus) => void
+}
+
+function ProposalActionsMenu({
+  row,
+  onEdit,
+  onShare,
+  onDiscount,
+  onTransition,
+}: ProposalRowActions & { row: ProposalTableRow }) {
+  const transitions = getAllowedTransitions(row.status)
+  const canEditFields = isOpenProposal(row.status) && row.canUpdate
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
+        <MoreHorizontalIcon />
+        <span className="sr-only">Ações da proposta</span>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-60">
+        <DropdownMenuGroup>
+          <DropdownMenuItem onClick={() => onEdit(row)}>
+            {canEditFields ? <PencilIcon /> : <EyeIcon />}
+            {canEditFields ? "Editar proposta" : "Ver detalhes"}
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onShare(row)}>
+            <Share2Icon />
+            {row.shareUrl ? "Ver link da proposta" : "Enviar ao cliente"}
+          </DropdownMenuItem>
+          {row.discount && !row.discount.approved ? (
+            <DropdownMenuItem onClick={() => onDiscount(row)}>
+              <BadgePercentIcon />
+              {row.discount.latestRequest?.status === "pending"
+                ? "Ver pedido de desconto"
+                : "Pedir aprovação do desconto"}
+            </DropdownMenuItem>
+          ) : null}
+          <DropdownMenuItem render={<a href={`/api/propostas/${row.id}/pdf`} />}>
+            <DownloadIcon />
+            Baixar PDF
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+        {transitions.length > 0 ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              {transitions.map((to) => {
+                const transitionCopy = getTransitionCopy(row.status, to)
+
+                return (
+                  <DropdownMenuItem
+                    key={to}
+                    variant={transitionCopy.destructive ? "destructive" : "default"}
+                    disabled={!row.canUpdate}
+                    onClick={() => onTransition(row, to)}
+                  >
+                    {transitionCopy.action}
+                  </DropdownMenuItem>
+                )
+              })}
+            </DropdownMenuGroup>
+          </>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+/**
+ * Cartão do celular: status, valor e validade em destaque, com enviar ao
+ * cliente e abrir a proposta a um toque; o resto fica no menu.
+ */
+function ProposalMobileCard({ row, ...actions }: ProposalRowActions & { row: ProposalTableRow }) {
+  const canEditFields = isOpenProposal(row.status) && row.canUpdate
+
+  return (
+    <MobileCard
+      highlight={row.isExpired}
+      title={
+        <span className="line-clamp-2">
+          {row.property ? `${row.property.code} · ${row.property.title}` : "Imóvel"}
+        </span>
+      }
+      description={`${row.client?.name ?? "Cliente sem acesso"} · ${LISTING_PURPOSE_LABELS[row.purpose]}`}
+      menu={<ProposalActionsMenu row={row} {...actions} />}
+      badges={<ProposalStatusBadges row={row} onOpenDiscount={() => actions.onDiscount(row)} />}
+      facts={[
+        {
+          label: "Valor",
+          value: (
+            <span className="flex flex-wrap items-baseline gap-x-2">
+              <span className="font-medium tabular-nums">{formatCurrency(row.amount)}</span>
+              <ProposalRoundNote row={row} />
+            </span>
+          ),
+        },
+        { label: "Validade", value: <ProposalValidity row={row} /> },
+        { label: "Envio", value: <ProposalDeliveryCell row={row} /> },
+      ]}
+      actions={
+        <>
+          <Button variant="outline" onClick={() => actions.onShare(row)}>
+            <Share2Icon data-icon="inline-start" />
+            {row.shareUrl ? "Ver link" : "Enviar ao cliente"}
+          </Button>
+          <Button variant="outline" onClick={() => actions.onEdit(row)}>
+            {canEditFields ? (
+              <PencilIcon data-icon="inline-start" />
+            ) : (
+              <EyeIcon data-icon="inline-start" />
+            )}
+            {canEditFields ? "Editar" : "Ver detalhes"}
+          </Button>
+        </>
+      }
+    />
+  )
 }
 
 export function ProposalsTable({
@@ -416,30 +591,34 @@ export function ProposalsTable({
     })
   }
 
+  const rowActions: ProposalRowActions = {
+    onEdit: openForm,
+    onShare: openShare,
+    onDiscount: (row) => openDiscountForRow(row),
+    onTransition: openTransition,
+  }
+
   return (
     <>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Imóvel</TableHead>
-            <TableHead>Cliente</TableHead>
-            <TableHead>Corretor</TableHead>
-            <TableHead>Finalidade</TableHead>
-            <TableHead className="text-end">Valor</TableHead>
-            <TableHead>Validade</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Envio</TableHead>
-            <TableHead className="w-12">
-              <span className="sr-only">Ações</span>
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row) => {
-            const transitions = getAllowedTransitions(row.status)
-            const canEditFields = isOpenProposal(row.status) && row.canUpdate
-
-            return (
+      <div className="max-sm:hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Imóvel</TableHead>
+              <TableHead>Cliente</TableHead>
+              <TableHead>Corretor</TableHead>
+              <TableHead>Finalidade</TableHead>
+              <TableHead className="text-end">Valor</TableHead>
+              <TableHead>Validade</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Envio</TableHead>
+              <TableHead className="w-12">
+                <span className="sr-only">Ações</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row) => (
               <TableRow key={row.id} className={cn(row.isExpired && "bg-destructive/5")}>
                 <TableCell>
                   {row.property ? (
@@ -467,94 +646,40 @@ export function ProposalsTable({
                   {row.brokerLabel ?? <span className="text-muted-foreground">—</span>}
                 </TableCell>
                 <TableCell>{LISTING_PURPOSE_LABELS[row.purpose]}</TableCell>
-                <TableCell className="text-end font-medium tabular-nums">
-                  {formatCurrency(row.amount)}
+                <TableCell className="text-end tabular-nums">
+                  <div className="flex flex-col items-end">
+                    <span className="font-medium">{formatCurrency(row.amount)}</span>
+                    <ProposalRoundNote row={row} />
+                  </div>
                 </TableCell>
                 <TableCell>
-                  {row.validUntil ? (
-                    <span className={cn(row.isExpired && "font-medium text-destructive")}>
-                      {row.isExpired ? "Venceu em " : ""}
-                      {formatDateOnly(row.validUntil)}
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground">Sem validade</span>
-                  )}
+                  <ProposalValidity row={row} />
                 </TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1">
-                    <Badge variant={PROPOSAL_STATUS_BADGE[row.status]}>
-                      {PROPOSAL_STATUS_LABELS[row.status]}
-                    </Badge>
-                    {row.isExpired ? <Badge variant="destructive">Vencida</Badge> : null}
-                    {row.discount ? (
-                      <ProposalDiscountBadge
-                        discount={row.discount}
-                        onOpen={() => openDiscountForRow(row)}
-                      />
-                    ) : null}
+                    <ProposalStatusBadges
+                      row={row}
+                      onOpenDiscount={() => openDiscountForRow(row)}
+                    />
                   </div>
                 </TableCell>
                 <TableCell>
                   <ProposalDeliveryCell row={row} />
                 </TableCell>
                 <TableCell className="text-end">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
-                      <MoreHorizontalIcon />
-                      <span className="sr-only">Ações da proposta</span>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-60">
-                      <DropdownMenuGroup>
-                        <DropdownMenuItem onClick={() => openForm(row)}>
-                          {canEditFields ? <PencilIcon /> : <EyeIcon />}
-                          {canEditFields ? "Editar proposta" : "Ver detalhes"}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => openShare(row)}>
-                          <Share2Icon />
-                          {row.shareUrl ? "Ver link da proposta" : "Enviar ao cliente"}
-                        </DropdownMenuItem>
-                        {row.discount && !row.discount.approved ? (
-                          <DropdownMenuItem onClick={() => openDiscountForRow(row)}>
-                            <BadgePercentIcon />
-                            {row.discount.latestRequest?.status === "pending"
-                              ? "Ver pedido de desconto"
-                              : "Pedir aprovação do desconto"}
-                          </DropdownMenuItem>
-                        ) : null}
-                        <DropdownMenuItem render={<a href={`/api/propostas/${row.id}/pdf`} />}>
-                          <DownloadIcon />
-                          Baixar PDF
-                        </DropdownMenuItem>
-                      </DropdownMenuGroup>
-                      {transitions.length > 0 ? (
-                        <>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuGroup>
-                            {transitions.map((to) => {
-                              const transitionCopy = getTransitionCopy(row.status, to)
-
-                              return (
-                                <DropdownMenuItem
-                                  key={to}
-                                  variant={transitionCopy.destructive ? "destructive" : "default"}
-                                  disabled={!row.canUpdate}
-                                  onClick={() => openTransition(row, to)}
-                                >
-                                  {transitionCopy.action}
-                                </DropdownMenuItem>
-                              )
-                            })}
-                          </DropdownMenuGroup>
-                        </>
-                      ) : null}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <ProposalActionsMenu row={row} {...rowActions} />
                 </TableCell>
               </TableRow>
-            )
-          })}
-        </TableBody>
-      </Table>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      <MobileCardList aria-label="Propostas">
+        {rows.map((row) => (
+          <ProposalMobileCard key={row.id} row={row} {...rowActions} />
+        ))}
+      </MobileCardList>
 
       <ShareProposalDialog target={shareTarget} open={shareOpen} onOpenChange={setShareOpen} />
 

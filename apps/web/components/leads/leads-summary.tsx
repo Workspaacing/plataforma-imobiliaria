@@ -10,6 +10,7 @@ import {
   CardHeader,
 } from "@workspace/ui/components/card"
 
+import { LeadsPhoneDefaultView } from "@/components/leads/leads-table"
 import type { LeadSummaryCounts } from "@/lib/leads/types"
 
 const percent = new Intl.NumberFormat("pt-BR", {
@@ -52,10 +53,16 @@ function SummaryCard({
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-1">
-        <p className={cn("text-2xl font-semibold tabular-nums", highlight && "text-destructive")}>
+        <p
+          className={cn(
+            "text-xl font-semibold tabular-nums sm:text-2xl",
+            highlight && "text-destructive"
+          )}
+        >
           {value}
         </p>
-        <p className="text-xs text-muted-foreground">{hint}</p>
+        {/* No celular (grade 2×2) a explicação fica só para leitor de tela. */}
+        <p className="text-xs text-muted-foreground max-sm:sr-only">{hint}</p>
       </CardContent>
     </Card>
   )
@@ -72,7 +79,9 @@ export function LeadsSummary({
   const show = (value: number) => (counts.failed ? "—" : integer.format(value))
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+      {/* O resumo aparece em toda visita a /leads: daqui sai o padrão do celular. */}
+      <LeadsPhoneDefaultView />
       <SummaryCard
         label="Leads novos fora do prazo"
         value={show(counts.overdue)}

@@ -33,6 +33,9 @@ type LeadWhatsappButtonProps = {
   canRegisterContact: boolean
   /** Mesma ação do "Registrar contato" (não espera: o WhatsApp abre na hora). */
   onContact: () => void
+  /** Tamanho do botão que abre o diálogo (padrão `sm`, o da ficha do lead). */
+  size?: React.ComponentProps<typeof Button>["size"]
+  className?: string
 }
 
 /**
@@ -46,6 +49,8 @@ export function LeadWhatsappButton({
   senderName,
   canRegisterContact,
   onContact,
+  size = "sm",
+  className,
 }: LeadWhatsappButtonProps) {
   const [open, setOpen] = React.useState(false)
 
@@ -55,7 +60,7 @@ export function LeadWhatsappButton({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="outline" size="sm" />}>
+      <DialogTrigger render={<Button variant="outline" size={size} className={className} />}>
         <MessageCircleIcon data-icon="inline-start" />
         WhatsApp
       </DialogTrigger>
@@ -84,7 +89,9 @@ function LeadWhatsappForm({
   senderName,
   canRegisterContact,
   onOpenChat,
-}: Omit<LeadWhatsappButtonProps, "onContact"> & { onOpenChat: () => void }) {
+}: Omit<LeadWhatsappButtonProps, "onContact" | "size" | "className"> & {
+  onOpenChat: () => void
+}) {
   const messageId = React.useId()
   const [message, setMessage] = React.useState(() =>
     buildLeadWhatsappMessage({

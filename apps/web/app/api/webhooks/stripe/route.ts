@@ -1,7 +1,9 @@
+import { revalidateTag } from "next/cache"
 import { after } from "next/server"
 import type Stripe from "stripe"
 
 import { describeBillingError } from "@/lib/billing/errors"
+import { BILLING_CATALOG_CACHE_TAG } from "@/lib/billing/queries"
 import {
   handleReferralBillingChange,
   recordReferralChargeIssue,
@@ -31,6 +33,8 @@ import {
  * O payload do evento só aponta QUAL objeto mudou; o estado é relido na API
  * (lib/billing/sync.ts) e gravado com upsert idempotente. Depois, o Indique e
  * ganhe registra fatura paga, estorno e disputa e recalcula os descontos.
+ * Preço e produto mudados na Stripe só invalidam o cache do catálogo de
+ * /planos (tag "billing-catalog"), sem sincronizar assinatura.
  *
  * Respostas: 400 assinatura inválida; 500 falha transitória (a Stripe reenvia);
  * 200 nos demais casos, inclusive eventos ignorados. Logs sem dados pessoais.
@@ -53,6 +57,12 @@ const HANDLED_EVENT_TYPES = new Set<string>([
   "charge.refunded",
   "charge.dispute.created",
   "charge.dispute.closed",
+  // Catálogo de /planos (lib/billing/queries.ts): só invalidam o cache da
+  // tag "billing-catalog", sem tocar em assinatura nem em indicações.
+  "price.created",
+  "price.updated",
+  "price.deleted",
+  "product.updated",
 ])
 
 /** Eventos em que muda a cobrança de uma imobiliária indicada ou indicadora. */
@@ -148,6 +158,15 @@ async function handleEvent(stripe: Stripe, event: Stripe.Event): Promise<SyncRes
       const customerId = await disputeCustomerId(stripe, event.data.object)
       return customerId ? syncCustomerWithoutSubscription(customerId) : null
     }
+    case "price.created":
+    case "price.updated":
+    case "price.deleted":
+    case "product.updated":
+      // Preço ou produto mudou na Stripe: invalida na hora (sem servir
+      // conteúdo obsoleto) o cache de 1h de getCatalogPrices, para /planos
+      // não ficar com valor antigo até a revalidação por tempo.
+      revalidateTag(BILLING_CATALOG_CACHE_TAG, { expire: 0 })
+      return null
     default:
       return null
   }

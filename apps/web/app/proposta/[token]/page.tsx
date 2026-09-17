@@ -10,6 +10,7 @@ import {
 } from "lucide-react"
 
 import { formatBRL } from "@workspace/core/billing/format"
+import { describeRoundTerms, formatRoundTitle } from "@workspace/core/proposals/rounds"
 import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert"
 import { Avatar, AvatarFallback, AvatarImage } from "@workspace/ui/components/avatar"
 import { Badge } from "@workspace/ui/components/badge"
@@ -136,6 +137,7 @@ export default async function PropostaPublicaPage({ params }: PropostaPublicaPag
   const brokerWhatsapp = whatsappUrl(brokerPhone)
   const brokerTel = telUrl(brokerPhone)
   const features = propertyFeatures(property)
+  const terms = describeRoundTerms(proposal.terms, (value) => formatBRL(Math.round(value * 100)))
 
   return (
     <div className="flex min-h-svh flex-col bg-muted/40">
@@ -184,6 +186,11 @@ export default async function PropostaPublicaPage({ params }: PropostaPublicaPag
               Proposta de {proposal.purposeLabel.toLowerCase()}
             </h1>
             {decision ? <Badge variant={decision.variant}>{decision.label}</Badge> : null}
+            {proposal.round ? (
+              <Badge variant="outline">
+                {formatRoundTitle(proposal.round.number, proposal.round.kind)}
+              </Badge>
+            ) : null}
           </div>
           <p className="text-pretty text-muted-foreground">
             {client?.name ? `${client.name}, esta ` : "Esta "}é a proposta registrada por{" "}
@@ -207,7 +214,10 @@ export default async function PropostaPublicaPage({ params }: PropostaPublicaPag
         <Card>
           <CardHeader>
             <CardDescription>
-              Valor proposto para {proposal.purposeLabel.toLowerCase()}
+              {proposal.round?.kind === "owner_counter"
+                ? "Contraproposta do proprietário para"
+                : "Valor proposto para"}{" "}
+              {proposal.purposeLabel.toLowerCase()}
             </CardDescription>
             <CardTitle className="text-3xl tabular-nums md:text-4xl">
               {formatBRL(Math.round(proposal.amount * 100))}
@@ -215,6 +225,9 @@ export default async function PropostaPublicaPage({ params }: PropostaPublicaPag
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             <dl className="flex flex-col gap-4">
+              {terms.map((term) => (
+                <DataRow key={term.label} label={term.label} value={term.value} />
+              ))}
               <DataRow label="Forma de pagamento" value={proposal.paymentTerms} />
               <DataRow label="Condições" value={proposal.conditions} />
               <DataRow

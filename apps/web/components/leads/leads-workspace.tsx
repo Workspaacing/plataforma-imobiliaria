@@ -97,6 +97,7 @@ export function LeadsWorkspace({
           role={role}
           onOpenLead={openLead}
           onMoveLead={mutations.moveLead}
+          onMarkContacted={mutations.markContacted}
         />
       ) : (
         <KanbanBoard
