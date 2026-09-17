@@ -168,7 +168,9 @@ begin
     'foto_externa_e_video', jsonb_array_length(v -> 'media') = 2
       and v -> 'media' -> 0 ->> 'external_url' = 'https://fotos.exemplo.invalid/capa.jpg',
     'so_chaves_publicas',
-      (select coalesce(array_agg(k), '{}') from jsonb_object_keys(v) k) <@ array['organization', 'property', 'media']
+      -- tracking: IDs de medição da imobiliária (migração listing_publication_rules).
+      (select coalesce(array_agg(k), '{}') from jsonb_object_keys(v) k) <@ array['organization', 'tracking', 'property', 'media']
+      and (select coalesce(array_agg(k), '{}') from jsonb_object_keys(v -> 'tracking') k) <@ array['meta_pixel_id', 'google_tag_id']
       and (select coalesce(array_agg(k), '{}') from jsonb_object_keys(v -> 'property') k) <@ property_keys
       and (select coalesce(array_agg(k), '{}') from jsonb_object_keys(v -> 'organization') k) <@ organization_keys
       and not exists (

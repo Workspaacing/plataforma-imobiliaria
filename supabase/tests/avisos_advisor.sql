@@ -35,14 +35,14 @@
 --   private_grant_por_engano_ve_linhas    : 0
 --   definer_le_private_como_anon          : true
 --   definer_grava_private_como_anon       : true
---   servidor_total                        : 83
+--   servidor_total                        : 94
 --   servidor_catalogo_fora_do_padrao      : []
 --   servidor_sem_chave_nao_recusou        : {}
 --   publicas_catalogo_fora_do_padrao      : []
 --   publicas_anon_funciona                : true
 --   publicas_com_sessao                   : "NEGADO:42501|NEGADO:42501|NEGADO:42501|NEGADO:42501|NEGADO:42501"
 --   feed_e_convite_com_sessao             : true
---   sessao_total                          : 35
+--   sessao_total                          : 49
 --   sessao_catalogo_fora_do_padrao        : []
 --   sessao_estranho_recebeu_dado          : {}
 --   metricas_invoker                      : true
@@ -59,6 +59,11 @@
 --   integracoes_rpc_devolve_endereco      : true
 --   indices_removidos_restantes           : 0
 --   fks_sem_indice                        : 0
+--
+-- Os totais crescem a cada RPC nova. Rodado em 17/09/2026 depois da migração
+-- 20260917140155_organization_and_account_deletion: sessao_total 49 (era 43 depois
+-- da lixeira; +5 da exclusão de imobiliária/conta e +1 de outra migração do dia) e
+-- servidor_total 94; todas as demais chaves conferem.
 
 do $$
 declare

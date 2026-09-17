@@ -275,6 +275,7 @@ export type Database = {
           first_paid_at: string | null
           limits: Json
           organization_id: string
+          owned_listing_packs: number
           plan_key: string
           plan_net_invoice_at: string | null
           plan_net_monthly_cents: number | null
@@ -302,6 +303,7 @@ export type Database = {
           first_paid_at?: string | null
           limits: Json
           organization_id: string
+          owned_listing_packs?: number
           plan_key?: string
           plan_net_invoice_at?: string | null
           plan_net_monthly_cents?: number | null
@@ -329,6 +331,7 @@ export type Database = {
           first_paid_at?: string | null
           limits?: Json
           organization_id?: string
+          owned_listing_packs?: number
           plan_key?: string
           plan_net_invoice_at?: string | null
           plan_net_monthly_cents?: number | null
@@ -2116,6 +2119,51 @@ export type Database = {
           },
         ]
       }
+      lead_contact_events: {
+        Row: {
+          channel: Database["public"]["Enums"]["lead_contact_channel"]
+          created_at: string
+          created_by: string | null
+          id: number
+          lead_id: string
+          organization_id: string
+          reached: boolean
+        }
+        Insert: {
+          channel: Database["public"]["Enums"]["lead_contact_channel"]
+          created_at?: string
+          created_by?: string | null
+          id?: never
+          lead_id: string
+          organization_id: string
+          reached: boolean
+        }
+        Update: {
+          channel?: Database["public"]["Enums"]["lead_contact_channel"]
+          created_at?: string
+          created_by?: string | null
+          id?: never
+          lead_id?: string
+          organization_id?: string
+          reached?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_contact_events_lead_fkey"
+            columns: ["organization_id", "lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["organization_id", "id"]
+          },
+          {
+            foreignKeyName: "lead_contact_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_integration_deliveries: {
         Row: {
           attempts: number
@@ -2681,6 +2729,47 @@ export type Database = {
           },
         ]
       }
+      listing_publication_settings: {
+        Row: {
+          created_at: string
+          google_tag_id: string | null
+          hide_without_valid_authorization: boolean
+          meta_pixel_id: string | null
+          organization_id: string
+          public_pages_enabled_by_default: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          google_tag_id?: string | null
+          hide_without_valid_authorization?: boolean
+          meta_pixel_id?: string | null
+          organization_id: string
+          public_pages_enabled_by_default?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          google_tag_id?: string | null
+          hide_without_valid_authorization?: boolean
+          meta_pixel_id?: string | null
+          organization_id?: string
+          public_pages_enabled_by_default?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listing_publication_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       marketing_investments: {
         Row: {
           amount: number
@@ -3021,6 +3110,7 @@ export type Database = {
           organization_id: string
           parking_spaces: number | null
           postal_code: string | null
+          public_page_enabled: boolean | null
           published_at: string | null
           published_to_portals: boolean
           purpose: Database["public"]["Enums"]["listing_purpose"]
@@ -3074,6 +3164,7 @@ export type Database = {
           organization_id: string
           parking_spaces?: number | null
           postal_code?: string | null
+          public_page_enabled?: boolean | null
           published_at?: string | null
           published_to_portals?: boolean
           purpose: Database["public"]["Enums"]["listing_purpose"]
@@ -3127,6 +3218,7 @@ export type Database = {
           organization_id?: string
           parking_spaces?: number | null
           postal_code?: string | null
+          public_page_enabled?: boolean | null
           published_at?: string | null
           published_to_portals?: boolean
           purpose?: Database["public"]["Enums"]["listing_purpose"]
@@ -4145,6 +4237,44 @@ export type Database = {
           },
         ]
       }
+      whatsapp_message_templates: {
+        Row: {
+          body: string
+          created_at: string
+          created_by: string | null
+          id: string
+          organization_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          organization_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          organization_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_message_templates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_messages: {
         Row: {
           accepted_at: string | null
@@ -4392,6 +4522,10 @@ export type Database = {
         Returns: Json
       }
       caixa_catalog_facets: { Args: { p_uf?: string }; Returns: Json }
+      cancel_organization_deletion: {
+        Args: { p_organization_id: string }
+        Returns: undefined
+      }
       claim_authorization_alerts: {
         Args: { p_limit?: number; p_server_key: string }
         Returns: {
@@ -4473,6 +4607,13 @@ export type Database = {
           recipient_email: string
           recipient_name: string
           sla_minutes: number
+        }[]
+      }
+      claim_organization_storage_objects: {
+        Args: { p_limit: number; p_server_key: string }
+        Returns: {
+          bucket_id: string
+          object_path: string
         }[]
       }
       claim_task_reminders: {
@@ -4650,6 +4791,16 @@ export type Database = {
           total: number
         }[]
       }
+      dashboard_undelivered_emails: {
+        Args: { p_organization_id: string }
+        Returns: {
+          kind: string
+          notices: number
+          priority: number
+          reason: string
+        }[]
+      }
+      delete_my_account: { Args: { p_confirmation: string }; Returns: Json }
       disconnect_connection: {
         Args: { p_connected_account_id: string }
         Returns: Json
@@ -4858,6 +5009,13 @@ export type Database = {
         Args: { p_days?: number; p_organization_id: string }
         Returns: Json
       }
+      get_my_account_deletion_blockers: {
+        Args: never
+        Returns: {
+          organization_id: string
+          organization_name: string
+        }[]
+      }
       get_notification_recipients: {
         Args: {
           p_kind: string
@@ -4868,6 +5026,16 @@ export type Database = {
         Returns: {
           email: string
           full_name: string
+        }[]
+      }
+      get_organization_deletion: {
+        Args: { p_organization_id: string }
+        Returns: {
+          execute_after: string
+          requested_at: string
+          requested_by_name: string
+          scheduled: boolean
+          subscription_renews: boolean
         }[]
       }
       get_owned_listing_usage: {
@@ -5039,6 +5207,17 @@ export type Database = {
           poll_cursor: Json
         }[]
       }
+      list_organization_deletion_reminders: {
+        Args: { p_limit: number; p_server_key: string }
+        Returns: {
+          brand_color: string
+          execute_after: string
+          organization_id: string
+          organization_name: string
+          organization_slug: string
+          recipient_emails: string[]
+        }[]
+      }
       list_proposal_discount_requests: {
         Args: { p_organization_id: string; p_proposal_ids: string[] }
         Returns: {
@@ -5109,6 +5288,10 @@ export type Database = {
         Args: { p_action?: string; p_entity: string; p_entity_id: string }
         Returns: undefined
       }
+      mark_organization_deletion_reminded: {
+        Args: { p_organization_id: string; p_server_key: string }
+        Returns: boolean
+      }
       mark_whatsapp_message_sent: {
         Args: {
           p_error_code?: number
@@ -5129,6 +5312,7 @@ export type Database = {
         Args: { p_server_key: string }
         Returns: Json
       }
+      platform_email_quota: { Args: { p_server_key: string }; Returns: Json }
       platform_end_announcement: {
         Args: {
           p_actor_email: string
@@ -5812,6 +5996,17 @@ export type Database = {
         }
         Returns: Json
       }
+      reserve_email_send: {
+        Args: {
+          p_ceiling: number
+          p_kind: string
+          p_notice_key: string
+          p_organization_slug?: string
+          p_priority: number
+          p_server_key: string
+        }
+        Returns: Json
+      }
       restore_from_trash: {
         Args: { p_entity: string; p_record_id: string }
         Returns: undefined
@@ -5866,6 +6061,10 @@ export type Database = {
           p_visits?: number
         }
         Returns: string
+      }
+      schedule_organization_deletion: {
+        Args: { p_confirmation: string; p_organization_id: string }
+        Returns: Json
       }
       search_caixa_listings: {
         Args: {
@@ -6104,8 +6303,25 @@ export type Database = {
         }
         Returns: Json
       }
+      settle_email_send: {
+        Args: {
+          p_day: string
+          p_kind: string
+          p_notice_key: string
+          p_organization_slug?: string
+          p_priority: number
+          p_reason?: string
+          p_sent?: boolean
+          p_server_key: string
+        }
+        Returns: Json
+      }
       settle_lead_notifications: {
         Args: { p_failed?: string[]; p_sent?: string[]; p_server_key: string }
+        Returns: Json
+      }
+      settle_organization_storage_purge: {
+        Args: { p_server_key: string }
         Returns: Json
       }
       settle_push_deliveries: {
@@ -6344,6 +6560,7 @@ export type Database = {
         | "portfolio_grid"
         | "portfolio_agency"
         | "portfolio_broker"
+      lead_contact_channel: "call" | "whatsapp" | "email" | "in_person"
       lead_delivery_status:
         | "pending"
         | "accepted"
@@ -6358,6 +6575,8 @@ export type Database = {
         | "portal"
         | "website"
         | "social"
+        | "instagram"
+        | "whatsapp"
         | "referral"
         | "manual"
         | "other"
@@ -6647,6 +6866,7 @@ export const Constants = {
         "portfolio_agency",
         "portfolio_broker",
       ],
+      lead_contact_channel: ["call", "whatsapp", "email", "in_person"],
       lead_delivery_status: [
         "pending",
         "accepted",
@@ -6662,6 +6882,8 @@ export const Constants = {
         "portal",
         "website",
         "social",
+        "instagram",
+        "whatsapp",
         "referral",
         "manual",
         "other",
