@@ -1,18 +1,32 @@
-// Recomendador de /planos: 3 perguntas → plano, assentos extras e custo.
-// Regra simples e explicável, aplicada em ordem:
-// 1. tamanho da equipe: 1 → Corretor; 2 a 5 → Imobiliária; 6 a 15 → Equipe; 16+ → Rede;
-// 2. quem faz locação nunca fica no Corretor (sobe para Imobiliária);
-// 3. mais de 300 leads por mês sobe pelo menos para Equipe;
-// 4. se a equipe passa do teto de usuários do plano (usersMax), sobe de plano;
-// 5. assentos extras = pessoas além dos usuários incluídos.
-// Valores em centavos; a economia anual compara 12 mensalidades com o anual.
+// Recomendador de /planos: pessoas e imóveis com foto → plano, assentos extras e custo.
+//
+// Regra única, explicável e sem empurrar plano caro: entre os planos que
+// ATENDEM o que foi informado, vence o de MENOR custo total (plano + usuários
+// extras). "Atender" é o que o banco realmente aplica hoje:
+//   · usuários: cabe no teto do plano (usersMax; o Corretor vai até 2);
+//   · imóveis com foto: cabe no limite `owned_listings` do plano.
+// Recurso "em breve" (IA, locação, funis) não entra na conta: recomendar um
+// plano mais caro por algo que ainda não existe seria vender o que não entrega.
+//
+// Se nenhum plano comporta os imóveis com foto informados, fica o de maior
+// limite de imóveis (desempate pelo menor custo) e `fitsOwnedListings` = false.
+// Empate de custo leva o plano maior, que inclui mais pelo mesmo preço.
+// Valores em centavos; o anual custa 10 mensalidades em todos os planos, então a
+// ordem de custo é a mesma no mensal e no anual.
 
-import { PLAN_KEYS, PLANS, planTotal, type PlanKey } from "./plans"
+import {
+  OWNED_LISTING_RELEASED_STATUS_PLURAL_TEXT,
+  PLAN_KEYS,
+  PLANS,
+  planTotal,
+  type PlanKey,
+} from "./plans"
 
 export type RecommendPlanInput = {
+  /** Pessoas que vão usar o CRM. */
   teamSize: number
-  doesRentals: boolean
-  leadsPerMonth: number
+  /** Imóveis à venda ou para alugar com fotos hospedadas por nós. */
+  ownedListings: number
 }
 
 export type PlanRecommendation = {
@@ -24,22 +38,20 @@ export type PlanRecommendation = {
   yearlyTotal: number
   /** Centavos economizados no anual contra 12 mensalidades. */
   yearlySavings: number
-  /** Motivos em pt-BR, na ordem em que as regras foram aplicadas. */
+  /** false quando nenhum plano comporta os imóveis com foto informados. */
+  fitsOwnedListings: boolean
+  /** Motivos em pt-BR, na ordem em que foram decididos. */
   reasons: string[]
 }
 
-/** Acima deste volume mensal de leads, o mínimo recomendado é o Equipe. */
-export const HIGH_LEAD_VOLUME = 300
+type Candidate = { plan: PlanKey; extraSeats: number; monthlyTotal: number }
 
 function rank(plan: PlanKey): number {
   return PLAN_KEYS.indexOf(plan)
 }
 
-function planForTeamSize(teamSize: number): PlanKey {
-  if (teamSize <= 1) return "corretor"
-  if (teamSize <= 5) return "imobiliaria"
-  if (teamSize <= 15) return "equipe"
-  return "rede"
+function normalizeCount(value: number, minimum: number): number {
+  return Number.isFinite(value) ? Math.max(minimum, Math.ceil(value)) : minimum
 }
 
 function fitsUsers(plan: PlanKey, teamSize: number): boolean {
@@ -47,41 +59,86 @@ function fitsUsers(plan: PlanKey, teamSize: number): boolean {
   return usersMax < 0 || teamSize <= usersMax
 }
 
+function fitsListings(plan: PlanKey, ownedListings: number): boolean {
+  const limit = PLANS[plan].limits.owned_listings
+  return limit < 0 || ownedListings <= limit
+}
+
+function listingLimit(plan: PlanKey): number {
+  const limit = PLANS[plan].limits.owned_listings
+  return limit < 0 ? Number.POSITIVE_INFINITY : limit
+}
+
+function toCandidate(plan: PlanKey, teamSize: number): Candidate {
+  const extraSeats = Math.max(0, teamSize - PLANS[plan].usersIncluded)
+  return { plan, extraSeats, monthlyTotal: planTotal(plan, "month", extraSeats) }
+}
+
+/** Menor custo; empate leva o plano maior. */
+function cheapest(candidates: readonly Candidate[]): Candidate | undefined {
+  return candidates.reduce<Candidate | undefined>((best, candidate) => {
+    if (!best || candidate.monthlyTotal < best.monthlyTotal) return candidate
+    if (candidate.monthlyTotal === best.monthlyTotal && rank(candidate.plan) > rank(best.plan)) {
+      return candidate
+    }
+    return best
+  }, undefined)
+}
+
+function people(count: number) {
+  return count === 1 ? "1 pessoa" : `${count} pessoas`
+}
+
+function listings(count: number) {
+  if (count === 0) return "nenhum imóvel com foto"
+  return count === 1 ? "até 1 imóvel com foto" : `até ${count} imóveis com foto`
+}
+
 export function recommendPlan(input: RecommendPlanInput): PlanRecommendation {
-  const teamSize = Number.isFinite(input.teamSize) ? Math.max(1, Math.ceil(input.teamSize)) : 1
-  const leadsPerMonth = Number.isFinite(input.leadsPerMonth) ? input.leadsPerMonth : 0
+  const teamSize = normalizeCount(input.teamSize, 1)
+  const ownedListings = normalizeCount(input.ownedListings, 0)
   const reasons: string[] = []
 
-  let plan = planForTeamSize(teamSize)
-  reasons.push(
-    teamSize === 1
-      ? `Para 1 pessoa, o indicado é o plano ${PLANS[plan].name}.`
-      : `Para ${teamSize} pessoas, o indicado é o plano ${PLANS[plan].name}.`
+  const byUsers = PLAN_KEYS.filter((plan) => fitsUsers(plan, teamSize)).map((plan) =>
+    toCandidate(plan, teamSize)
   )
+  const fitting = byUsers.filter((candidate) => fitsListings(candidate.plan, ownedListings))
+  const fitsOwnedListings = fitting.length > 0
 
-  if (input.doesRentals && rank(plan) < rank("imobiliaria")) {
-    plan = "imobiliaria"
-    reasons.push(`Quem faz locação precisa pelo menos do plano ${PLANS.imobiliaria.name}.`)
-  }
+  // O Rede não tem teto de usuários: `byUsers` nunca fica vazio, e ele é o fallback.
+  const largestLimit = Math.max(...byUsers.map((candidate) => listingLimit(candidate.plan)))
+  const pool = fitsOwnedListings
+    ? fitting
+    : byUsers.filter((candidate) => listingLimit(candidate.plan) === largestLimit)
+  const chosen = cheapest(pool) ?? toCandidate("rede", teamSize)
+  const { plan, extraSeats } = chosen
+  const name = PLANS[plan].name
 
-  if (leadsPerMonth > HIGH_LEAD_VOLUME && rank(plan) < rank("equipe")) {
-    plan = "equipe"
+  if (fitsOwnedListings) {
     reasons.push(
-      `Com mais de ${HIGH_LEAD_VOLUME} leads por mês, o indicado é pelo menos o plano ${PLANS.equipe.name}.`
+      `Para ${people(teamSize)} e ${listings(ownedListings)}, o plano ${name} é o de menor custo que atende.`
+    )
+
+    // Transparência: o plano mais barato para a equipe ficou de fora por causa dos imóveis.
+    const cheapestForUsers = cheapest(byUsers)
+    if (
+      cheapestForUsers &&
+      cheapestForUsers.plan !== plan &&
+      !fitsListings(cheapestForUsers.plan, ownedListings)
+    ) {
+      reasons.push(
+        `O plano ${PLANS[cheapestForUsers.plan].name} sairia mais barato, mas comporta só ${PLANS[cheapestForUsers.plan].limits.owned_listings} imóveis com foto.`
+      )
+    }
+  } else {
+    reasons.push(
+      `Nenhum plano comporta mais de ${PLANS[plan].limits.owned_listings} imóveis com foto hoje. O plano ${name} é o que mais comporta, e o pacote de imóveis extras ainda está em breve.`
     )
   }
 
-  while (!fitsUsers(plan, teamSize)) {
-    const next = PLAN_KEYS[rank(plan) + 1]
-    if (!next) break
-
-    reasons.push(
-      `O plano ${PLANS[plan].name} vai até ${PLANS[plan].usersMax} usuários; para ${teamSize}, o indicado é o ${PLANS[next].name}.`
-    )
-    plan = next
-  }
-
-  const extraSeats = Math.max(0, teamSize - PLANS[plan].usersIncluded)
+  reasons.push(
+    `Imóveis sem foto, importados por XML ou API, ${OWNED_LISTING_RELEASED_STATUS_PLURAL_TEXT} não contam no limite.`
+  )
 
   if (extraSeats > 0) {
     reasons.push(
@@ -100,6 +157,7 @@ export function recommendPlan(input: RecommendPlanInput): PlanRecommendation {
     monthlyTotal,
     yearlyTotal,
     yearlySavings: monthlyTotal * 12 - yearlyTotal,
+    fitsOwnedListings,
     reasons,
   }
 }

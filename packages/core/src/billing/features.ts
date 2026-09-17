@@ -4,11 +4,26 @@
 // em billing_accounts.features.
 //
 // Status:
-// - "available": o módulo já existe no app, ou é serviço humano (ex.: migração assistida);
+// - "available": existe tela utilizável de ponta a ponta no app, ou é serviço humano
+//   (ex.: migração assistida). Integração que depende da conta do cliente no
+//   fornecedor (Canal Pro, Meta) conta como pronta, com a exigência escrita na
+//   descrição e na tabela comparativa;
 // - "soon": planejado. Aparece como "em breve" e não pode ser vendido como pronto
-//   (oferta vincula, CDC art. 30). Onde a pesquisa diz "incluso" mas o módulo ainda
-//   não existe no código (vários funis, filiais, exportação e o
-//   crédito automático de SLA), o status é "soon".
+//   (oferta vincula, CDC art. 30). Onde a pesquisa diz "incluso" mas não há tela
+//   (vários funis, metas, filiais, caixa de WhatsApp, IA, locação e o crédito
+//   automático de SLA), o status é "soon".
+//
+// Conferência feita no código em 16/09/2026: rodízio com SLA em
+// /configuracoes/rodizio; Grupo OLX e Meta Lead Ads em /configuracoes/integracoes
+// (webhooks em app/api/webhooks); relatórios em /relatorios; CSV em
+// /api/relatorios/[recurso]; validade do CRECI em /configuracoes/equipe; registro
+// de consentimento e de acesso à ficha no histórico do cliente; autorização
+// vencendo no Painel, no filtro de /imoveis e em app/api/cron/authorization-alerts;
+// ficha em PDF em /api/imoveis/[id]/ficha; página pública do imóvel em
+// app/imovel/[org]/[codigo]; importação de planilhas em /configuracoes/importacao;
+// papéis que exportam e registro das exportações em /configuracoes/permissoes.
+// Nenhum desses tem trava por plano no app. A caixa de conversas do WhatsApp não
+// existe: `sendWhatsappMessage` não é chamada por nenhuma tela.
 
 import type { BillingPlanKey, PlanKey } from "./plans"
 
@@ -36,6 +51,8 @@ export const FEATURE_KEYS = [
   "feature_listing_score",
   "feature_capture_public_form",
   "feature_keys",
+  "feature_authorization_expiry_alerts",
+  "feature_property_sheet_pdf",
   // Clientes e vendas
   "feature_clients",
   "feature_calendar_tasks",
@@ -45,6 +62,7 @@ export const FEATURE_KEYS = [
   "feature_property_client_match",
   // Marketing e portais
   "feature_landing_pages",
+  "feature_property_public_page",
   "feature_portal_feed_vrsync",
   "feature_portal_leads_ingest",
   "feature_meta_lead_ads",
@@ -79,6 +97,7 @@ export const FEATURE_KEYS = [
   "feature_team_roles_invites",
   "feature_tenant_subdomain",
   "feature_multi_branch",
+  "feature_spreadsheet_import",
   "feature_data_export",
   "feature_assisted_migration",
   // Conformidade e suporte
@@ -98,7 +117,7 @@ export type FeatureDefinition = {
   group: FeatureGroup
   /** Planos que incluem o recurso (planHasFeature). */
   plans: readonly PlanKey[]
-  /** Observação por plano para a tabela comparativa (ex.: "Até 2 pessoas", "Add-on"). */
+  /** Observação por plano para a tabela comparativa (ex.: "Até 2 pessoas", "Adicional"). */
   notes?: Partial<Record<PlanKey, string>>
 }
 
@@ -111,9 +130,11 @@ const REDE_ONLY: readonly PlanKey[] = ["rede"]
 
 export const FEATURES: Record<FeatureKey, FeatureDefinition> = {
   feature_properties: {
-    label: "Imóveis ilimitados",
+    // Não é "ilimitado": imóvel à venda ou para alugar com foto hospedada por nós
+    // tem o limite `owned_listings` do plano, aplicado pelo banco.
+    label: "Cadastro de imóveis",
     description:
-      "Cadastro de imóveis com fotos, características e status, sem limite de quantidade.",
+      "Cadastro de imóveis com fotos, características e status. Imóveis à venda ou para alugar com fotos hospedadas por nós seguem o limite do plano; vendidos, alugados, inativos, sem foto ou importados por XML ou API não contam.",
     status: "available",
     group: "Imóveis e captação",
     plans: ALL,
@@ -143,6 +164,22 @@ export const FEATURES: Record<FeatureKey, FeatureDefinition> = {
   feature_keys: {
     label: "Controle de chaves",
     description: "Registro de retirada e devolução das chaves de cada imóvel.",
+    status: "available",
+    group: "Imóveis e captação",
+    plans: ALL,
+  },
+  feature_authorization_expiry_alerts: {
+    label: "Aviso de autorização vencendo",
+    description:
+      "Mostra no Painel e na lista de imóveis as autorizações de venda ou locação que vencem em 30 dias e avisa por e-mail o captador, o corretor e a gestão a 30, 15, 7 e 1 dia do fim.",
+    status: "available",
+    group: "Imóveis e captação",
+    plans: ALL,
+  },
+  feature_property_sheet_pdf: {
+    label: "Ficha do imóvel em PDF",
+    description:
+      "Ficha pronta para imprimir ou enviar, com fotos, características e a marca da imobiliária. O endereço segue o modo de exibição do imóvel e nada do proprietário entra no arquivo.",
     status: "available",
     group: "Imóveis e captação",
     plans: ALL,
@@ -183,7 +220,7 @@ export const FEATURES: Record<FeatureKey, FeatureDefinition> = {
     plans: ALL,
   },
   feature_property_client_match: {
-    label: "Match imóvel × cliente",
+    label: "Imóveis compatíveis com cada cliente",
     description: "Sugere os imóveis que combinam com o perfil de cada cliente, e vice-versa.",
     status: "available",
     group: "Clientes e vendas",
@@ -196,6 +233,21 @@ export const FEATURES: Record<FeatureKey, FeatureDefinition> = {
     group: "Marketing e portais",
     plans: ALL,
   },
+  feature_property_public_page: {
+    // app/imovel/[org]/[codigo]: grátis e fora do limite `landing_pages`.
+    label: "Página pública por imóvel",
+    description:
+      "Cada imóvel ativo ganha a própria página no endereço da imobiliária, com formulário que coloca o lead no funil. É grátis e não conta no limite de landing pages.",
+    status: "available",
+    group: "Marketing e portais",
+    plans: ALL,
+    notes: {
+      corretor: "Grátis, fora do limite",
+      imobiliaria: "Grátis, fora do limite",
+      equipe: "Grátis, fora do limite",
+      rede: "Grátis, fora do limite",
+    },
+  },
   feature_portal_feed_vrsync: {
     label: "Feed XML para portais",
     description: "Publica os imóveis no ZAP, Viva Real e OLX pelo padrão VRSync.",
@@ -204,18 +256,33 @@ export const FEATURES: Record<FeatureKey, FeatureDefinition> = {
     plans: ALL,
   },
   feature_portal_leads_ingest: {
-    label: "Leads dos portais",
-    description: "Contatos recebidos nos portais entram automaticamente no funil.",
-    status: "soon",
+    // Só o Grupo OLX (Canal Pro) tem entrada de lead hoje; outros portais não.
+    label: "Leads do ZAP, Viva Real e OLX",
+    description:
+      "Os contatos do Grupo OLX entram no funil na hora, ligados ao imóvel anunciado. Exige a conta da imobiliária no Canal Pro.",
+    status: "available",
     group: "Marketing e portais",
     plans: ALL,
+    notes: {
+      corretor: "Com a sua conta no Canal Pro",
+      imobiliaria: "Com a sua conta no Canal Pro",
+      equipe: "Com a sua conta no Canal Pro",
+      rede: "Com a sua conta no Canal Pro",
+    },
   },
   feature_meta_lead_ads: {
     label: "Meta Lead Ads",
-    description: "Leads dos formulários de anúncio do Facebook e do Instagram direto no funil.",
-    status: "soon",
+    description:
+      "Leads dos formulários de anúncio do Facebook e do Instagram direto no funil. Exige a Página da imobiliária no Facebook e o token de acesso dela.",
+    status: "available",
     group: "Marketing e portais",
     plans: ALL,
+    notes: {
+      corretor: "Com a sua conta na Meta",
+      imobiliaria: "Com a sua conta na Meta",
+      equipe: "Com a sua conta na Meta",
+      rede: "Com a sua conta na Meta",
+    },
   },
   feature_portal_health: {
     label: "Saúde dos portais",
@@ -243,6 +310,7 @@ export const FEATURES: Record<FeatureKey, FeatureDefinition> = {
     plans: FROM_IMOBILIARIA,
   },
   feature_whatsapp_official_inbox: {
+    // Conectar o número já existe (Configurações > Conexões); atender pela caixa, não.
     label: "Caixa de WhatsApp da empresa",
     description:
       "Vários atendentes no mesmo número, com o histórico sempre na imobiliária. O número fica na conta da própria imobiliária na Meta.",
@@ -251,10 +319,10 @@ export const FEATURES: Record<FeatureKey, FeatureDefinition> = {
     plans: ALL,
   },
   feature_lead_roulette_sla: {
-    label: "Roleta de leads com SLA",
+    label: "Rodízio de leads com SLA",
     description:
-      "Distribui os leads entre os corretores e redistribui quando ninguém responde no prazo.",
-    status: "soon",
+      "Distribui os leads entre os corretores, respeita a escala de plantão, avisa quem está perto do prazo e redistribui quando ninguém responde a tempo.",
+    status: "available",
     group: "Atendimento e WhatsApp",
     plans: FROM_IMOBILIARIA,
   },
@@ -336,9 +404,12 @@ export const FEATURES: Record<FeatureKey, FeatureDefinition> = {
     plans: ALL,
   },
   feature_bi_goals: {
-    label: "BI e metas por corretor",
-    description: "Indicadores de atendimento e vendas, com metas individuais e da equipe.",
-    status: "soon",
+    // Os relatórios existem (/relatorios); metas por corretor ainda não, por isso
+    // não aparecem aqui — no plano elas seguem como "em breve".
+    label: "Relatórios por corretor",
+    description:
+      "Desempenho de cada corretor, funil por etapa, origem dos leads e motivos de perda, com filtro de período e exportação em planilha.",
+    status: "available",
     group: "Fechamento e gestão",
     plans: FROM_EQUIPE,
   },
@@ -348,7 +419,7 @@ export const FEATURES: Record<FeatureKey, FeatureDefinition> = {
     status: "soon",
     group: "Fechamento e gestão",
     plans: REDE_ONLY,
-    notes: { imobiliaria: "Add-on", equipe: "Add-on" },
+    notes: { imobiliaria: "Adicional", equipe: "Adicional" },
   },
   feature_rental_contracts: {
     label: "Contratos de locação",
@@ -356,7 +427,7 @@ export const FEATURES: Record<FeatureKey, FeatureDefinition> = {
     status: "soon",
     group: "Locação e fiscal",
     plans: FROM_IMOBILIARIA,
-    notes: { corretor: "Add-on" },
+    notes: { corretor: "Adicional" },
   },
   feature_rental_billing_boleto_pix: {
     label: "Cobrança do aluguel por boleto e Pix",
@@ -364,7 +435,7 @@ export const FEATURES: Record<FeatureKey, FeatureDefinition> = {
     status: "soon",
     group: "Locação e fiscal",
     plans: FROM_IMOBILIARIA,
-    notes: { corretor: "Add-on" },
+    notes: { corretor: "Adicional" },
   },
   feature_rental_owner_payout: {
     label: "Repasse ao proprietário",
@@ -372,7 +443,7 @@ export const FEATURES: Record<FeatureKey, FeatureDefinition> = {
     status: "soon",
     group: "Locação e fiscal",
     plans: FROM_IMOBILIARIA,
-    notes: { corretor: "Add-on" },
+    notes: { corretor: "Adicional" },
   },
   feature_rental_adjustment: {
     label: "Reajuste de aluguel",
@@ -380,7 +451,7 @@ export const FEATURES: Record<FeatureKey, FeatureDefinition> = {
     status: "soon",
     group: "Locação e fiscal",
     plans: FROM_IMOBILIARIA,
-    notes: { corretor: "Add-on" },
+    notes: { corretor: "Adicional" },
   },
   feature_dimob: {
     label: "DIMOB",
@@ -388,7 +459,7 @@ export const FEATURES: Record<FeatureKey, FeatureDefinition> = {
     status: "soon",
     group: "Locação e fiscal",
     plans: FROM_IMOBILIARIA,
-    notes: { corretor: "Add-on" },
+    notes: { corretor: "Adicional" },
   },
   feature_nfse: {
     label: "NFS-e da taxa de administração",
@@ -426,16 +497,29 @@ export const FEATURES: Record<FeatureKey, FeatureDefinition> = {
     plans: REDE_ONLY,
     notes: { rede: "Até 5" },
   },
+  feature_spreadsheet_import: {
+    // /configuracoes/importacao: só dono e gerente (a RPC confere no banco).
+    label: "Importação de planilhas (clientes, leads e imóveis)",
+    description:
+      "Traga clientes, leads e imóveis de planilhas CSV ou Excel, ligando cada coluna ao campo certo e escolhendo o que fazer com os repetidos. Feito pelo dono ou pelo gerente, sem pedir ao suporte.",
+    status: "available",
+    group: "Equipe e conta",
+    plans: ALL,
+  },
   feature_data_export: {
-    label: "Exportação completa",
-    description: "Baixe imóveis, clientes, leads e fotos quando quiser, sem pedir ao suporte.",
-    status: "soon",
+    // /api/relatorios/[recurso]: CSV por período, sem as fotos. Papéis em
+    // /configuracoes/permissoes; cada exportação vai para audit_events.
+    label: "Exportação em planilha",
+    description:
+      "Baixe leads, imóveis, clientes, propostas e relatórios em CSV, do período escolhido, sem pedir ao suporte. O dono escolhe quais papéis exportam (sem escolha, dono e gerente) e cada exportação fica registrada com quem exportou, quando e quantas linhas. As fotos não entram no arquivo.",
+    status: "available",
     group: "Equipe e conta",
     plans: ALL,
   },
   feature_assisted_migration: {
     label: "Migração assistida grátis",
-    description: "Ajudamos a trazer os dados do sistema atual, sem custo.",
+    description:
+      "Ajudamos a trazer os dados do sistema atual, sem custo. Planilhas de clientes, leads e imóveis a própria imobiliária já importa sozinha, em Configurações.",
     status: "available",
     group: "Equipe e conta",
     plans: ALL,
@@ -443,15 +527,17 @@ export const FEATURES: Record<FeatureKey, FeatureDefinition> = {
   },
   feature_creci_compliance: {
     label: "CRECI com validade",
-    description: "Guarda o CRECI de cada corretor e avisa antes do vencimento.",
-    status: "soon",
+    description:
+      "Guarda o CRECI e a validade de cada corretor e mostra, na tela da equipe, quem está com o registro vencendo ou vencido.",
+    status: "available",
     group: "Conformidade e suporte",
     plans: ALL,
   },
   feature_lgpd_consent_audit: {
     label: "LGPD: consentimento e registro de acesso",
-    description: "Registra o consentimento dos leads e quem acessou cada dado pessoal.",
-    status: "soon",
+    description:
+      "Registra o consentimento dos leads e mostra, no histórico do cliente, quem abriu a ficha ou baixou um documento.",
+    status: "available",
     group: "Conformidade e suporte",
     plans: ALL,
   },

@@ -153,8 +153,12 @@ const WHATSAPP: ConnectionProviderDefinition = {
   key: "whatsapp",
   label: "WhatsApp Business (oficial)",
   vendor: "Meta",
+  // O que está pronto é CONECTAR a conta (Embedded Signup, termos e número). A
+  // caixa para atender pelo CRM ainda não existe: nenhuma tela chama
+  // sendWhatsappMessage. Por isso o status é "available" (a conexão funciona) e o
+  // texto não promete atendimento — ver feature_whatsapp_official_inbox, "soon".
   summary:
-    "Atenda no número oficial da imobiliária com vários corretores na mesma caixa, e com todo o histórico amarrado ao lead.",
+    "Conecte o número oficial, na conta da própria imobiliária na Meta, e deixe o canal pronto. A caixa de conversas para a equipe atender pelo CRM ainda está em construção.",
   status: "available",
   billing: {
     payer: "client_direct",
@@ -235,11 +239,13 @@ export const CONNECTION_PROVIDERS: Record<ConnectionProviderKey, ConnectionProvi
     "Meta",
     "Publicar imóveis e responder mensagens da página da imobiliária."
   ),
+  // Os leads de formulário já entram por Configurações > Integrações (ID e token
+  // da Página). O que está "em breve" aqui é conectar pelo login da Meta.
   facebook_lead_ads: planned(
     "facebook_lead_ads",
     "Lead Ads (Meta)",
     "Meta",
-    "Receber no funil, em segundos, os leads dos formulários de anúncio."
+    "Os leads dos formulários de anúncio já entram no funil pela tela Integrações, com o ID e o token da Página. Conectar por aqui, com o login da Meta, chega em breve."
   ),
   email_forwarding: planned(
     "email_forwarding",

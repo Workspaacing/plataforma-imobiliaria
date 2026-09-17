@@ -38,6 +38,20 @@ describe("catálogo de provedores", () => {
     expect(whatsapp.maxAccounts).toBe(1)
   })
 
+  it("o WhatsApp vende só a conexão, sem prometer a caixa de atendimento que não existe", () => {
+    const whatsapp = CONNECTION_PROVIDERS.whatsapp
+    // Conectar a conta existe (status "available"); atender pela caixa, não.
+    expect(whatsapp.status).toBe("available")
+    expect(whatsapp.summary).not.toMatch(/mesma caixa|vários corretores|atenda/i)
+    expect(whatsapp.summary).toContain("ainda está em construção")
+  })
+
+  it("Lead Ads aponta para a tela de Integrações, onde já funciona", () => {
+    const leadAds = CONNECTION_PROVIDERS.facebook_lead_ads
+    expect(leadAds.status).toBe("soon")
+    expect(leadAds.summary).toContain("Integrações")
+  })
+
   it("isConnectionProviderKey recusa o que não está no enum", () => {
     expect(isConnectionProviderKey("whatsapp")).toBe(true)
     expect(isConnectionProviderKey("whatsapp_web")).toBe(false)

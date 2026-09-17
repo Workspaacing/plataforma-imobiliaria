@@ -46,6 +46,7 @@ describe("getTenantPublicRewrite", () => {
       "/lp/teste/casa/privacidade"
     )
     expect(getTenantPublicRewrite("/captar", "teste")).toBe("/captar/teste")
+    expect(getTenantPublicRewrite("/imovel/IMV-000123", "teste")).toBe("/imovel/teste/IMV-000123")
     expect(getTenantPublicRewrite("/api/feeds/vrsync.xml", "teste")).toBe(
       "/api/feeds/teste/vrsync.xml"
     )
@@ -56,6 +57,8 @@ describe("getTenantPublicRewrite", () => {
     expect(getTenantPublicRewrite("/captacao", "teste")).toBeNull()
     expect(getTenantPublicRewrite("/lpx", "teste")).toBeNull()
     expect(getTenantPublicRewrite("/convite/abc", "teste")).toBeNull()
+    expect(getTenantPublicRewrite("/imoveis", "teste")).toBeNull()
+    expect(getTenantPublicRewrite("/imoveis/IMV-000123", "teste")).toBeNull()
   })
 })
 
@@ -73,6 +76,10 @@ describe("getLegacyPublicRedirect", () => {
       slug: "teste",
       path: "/captar",
     })
+    expect(getLegacyPublicRedirect("/imovel/Teste/IMV-000123")).toEqual({
+      slug: "teste",
+      path: "/imovel/IMV-000123",
+    })
   })
 
   it("não redireciona o feed, nem caminhos incompletos", () => {
@@ -81,6 +88,8 @@ describe("getLegacyPublicRedirect", () => {
     expect(getLegacyPublicRedirect("/lp")).toBeNull()
     expect(getLegacyPublicRedirect("/captar")).toBeNull()
     expect(getLegacyPublicRedirect("/captacao/teste")).toBeNull()
+    expect(getLegacyPublicRedirect("/imovel/IMV-000123")).toBeNull()
+    expect(getLegacyPublicRedirect("/imoveis/teste/IMV-000123")).toBeNull()
   })
 
   it("recusa segmento malformado", () => {

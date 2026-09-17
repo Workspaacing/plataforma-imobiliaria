@@ -67,11 +67,17 @@ export const CONNECTION_HEALTH_LABELS: Record<ConnectionHealth, string> = {
   revoked: "Acesso revogado",
 }
 
+/**
+ * Frase abaixo do selo. Vale para todo provedor, então descreve só a conexão e
+ * nunca promete uso: a caixa de conversas do WhatsApp ainda não existe, e dizer
+ * "enviando e recebendo" com a conta apenas conectada seria mentir na tela.
+ */
 export const CONNECTION_HEALTH_HINTS: Record<ConnectionHealth, string> = {
   not_connected: "A imobiliária ainda não conectou a conta dela neste serviço.",
   pending: "O fornecedor devolveu a conta, mas faltam passos para ela funcionar.",
-  active: "Enviando e recebendo normalmente.",
-  paused: "Continua conectada e com o histórico intacto; só não envia nem recebe.",
+  active: "Conta conectada e ligada.",
+  paused:
+    "Continua conectada e com o histórico intacto; enquanto estiver desligada, a plataforma não envia nada por ela.",
   blocked: "Suspensa por segurança da plataforma. Fale com o suporte para reativar.",
   error: "O fornecedor recusou a última chamada. Reconecte a conta.",
   revoked: "A autorização foi retirada no fornecedor. É preciso conectar de novo.",

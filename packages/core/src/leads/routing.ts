@@ -471,3 +471,61 @@ export function slaMinutesLeft(dueAtMs: number | null, nowMs: number) {
 
   return Math.max(0, Math.ceil((dueAtMs - nowMs) / MS_PER_MINUTE))
 }
+
+// -----------------------------------------------------------------------------
+// Primeiro contato e prazo estourado (migração leads_first_contact_and_alerts)
+// -----------------------------------------------------------------------------
+
+/**
+ * Primeiro contato do lead, como o trigger `leads_before_write` grava: nasce no
+ * primeiro `last_contact_at` preenchido (contato "no futuro" vira o instante da
+ * gravação) e nunca mais muda — um novo "Registrar contato" só mexe no último.
+ */
+export function resolveFirstContactAtMs(input: {
+  previousFirstContactMs: number | null
+  lastContactMs: number | null
+  nowMs: number
+}): number | null {
+  const { previousFirstContactMs, lastContactMs, nowMs } = input
+
+  if (previousFirstContactMs !== null && Number.isFinite(previousFirstContactMs)) {
+    return previousFirstContactMs
+  }
+
+  if (lastContactMs === null || !Number.isFinite(lastContactMs)) {
+    return null
+  }
+
+  return Math.min(lastContactMs, nowMs)
+}
+
+export type LeadOverdueDecision =
+  /** Há outro corretor que pode receber agora: o lead volta para a roleta. */
+  | { kind: "reassign"; userId: string }
+  /**
+   * Ninguém mais pode receber agora (ou as redistribuições acabaram): o lead
+   * continua com o responsável, o estouro é registrado e a gestão é avisada.
+   */
+  | { kind: "keep" }
+
+/**
+ * O que a passada agendada faz com um lead que estourou o prazo do primeiro
+ * contato. Espelha o passo (c) de `private.run_lead_routing_pass`: o lead nunca
+ * fica sem responsável por estouro de prazo.
+ */
+export function decideOverdueLead(input: {
+  candidates: readonly LeadRoutingCandidate[]
+  ctx: LeadRoutingContext
+  assignedTo: string
+  reassignments: number
+  maxReassignments: number
+}): LeadOverdueDecision {
+  if (input.reassignments >= clampMaxReassignments(input.maxReassignments)) {
+    return { kind: "keep" }
+  }
+
+  const exclude = [...(input.ctx.exclude ?? []), input.assignedTo]
+  const userId = pickNextAssignee(input.candidates, { ...input.ctx, exclude })
+
+  return userId ? { kind: "reassign", userId } : { kind: "keep" }
+}

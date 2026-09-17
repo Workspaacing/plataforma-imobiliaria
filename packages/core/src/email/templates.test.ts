@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest"
 
 import { DEFAULT_BRAND_COLOR } from "./sanitize"
 import {
+  AUTHORIZATION_EMAIL_MAX_ITEMS,
+  authorizationExpiringEmail,
   captureRequestEmail,
   EmailTemplateError,
   LEAD_SLA_NOTICE_KINDS,
@@ -327,8 +329,40 @@ describe("aviso de SLA do rodízio de leads", () => {
     dueAt: "2026-09-15T18:00:00Z",
   }
 
-  it("exporta os três tipos de aviso", () => {
-    expect(LEAD_SLA_NOTICE_KINDS).toEqual(["sla_warning", "sla_reassigned", "sla_lost"])
+  it("exporta os quatro tipos de aviso", () => {
+    expect(LEAD_SLA_NOTICE_KINDS).toEqual([
+      "sla_warning",
+      "sla_reassigned",
+      "sla_lost",
+      "sla_breached",
+    ])
+  })
+
+  it("prazo estourado sem outro corretor: aviso para a gestão, com quem ficou o lead", () => {
+    const { subject, text, html } = leadSlaNoticeEmail({
+      ...base,
+      kind: "sla_breached",
+      assigneeName: "Bruno Lima",
+    })
+
+    expect(subject).toBe("Lead sem atendimento no prazo: Maria Silva")
+    expect(text).toContain("Olá, Carla!")
+    expect(text).toContain(
+      "O lead Maria Silva passou do prazo de primeiro contato e não havia outro corretor disponível no rodízio. Ele continua com Bruno Lima."
+    )
+    expect(text).toContain("Responsável: Bruno Lima")
+    expect(text).toContain(`${ORIGIN}/leads/${LEAD_ID}`)
+    expect(text).toContain("faz a gestão da equipe de Imobiliária Teste")
+    // A gestão acompanha pelo CRM: o e-mail não traz nem o telefone mascarado.
+    expect(text).not.toContain("Telefone")
+    expect(html).not.toContain("987654321")
+  })
+
+  it("prazo estourado sem o nome do responsável usa o texto genérico", () => {
+    const { text } = leadSlaNoticeEmail({ ...base, kind: "sla_breached", assigneeName: "  " })
+
+    expect(text).toContain("Ele continua com o corretor responsável.")
+    expect(text).not.toContain("Responsável:")
   })
 
   it("prazo acabando: assunto com os minutos restantes e link do lead", () => {
@@ -464,6 +498,106 @@ describe("aviso de SLA do rodízio de leads", () => {
   it("tipo inválido lança erro", () => {
     expect(() =>
       leadSlaNoticeEmail({ ...base, kind: "sla_ok" as unknown as "sla_warning" })
+    ).toThrow(EmailTemplateError)
+  })
+})
+
+describe("aviso de autorização vencendo", () => {
+  const PROPERTY_ID = "7b1f2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"
+  const item = {
+    propertyId: PROPERTY_ID,
+    code: "IMV-000123",
+    title: "Cobertura no Itaim",
+    neighborhood: "Itaim Bibi",
+    city: "São Paulo",
+    endsOn: "2026-09-23",
+    daysLeft: 7,
+    exclusive: true,
+  }
+  const base = {
+    origin: ORIGIN,
+    brand: { name: "Imobiliária Teste", primaryColor: "#123456" },
+    recipientName: "Carla Souza",
+    items: [item],
+  }
+
+  it("um imóvel: assunto com o prazo, data sem mudar de dia e link para a aba Autorização", () => {
+    const { subject, text, html } = authorizationExpiringEmail(base)
+
+    expect(subject).toBe("Autorização do imóvel IMV-000123 vence em 7 dias")
+    expect(text).toContain("Olá, Carla!")
+    expect(text).toContain("23 de setembro de 2026")
+    expect(text).not.toContain("22 de setembro")
+    expect(text).toContain("Exclusividade: Sim")
+    expect(text).toContain(`${ORIGIN}/imoveis/${PROPERTY_ID}?aba=autorizacao`)
+    expect(html).toContain("aba=autorizacao")
+    expect(text).toContain("captador ou corretor responsável por este imóvel")
+  })
+
+  it("hoje e amanhã", () => {
+    expect(authorizationExpiringEmail({ ...base, items: [{ ...item, daysLeft: 0 }] }).subject).toBe(
+      "Autorização do imóvel IMV-000123 vence hoje"
+    )
+    expect(authorizationExpiringEmail({ ...base, items: [{ ...item, daysLeft: 1 }] }).subject).toBe(
+      "Autorização do imóvel IMV-000123 vence amanhã"
+    )
+  })
+
+  it("vários imóveis: um e-mail só, do mais urgente ao menos urgente, com link para a lista", () => {
+    const { subject, text } = authorizationExpiringEmail({
+      ...base,
+      isManager: true,
+      items: [
+        { ...item, code: "IMV-000200", daysLeft: 30, endsOn: "2026-10-16", exclusive: false },
+        { ...item, code: "IMV-000100", daysLeft: 1, endsOn: "2026-09-17" },
+      ],
+    })
+
+    expect(subject).toBe("2 autorizações de imóveis vencendo: a primeira vence amanhã")
+    expect(text.indexOf("IMV-000100")).toBeLessThan(text.indexOf("IMV-000200"))
+    expect(text).toContain("IMV-000100: Cobertura no Itaim · Itaim Bibi, São Paulo · vence amanhã")
+    expect(text).toContain(`${ORIGIN}/imoveis?autorizacao=vencendo`)
+    expect(text).toContain("faz a gestão da equipe")
+  })
+
+  it("lista no máximo o teto de imóveis e conta o resto", () => {
+    const items = Array.from({ length: AUTHORIZATION_EMAIL_MAX_ITEMS + 3 }, (_, index) => ({
+      ...item,
+      code: `IMV-${String(index + 1).padStart(6, "0")}`,
+    }))
+    const { text } = authorizationExpiringEmail({ ...base, items })
+
+    expect(text).toContain("IMV-000020")
+    expect(text).not.toContain("IMV-000021:")
+    expect(text).toContain("E mais 3 imóveis na lista do CRM.")
+  })
+
+  it("ignora prazo fora da janela, data inválida e id malicioso", () => {
+    const { subject, text } = authorizationExpiringEmail({
+      ...base,
+      items: [
+        { ...item, code: "IMV-VENCIDO", daysLeft: -1 },
+        { ...item, code: "IMV-LONGE", daysLeft: 45 },
+        { ...item, code: "IMV-DATA", endsOn: "2026-02-31" },
+        { ...item, propertyId: "../../admin" },
+      ],
+    })
+
+    expect(subject).toBe("Autorização do imóvel IMV-000123 vence em 7 dias")
+    expect(text).not.toMatch(/IMV-VENCIDO|IMV-LONGE|IMV-DATA|admin/)
+    expect(text).toContain(`${ORIGIN}/imoveis?autorizacao=vencendo`)
+  })
+
+  it("escapa o título e sem nenhum imóvel válido lança erro", () => {
+    const { html } = authorizationExpiringEmail({
+      ...base,
+      items: [{ ...item, title: '<img src=x onerror="alert(1)">' }],
+    })
+
+    expect(html).not.toContain("<img")
+    expect(() => authorizationExpiringEmail({ ...base, items: [] })).toThrow(EmailTemplateError)
+    expect(() =>
+      authorizationExpiringEmail({ ...base, items: [{ ...item, daysLeft: Number.NaN }] })
     ).toThrow(EmailTemplateError)
   })
 })

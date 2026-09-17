@@ -144,13 +144,19 @@ export function newLeadEmail(params: NewLeadEmailParams): RenderedEmail {
 
 // (b) Rodízio de leads: SLA de primeiro contato ------------------------------------
 
-export type LeadSlaNoticeKind = "sla_warning" | "sla_reassigned" | "sla_lost"
+/**
+ * sla_warning, sla_reassigned e sla_lost vão para o corretor; sla_breached vai
+ * para a gestão (dono e gerentes): o prazo estourou e o rodízio não tinha outro
+ * corretor elegível, então o lead continua com o responsável.
+ */
+export type LeadSlaNoticeKind = "sla_warning" | "sla_reassigned" | "sla_lost" | "sla_breached"
 
-export const LEAD_SLA_NOTICE_KINDS: readonly LeadSlaNoticeKind[] = [
+export const LEAD_SLA_NOTICE_KINDS = [
   "sla_warning",
   "sla_reassigned",
   "sla_lost",
-]
+  "sla_breached",
+] as const satisfies readonly LeadSlaNoticeKind[]
 
 export type LeadSlaNoticeEmailParams = {
   origin: string
@@ -173,6 +179,8 @@ export type LeadSlaNoticeEmailParams = {
   minutesLeft?: number | null
   /** Hora limite do primeiro contato. */
   dueAt?: Date | string | null
+  /** sla_breached: nome do corretor que continua com o lead (opcional). */
+  assigneeName?: string | null
 }
 
 /** Um dia: prazo de primeiro contato acima disso é erro de configuração. */
@@ -292,6 +300,35 @@ export function leadSlaNoticeEmail(params: LeadSlaNoticeEmailParams): RenderedEm
         closing: ["Os dados de contato deste lead ficam com quem é responsável por ele agora."],
         footer: `Você recebeu este e-mail porque era o corretor responsável por este lead na equipe de ${brand.name} no CRM.`,
       })
+    case "sla_breached": {
+      const assignee = cleanText(params.assigneeName, { maxLength: 60 })
+
+      return renderEmail(params.brand, {
+        ...common,
+        subject: `Lead sem atendimento no prazo: ${shortName}`,
+        preheader:
+          "O prazo de primeiro contato acabou e não havia outro corretor disponível no rodízio.",
+        heading: "Lead sem atendimento no prazo",
+        paragraphs: [
+          `O lead ${name} passou do prazo de primeiro contato e não havia outro corretor disponível no rodízio. Ele continua com ${assignee || "o corretor responsável"}.`,
+          sla
+            ? `O prazo de primeiro contato da equipe é de ${sla}${dueAt ? ` e terminou em ${dueAt}` : ""}.`
+            : "O prazo de primeiro contato da equipe já terminou.",
+        ],
+        highlight:
+          "Abra o lead para acompanhar e, se precisar, passe o atendimento para outra pessoa.",
+        details: [
+          { label: "Nome", value: name },
+          { label: "Origem", value: source },
+          { label: "Interesse", value: interest },
+          { label: "Responsável", value: assignee },
+          { label: "Recebido em", value: receivedAt },
+          { label: "Prazo de primeiro contato", value: sla },
+          { label: "Prazo terminou em", value: dueAt },
+        ],
+        footer: `Você recebeu este e-mail porque faz a gestão da equipe de ${brand.name} (dono ou gerente) no CRM.`,
+      })
+    }
     default:
       throw new EmailTemplateError("Tipo de aviso de SLA de lead inválido.")
   }
@@ -683,4 +720,195 @@ export function aiQuotaNoticeEmail(params: AiQuotaNoticeEmailParams): RenderedEm
     default:
       throw new EmailTemplateError("Tipo de aviso de IA inválido.")
   }
+}
+
+// (h) Autorização de venda/locação vencendo ----------------------------------------
+
+export type AuthorizationExpiringItem = {
+  /** properties.id; sem ele o link abre a lista filtrada. */
+  propertyId?: string | null
+  code: string
+  title: string
+  neighborhood?: string | null
+  city?: string | null
+  /** Último dia coberto pela autorização (AAAA-MM-DD). */
+  endsOn: string
+  /** Dias de hoje até endsOn (0 = vence hoje). Fora de 0 a 30, o imóvel não entra. */
+  daysLeft: number
+  exclusive?: boolean | null
+}
+
+export type AuthorizationExpiringEmailParams = {
+  origin: string
+  brand?: EmailBrand | null
+  recipientName?: string | null
+  /** Dono ou gerente: muda só o motivo no rodapé. */
+  isManager?: boolean
+  /** Um e-mail por pessoa, com todos os imóveis do dia (economiza a cota diária). */
+  items: readonly AuthorizationExpiringItem[]
+}
+
+/** Imóveis listados no e-mail; os demais ficam na lista filtrada do CRM. */
+export const AUTHORIZATION_EMAIL_MAX_ITEMS = 20
+
+const AUTHORIZATION_EXPIRING_LIST_PATH = "/imoveis?autorizacao=vencendo"
+
+const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/
+
+/** "30 de setembro de 2026" para uma data sem hora (sem conversão de fuso). */
+function formatDateOnly(value: string): string | null {
+  const match = DATE_ONLY_PATTERN.exec(value)
+
+  if (!match) {
+    return null
+  }
+
+  const [, year, month, day] = match
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)))
+
+  if (date.getUTCMonth() !== Number(month) - 1 || date.getUTCDate() !== Number(day)) {
+    return null
+  }
+
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "long", timeZone: "UTC" }).format(date)
+}
+
+function deadlineLabel(daysLeft: number) {
+  if (daysLeft === 0) return "vence hoje"
+  if (daysLeft === 1) return "vence amanhã"
+  return `vence em ${daysLeft} dias`
+}
+
+type AuthorizationEmailRow = {
+  propertyId: string | null
+  code: string
+  title: string
+  place: string
+  date: string
+  daysLeft: number
+  deadline: string
+  exclusive: boolean
+}
+
+function toAuthorizationRow(item: AuthorizationExpiringItem): AuthorizationEmailRow | null {
+  const date = typeof item.endsOn === "string" ? formatDateOnly(item.endsOn) : null
+  const daysLeft =
+    typeof item.daysLeft === "number" && Number.isFinite(item.daysLeft)
+      ? Math.floor(item.daysLeft)
+      : -1
+
+  if (!date || daysLeft < 0 || daysLeft > 30) {
+    return null
+  }
+
+  const code = cleanText(item.code, { maxLength: 30 })
+  const title = cleanText(item.title, { maxLength: 120 })
+
+  return {
+    propertyId: isUuid(item.propertyId) ? item.propertyId.toLowerCase() : null,
+    code: code || "Imóvel",
+    title,
+    place: [
+      cleanText(item.neighborhood, { maxLength: 60 }),
+      cleanText(item.city, { maxLength: 60 }),
+    ]
+      .filter(Boolean)
+      .join(", "),
+    date,
+    daysLeft,
+    deadline: deadlineLabel(daysLeft),
+    exclusive: item.exclusive === true,
+  }
+}
+
+export function authorizationExpiringEmail(
+  params: AuthorizationExpiringEmailParams
+): RenderedEmail {
+  const origin = requireOrigin(params.origin)
+  const brand = resolveBrand(params.brand)
+  const rows = (Array.isArray(params.items) ? params.items : [])
+    .map(toAuthorizationRow)
+    .filter((row): row is AuthorizationEmailRow => row !== null)
+    .sort((a, b) => a.daysLeft - b.daysLeft || a.code.localeCompare(b.code, "pt-BR"))
+
+  const first = rows[0]
+
+  if (!first) {
+    throw new EmailTemplateError("Nenhum imóvel válido para o aviso de autorização.")
+  }
+
+  const listed = rows.slice(0, AUTHORIZATION_EMAIL_MAX_ITEMS)
+  const hidden = rows.length - listed.length
+  const single = rows.length === 1
+  const why =
+    "Sem autorização vigente, o imóvel fica anunciado sem contrato escrito com o proprietário e a sua comissão fica desprotegida."
+  const footer = params.isManager
+    ? `Você recebeu este e-mail porque faz a gestão da equipe de ${brand.name} (dono ou gerente) no CRM.`
+    : `Você recebeu este e-mail porque é captador ou corretor responsável por ${single ? "este imóvel" : "estes imóveis"} em ${brand.name} no CRM.`
+  const common = {
+    greeting: greetingFor(params.recipientName),
+    highlight:
+      "Fale com o proprietário para renovar e registre a nova data na aba Autorização do imóvel.",
+    footer,
+  }
+
+  if (single) {
+    const url = requireLink(
+      first.propertyId
+        ? `/imoveis/${first.propertyId}?aba=autorizacao`
+        : AUTHORIZATION_EXPIRING_LIST_PATH,
+      origin
+    )
+    const label = first.title ? `${first.code} (${first.title})` : first.code
+
+    return renderEmail(params.brand, {
+      ...common,
+      subject: `Autorização do imóvel ${first.code} ${first.deadline}`,
+      preheader: `Renove com o proprietário antes de ${first.date} para continuar anunciando.`,
+      heading: "Autorização vencendo",
+      paragraphs: [
+        `A autorização de venda ou locação do imóvel ${label} ${first.deadline}, em ${first.date}.`,
+        why,
+      ],
+      details: [
+        { label: "Imóvel", value: first.code },
+        { label: "Título", value: first.title },
+        { label: "Localização", value: first.place },
+        { label: "Vence em", value: first.date },
+        { label: "Prazo", value: first.deadline },
+        { label: "Exclusividade", value: first.exclusive ? "Sim" : "Não" },
+      ],
+      action: { label: "Abrir a autorização no CRM", url },
+    })
+  }
+
+  return renderEmail(params.brand, {
+    ...common,
+    subject: `${rows.length} autorizações de imóveis vencendo: a primeira ${first.deadline}`,
+    preheader: "Renove com os proprietários antes do fim do prazo para continuar anunciando.",
+    heading: "Autorizações vencendo",
+    paragraphs: [
+      `${rows.length} imóveis estão com a autorização de venda ou locação perto do fim.`,
+      why,
+    ],
+    details: listed.map((row) => ({
+      label: row.code,
+      value: [
+        row.title,
+        row.place,
+        `${row.deadline} (${row.date})`,
+        row.exclusive ? "com exclusividade" : null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+    })),
+    action: {
+      label: "Ver imóveis com autorização vencendo",
+      url: requireLink(AUTHORIZATION_EXPIRING_LIST_PATH, origin),
+    },
+    closing:
+      hidden > 0
+        ? [`E mais ${hidden} ${hidden === 1 ? "imóvel" : "imóveis"} na lista do CRM.`]
+        : [],
+  })
 }

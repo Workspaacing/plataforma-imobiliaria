@@ -1,7 +1,8 @@
 // Limites numéricos por plano e leitura de uso para medidores e avisos.
 // Convenção (igual ao jsonb `limits` em billing_accounts): -1 = ilimitado,
-// 0 = não incluso. O banco só aplica `users` e `landing_pages`; os demais
-// são exibidos e passam a valer quando os módulos existirem.
+// 0 = não incluso. O banco aplica `users`, `landing_pages`, `owned_listings` e
+// `photos_per_listing` (ver `enforced`); os demais são exibidos e passam a
+// valer quando os módulos existirem.
 
 import type { FeatureStatus } from "./features"
 import { PLANS, clampExtraSeats, type PlanKey } from "./plans"
@@ -38,11 +39,13 @@ export const LIMITS: Record<LimitKey, LimitDefinition> = {
   users: { label: "Usuários", status: "available", enforced: true },
   landing_pages: { label: "Landing pages publicadas", status: "available", enforced: true },
   owned_listings: {
-    label: "Imóveis próprios (com fotos hospedadas por nós)",
+    // Só imóvel à venda ou para alugar com foto no nosso bucket conta; vendido,
+    // alugado, inativo, sem foto ou importado por XML/API fica de fora.
+    label: "Imóveis à venda ou para alugar com fotos hospedadas por nós",
     status: "available",
     enforced: true,
   },
-  photos_per_listing: { label: "Fotos por imóvel próprio", status: "available", enforced: true },
+  photos_per_listing: { label: "Fotos por imóvel", status: "available", enforced: true },
   pipelines: { label: "Funis de leads", status: "soon", enforced: false },
   ai_conversations: {
     label: "Conversas de IA no WhatsApp por mês",

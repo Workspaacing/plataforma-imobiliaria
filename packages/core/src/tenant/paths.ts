@@ -3,13 +3,16 @@
 // Modo subdomain:
 //   {slug}.raiz/lp/{pagina}              → /lp/{slug}/{pagina}
 //   {slug}.raiz/captar                   → /captar/{slug}
+//   {slug}.raiz/imovel/{codigo}          → /imovel/{slug}/{codigo}
 //   {slug}.raiz/api/feeds/vrsync.xml     → /api/feeds/{slug}/vrsync.xml
-//   raiz/lp/{org}/{pagina}, raiz/captar/{slug}  → 308 para o subdomínio
+//   raiz/lp/{org}/{pagina}, raiz/captar/{slug},
+//   raiz/imovel/{org}/{codigo}           → 308 para o subdomínio
 //   raiz/api/feeds/{slug}/vrsync.xml     → continua respondendo (robôs dos portais)
 // Modo single-host: nenhuma reescrita; as rotas longas atendem direto.
 
 import { classifyHost, type TenantHost } from "./host"
 import type { TenancyConfig } from "./mode"
+import { PUBLIC_PROPERTY_PATH_PREFIX } from "./public-property"
 
 /** Como o proxy trata o host da requisição. */
 export type RequestTenancy = TenantHost | { kind: "single-host" }
@@ -24,7 +27,12 @@ export function resolveRequestTenancy(
 }
 
 /** Prefixos públicos que carregam o slug no caminho interno. */
-const TENANT_PUBLIC_PREFIXES = ["/lp", "/captar", "/api/feeds"] as const
+const TENANT_PUBLIC_PREFIXES = [
+  "/lp",
+  "/captar",
+  PUBLIC_PROPERTY_PATH_PREFIX,
+  "/api/feeds",
+] as const
 
 function matchesPrefix(pathname: string, prefix: string) {
   return pathname === prefix || pathname.startsWith(`${prefix}/`)
@@ -62,8 +70,9 @@ function decodeSegment(segment: string) {
 
 /**
  * URL longa de página pública no domínio raiz que, no modo subdomain, vai para
- * o subdomínio: /lp/{org}/{pagina}[/...] e /captar/{slug}[/...]. O feed fica
- * de fora de propósito (compatibilidade com os portais).
+ * o subdomínio: /lp/{org}/{pagina}[/...], /imovel/{org}/{codigo}[/...] e
+ * /captar/{slug}[/...]. O feed fica de fora de propósito (compatibilidade com
+ * os portais).
  */
 export function getLegacyPublicRedirect(pathname: string): LegacyPublicRedirect | null {
   const segments = pathname.split("/")
@@ -72,6 +81,12 @@ export function getLegacyPublicRedirect(pathname: string): LegacyPublicRedirect 
   if (segments[1] === "lp" && segments.length >= 4 && segments[2] && segments[3]) {
     const slug = decodeSegment(segments[2])
     return slug ? { slug, path: `/lp/${segments.slice(3).join("/")}` } : null
+  }
+
+  // ["", "imovel", org, codigo, ...]
+  if (segments[1] === "imovel" && segments.length >= 4 && segments[2] && segments[3]) {
+    const slug = decodeSegment(segments[2])
+    return slug ? { slug, path: `/imovel/${segments.slice(3).join("/")}` } : null
   }
 
   // ["", "captar", slug, ...]

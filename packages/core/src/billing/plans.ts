@@ -7,6 +7,7 @@
 // - Preços são proposta [E]: confirmar com o usuário antes do modo live da Stripe.
 // - Não citar concorrentes nos textos (risco de publicidade comparativa).
 
+import { PROPERTY_STATUS_LABELS, type PropertyStatus } from "../properties/enums"
 import { FEATURE_KEYS, FEATURES, type FeatureKey, type FeatureStatus } from "./features"
 import { formatBRL } from "./format"
 import type { LimitKey } from "./limits"
@@ -59,9 +60,48 @@ type PlanSeed = Omit<PlanDefinition, "limits" | "features" | "benefits"> & {
 const available = (text: string): PlanBenefit => ({ text, status: "available" })
 const soon = (text: string): PlanBenefit => ({ text, status: "soon" })
 const perMonth = (cents: number) => `${formatBRL(cents, { omitZeroCents: true })}/mês`
+
+// ---------------------------------------------------------------------------
+// Imóveis próprios: a régua que substitui "imóveis ilimitados"
+//
 // A régua de fotos é "imóveis próprios", não GB: GB não significa nada para um
-// corretor, e imóvel com N fotos é exatamente o que custa para nós. Imóvel
-// importado por XML/API guarda a foto na origem e não entra nesta conta.
+// corretor, e imóvel com N fotos é exatamente o que custa para nós. Conta no
+// limite (gatilho a0_billing_owned_listings, contagem private.owned_listing_count):
+//   · imóvel com pelo menos uma foto no nosso bucket, e
+//   · que ainda está na carteira (decisão do dono em 16/09/2026: vendido,
+//     alugado ou inativo libera a vaga).
+// Imóvel sem foto, e imóvel importado por XML/API (a foto fica na origem), não
+// entram na conta. Nenhum texto pode chamar imóvel com foto de "ilimitado".
+
+/** Status que tiram o imóvel da carteira e liberam a vaga de imóvel próprio. */
+export const OWNED_LISTING_RELEASED_STATUSES: readonly PropertyStatus[] = [
+  "sold",
+  "rented",
+  "inactive",
+]
+
+function joinList(items: readonly string[], conjunction: "e" | "ou"): string {
+  return items.length <= 1
+    ? (items[0] ?? "")
+    : `${items.slice(0, -1).join(", ")} ${conjunction} ${items[items.length - 1]}`
+}
+
+const releasedStatusLabels = OWNED_LISTING_RELEASED_STATUSES.map((status) =>
+  PROPERTY_STATUS_LABELS[status].toLowerCase()
+)
+
+/** "vendido, alugado ou inativo", com os rótulos de status da tela de imóveis. */
+export const OWNED_LISTING_RELEASED_STATUS_TEXT = joinList(releasedStatusLabels, "ou")
+
+/** "vendidos, alugados e inativos" (os rótulos são adjetivos com plural em -s). */
+export const OWNED_LISTING_RELEASED_STATUS_PLURAL_TEXT = joinList(
+  releasedStatusLabels.map((label) => `${label}s`),
+  "e"
+)
+
+/** Nome curto do que o limite `owned_listings` conta, para medidores e avisos. */
+export const OWNED_LISTINGS_SHORT_LABEL = "Imóveis com foto"
+
 // Uma landing page no ar por assinatura, igual em todos os planos: os 9 modelos
 // ficam disponíveis para qualquer plano e o cliente troca de modelo quando quiser,
 // mas só uma fica publicada. Não vendemos página extra.
@@ -69,7 +109,7 @@ const landingPageBenefit = (plan: Pick<PlanDefinition, "limits">) =>
   available(`${plan.limits.landing_pages} landing page no ar, com todos os modelos disponíveis`)
 const ownedListingsBenefit = (plan: Pick<PlanDefinition, "limits">) =>
   available(
-    `${plan.limits.owned_listings} imóveis próprios com até ${plan.limits.photos_per_listing} fotos cada`
+    `${plan.limits.owned_listings} imóveis à venda ou para alugar com fotos hospedadas por nós, até ${plan.limits.photos_per_listing} fotos cada`
   )
 
 function definePlan(
@@ -94,12 +134,18 @@ function definePlan(
  * mostravam 8 itens enquanto o catálogo tinha 17 recursos prontos, o que fazia
  * o produto parecer mais magro do que é. Cada plano acrescenta os itens dele
  * depois destes.
+ *
+ * O limite de imóveis com foto vem PRIMEIRO: é a única régua de cadastro que o
+ * banco aplica, e o cartão compacto da assinatura mostra só os 3 primeiros.
  */
 function coreBenefits(plan: Omit<PlanDefinition, "benefits">): PlanBenefit[] {
   return [
-    available("Imóveis, condomínios e clientes ilimitados"),
+    ownedListingsBenefit(plan),
+    available(
+      "Sem limite para clientes, condomínios e imóveis sem foto ou importados por XML ou API"
+    ),
     available("Funil de leads em kanban, com propostas em PDF e link para o cliente"),
-    available("Match imóvel × cliente: quem se interessa por cada imóvel"),
+    available("Imóveis compatíveis com cada cliente: quem se interessa por cada imóvel"),
     available("Agenda, tarefas e controle de chaves"),
     available("Captação com formulário público e Nota do Anúncio"),
     available("Feed XML para ZAP, Viva Real e OLX"),
@@ -138,7 +184,6 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
     (plan) => [
       ...coreBenefits(plan),
       available(`1 usuário, com até 1 extra por ${perMonth(plan.seatPrice.month)}`),
-      ownedListingsBenefit(plan),
       soon(`${plan.limits.esign_docs} documentos com assinatura eletrônica por mês`),
       available(`Suporte humano com ${plan.support.toLowerCase()}`),
     ]
@@ -174,8 +219,8 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
         `${plan.usersIncluded} usuários incluídos, extra por ${perMonth(plan.seatPrice.month)}`
       ),
       available("Equipe com papéis, convites e histórico de alterações"),
-      ownedListingsBenefit(plan),
-      soon(`${plan.limits.pipelines} funis de leads e roleta com SLA`),
+      available("Rodízio de leads com prazo de resposta e redistribuição automática"),
+      soon(`${plan.limits.pipelines} funis de leads`),
       soon(`${plan.limits.ai_conversations} conversas de IA no WhatsApp por mês`),
       soon(`${plan.limits.rental_contracts} contratos de locação com boleto e Pix`),
       available(`Suporte humano com ${plan.support.toLowerCase()}`),
@@ -211,8 +256,8 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
         `${plan.usersIncluded} usuários incluídos, extra por ${perMonth(plan.seatPrice.month)}`
       ),
       available("Equipe com papéis, convites e histórico de alterações"),
-      ownedListingsBenefit(plan),
-      soon(`${plan.limits.pipelines} funis de leads, BI e metas por corretor`),
+      available("Relatórios por corretor, funil, origem dos leads e motivos de perda"),
+      soon(`${plan.limits.pipelines} funis de leads e metas por corretor`),
       soon(
         `${plan.limits.ai_conversations} conversas de IA e ${plan.limits.whatsapp_numbers} números de WhatsApp`
       ),
@@ -251,7 +296,6 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
         `${plan.usersIncluded} usuários incluídos, extra por ${perMonth(plan.seatPrice.month)}`
       ),
       available("Equipe com papéis, convites e histórico de alterações"),
-      ownedListingsBenefit(plan),
       soon(`Funis ilimitados e até ${plan.limits.branches} lojas ou imobiliárias`),
       soon(
         `${plan.limits.ai_conversations} conversas de IA e ${plan.limits.whatsapp_numbers} números de WhatsApp`
@@ -273,7 +317,8 @@ export const TRIAL_LIMITS: Record<LimitKey, number> = {
 /**
  * O limite de fotos é por imóvel próprio, não por GB. Imóvel importado de outro
  * sistema (XML ou API) aponta para a foto na origem e não consome nada nosso —
- * por isso pode ser ilimitado, e é o que torna a migração barata dos dois lados.
+ * por isso fica fora do limite, e é o que torna a migração barata dos dois lados.
+ * Imóvel com foto hospedada por nós NUNCA é "ilimitado": tem o limite do plano.
  */
 /**
  * Tamanho máximo de cada foto GUARDADA, igual em TODOS os planos — por isso é
@@ -288,8 +333,7 @@ export const LISTING_PHOTO_SIZE_NOTE = `Cada foto fica com no máximo ${LISTING_
 
 export const IMPORTED_LISTINGS_NOTE =
   "Imóveis importados por XML ou API não contam no limite: as fotos ficam na origem"
-export const OWNED_LISTINGS_NOTE =
-  "Imóvel sem foto não consome o limite, e toda foto enviada é otimizada automaticamente"
+export const OWNED_LISTINGS_NOTE = `O limite de imóveis do plano vale só para imóveis à venda ou para alugar com fotos hospedadas por nós: imóvel sem foto ou marcado como ${OWNED_LISTING_RELEASED_STATUS_TEXT} não conta`
 export const AI_OVERAGE_NOTE = "O excedente de conversas de IA tem sempre um teto definido por você"
 /** Primeiro plano com franquia de IA (o Corretor não tem: ai_conversations = 0). */
 export const AI_FIRST_PLAN: PlanKey = "imobiliaria"
@@ -346,7 +390,7 @@ export type AddonDefinition = {
   plans: PlanKey[]
 }
 
-/** Add-ons exibidos em /planos como "em breve", sem compra na v1. */
+/** Adicionais exibidos em /planos como "em breve", sem compra na v1. */
 export const ADDONS: ReadonlyArray<AddonDefinition> = [
   {
     key: "ai_conversations",
@@ -361,7 +405,7 @@ export const ADDONS: ReadonlyArray<AddonDefinition> = [
     key: "rental",
     name: "Locação por contrato ativo",
     description:
-      "Contratos de locação além da franquia do plano. No Corretor, a locação vem só por este add-on.",
+      "Contratos de locação além da franquia do plano. No Corretor, a locação vem só por este adicional.",
     priceLabel: `${formatBRL(190)} por contrato ativo/mês (mínimo de ${perMonth(1900)} no Corretor)`,
     status: "soon",
     plans: ["corretor", "imobiliaria", "equipe", "rede"],
@@ -377,7 +421,7 @@ export const ADDONS: ReadonlyArray<AddonDefinition> = [
   {
     key: "owned_listings",
     name: "Imóveis próprios extras",
-    description: `Mais imóveis com fotos hospedadas por nós, com o mesmo limite de fotos do plano. ${IMPORTED_LISTINGS_NOTE}.`,
+    description: `Mais imóveis à venda ou para alugar com fotos hospedadas por nós, com o mesmo limite de fotos do plano. ${IMPORTED_LISTINGS_NOTE}.`,
     priceLabel: `+10 imóveis por ${perMonth(1900)}`,
     status: "soon",
     plans: ["corretor", "imobiliaria", "equipe", "rede"],
@@ -410,7 +454,7 @@ export const PLAN_CONDITIONS: readonly string[] = [
   "Garantia de 30 dias no primeiro pagamento",
   "Upgrade na hora, com cobrança proporcional; downgrade no próximo ciclo, sem apagar nada",
   "Reajuste só pelo IPCA, no máximo 1 vez por ano, com 45 dias de aviso",
-  "Exportação completa dos dados por 90 dias após o cancelamento",
+  "Exportação de leads, imóveis, clientes e propostas em planilha por 90 dias após o cancelamento",
   IMPORTED_LISTINGS_NOTE,
   OWNED_LISTINGS_NOTE,
   LISTING_PHOTO_SIZE_NOTE,

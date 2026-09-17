@@ -13,6 +13,8 @@ import {
   PLAN_KEYS,
   PLANS,
   IMPORTED_LISTINGS_NOTE,
+  OWNED_LISTING_RELEASED_STATUS_PLURAL_TEXT,
+  OWNED_LISTING_RELEASED_STATUS_TEXT,
   OWNED_LISTINGS_NOTE,
   TRIAL_AI_CONVERSATIONS,
   TRIAL_DAYS,
@@ -151,7 +153,7 @@ describe("PLANS", () => {
     })
     expect(PLANS.rede.benefits.map((benefit) => benefit.text)).toEqual(
       expect.arrayContaining([
-        "150 imóveis próprios com até 10 fotos cada",
+        "150 imóveis à venda ou para alugar com fotos hospedadas por nós, até 10 fotos cada",
         "1 landing page no ar, com todos os modelos disponíveis",
         "500 conversas de IA e 10 números de WhatsApp",
       ])
@@ -164,6 +166,35 @@ describe("PLANS", () => {
       expect(definition.benefits.length).toBeGreaterThan(4)
       expect(definition.support.trim()).not.toBe("")
     }
+  })
+})
+
+describe("imóveis com foto nos textos de venda", () => {
+  it("nunca chama imóvel de ilimitado e mostra o limite do plano primeiro", () => {
+    for (const plan of PLAN_KEYS) {
+      const definition = PLANS[plan]
+      const texts = definition.benefits.map((benefit) => benefit.text)
+
+      expect(texts[0], plan).toBe(
+        `${definition.limits.owned_listings} imóveis à venda ou para alugar com fotos hospedadas por nós, até ${definition.limits.photos_per_listing} fotos cada`
+      )
+      for (const text of texts) {
+        expect(text, plan).not.toMatch(/imóve[li]s?[^.]*ilimitad|ilimitad[^.]*imóve/i)
+        expect(text, plan).not.toMatch(/nunca por imóvel/i)
+      }
+    }
+
+    for (const text of [...PLAN_CONDITIONS, ...ADDONS.map((addon) => addon.description)]) {
+      expect(text).not.toMatch(/imóveis ilimitados|sem limite de quantidade|nunca por imóvel/i)
+    }
+  })
+
+  it("diz que vendido, alugado e inativo não contam, com os rótulos da tela de imóveis", () => {
+    expect(OWNED_LISTING_RELEASED_STATUS_TEXT).toBe("vendido, alugado ou inativo")
+    expect(OWNED_LISTING_RELEASED_STATUS_PLURAL_TEXT).toBe("vendidos, alugados e inativos")
+    expect(OWNED_LISTINGS_NOTE).toBe(
+      "O limite de imóveis do plano vale só para imóveis à venda ou para alugar com fotos hospedadas por nós: imóvel sem foto ou marcado como vendido, alugado ou inativo não conta"
+    )
   })
 })
 

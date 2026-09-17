@@ -5,6 +5,7 @@ import {
   clampSlaMinutes,
   clampWarningPercent,
   compareRoutingCandidates,
+  decideOverdueLead,
   isCandidateAvailable,
   isCandidateAway,
   isWithinShift,
@@ -17,6 +18,7 @@ import {
   minutesUntilNextShift,
   normalizeShift,
   pickNextAssignee,
+  resolveFirstContactAtMs,
   routeLead,
   slaDeadlineMs,
   slaMinutesLeft,
@@ -378,5 +380,102 @@ describe("slaMinutesLeft", () => {
     expect(slaMinutesLeft(now + 90_000, now)).toBe(2)
     expect(slaMinutesLeft(now - 90_000, now)).toBe(0)
     expect(slaMinutesLeft(null, now)).toBe(0)
+  })
+})
+
+// -----------------------------------------------------------------------------
+// Primeiro contato e prazo estourado
+// -----------------------------------------------------------------------------
+
+describe("resolveFirstContactAtMs", () => {
+  const now = Date.parse("2026-09-16T13:00:00.000Z")
+
+  it("grava o primeiro contato na primeira vez", () => {
+    expect(
+      resolveFirstContactAtMs({
+        previousFirstContactMs: null,
+        lastContactMs: now - 3 * MINUTE,
+        nowMs: now,
+      })
+    ).toBe(now - 3 * MINUTE)
+  })
+
+  it("não muda no segundo contato", () => {
+    expect(
+      resolveFirstContactAtMs({
+        previousFirstContactMs: now - 2 * 24 * 60 * MINUTE,
+        lastContactMs: now,
+        nowMs: now,
+      })
+    ).toBe(now - 2 * 24 * 60 * MINUTE)
+  })
+
+  it("sem contato fica vazio e contato no futuro vira o instante da gravação", () => {
+    expect(
+      resolveFirstContactAtMs({ previousFirstContactMs: null, lastContactMs: null, nowMs: now })
+    ).toBeNull()
+    expect(
+      resolveFirstContactAtMs({
+        previousFirstContactMs: null,
+        lastContactMs: now + 60 * MINUTE,
+        nowMs: now,
+      })
+    ).toBe(now)
+  })
+})
+
+describe("decideOverdueLead", () => {
+  it("com um único corretor elegível, o lead continua com ele", () => {
+    expect(
+      decideOverdueLead({
+        candidates: [candidate("ana")],
+        ctx: context(),
+        assignedTo: "ana",
+        reassignments: 0,
+        maxReassignments: 3,
+      })
+    ).toEqual({ kind: "keep" })
+  })
+
+  it("os outros fora do plantão ou no limite do dia também mantêm o responsável", () => {
+    const fila = [
+      candidate("ana"),
+      candidate("bia", { shifts: [shift(3, 14, 18)] }),
+      candidate("caio", { dailyLimit: 2, assignedToday: 2 }),
+    ]
+
+    expect(
+      decideOverdueLead({
+        candidates: fila,
+        ctx: context(),
+        assignedTo: "ana",
+        reassignments: 0,
+        maxReassignments: 3,
+      })
+    ).toEqual({ kind: "keep" })
+  })
+
+  it("com outro corretor disponível, redistribui para ele", () => {
+    expect(
+      decideOverdueLead({
+        candidates: [candidate("ana"), candidate("bia")],
+        ctx: context(),
+        assignedTo: "ana",
+        reassignments: 0,
+        maxReassignments: 3,
+      })
+    ).toEqual({ kind: "reassign", userId: "bia" })
+  })
+
+  it("redistribuições esgotadas mantêm o responsável", () => {
+    expect(
+      decideOverdueLead({
+        candidates: [candidate("ana"), candidate("bia")],
+        ctx: context(),
+        assignedTo: "ana",
+        reassignments: 3,
+        maxReassignments: 3,
+      })
+    ).toEqual({ kind: "keep" })
   })
 })

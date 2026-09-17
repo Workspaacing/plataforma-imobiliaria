@@ -1,143 +1,174 @@
 import { describe, expect, it } from "vitest"
 
-import { PLANS, maxExtraSeats } from "./plans"
+import { PLAN_KEYS, PLANS, maxExtraSeats, planTotal, type PlanKey } from "./plans"
 import { recommendPlan } from "./recommend"
 
-const base = { doesRentals: false, leadsPerMonth: 50 }
+/** Custo mensal do plano para a equipe inteira, ou null se o plano não comporta. */
+function monthlyCostFor(plan: PlanKey, teamSize: number, ownedListings: number) {
+  const definition = PLANS[plan]
+  const fitsUsers = definition.usersMax < 0 || teamSize <= definition.usersMax
+  const limit = definition.limits.owned_listings
+  const fitsListings = limit < 0 || ownedListings <= limit
 
-describe("recommendPlan: tamanho da equipe", () => {
-  it("1 pessoa → Corretor, com totais e economia anual", () => {
-    expect(recommendPlan({ ...base, teamSize: 1 })).toMatchObject({
+  if (!fitsUsers || !fitsListings) {
+    return null
+  }
+
+  return planTotal(plan, "month", Math.max(0, teamSize - definition.usersIncluded))
+}
+
+describe("recommendPlan: menor custo que atende usuários e imóveis com foto", () => {
+  it("1 pessoa sem imóvel com foto → Corretor, com totais e economia anual", () => {
+    expect(recommendPlan({ teamSize: 1, ownedListings: 0 })).toMatchObject({
       plan: "corretor",
       extraSeats: 0,
       monthlyTotal: 8900,
       yearlyTotal: 89000,
       yearlySavings: 17800,
+      fitsOwnedListings: true,
     })
   })
 
-  it("2 a 5 pessoas → Imobiliária, com extras acima de 3 usuários", () => {
-    expect(recommendPlan({ ...base, teamSize: 2 })).toMatchObject({
+  it("2 pessoas com 5 imóveis com foto ainda cabem no Corretor, com 1 extra", () => {
+    expect(recommendPlan({ teamSize: 2, ownedListings: 5 })).toMatchObject({
+      plan: "corretor",
+      extraSeats: 1,
+      monthlyTotal: 8900 + 4900,
+    })
+  })
+
+  it("3 pessoas passam do teto do Corretor (2) e vão para o Imobiliária", () => {
+    expect(recommendPlan({ teamSize: 3, ownedListings: 0 })).toMatchObject({
       plan: "imobiliaria",
       extraSeats: 0,
       monthlyTotal: 24900,
     })
-    expect(recommendPlan({ ...base, teamSize: 3 }).extraSeats).toBe(0)
-    expect(recommendPlan({ ...base, teamSize: 5 })).toMatchObject({
+  })
+
+  it("18 usuários não vão para o Rede quando um plano menor com extras atende e sai mais barato", () => {
+    // Poucos imóveis com foto: o Imobiliária com 15 extras é o mais barato.
+    expect(recommendPlan({ teamSize: 18, ownedListings: 10 })).toMatchObject({
       plan: "imobiliaria",
-      extraSeats: 2,
-      monthlyTotal: 36700,
-      yearlyTotal: 367000,
-      yearlySavings: 73400,
-    })
-  })
-
-  it("6 a 15 pessoas → Equipe, com extras acima de 5 usuários", () => {
-    expect(recommendPlan({ ...base, teamSize: 6 })).toMatchObject({
-      plan: "equipe",
-      extraSeats: 1,
-      monthlyTotal: 66800,
-      yearlyTotal: 668000,
-      yearlySavings: 133600,
-    })
-    expect(recommendPlan({ ...base, teamSize: 15 })).toMatchObject({
-      plan: "equipe",
-      extraSeats: 10,
-      monthlyTotal: 128900,
-      yearlyTotal: 1289000,
-      yearlySavings: 257800,
-    })
-  })
-
-  it("16+ pessoas → Rede, com extras acima de 10 usuários", () => {
-    expect(recommendPlan({ ...base, teamSize: 16 })).toMatchObject({
-      plan: "rede",
-      extraSeats: 6,
-      monthlyTotal: 196400,
-    })
-    expect(recommendPlan({ ...base, teamSize: 25 })).toMatchObject({
-      plan: "rede",
       extraSeats: 15,
-      monthlyTotal: 267500,
-      yearlyTotal: 2675000,
-      yearlySavings: 535000,
+      monthlyTotal: 24900 + 15 * 5900,
+      yearlyTotal: 249000 + 15 * 59000,
     })
-  })
 
-  it("normaliza tamanho inválido ou fracionado", () => {
-    expect(recommendPlan({ ...base, teamSize: 0 }).plan).toBe("corretor")
-    expect(recommendPlan({ ...base, teamSize: -4 }).plan).toBe("corretor")
-    expect(recommendPlan({ ...base, teamSize: Number.NaN }).plan).toBe("corretor")
-    expect(recommendPlan({ ...base, teamSize: 5.2 })).toMatchObject({
+    // 40 imóveis com foto passam do Imobiliária (20): Equipe com 13 extras.
+    const equipe = recommendPlan({ teamSize: 18, ownedListings: 40 })
+    expect(equipe).toMatchObject({
       plan: "equipe",
-      extraSeats: 1,
+      extraSeats: 13,
+      monthlyTotal: 59900 + 13 * 6900,
+      yearlyTotal: 599000 + 13 * 69000,
+      fitsOwnedListings: true,
+    })
+    expect(equipe.monthlyTotal).toBeLessThan(planTotal("rede", "month", 8))
+
+    // Só acima de 50 imóveis com foto o Rede passa a ser o único que atende.
+    expect(recommendPlan({ teamSize: 18, ownedListings: 100 })).toMatchObject({
+      plan: "rede",
+      extraSeats: 8,
+      monthlyTotal: 149000 + 8 * 7900,
     })
   })
-})
 
-describe("recommendPlan: locação e volume de leads", () => {
-  it("quem faz locação nunca fica no Corretor", () => {
-    expect(recommendPlan({ teamSize: 1, doesRentals: true, leadsPerMonth: 10 })).toMatchObject({
+  it("7 usuários com 120 imóveis com foto → Rede, sem usuário extra", () => {
+    expect(recommendPlan({ teamSize: 7, ownedListings: 120 })).toMatchObject({
+      plan: "rede",
+      extraSeats: 0,
+      monthlyTotal: 149000,
+      yearlyTotal: 1490000,
+      yearlySavings: 298000,
+      fitsOwnedListings: true,
+    })
+    expect(recommendPlan({ teamSize: 7, ownedListings: 120 }).reasons).toContain(
+      "O plano Imobiliária sairia mais barato, mas comporta só 20 imóveis com foto."
+    )
+  })
+
+  it("respeita o limite de imóveis com foto de cada plano, na borda", () => {
+    const [corretor, imobiliaria, equipe, rede] = PLAN_KEYS.map(
+      (plan) => PLANS[plan].limits.owned_listings
+    )
+    expect([corretor, imobiliaria, equipe, rede]).toEqual([5, 20, 50, 150])
+
+    const planFor = (ownedListings: number) => recommendPlan({ teamSize: 1, ownedListings }).plan
+
+    expect(planFor(5)).toBe("corretor")
+    expect(planFor(6)).toBe("imobiliaria")
+    expect(planFor(20)).toBe("imobiliaria")
+    expect(planFor(21)).toBe("equipe")
+    expect(planFor(50)).toBe("equipe")
+    expect(planFor(51)).toBe("rede")
+    expect(planFor(150)).toBe("rede")
+    expect(recommendPlan({ teamSize: 1, ownedListings: 150 }).fitsOwnedListings).toBe(true)
+  })
+
+  it("acima do maior limite fica no plano que mais comporta e avisa", () => {
+    const result = recommendPlan({ teamSize: 4, ownedListings: 151 })
+
+    expect(result).toMatchObject({ plan: "rede", extraSeats: 0, fitsOwnedListings: false })
+    expect(result.reasons[0]).toBe(
+      "Nenhum plano comporta mais de 150 imóveis com foto hoje. O plano Rede é o que mais comporta, e o pacote de imóveis extras ainda está em breve."
+    )
+  })
+
+  it("normaliza valores inválidos ou fracionados", () => {
+    expect(recommendPlan({ teamSize: 0, ownedListings: 0 }).plan).toBe("corretor")
+    expect(recommendPlan({ teamSize: -4, ownedListings: 0 }).plan).toBe("corretor")
+    expect(recommendPlan({ teamSize: Number.NaN, ownedListings: Number.NaN }).plan).toBe("corretor")
+    expect(recommendPlan({ teamSize: 1, ownedListings: -3 }).plan).toBe("corretor")
+    expect(recommendPlan({ teamSize: 1, ownedListings: 5.2 }).plan).toBe("imobiliaria")
+    expect(recommendPlan({ teamSize: 5.2, ownedListings: 0 })).toMatchObject({
       plan: "imobiliaria",
-      extraSeats: 0,
-      monthlyTotal: 24900,
+      extraSeats: 3,
     })
-    expect(recommendPlan({ teamSize: 10, doesRentals: true, leadsPerMonth: 10 }).plan).toBe(
-      "equipe"
-    )
-  })
-
-  it("mais de 300 leads por mês sobe pelo menos para Equipe", () => {
-    expect(recommendPlan({ ...base, teamSize: 3, leadsPerMonth: 300 }).plan).toBe("imobiliaria")
-    expect(recommendPlan({ ...base, teamSize: 3, leadsPerMonth: 301 })).toMatchObject({
-      plan: "equipe",
-      extraSeats: 0,
-    })
-    expect(recommendPlan({ ...base, teamSize: 1, leadsPerMonth: 1000 }).plan).toBe("equipe")
-    expect(recommendPlan({ teamSize: 1, doesRentals: true, leadsPerMonth: 500 }).plan).toBe(
-      "equipe"
-    )
-    expect(recommendPlan({ ...base, teamSize: 20, leadsPerMonth: 5000 }).plan).toBe("rede")
-  })
-
-  it("ignora volume de leads inválido", () => {
-    expect(recommendPlan({ ...base, teamSize: 1, leadsPerMonth: Number.NaN }).plan).toBe("corretor")
   })
 })
 
 describe("recommendPlan: coerência", () => {
-  it("nunca passa do teto de usuários e fecha as contas", () => {
+  it("nunca existe plano que atenda e saia mais barato, e as contas fecham", () => {
     for (let teamSize = 1; teamSize <= 40; teamSize++) {
-      for (const doesRentals of [false, true]) {
-        for (const leadsPerMonth of [0, 301]) {
-          const result = recommendPlan({ teamSize, doesRentals, leadsPerMonth })
-          const plan = PLANS[result.plan]
+      for (const ownedListings of [0, 1, 5, 6, 19, 20, 21, 49, 50, 51, 120, 150, 151, 1000]) {
+        const result = recommendPlan({ teamSize, ownedListings })
+        const plan = PLANS[result.plan]
 
-          expect(result.extraSeats).toBeLessThanOrEqual(maxExtraSeats(result.plan))
-          expect(plan.usersIncluded + result.extraSeats).toBeGreaterThanOrEqual(teamSize)
-          expect(result.monthlyTotal).toBe(
-            plan.prices.month + result.extraSeats * plan.seatPrice.month
+        expect(result.extraSeats).toBeLessThanOrEqual(maxExtraSeats(result.plan))
+        expect(plan.usersIncluded + result.extraSeats).toBeGreaterThanOrEqual(teamSize)
+        expect(result.monthlyTotal).toBe(
+          plan.prices.month + result.extraSeats * plan.seatPrice.month
+        )
+        expect(result.yearlyTotal).toBe(plan.prices.year + result.extraSeats * plan.seatPrice.year)
+        expect(result.yearlySavings).toBe(result.monthlyTotal * 12 - result.yearlyTotal)
+        expect(result.yearlySavings).toBeGreaterThan(0)
+
+        const costs = PLAN_KEYS.map((key) => monthlyCostFor(key, teamSize, ownedListings)).filter(
+          (cost): cost is number => cost !== null
+        )
+
+        expect(result.fitsOwnedListings).toBe(costs.length > 0)
+
+        if (costs.length > 0) {
+          expect(result.monthlyTotal, `${teamSize} pessoas, ${ownedListings} imóveis`).toBe(
+            Math.min(...costs)
           )
-          expect(result.yearlyTotal).toBe(
-            plan.prices.year + result.extraSeats * plan.seatPrice.year
-          )
-          expect(result.yearlySavings).toBe(result.monthlyTotal * 12 - result.yearlyTotal)
-          expect(result.yearlySavings).toBeGreaterThan(0)
         }
       }
     }
   })
 
   it("explica a recomendação em pt-BR", () => {
-    expect(recommendPlan({ ...base, teamSize: 1 }).reasons).toEqual([
-      "Para 1 pessoa, o indicado é o plano Corretor.",
+    expect(recommendPlan({ teamSize: 1, ownedListings: 0 }).reasons).toEqual([
+      "Para 1 pessoa e nenhum imóvel com foto, o plano Corretor é o de menor custo que atende.",
+      "Imóveis sem foto, importados por XML ou API, vendidos, alugados e inativos não contam no limite.",
     ])
-    expect(recommendPlan({ teamSize: 1, doesRentals: true, leadsPerMonth: 400 }).reasons).toEqual([
-      "Para 1 pessoa, o indicado é o plano Corretor.",
-      "Quem faz locação precisa pelo menos do plano Imobiliária.",
-      "Com mais de 300 leads por mês, o indicado é pelo menos o plano Equipe.",
+    expect(recommendPlan({ teamSize: 2, ownedListings: 6 }).reasons).toEqual([
+      "Para 2 pessoas e até 6 imóveis com foto, o plano Imobiliária é o de menor custo que atende.",
+      "O plano Corretor sairia mais barato, mas comporta só 5 imóveis com foto.",
+      "Imóveis sem foto, importados por XML ou API, vendidos, alugados e inativos não contam no limite.",
     ])
-    expect(recommendPlan({ ...base, teamSize: 5 }).reasons).toContain(
+    expect(recommendPlan({ teamSize: 5, ownedListings: 10 }).reasons).toContain(
       "Inclui 2 usuários extras além dos 3 do plano."
     )
   })
