@@ -96,7 +96,9 @@ export default async function ImoveisCaixaPage({ searchParams }: CaixaPageProps)
               : `${countFormat.format(result.total)} imóveis encontrados`}
             {result.pageCount > 1 ? ` · página ${result.page} de ${result.pageCount}` : ""}
           </p>
-          <div className="grid grid-cols-1 gap-4 @min-[48rem]/main:grid-cols-2 @min-[80rem]/main:grid-cols-3">
+          {/* Duas colunas a partir de 576 px de largura útil. O contêiner é o
+              "page": nesta casca (fluid simples) não existe o "main". */}
+          <div className="grid grid-cols-1 gap-4 @min-[36rem]/page:grid-cols-2">
             {result.items.map((item) => (
               <CaixaListingCard key={item.numero} item={item} photosEnabled={photosEnabled} />
             ))}

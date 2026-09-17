@@ -54,9 +54,10 @@ export function CaixaListingCard({
         index={CAIXA_GRID_PHOTO_INDEX}
         enabled={photosEnabled}
         alt={title}
-        className="aspect-4/3 w-full"
+        // 16:9 na lista (mais baixa que a galeria do detalhe, que segue 4:3).
+        className="aspect-video w-full"
       />
-      <CardContent className="flex flex-col gap-3">
+      <CardContent className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
           {item.modalidade ? <Badge variant="secondary">{item.modalidade}</Badge> : null}
           {/* Desconto é SEMPRE o percentual que a Caixa publica. Nunca calcule
