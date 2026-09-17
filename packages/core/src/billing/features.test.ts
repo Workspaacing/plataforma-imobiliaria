@@ -69,6 +69,9 @@ const DELIVERED_FEATURE_KEYS = [
   "feature_property_sheet_pdf",
   "feature_property_public_page",
   "feature_spreadsheet_import",
+  // Entregues em 17/09/2026: e-mails automáticos em /perfil.
+  "feature_email_reminders",
+  "feature_weekly_report_email",
 ]
 
 describe("FEATURES", () => {
@@ -110,6 +113,8 @@ describe("FEATURES", () => {
       "feature_property_sheet_pdf",
       "feature_clients",
       "feature_calendar_tasks",
+      // /perfil: resumo diário e lembrete de visita (lib/lembretes)
+      "feature_email_reminders",
       "feature_leads_kanban",
       "feature_proposals",
       "feature_property_client_match",
@@ -121,11 +126,14 @@ describe("FEATURES", () => {
       "feature_tenant_subdomain",
       // /configuracoes/rodizio
       "feature_lead_roulette_sla",
+      // /perfil: avisos no celular (app/manifest.ts, public/sw.js e lib/push)
+      "feature_pwa_push",
       // /configuracoes/integracoes + app/api/webhooks (conta do cliente no fornecedor)
       "feature_portal_leads_ingest",
       "feature_meta_lead_ads",
       // /relatorios e /api/relatorios/[recurso]
       "feature_bi_goals",
+      "feature_weekly_report_email",
       "feature_data_export",
       // /configuracoes/importacao
       "feature_spreadsheet_import",
@@ -146,7 +154,6 @@ describe("FEATURES", () => {
       "feature_whatsapp_broadcast",
       "feature_portal_health",
       "feature_portal_health_alerts",
-      "feature_pwa_push",
       "feature_instagram_publish",
       "feature_instagram_inbox",
       "feature_document_inbox_email",
@@ -197,6 +204,18 @@ describe("FEATURES", () => {
     for (const plan of PLAN_KEYS) {
       expect(feature.notes?.[plan], plan).toMatch(/fora do limite/)
     }
+  })
+
+  it("o aviso no celular diz o que aparece na tela e a exigência do iPhone", () => {
+    const { description } = FEATURES.feature_pwa_push
+    expect(description).toMatch(/só o nome e a origem do lead/)
+    expect(description).toMatch(/No iPhone e no iPad, exige o CRM adicionado à tela de início/)
+  })
+
+  it("o relatório semanal por e-mail diz que chega só para dono e gerente", () => {
+    expect(FEATURES.feature_weekly_report_email.description).toMatch(
+      /Chega só para o dono e o gerente/
+    )
   })
 
   it("a exportação cita a permissão por papel e o registro de quem exportou", () => {

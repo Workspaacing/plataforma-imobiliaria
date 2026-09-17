@@ -51,7 +51,8 @@ function labelFrom(labels: Readonly<Record<string, string>>, value: unknown): st
     : null
 }
 
-function requireOrigin(origin: unknown) {
+/** Origem normalizada para os links; lança EmailTemplateError se inválida. */
+export function requireOrigin(origin: unknown) {
   const normalized = normalizeEmailOrigin(origin)
 
   if (!normalized) {
@@ -61,7 +62,8 @@ function requireOrigin(origin: unknown) {
   return normalized
 }
 
-function requireLink(href: unknown, origin: string) {
+/** Link preso à origem (ou https absoluto); lança EmailTemplateError se inválido. */
+export function requireLink(href: unknown, origin: string) {
   const url = resolveEmailLink(href, origin)
 
   if (!url) {
@@ -71,7 +73,8 @@ function requireLink(href: unknown, origin: string) {
   return url
 }
 
-function greetingFor(name: unknown) {
+/** "Olá, Carla!" com o primeiro nome, ou "Olá!". */
+export function greetingFor(name: unknown) {
   const firstName = cleanText(name, { maxLength: 40 }).split(" ")[0]
   return firstName ? `Olá, ${firstName}!` : "Olá!"
 }

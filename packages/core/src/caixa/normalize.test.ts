@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  formatBrDate,
   normalizeCityName,
   normalizeListingNumber,
   normalizeNeighborhoodName,
@@ -169,5 +170,19 @@ describe("parseBrDate", () => {
     expect(parseBrDate("2026-09-15")).toBeNull()
     expect(parseBrDate("1/9/2026")).toBeNull()
     expect(parseBrDate("")).toBeNull()
+  })
+})
+
+describe("formatBrDate", () => {
+  it("mostra a data declarada pela Caixa sem trocar o dia pelo fuso", () => {
+    expect(formatBrDate("2026-09-15")).toBe("15/09/2026")
+    expect(formatBrDate("2026-01-01")).toBe("01/01/2026")
+  })
+
+  it("devolve null para data impossível e formato diferente", () => {
+    expect(formatBrDate("2026-02-31")).toBeNull()
+    expect(formatBrDate("15/09/2026")).toBeNull()
+    expect(formatBrDate("2026-09-15T00:00:00Z")).toBeNull()
+    expect(formatBrDate(null)).toBeNull()
   })
 })

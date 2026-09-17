@@ -278,6 +278,8 @@ export type Database = {
           plan_key: string
           plan_net_invoice_at: string | null
           plan_net_monthly_cents: number | null
+          platform_blocked_at: string | null
+          platform_blocked_reason: string | null
           referral_confirmed_notified_at: string | null
           referral_counted_at: string | null
           referral_discount_percent: number
@@ -303,6 +305,8 @@ export type Database = {
           plan_key?: string
           plan_net_invoice_at?: string | null
           plan_net_monthly_cents?: number | null
+          platform_blocked_at?: string | null
+          platform_blocked_reason?: string | null
           referral_confirmed_notified_at?: string | null
           referral_counted_at?: string | null
           referral_discount_percent?: number
@@ -328,6 +332,8 @@ export type Database = {
           plan_key?: string
           plan_net_invoice_at?: string | null
           plan_net_monthly_cents?: number | null
+          platform_blocked_at?: string | null
+          platform_blocked_reason?: string | null
           referral_confirmed_notified_at?: string | null
           referral_counted_at?: string | null
           referral_discount_percent?: number
@@ -595,6 +601,7 @@ export type Database = {
           lista_gerada_em: string | null
           motivo: string | null
           ocorrido_em: string
+          origem: string
           recusados: number | null
           resultado: string
           sairam: number | null
@@ -607,6 +614,7 @@ export type Database = {
           lista_gerada_em?: string | null
           motivo?: string | null
           ocorrido_em?: string
+          origem?: string
           recusados?: number | null
           resultado: string
           sairam?: number | null
@@ -619,6 +627,7 @@ export type Database = {
           lista_gerada_em?: string | null
           motivo?: string | null
           ocorrido_em?: string
+          origem?: string
           recusados?: number | null
           resultado?: string
           sairam?: number | null
@@ -1610,6 +1619,33 @@ export type Database = {
           },
         ]
       }
+      email_preferences: {
+        Row: {
+          created_at: string
+          daily_digest: boolean
+          updated_at: string
+          user_id: string
+          visit_reminders: boolean
+          weekly_report: boolean
+        }
+        Insert: {
+          created_at?: string
+          daily_digest?: boolean
+          updated_at?: string
+          user_id: string
+          visit_reminders?: boolean
+          weekly_report?: boolean
+        }
+        Update: {
+          created_at?: string
+          daily_digest?: boolean
+          updated_at?: string
+          user_id?: string
+          visit_reminders?: boolean
+          weekly_report?: boolean
+        }
+        Relationships: []
+      }
       import_job_batches: {
         Row: {
           batch_index: number
@@ -2546,6 +2582,56 @@ export type Database = {
           },
         ]
       }
+      marketing_investments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          id: string
+          month: string
+          notes: string | null
+          organization_id: string
+          source: Database["public"]["Enums"]["lead_source"]
+          updated_at: string
+          updated_by: string | null
+          utm_campaign: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          month: string
+          notes?: string | null
+          organization_id: string
+          source: Database["public"]["Enums"]["lead_source"]
+          updated_at?: string
+          updated_by?: string | null
+          utm_campaign?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          month?: string
+          notes?: string | null
+          organization_id?: string
+          source?: Database["public"]["Enums"]["lead_source"]
+          updated_at?: string
+          updated_by?: string | null
+          utm_campaign?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_investments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       memberships: {
         Row: {
           active: boolean
@@ -2690,6 +2776,77 @@ export type Database = {
           },
         ]
       }
+      platform_announcement_dismissals: {
+        Row: {
+          announcement_id: string
+          dismissed_at: string
+          user_id: string
+        }
+        Insert: {
+          announcement_id: string
+          dismissed_at?: string
+          user_id?: string
+        }
+        Update: {
+          announcement_id?: string
+          dismissed_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_announcement_dismissals_announcement_id_fkey"
+            columns: ["announcement_id"]
+            isOneToOne: false
+            referencedRelation: "platform_announcements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      platform_announcements: {
+        Row: {
+          audience: string
+          body: string
+          created_at: string
+          ended_at: string | null
+          ends_at: string
+          id: string
+          kind: string
+          link_label: string | null
+          link_url: string | null
+          starts_at: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          audience: string
+          body: string
+          created_at?: string
+          ended_at?: string | null
+          ends_at: string
+          id?: string
+          kind: string
+          link_label?: string | null
+          link_url?: string | null
+          starts_at: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          audience?: string
+          body?: string
+          created_at?: string
+          ended_at?: string | null
+          ends_at?: string
+          id?: string
+          kind?: string
+          link_label?: string | null
+          link_url?: string | null
+          starts_at?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -2753,6 +2910,7 @@ export type Database = {
           id: string
           imob_score: number | null
           iptu_yearly: number | null
+          is_restricted: boolean
           latitude: number | null
           living_area: number | null
           longitude: number | null
@@ -2764,6 +2922,7 @@ export type Database = {
           published_at: string | null
           published_to_portals: boolean
           purpose: Database["public"]["Enums"]["listing_purpose"]
+          registry_number: string | null
           rent_price: number | null
           sale_price: number | null
           state: string | null
@@ -2801,6 +2960,7 @@ export type Database = {
           id?: string
           imob_score?: number | null
           iptu_yearly?: number | null
+          is_restricted?: boolean
           latitude?: number | null
           living_area?: number | null
           longitude?: number | null
@@ -2812,6 +2972,7 @@ export type Database = {
           published_at?: string | null
           published_to_portals?: boolean
           purpose: Database["public"]["Enums"]["listing_purpose"]
+          registry_number?: string | null
           rent_price?: number | null
           sale_price?: number | null
           state?: string | null
@@ -2849,6 +3010,7 @@ export type Database = {
           id?: string
           imob_score?: number | null
           iptu_yearly?: number | null
+          is_restricted?: boolean
           latitude?: number | null
           living_area?: number | null
           longitude?: number | null
@@ -2860,6 +3022,7 @@ export type Database = {
           published_at?: string | null
           published_to_portals?: boolean
           purpose?: Database["public"]["Enums"]["listing_purpose"]
+          registry_number?: string | null
           rent_price?: number | null
           sale_price?: number | null
           state?: string | null
@@ -2888,6 +3051,63 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "organizations"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      property_documents: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          kind: Database["public"]["Enums"]["property_document_kind"]
+          mime_type: string
+          organization_id: string
+          property_id: string
+          size_bytes: number
+          storage_path: string
+          uploaded_by: string | null
+          valid_until: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          kind: Database["public"]["Enums"]["property_document_kind"]
+          mime_type: string
+          organization_id: string
+          property_id: string
+          size_bytes: number
+          storage_path: string
+          uploaded_by?: string | null
+          valid_until?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["property_document_kind"]
+          mime_type?: string
+          organization_id?: string
+          property_id?: string
+          size_bytes?: number
+          storage_path?: string
+          uploaded_by?: string | null
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_documents_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_documents_property_fkey"
+            columns: ["organization_id", "property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["organization_id", "id"]
           },
         ]
       }
@@ -3006,6 +3226,45 @@ export type Database = {
           },
         ]
       }
+      property_shares: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          organization_id: string
+          property_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          organization_id: string
+          property_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          organization_id?: string
+          property_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_shares_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_shares_property_fkey"
+            columns: ["organization_id", "property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["organization_id", "id"]
+          },
+        ]
+      }
       proposal_discount_requests: {
         Row: {
           amount_cents: number
@@ -3072,6 +3331,75 @@ export type Database = {
           },
         ]
       }
+      proposal_rounds: {
+        Row: {
+          amount: number
+          conditions: string | null
+          created_at: string
+          created_by: string | null
+          down_payment: number | null
+          exchange_description: string | null
+          financing_amount: number | null
+          id: string
+          kind: Database["public"]["Enums"]["proposal_round_kind"]
+          organization_id: string
+          payment_deadline: string | null
+          payment_terms: string | null
+          proposal_id: string
+          round_number: number
+          valid_until: string | null
+        }
+        Insert: {
+          amount: number
+          conditions?: string | null
+          created_at?: string
+          created_by?: string | null
+          down_payment?: number | null
+          exchange_description?: string | null
+          financing_amount?: number | null
+          id?: string
+          kind: Database["public"]["Enums"]["proposal_round_kind"]
+          organization_id: string
+          payment_deadline?: string | null
+          payment_terms?: string | null
+          proposal_id: string
+          round_number: number
+          valid_until?: string | null
+        }
+        Update: {
+          amount?: number
+          conditions?: string | null
+          created_at?: string
+          created_by?: string | null
+          down_payment?: number | null
+          exchange_description?: string | null
+          financing_amount?: number | null
+          id?: string
+          kind?: Database["public"]["Enums"]["proposal_round_kind"]
+          organization_id?: string
+          payment_deadline?: string | null
+          payment_terms?: string | null
+          proposal_id?: string
+          round_number?: number
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_rounds_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proposal_rounds_proposal_fkey"
+            columns: ["organization_id", "proposal_id"]
+            isOneToOne: false
+            referencedRelation: "proposals"
+            referencedColumns: ["organization_id", "id"]
+          },
+        ]
+      }
       proposal_shares: {
         Row: {
           created_at: string
@@ -3126,6 +3454,41 @@ export type Database = {
           },
         ]
       }
+      proposal_stage_probabilities: {
+        Row: {
+          created_at: string
+          organization_id: string
+          probability: number
+          status: Database["public"]["Enums"]["proposal_status"]
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          organization_id: string
+          probability: number
+          status: Database["public"]["Enums"]["proposal_status"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          organization_id?: string
+          probability?: number
+          status?: Database["public"]["Enums"]["proposal_status"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposal_stage_probabilities_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       proposals: {
         Row: {
           amount: number
@@ -3135,11 +3498,18 @@ export type Database = {
           created_at: string
           created_by: string | null
           decided_at: string | null
+          down_payment: number | null
+          exchange_description: string | null
+          expected_close_date: string | null
+          financing_amount: number | null
           id: string
           organization_id: string
+          payment_deadline: string | null
           payment_terms: string | null
           property_id: string
           purpose: Database["public"]["Enums"]["listing_purpose"]
+          round_kind: Database["public"]["Enums"]["proposal_round_kind"]
+          round_number: number
           status: Database["public"]["Enums"]["proposal_status"]
           updated_at: string
           valid_until: string | null
@@ -3152,11 +3522,18 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           decided_at?: string | null
+          down_payment?: number | null
+          exchange_description?: string | null
+          expected_close_date?: string | null
+          financing_amount?: number | null
           id?: string
           organization_id: string
+          payment_deadline?: string | null
           payment_terms?: string | null
           property_id: string
           purpose: Database["public"]["Enums"]["listing_purpose"]
+          round_kind?: Database["public"]["Enums"]["proposal_round_kind"]
+          round_number?: number
           status?: Database["public"]["Enums"]["proposal_status"]
           updated_at?: string
           valid_until?: string | null
@@ -3169,11 +3546,18 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           decided_at?: string | null
+          down_payment?: number | null
+          exchange_description?: string | null
+          expected_close_date?: string | null
+          financing_amount?: number | null
           id?: string
           organization_id?: string
+          payment_deadline?: string | null
           payment_terms?: string | null
           property_id?: string
           purpose?: Database["public"]["Enums"]["listing_purpose"]
+          round_kind?: Database["public"]["Enums"]["proposal_round_kind"]
+          round_number?: number
           status?: Database["public"]["Enums"]["proposal_status"]
           updated_at?: string
           valid_until?: string | null
@@ -3198,6 +3582,132 @@ export type Database = {
             columns: ["organization_id", "property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["organization_id", "id"]
+          },
+        ]
+      }
+      push_subscriptions: {
+        Row: {
+          auth_secret: string
+          created_at: string
+          device_label: string | null
+          endpoint: string
+          id: string
+          last_delivered_at: string | null
+          last_seen_at: string
+          organization_id: string | null
+          p256dh: string
+          user_id: string
+        }
+        Insert: {
+          auth_secret: string
+          created_at?: string
+          device_label?: string | null
+          endpoint: string
+          id?: string
+          last_delivered_at?: string | null
+          last_seen_at?: string
+          organization_id?: string | null
+          p256dh: string
+          user_id: string
+        }
+        Update: {
+          auth_secret?: string
+          created_at?: string
+          device_label?: string | null
+          endpoint?: string
+          id?: string
+          last_delivered_at?: string | null
+          last_seen_at?: string
+          organization_id?: string | null
+          p256dh?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_goals: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          leads_answered: number | null
+          month: string
+          organization_id: string
+          proposals: number | null
+          rentals_amount: number | null
+          rentals_count: number | null
+          sales_amount: number | null
+          sales_count: number | null
+          team_id: string | null
+          updated_at: string
+          updated_by: string | null
+          user_id: string | null
+          visits: number | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          leads_answered?: number | null
+          month: string
+          organization_id: string
+          proposals?: number | null
+          rentals_amount?: number | null
+          rentals_count?: number | null
+          sales_amount?: number | null
+          sales_count?: number | null
+          team_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string | null
+          visits?: number | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          leads_answered?: number | null
+          month?: string
+          organization_id?: string
+          proposals?: number | null
+          rentals_amount?: number | null
+          rentals_count?: number | null
+          sales_amount?: number | null
+          sales_count?: number | null
+          team_id?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string | null
+          visits?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_goals_member_fkey"
+            columns: ["user_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["user_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "sales_goals_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_goals_team_fkey"
+            columns: ["organization_id", "team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["organization_id", "id"]
           },
         ]
@@ -3272,6 +3782,100 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "properties"
             referencedColumns: ["organization_id", "id"]
+          },
+        ]
+      }
+      team_members: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          organization_id: string
+          team_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          organization_id: string
+          team_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          organization_id?: string
+          team_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_members_membership_fkey"
+            columns: ["user_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["user_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "team_members_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_members_team_fkey"
+            columns: ["organization_id", "team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["organization_id", "id"]
+          },
+        ]
+      }
+      teams: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          leader_id: string | null
+          name: string
+          organization_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          leader_id?: string | null
+          name: string
+          organization_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          leader_id?: string | null
+          name?: string
+          organization_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teams_leader_fkey"
+            columns: ["leader_id", "organization_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["user_id", "organization_id"]
+          },
+          {
+            foreignKeyName: "teams_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -3700,6 +4304,26 @@ export type Database = {
           recipient_user_id: string
         }[]
       }
+      claim_daily_digests: {
+        Args: {
+          p_limit?: number
+          p_organization_id?: string
+          p_server_key: string
+          p_stale_days?: number
+        }
+        Returns: {
+          brand_color: string
+          content: Json
+          digest_date: string
+          id: string
+          organization_id: string
+          organization_name: string
+          organization_slug: string
+          recipient_email: string
+          recipient_name: string
+          recipient_user_id: string
+        }[]
+      }
       claim_lead_deliveries: {
         Args: { p_limit?: number; p_server_key: string }
         Returns: {
@@ -3708,6 +4332,16 @@ export type Database = {
           external_event_id: string
           organization_id: string
           provider: string
+        }[]
+      }
+      claim_lead_notification_pushes: {
+        Args: { p_notification_ids: string[]; p_server_key: string }
+        Returns: {
+          auth_secret: string
+          endpoint: string
+          notification_id: string
+          p256dh: string
+          subscription_id: string
         }[]
       }
       claim_lead_notifications: {
@@ -3727,6 +4361,54 @@ export type Database = {
           recipient_email: string
           recipient_name: string
           sla_minutes: number
+        }[]
+      }
+      claim_visit_reminders: {
+        Args: { p_limit?: number; p_server_key: string }
+        Returns: {
+          address_display: Database["public"]["Enums"]["address_display"]
+          appointment_id: string
+          appointment_status: Database["public"]["Enums"]["appointment_status"]
+          brand_color: string
+          city: string
+          client_first_name: string
+          ends_at: string
+          id: string
+          meeting_point: string
+          neighborhood: string
+          organization_id: string
+          organization_name: string
+          organization_slug: string
+          property_code: string
+          property_id: string
+          property_title: string
+          recipient_email: string
+          recipient_name: string
+          recipient_user_id: string
+          starts_at: string
+          state: string
+          street: string
+          street_number: string
+        }[]
+      }
+      claim_weekly_reports: {
+        Args: {
+          p_limit?: number
+          p_organization_id?: string
+          p_server_key: string
+        }
+        Returns: {
+          brand_color: string
+          id: string
+          organization_id: string
+          organization_name: string
+          organization_slug: string
+          recipient_email: string
+          recipient_name: string
+          recipient_user_id: string
+          report: Json
+          week_end: string
+          week_start: string
         }[]
       }
       commission_summary: { Args: { p_user_id?: string }; Returns: Json }
@@ -3760,6 +4442,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      copy_sales_goals: {
+        Args: {
+          p_from_month: string
+          p_organization_id: string
+          p_to_month: string
+        }
+        Returns: number
+      }
       create_organization: {
         Args: {
           p_city?: string
@@ -3775,6 +4465,10 @@ export type Database = {
       }
       dashboard_authorization_alerts: {
         Args: { p_limit?: number; p_organization_id: string }
+        Returns: Json
+      }
+      dashboard_client_birthdays: {
+        Args: { p_days?: number; p_limit?: number; p_organization_id: string }
         Returns: Json
       }
       dashboard_leads_by_stage: {
@@ -3952,6 +4646,7 @@ export type Database = {
       finish_caixa_sync: {
         Args: {
           p_generated_on?: string
+          p_origem?: string
           p_rejected?: number
           p_server_key: string
           p_source_digest?: string
@@ -4025,6 +4720,14 @@ export type Database = {
         Returns: Json
       }
       get_proposal_document: { Args: { p_proposal_id: string }; Returns: Json }
+      get_proposal_stage_probabilities: {
+        Args: { p_organization_id: string }
+        Returns: {
+          is_default: boolean
+          probability: number
+          status: Database["public"]["Enums"]["proposal_status"]
+        }[]
+      }
       get_public_landing_page: {
         Args: { p_org_slug: string; p_page_slug: string }
         Returns: Json
@@ -4065,6 +4768,10 @@ export type Database = {
           p_organization_id: string
         }
         Returns: Json
+      }
+      import_marketing_investments: {
+        Args: { p_organization_id: string; p_rows: Json }
+        Returns: number
       }
       import_start: {
         Args: {
@@ -4127,6 +4834,14 @@ export type Database = {
           organization_name: string
           organization_slug: string
           owner_emails: string[]
+        }[]
+      }
+      list_lead_campaigns: {
+        Args: { p_organization_id: string; p_since?: string }
+        Returns: {
+          leads: number
+          source: Database["public"]["Enums"]["lead_source"]
+          utm_campaign: string
         }[]
       }
       list_lead_integrations_for_poll: {
@@ -4197,6 +4912,177 @@ export type Database = {
         }
         Returns: Json
       }
+      platform_ai_costs: { Args: { p_server_key: string }; Returns: Json }
+      platform_audit_event_filters: {
+        Args: { p_server_key: string }
+        Returns: Json
+      }
+      platform_end_announcement: {
+        Args: {
+          p_actor_email: string
+          p_actor_user_id: string
+          p_id: string
+          p_reason?: string
+          p_server_key: string
+        }
+        Returns: string
+      }
+      platform_extend_trial: {
+        Args: {
+          p_actor_email: string
+          p_actor_user_id: string
+          p_days: number
+          p_organization_id: string
+          p_reason: string
+          p_server_key: string
+        }
+        Returns: Json
+      }
+      platform_get_organization: {
+        Args: { p_organization_id: string; p_server_key: string }
+        Returns: Json
+      }
+      platform_health: {
+        Args: { p_secret_names?: string[]; p_server_key: string }
+        Returns: Json
+      }
+      platform_list_announcements: {
+        Args: { p_limit?: number; p_server_key: string }
+        Returns: {
+          audience: string
+          body: string
+          created_at: string
+          dismissals: number
+          ended_at: string
+          ends_at: string
+          id: string
+          kind: string
+          link_label: string
+          link_url: string
+          starts_at: string
+          title: string
+          updated_at: string
+        }[]
+      }
+      platform_list_audit_events: {
+        Args: {
+          p_action?: string
+          p_before_id?: number
+          p_limit?: number
+          p_organization_id?: string
+          p_server_key: string
+        }
+        Returns: {
+          action: string
+          actor_email: string
+          actor_user_id: string
+          after_data: Json
+          before_data: Json
+          id: number
+          occurred_at: string
+          organization_id: string
+          reason: string
+          target_id: string
+          target_type: string
+        }[]
+      }
+      platform_list_organizations: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_plan?: string
+          p_search?: string
+          p_server_key: string
+          p_situation?: string
+        }
+        Returns: {
+          access_state: string
+          active_members: number
+          ai_cap_cents: number
+          ai_cost_cents: number
+          billing_interval: string
+          cancel_at_period_end: boolean
+          created_at: string
+          current_period_end: string
+          last_activity_at: string
+          leads_last_30_days: number
+          name: string
+          organization_id: string
+          owned_listings: number
+          plan_key: string
+          platform_blocked_at: string
+          situation: string
+          slug: string
+          status: string
+          total_count: number
+          trial_ends_at: string
+        }[]
+      }
+      platform_list_revenue_accounts: {
+        Args: { p_server_key: string }
+        Returns: {
+          billing_interval: string
+          cancel_at_period_end: boolean
+          canceled_at: string
+          current_period_end: string
+          first_paid_at: string
+          has_subscription: boolean
+          name: string
+          organization_created_at: string
+          organization_id: string
+          plan_key: string
+          plan_net_monthly_cents: number
+          platform_blocked_at: string
+          seats: number
+          slug: string
+          status: string
+          synced_at: string
+          trial_ends_at: string
+        }[]
+      }
+      platform_log_action: {
+        Args: {
+          p_action: string
+          p_actor_email: string
+          p_actor_user_id: string
+          p_after?: Json
+          p_before?: Json
+          p_organization_id?: string
+          p_reason?: string
+          p_server_key: string
+          p_target_id?: string
+          p_target_type?: string
+        }
+        Returns: number
+      }
+      platform_save_announcement: {
+        Args: {
+          p_actor_email: string
+          p_actor_user_id: string
+          p_audience: string
+          p_body: string
+          p_ends_at: string
+          p_id?: string
+          p_kind: string
+          p_link_label?: string
+          p_link_url?: string
+          p_server_key: string
+          p_starts_at: string
+          p_title: string
+        }
+        Returns: string
+      }
+      platform_set_organization_block: {
+        Args: {
+          p_actor_email: string
+          p_actor_user_id: string
+          p_blocked: boolean
+          p_organization_id: string
+          p_reason: string
+          p_server_key: string
+        }
+        Returns: Json
+      }
       queue_whatsapp_message: {
         Args: {
           p_body?: string
@@ -4228,6 +5114,7 @@ export type Database = {
       record_caixa_check: {
         Args: {
           p_failure_reason?: string
+          p_origem?: string
           p_result: string
           p_server_key: string
           p_source_digest?: string
@@ -4272,6 +5159,19 @@ export type Database = {
         }
         Returns: undefined
       }
+      record_report_export: {
+        Args: {
+          p_dataset: string
+          p_export_id: string
+          p_from?: string
+          p_organization_id: string
+          p_rows: number
+          p_team_id?: string
+          p_to?: string
+          p_user_id?: string
+        }
+        Returns: undefined
+      }
       record_report_export_rows: {
         Args: {
           p_dataset: string
@@ -4303,6 +5203,16 @@ export type Database = {
           p_server_key: string
         }
         Returns: Json
+      }
+      register_push_subscription: {
+        Args: {
+          p_auth: string
+          p_device_label?: string
+          p_endpoint: string
+          p_organization_id?: string
+          p_p256dh: string
+        }
+        Returns: string
       }
       register_shared_proposal_view: {
         Args: { p_token: string }
@@ -4346,11 +5256,80 @@ export type Database = {
           user_id: string
         }[]
       }
+      report_broker_performance_by_team: {
+        Args: {
+          p_from?: string
+          p_organization_id: string
+          p_team_id?: string
+          p_to?: string
+          p_user_id?: string
+        }
+        Returns: {
+          first_response_median_minutes: number
+          full_name: string
+          leads_answered: number
+          leads_in_sla: number
+          leads_lost: number
+          leads_open: number
+          leads_received: number
+          leads_taken_by_sla: number
+          leads_won: number
+          member_active: boolean
+          member_role: Database["public"]["Enums"]["app_role"]
+          properties_captured: number
+          proposals_closed: number
+          proposals_closed_amount: number
+          proposals_made: number
+          rentals_closed: number
+          rentals_closed_amount: number
+          sales_closed: number
+          sales_closed_amount: number
+          team_id: string
+          team_name: string
+          user_id: string
+        }[]
+      }
+      report_broker_visits: {
+        Args: { p_from?: string; p_organization_id: string; p_to?: string }
+        Returns: {
+          user_id: string
+          visits_canceled: number
+          visits_done: number
+          visits_no_show: number
+          visits_scheduled: number
+        }[]
+      }
+      report_forecast_proposals: {
+        Args: {
+          p_limit?: number
+          p_organization_id: string
+          p_team_id?: string
+          p_user_id?: string
+        }
+        Returns: {
+          amount: number
+          broker_id: string
+          broker_name: string
+          can_edit: boolean
+          created_at: string
+          expected_close_date: string
+          id: string
+          probability: number
+          property_code: string
+          property_id: string
+          property_title: string
+          purpose: Database["public"]["Enums"]["listing_purpose"]
+          status: Database["public"]["Enums"]["proposal_status"]
+          team_name: string
+          valid_until: string
+        }[]
+      }
       report_lead_lost_reasons: {
         Args: {
           p_from?: string
           p_limit?: number
           p_organization_id: string
+          p_team_id?: string
           p_to?: string
           p_user_id?: string
         }
@@ -4364,11 +5343,13 @@ export type Database = {
           p_from?: string
           p_limit?: number
           p_organization_id: string
+          p_team_id?: string
           p_to?: string
           p_user_id?: string
         }
         Returns: {
           answered: number
+          investment: number
           landing_page_id: string
           landing_page_name: string
           leads: number
@@ -4381,10 +5362,61 @@ export type Database = {
           won: number
         }[]
       }
+      report_sales_forecast: {
+        Args: {
+          p_organization_id: string
+          p_team_id?: string
+          p_today?: string
+          p_user_id?: string
+        }
+        Returns: {
+          amount: number
+          bucket: string
+          full_name: string
+          proposals: number
+          purpose: Database["public"]["Enums"]["listing_purpose"]
+          team_id: string
+          team_name: string
+          user_id: string
+          weighted_amount: number
+        }[]
+      }
+      report_sales_goals: {
+        Args: {
+          p_month?: string
+          p_organization_id: string
+          p_team_id?: string
+          p_user_id?: string
+        }
+        Returns: {
+          goal_leads_answered: number
+          goal_proposals: number
+          goal_rentals_amount: number
+          goal_rentals_count: number
+          goal_sales_amount: number
+          goal_sales_count: number
+          goal_visits: number
+          kind: string
+          leads_answered: number
+          member_active: boolean
+          member_role: Database["public"]["Enums"]["app_role"]
+          name: string
+          proposals: number
+          rentals_amount: number
+          rentals_count: number
+          sales_amount: number
+          sales_count: number
+          target_id: string
+          team_id: string
+          team_name: string
+          visits: number
+        }[]
+      }
       report_stage_funnel: {
         Args: {
           p_from?: string
           p_organization_id: string
+          p_team_id?: string
           p_to?: string
           p_user_id?: string
         }
@@ -4441,6 +5473,33 @@ export type Database = {
           p_tested?: boolean
         }
         Returns: undefined
+      }
+      save_marketing_investment: {
+        Args: {
+          p_amount: number
+          p_month: string
+          p_notes?: string
+          p_organization_id: string
+          p_source: Database["public"]["Enums"]["lead_source"]
+          p_utm_campaign: string
+        }
+        Returns: string
+      }
+      save_sales_goal: {
+        Args: {
+          p_leads_answered?: number
+          p_month: string
+          p_organization_id: string
+          p_proposals?: number
+          p_rentals_amount?: number
+          p_rentals_count?: number
+          p_sales_amount?: number
+          p_sales_count?: number
+          p_team_id?: string
+          p_user_id?: string
+          p_visits?: number
+        }
+        Returns: string
       }
       search_caixa_listings: {
         Args: {
@@ -4551,6 +5610,7 @@ export type Database = {
           cover_path: string
           id: string
           imob_score: number
+          is_restricted: boolean
           matched_owner: string
           neighborhood: string
           published_to_portals: boolean
@@ -4595,6 +5655,23 @@ export type Database = {
           p_roles: Database["public"]["Enums"]["app_role"][]
         }
         Returns: Database["public"]["Enums"]["app_role"][]
+      }
+      set_proposal_expected_close_date: {
+        Args: {
+          p_expected_close_date: string
+          p_organization_id: string
+          p_proposal_id: string
+        }
+        Returns: string
+      }
+      set_proposal_stage_probabilities: {
+        Args: {
+          p_countered: number
+          p_draft: number
+          p_organization_id: string
+          p_sent: number
+        }
+        Returns: undefined
       }
       set_referral_confirmation_notice: {
         Args: {
@@ -4650,8 +5727,43 @@ export type Database = {
         }
         Returns: Json
       }
+      settle_daily_digests: {
+        Args: {
+          p_failed?: string[]
+          p_released?: string[]
+          p_sent?: string[]
+          p_server_key: string
+        }
+        Returns: Json
+      }
       settle_lead_notifications: {
         Args: { p_failed?: string[]; p_sent?: string[]; p_server_key: string }
+        Returns: Json
+      }
+      settle_push_deliveries: {
+        Args: {
+          p_delivered?: string[]
+          p_gone?: string[]
+          p_server_key: string
+        }
+        Returns: Json
+      }
+      settle_visit_reminders: {
+        Args: {
+          p_failed?: string[]
+          p_released?: string[]
+          p_sent?: string[]
+          p_server_key: string
+        }
+        Returns: Json
+      }
+      settle_weekly_reports: {
+        Args: {
+          p_failed?: string[]
+          p_released?: string[]
+          p_sent?: string[]
+          p_server_key: string
+        }
         Returns: Json
       }
       share_proposal: {
@@ -4664,6 +5776,21 @@ export type Database = {
           p_from?: string
           p_organization_id: string
           p_period_preset?: string
+          p_to?: string
+          p_user_id?: string
+        }
+        Returns: {
+          allowed: boolean
+          export_id: string
+        }[]
+      }
+      start_report_export: {
+        Args: {
+          p_dataset: string
+          p_from?: string
+          p_organization_id: string
+          p_period_preset?: string
+          p_team_id?: string
           p_to?: string
           p_user_id?: string
         }
@@ -4712,6 +5839,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      sync_push_subscription: {
+        Args: { p_auth: string; p_endpoint: string; p_p256dh: string }
+        Returns: string
+      }
       sync_whatsapp_channel_health: {
         Args: {
           p_display_phone_number?: string
@@ -4722,6 +5853,10 @@ export type Database = {
           p_throughput?: number
         }
         Returns: Json
+      }
+      unregister_push_subscription: {
+        Args: { p_endpoint: string }
+        Returns: boolean
       }
       update_whatsapp_message_status: {
         Args: {
@@ -4846,6 +5981,14 @@ export type Database = {
       listing_purpose: "sale" | "rent" | "sale_rent"
       media_kind: "image" | "video" | "tour"
       organization_plan: "small" | "medium" | "large"
+      property_document_kind:
+        | "registry"
+        | "iptu"
+        | "floor_plan"
+        | "occupancy_permit"
+        | "certificate"
+        | "listing_agreement"
+        | "other"
       property_status:
         | "draft"
         | "active"
@@ -4870,6 +6013,7 @@ export type Database = {
         | "ranch"
         | "other"
       property_usage: "residential" | "commercial" | "rural" | "industrial"
+      proposal_round_kind: "initial" | "owner_counter" | "client_offer"
       proposal_status:
         | "draft"
         | "sent"
@@ -5143,6 +6287,15 @@ export const Constants = {
       listing_purpose: ["sale", "rent", "sale_rent"],
       media_kind: ["image", "video", "tour"],
       organization_plan: ["small", "medium", "large"],
+      property_document_kind: [
+        "registry",
+        "iptu",
+        "floor_plan",
+        "occupancy_permit",
+        "certificate",
+        "listing_agreement",
+        "other",
+      ],
       property_status: [
         "draft",
         "active",
@@ -5169,6 +6322,7 @@ export const Constants = {
         "other",
       ],
       property_usage: ["residential", "commercial", "rural", "industrial"],
+      proposal_round_kind: ["initial", "owner_counter", "client_offer"],
       proposal_status: [
         "draft",
         "sent",

@@ -2,6 +2,7 @@
 // Interface combinada entre agentes: contrato de Pagamentos, §10.
 
 export * from "./ai-usage"
+export * from "./catalog"
 export * from "./features"
 export * from "./format"
 export * from "./limits"

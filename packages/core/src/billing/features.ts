@@ -22,6 +22,10 @@
 // ficha em PDF em /api/imoveis/[id]/ficha; página pública do imóvel em
 // app/imovel/[org]/[codigo]; importação de planilhas em /configuracoes/importacao;
 // papéis que exportam e registro das exportações em /configuracoes/permissoes.
+// Conferência de 17/09/2026: avisos no celular em /perfil (app/manifest.ts,
+// public/sw.js, lib/push e app/api/cron/lead-alerts); resumo diário, lembrete
+// de visita e relatório semanal por e-mail em /perfil (lib/lembretes,
+// app/api/cron/daily-digest e app/api/cron/weekly-report).
 // Nenhum desses tem trava por plano no app. A caixa de conversas do WhatsApp não
 // existe: `sendWhatsappMessage` não é chamada por nenhuma tela.
 
@@ -56,6 +60,7 @@ export const FEATURE_KEYS = [
   // Clientes e vendas
   "feature_clients",
   "feature_calendar_tasks",
+  "feature_email_reminders",
   "feature_leads_kanban",
   "feature_multiple_pipelines",
   "feature_proposals",
@@ -85,6 +90,7 @@ export const FEATURE_KEYS = [
   // Fechamento e gestão
   "feature_esignature",
   "feature_bi_goals",
+  "feature_weekly_report_email",
   "feature_launches",
   // Locação e fiscal
   "feature_rental_contracts",
@@ -194,6 +200,15 @@ export const FEATURES: Record<FeatureKey, FeatureDefinition> = {
   feature_calendar_tasks: {
     label: "Agenda e tarefas",
     description: "Visitas, compromissos e tarefas da equipe organizados num só lugar.",
+    status: "available",
+    group: "Clientes e vendas",
+    plans: ALL,
+  },
+  feature_email_reminders: {
+    // /perfil (E-mails automáticos): lib/lembretes/daily-digest.ts e visit-reminders.ts.
+    label: "Lembretes por e-mail",
+    description:
+      "Resumo diário às 7h com as tarefas, as visitas e os leads sem contato do dia, e lembrete até 2 horas antes de cada visita. Cada corretor liga ou desliga no próprio perfil.",
     status: "available",
     group: "Clientes e vendas",
     plans: ALL,
@@ -327,9 +342,11 @@ export const FEATURES: Record<FeatureKey, FeatureDefinition> = {
     plans: FROM_IMOBILIARIA,
   },
   feature_pwa_push: {
+    // /perfil (Avisos no celular): app/manifest.ts, public/sw.js e lib/push.
     label: "Aviso de lead novo no celular",
-    description: "App instalável com notificação assim que o lead chega.",
-    status: "soon",
+    description:
+      "CRM instalável no celular, com notificação do lead novo e do prazo de primeiro contato mesmo com o CRM fechado. O aviso mostra só o nome e a origem do lead. No iPhone e no iPad, exige o CRM adicionado à tela de início.",
+    status: "available",
     group: "Atendimento e WhatsApp",
     plans: ALL,
   },
@@ -412,6 +429,15 @@ export const FEATURES: Record<FeatureKey, FeatureDefinition> = {
     status: "available",
     group: "Fechamento e gestão",
     plans: FROM_EQUIPE,
+  },
+  feature_weekly_report_email: {
+    // /perfil (E-mails automáticos): lib/lembretes/weekly-report.ts, com os números de /relatorios.
+    label: "Relatório semanal por e-mail",
+    description:
+      "Toda segunda às 7h, os números da semana anterior por corretor, com os mesmos cálculos dos relatórios. Chega só para o dono e o gerente, que podem desligar no próprio perfil.",
+    status: "available",
+    group: "Fechamento e gestão",
+    plans: ALL,
   },
   feature_launches: {
     label: "Lançamentos",

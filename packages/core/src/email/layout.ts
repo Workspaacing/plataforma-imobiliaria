@@ -34,6 +34,22 @@ export type EmailAction = {
   url: string
 }
 
+export type EmailListItem = {
+  title: string
+  /** Linha de apoio (horário, endereço, prazo). */
+  meta?: string | null
+  /** Link do título: mesma validação do botão (https, ou http só em localhost). */
+  url?: string | null
+}
+
+/** Bloco com título e lista (ex.: "Visitas de hoje" no resumo diário). */
+export type EmailSection = {
+  title: string
+  items: readonly EmailListItem[]
+  /** Observação depois da lista (ex.: "E mais 3 no CRM."). */
+  note?: string | null
+}
+
 export type EmailContent = {
   subject: string
   /** Resumo que os clientes de e-mail mostram ao lado do assunto. */
@@ -44,7 +60,11 @@ export type EmailContent = {
   /** Aviso em destaque (ex.: responder rápido). */
   highlight?: string | null
   details?: readonly EmailDetail[]
+  /** Listas depois dos detalhes; seção sem item válido não aparece. */
+  sections?: readonly EmailSection[]
   action?: EmailAction | null
+  /** Links simples depois do botão principal. */
+  secondaryActions?: readonly EmailAction[]
   closing?: readonly string[]
   /** Por que a pessoa recebeu este e-mail. */
   footer: string
@@ -126,6 +146,72 @@ function renderDetails(details: readonly EmailDetail[]) {
   }
 }
 
+const MAX_SECTIONS = 8
+const MAX_SECTION_ITEMS = 30
+const MAX_SECONDARY_ACTIONS = 3
+
+function renderSections(sections: readonly EmailSection[]) {
+  const cleaned = sections
+    .slice(0, MAX_SECTIONS)
+    .map((section) => ({
+      title: cleanText(section.title, { maxLength: 80 }),
+      note: cleanText(section.note, { maxLength: 200 }),
+      items: section.items
+        .slice(0, MAX_SECTION_ITEMS)
+        .map((item) => ({
+          title: cleanText(item.title, { maxLength: 160 }),
+          meta: cleanText(item.meta, { maxLength: 300 }),
+          url: typeof item.url === "string" && isSafeActionUrl(item.url) ? item.url : null,
+        }))
+        .filter((item) => item.title),
+    }))
+    .filter((section) => section.title && section.items.length > 0)
+
+  if (cleaned.length === 0) {
+    return { html: "", text: "" }
+  }
+
+  const htmlBlocks = cleaned.map((section) => {
+    const rows = section.items
+      .map((item) => {
+        const title = item.url
+          ? `<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="em-text" style="color:#111827;text-decoration:underline;">${escapeHtml(item.title)}</a>`
+          : escapeHtml(item.title)
+        const meta = item.meta
+          ? `<br><span class="em-muted" style="font-size:13px;line-height:1.5;color:#4b5563;">${escapeHtml(item.meta)}</span>`
+          : ""
+
+        return `<tr><td class="em-text em-row" style="padding:10px 0;font-family:${FONT_STACK};font-size:15px;line-height:1.4;font-weight:600;color:#111827;border-bottom:1px solid #e5e7eb;word-break:break-word;">${title}${meta}</td></tr>`
+      })
+      .join("")
+    const note = section.note
+      ? `<p class="em-muted" style="margin:8px 0 0;font-family:${FONT_STACK};font-size:13px;line-height:1.5;color:#4b5563;">${escapeHtml(section.note)}</p>`
+      : ""
+
+    return (
+      `<h2 class="em-text" style="margin:0 0 4px;font-family:${FONT_STACK};font-size:17px;line-height:1.3;font-weight:700;color:#111827;">${escapeHtml(section.title)}</h2>` +
+      `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width:100%;border-collapse:collapse;">${rows}</table>` +
+      `<div style="margin:0 0 24px;">${note}</div>`
+    )
+  })
+
+  const textBlocks = cleaned.map((section) =>
+    [
+      section.title.toUpperCase(),
+      ...section.items.map((item) =>
+        [`- ${item.title}`, item.meta ? `  ${item.meta}` : "", item.url ? `  ${item.url}` : ""]
+          .filter(Boolean)
+          .join("\n")
+      ),
+      section.note,
+    ]
+      .filter(Boolean)
+      .join("\n")
+  )
+
+  return { html: htmlBlocks.join(""), text: textBlocks.join("\n\n") }
+}
+
 /** Monta assunto, HTML e texto puro a partir do conteúdo (dados não confiáveis). */
 export function renderEmail(
   brandInput: EmailBrand | null | undefined,
@@ -145,11 +231,16 @@ export function renderEmail(
     .filter(Boolean)
   const footer = cleanText(content.footer, { multiline: true, maxLength: 600 })
   const details = renderDetails(content.details ?? [])
+  const sections = renderSections(content.sections ?? [])
   const actionLabel = cleanText(content.action?.label, { maxLength: 60 })
   const action =
     content.action && actionLabel && isSafeActionUrl(content.action.url)
       ? { label: actionLabel, url: content.action.url }
       : null
+  const secondaryActions = (content.secondaryActions ?? [])
+    .slice(0, MAX_SECONDARY_ACTIONS)
+    .map((item) => ({ label: cleanText(item.label, { maxLength: 60 }), url: item.url }))
+    .filter((item) => item.label && isSafeActionUrl(item.url))
   const signature = brand.isDefaultName
     ? `Mensagem automática do ${DEFAULT_BRAND_NAME}.`
     : `Mensagem automática do ${DEFAULT_BRAND_NAME} para ${brand.name}.`
@@ -169,13 +260,27 @@ export function renderEmail(
       `<p class="em-muted" style="margin:0 0 24px;font-family:${FONT_STACK};font-size:13px;line-height:1.5;color:#6b7280;">Se o botão não abrir, copie e cole este endereço no navegador:<br><a href="${escapeHtml(action.url)}" target="_blank" rel="noopener noreferrer" class="em-link" style="color:#374151;text-decoration:underline;word-break:break-all;">${escapeHtml(action.url)}</a></p>`
     : ""
 
+  const secondaryHtml =
+    secondaryActions.length > 0
+      ? `<p class="em-text" style="margin:0 0 24px;font-family:${FONT_STACK};font-size:15px;line-height:1.8;color:#1f2937;">` +
+        secondaryActions
+          .map(
+            (item) =>
+              `<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="em-link" style="color:#374151;text-decoration:underline;">${escapeHtml(item.label)}</a>`
+          )
+          .join("<br>") +
+        `</p>`
+      : ""
+
   const bodyHtml = [
     `<h1 class="em-text" style="margin:0 0 16px;font-family:${FONT_STACK};font-size:22px;line-height:1.3;font-weight:700;color:#111827;">${html(heading)}</h1>`,
     greeting ? paragraphHtml(greeting) : "",
     ...paragraphs.map(paragraphHtml),
     highlightHtml,
     details.html,
+    sections.html,
     actionHtml,
+    secondaryHtml,
     ...closing.map(
       (paragraph) =>
         `<p class="em-muted" style="margin:0 0 12px;font-family:${FONT_STACK};font-size:14px;line-height:1.6;color:#4b5563;">${html(paragraph, true)}</p>`
@@ -223,7 +328,9 @@ export function renderEmail(
     ...paragraphs,
     highlight,
     details.text,
+    sections.text,
     action ? `${action.label}: ${action.url}` : "",
+    ...secondaryActions.map((item) => `${item.label}: ${item.url}`),
     ...closing,
     "--",
     footer,
