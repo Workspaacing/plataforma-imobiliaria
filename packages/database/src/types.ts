@@ -5160,6 +5160,14 @@ export type Database = {
         }
         Returns: number
       }
+      platform_status_claim_alerts: {
+        Args: {
+          p_limit?: number
+          p_recipient_count: number
+          p_server_key: string
+        }
+        Returns: Json
+      }
       platform_status_create_incident: {
         Args: {
           p_actor_email: string
@@ -5198,6 +5206,24 @@ export type Database = {
         Args: { p_samples_per_component?: number; p_server_key: string }
         Returns: Json
       }
+      platform_status_settle_alert: {
+        Args: {
+          p_alert_id: number
+          p_emails_sent?: number
+          p_outcome: string
+          p_server_key: string
+        }
+        Returns: boolean
+      }
+      platform_status_take_over: {
+        Args: {
+          p_actor_email: string
+          p_actor_user_id: string
+          p_incident_id: string
+          p_server_key: string
+        }
+        Returns: string
+      }
       queue_whatsapp_message: {
         Args: {
           p_body?: string
@@ -5224,6 +5250,10 @@ export type Database = {
           p_plan_net_monthly_cents?: number
           p_server_key?: string
         }
+        Returns: boolean
+      }
+      record_billing_webhook_delivery: {
+        Args: { p_event_type?: string; p_outcome: string; p_server_key: string }
         Returns: boolean
       }
       record_caixa_check: {
@@ -5551,12 +5581,14 @@ export type Database = {
       }
       reserve_ai_usage: {
         Args: {
+          p_batch?: boolean
           p_cache_read_tokens?: number
           p_cache_write_tokens?: number
           p_contact_key?: string
           p_digest?: string
           p_input_tokens?: number
           p_kind?: string
+          p_model?: string
           p_organization_id?: string
           p_output_tokens?: number
           p_server_key?: string
@@ -5821,9 +5853,11 @@ export type Database = {
       }
       settle_ai_usage: {
         Args: {
+          p_batch?: boolean
           p_cache_read_tokens?: number
           p_cache_write_tokens?: number
           p_input_tokens?: number
+          p_model?: string
           p_organization_id?: string
           p_output_tokens?: number
           p_reservation_id?: string

@@ -1,32 +1,31 @@
-// Preparo do texto do PDF da proposta. Módulo puro: sem fontes, sem I/O — quem
-// desenha injeta a medição do texto.
+// Preparo do texto dos PDFs (proposta e ficha do imóvel). Módulo puro: sem
+// fontes, sem I/O — quem desenha injeta o que a fonte cobre e a medição do texto.
 //
-// As 14 fontes padrão do PDF (Helvetica e companhia) usam a codificação
-// WinAnsi (Windows-1252): cobre todo o pt-BR (á, ç, ã, õ, "R$", "º") e lança
-// erro em qualquer caractere fora dela (emoji, "≥", setas). Como o texto vem
-// do que a equipe digitou, tudo passa por `toWinAnsi` antes de virar PDF.
+// Os PDFs embutem a Geist (Unicode): acentos, "R$", "º", "ª" e o travessão saem
+// como foram digitados. A limpeza continua necessária por dois motivos:
+// caractere de controle ou de formatação invisível não tem glifo, e o que a
+// fonte não desenha (emoji, alguns símbolos) viraria um quadrado vazio. Se a
+// Geist não carregar, o PDF sai com a Helvetica padrão, que só codifica WinAnsi
+// e lança erro fora dela: a mesma limpeza, com o conjunto de caracteres dessa
+// fonte, garante que a geração nunca quebra.
 
-/** Faixas e caracteres avulsos da codificação WinAnsi (Windows-1252). */
-const WINANSI_EXTRAS = [
-  0x0152, 0x0153, 0x0160, 0x0161, 0x0178, 0x017d, 0x017e, 0x0192, 0x02c6, 0x02dc, 0x2013, 0x2014,
-  0x2018, 0x2019, 0x201a, 0x201c, 0x201d, 0x201e, 0x2020, 0x2021, 0x2022, 0x2026, 0x2030, 0x2039,
-  0x203a, 0x20ac, 0x2122,
-]
+/** Diz se a fonte desenha o code point (pdf-lib: `font.getCharacterSet()`). */
+export type SupportsCodePoint = (codePoint: number) => boolean
 
-const WINANSI_CODE_POINTS = new Set<number>(WINANSI_EXTRAS)
-
-for (let code = 0x20; code <= 0x7e; code += 1) {
-  WINANSI_CODE_POINTS.add(code)
+/** Monta a verificação a partir dos conjuntos de caracteres das fontes usadas juntas. */
+export function supportedByAll(
+  ...characterSets: ReadonlyArray<readonly number[]>
+): SupportsCodePoint {
+  const sets = characterSets.map((characterSet) => new Set(characterSet))
+  return (codePoint) => sets.every((set) => set.has(codePoint))
 }
 
-for (let code = 0xa0; code <= 0xff; code += 1) {
-  WINANSI_CODE_POINTS.add(code)
-}
-
-/** Trocas legíveis para o que aparece de vez em quando em condições e observações. */
+/**
+ * Trocas legíveis para símbolos que aparecem em condições e observações. Só
+ * valem quando a fonte não desenha o original: a Geist não tem ⇒, ✓, ✔ e ▪; a
+ * Helvetica (reserva) também não tem setas, comparações nem o sinal de menos.
+ */
 const FALLBACKS: Record<string, string> = {
-  "\t": " ",
-  " ": " ",
   "→": "->",
   "←": "<-",
   "⇒": "=>",
@@ -34,45 +33,89 @@ const FALLBACKS: Record<string, string> = {
   "≥": ">=",
   "≠": "!=",
   "≈": "~",
-  "×": "x",
   "⁄": "/",
+  "\u2212": "-", // sinal de menos
   "✓": "-",
   "✔": "-",
   "●": "-",
   "▪": "-",
-  " ": "\n",
-  " ": "\n",
 }
 
-export function isWinAnsiEncodable(character: string): boolean {
-  const code = character.codePointAt(0)
-  return code !== undefined && WINANSI_CODE_POINTS.has(code)
+/** Quebras de linha de qualquer origem (Windows, Mac antigo, separadores Unicode). */
+const LINE_BREAKS = /\r\n?|[\u0085\u2028\u2029]/g
+
+/** Controle (C0/C1) e formatação invisível: hífen condicional, largura zero, marcas bidi, BOM. */
+const INVISIBLE = /^[\p{Cc}\p{Cf}]$/u
+
+/** Espaços tipográficos (fino, estreito, de algarismo...). */
+const SPACE = /^\p{Zs}$/u
+
+const MARKS = /\p{M}/gu
+
+function supportsAll(text: string, supports: SupportsCodePoint) {
+  for (const character of text) {
+    if (!supports(character.codePointAt(0) ?? -1)) {
+      return false
+    }
+  }
+
+  return true
+}
+
+/** Equivalente para o caractere que a fonte não desenha, ou "" quando não há. */
+function replacementFor(character: string, supports: SupportsCodePoint) {
+  if (SPACE.test(character)) {
+    return supports(0x20) ? " " : ""
+  }
+
+  const fallback = FALLBACKS[character]
+
+  if (fallback && supportsAll(fallback, supports)) {
+    return fallback
+  }
+
+  // Letra com acento que a fonte não tem: fica a letra base.
+  const base = character.normalize("NFD").replace(MARKS, "")
+
+  if (base && base !== character && supportsAll(base, supports)) {
+    return base
+  }
+
+  return ""
 }
 
 /**
- * Texto pronto para as fontes padrão do PDF: normaliza acentos compostos
- * (NFC), padroniza as quebras de linha e troca o que a WinAnsi não codifica.
+ * Texto pronto para desenhar com a fonte do PDF: normaliza acentos compostos
+ * (NFC), padroniza as quebras de linha, troca tabulação por espaço, remove
+ * caractere invisível e troca o que a fonte não desenha por um equivalente.
  * Caractere sem equivalente é descartado — nunca derruba a geração do PDF.
  */
-export function toWinAnsi(value: string | null | undefined): string {
+export function toPdfText(value: string | null | undefined, supports: SupportsCodePoint): string {
   if (!value) {
     return ""
   }
 
-  const normalized = value.normalize("NFC").replace(/\r\n?/g, "\n")
+  const normalized = value.normalize("NFC").replace(LINE_BREAKS, "\n")
   let result = ""
 
   for (const character of normalized) {
-    if (character === "\n" || isWinAnsiEncodable(character)) {
+    if (character === "\n") {
       result += character
       continue
     }
 
-    const fallback = FALLBACKS[character]
-
-    if (fallback) {
-      result += fallback
+    if (character === "\t") {
+      result += " "
+      continue
     }
+
+    if (INVISIBLE.test(character)) {
+      continue
+    }
+
+    result += supports(character.codePointAt(0) ?? -1)
+      ? character
+      : replacementFor(character, supports)
   }
 
   return result

@@ -43,6 +43,8 @@ const daySchema = z.object({
 const componentSchema = z.object({
   key: componentKeySchema,
   level: levelSchema,
+  // Retratos antigos não trazem o sinal: ausente = não informado.
+  automaticSignal: z.boolean().optional(),
   uptime90dPct: z.number().min(0).max(100).nullable(),
   days: z.array(daySchema),
 })
@@ -58,6 +60,8 @@ const incidentSchema = z.object({
   resolvedAt: timestampSchema.nullable(),
   scheduledFor: timestampSchema.nullable(),
   scheduledUntil: timestampSchema.nullable(),
+  // Retratos antigos não trazem a origem: ausente = equipe.
+  source: z.enum(["automatic", "team"]).optional(),
   updates: z.array(
     z.object({
       status: statusSchema,
@@ -89,6 +93,7 @@ function toIncident(incident: z.infer<typeof incidentSchema>): PublicIncident {
     resolvedAt: incident.resolvedAt,
     scheduledFor: incident.scheduledFor,
     scheduledUntil: incident.scheduledUntil,
+    source: incident.source ?? "team",
     updates: incident.updates.map((update) => ({
       status: update.status,
       message: update.message,
@@ -120,6 +125,9 @@ export function parsePublicStatusSnapshot(value: unknown): PublicStatusSnapshot 
       name: info.name,
       description: info.description,
       level: component.level,
+      ...(component.automaticSignal === undefined
+        ? {}
+        : { automaticSignal: component.automaticSignal }),
       uptime90dPct: component.uptime90dPct,
       days: component.days.map((day) => ({
         date: day.date,

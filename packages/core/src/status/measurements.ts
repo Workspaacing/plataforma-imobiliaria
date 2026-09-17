@@ -24,7 +24,8 @@ export const STATUS_COMPONENT_RULES: Record<StatusComponentKey, string> = {
     "Entregas de portais na última hora: 10% ou mais com falha = lentidão; 50% ou mais = instabilidade parcial; entrega pendente há mais de 60 min = lentidão. Nunca fora do ar.",
   caixa_catalog:
     "Última carga do catálogo da Caixa há mais de 48 h = lentidão (dado desatualizado). Nunca fora do ar.",
-  billing: "Sem sinal automático: só muda com incidente ou manutenção publicados pela equipe.",
+  billing:
+    "Entregas do webhook da Stripe nas últimas 2 h: segredo ausente ou assinatura que não confere, sem entrega ok depois = instabilidade parcial; mais da metade das entregas processadas com erro (mínimo 3) = lentidão. Sem entrega na janela = sem medição. Nunca fora do ar.",
 }
 
 const DETAIL_LABELS: Record<string, string> = {
@@ -42,6 +43,9 @@ const DETAIL_LABELS: Record<string, string> = {
   muitas_falhas: "Metade ou mais das entregas falhou",
   entregas_paradas: "Entrega pendente há mais de 60 min",
   catalogo_desatualizado: "Catálogo sem carga há mais de 48 h",
+  webhook_config_ausente: "Webhook da Stripe sem chave ou segredo no servidor",
+  webhook_assinatura_invalida: "Assinatura do webhook da Stripe não confere com o segredo",
+  webhook_erros_processamento: "Mais da metade das entregas do webhook falhou ao processar",
 }
 
 /** Rótulo do código curto gravado com a medição (http_503 → "Resposta HTTP 503"). */

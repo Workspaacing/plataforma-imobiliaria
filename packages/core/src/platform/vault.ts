@@ -70,6 +70,16 @@ export const EXPECTED_WEBHOOK_SECRET_PAIRS: readonly ExpectedWebhookSecretPair[]
     missing:
       "Os lembretes de visita entram na fila e nunca saem (não há rotina da Vercel para eles).",
   },
+  {
+    key: "status_alerts",
+    label: "Webhook do aviso de incidente automático",
+    url: "status_alerts_webhook_url",
+    secret: "status_alerts_webhook_secret",
+    route: "/api/cron/status-alerts",
+    missingStatus: "atencao",
+    missing:
+      "Os Donos não recebem e-mail quando a página de status abre um incidente automático grande ou crítico nem quando ele se resolve (não há rotina da Vercel para esse aviso: sem os segredos, ele expira em 6 h). O incidente continua aparecendo na página pública e no Console.",
+  },
 ]
 
 export type ExpectedUrlSecret = {

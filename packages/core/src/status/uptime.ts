@@ -8,7 +8,7 @@
  * `public.get_public_status`.
  */
 
-import type { StatusDay } from "./public"
+import type { PublicStatusComponent, StatusDay } from "./public"
 
 /** Dias mostrados na barra de disponibilidade. */
 export const STATUS_HISTORY_DAYS = 90
@@ -103,4 +103,71 @@ export function countDaysWithoutProblems(days: readonly StatusDay[]): number {
   return days.filter(
     (day) => day.worstLevel === "operational" || day.worstLevel === "under_maintenance"
   ).length
+}
+
+export type UptimeCoverage = {
+  /** Primeiro dia da barra com medição automática (AAAA-MM-DD); null sem medição. */
+  measuredSince: string | null
+  /** A barra tem os 90 dias e o primeiro deles foi medido. */
+  fullWindow: boolean
+}
+
+/**
+ * De quando é a disponibilidade mostrada: o percentual soma só os dias com
+ * medição, então com menos de 90 dias medidos a página diz "desde" em vez de
+ * "em 90 dias".
+ */
+export function uptimeCoverage(days: readonly StatusDay[]): UptimeCoverage {
+  const first = days.find((day) => day.uptimePct !== null)
+
+  return {
+    measuredSince: first?.date ?? null,
+    fullWindow: days.length >= STATUS_HISTORY_DAYS && days[0]?.uptimePct != null,
+  }
+}
+
+/** Textos sob a barra de disponibilidade quando não há percentual. */
+export const UPTIME_CAPTIONS = {
+  /** A parte não tem sinal automático ligado: só a equipe acompanha. */
+  noAutomaticSignal: "Sem medição automática · acompanhado pela equipe",
+  /** Sinal ligado, mas nenhuma medição ainda. */
+  waitingFirstMeasurement: "Aguardando a primeira medição",
+  /** Retrato antigo, sem a informação do sinal. */
+  noMeasurement: "Sem medição nos últimos 90 dias",
+} as const
+
+/** "17/09/2026" a partir de "2026-09-17" (o próprio texto se não for data). */
+export function formatStatusDayKey(dateKey: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey)
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : dateKey
+}
+
+/**
+ * Frase sob a barra: "99,95% disponível em 90 dias" com a janela inteira
+ * medida; "100% disponível desde 17/09/2026" com menos; sem percentual, diz se
+ * falta sinal automático ou se ainda não houve medição. `formatPct` formata o
+ * número como a página mostra (ex.: "99,95%").
+ */
+export function uptimeCaption(
+  component: Pick<PublicStatusComponent, "uptime90dPct" | "days" | "automaticSignal">,
+  formatPct: (pct: number) => string
+): string {
+  if (component.uptime90dPct === null) {
+    if (component.automaticSignal === false) {
+      return UPTIME_CAPTIONS.noAutomaticSignal
+    }
+
+    return component.automaticSignal === true
+      ? UPTIME_CAPTIONS.waitingFirstMeasurement
+      : UPTIME_CAPTIONS.noMeasurement
+  }
+
+  const pct = formatPct(component.uptime90dPct)
+  const { measuredSince, fullWindow } = uptimeCoverage(component.days)
+
+  if (fullWindow || !measuredSince) {
+    return `${pct} disponível em ${STATUS_HISTORY_DAYS} dias`
+  }
+
+  return `${pct} disponível desde ${formatStatusDayKey(measuredSince)}`
 }

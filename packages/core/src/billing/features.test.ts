@@ -7,6 +7,7 @@ import {
   featuresForPlan,
   isFeatureKey,
   planHasFeature,
+  TRIAL_EXCLUDED_FEATURES,
   type FeatureKey,
 } from "./features"
 import { PLAN_KEYS, type BillingPlanKey } from "./plans"
@@ -276,11 +277,18 @@ describe("planHasFeature", () => {
     expect(planHasFeature("rede", "feature_multi_branch")).toBe(true)
   })
 
-  it("dá ao teste grátis os recursos do Equipe", () => {
+  it("dá ao teste grátis os recursos do Equipe, menos a IA", () => {
+    expect(TRIAL_EXCLUDED_FEATURES).toEqual(["feature_ai_whatsapp"])
+    expect(planHasFeature("equipe", "feature_ai_whatsapp")).toBe(true)
+    expect(planHasFeature("trial", "feature_ai_whatsapp")).toBe(false)
+
     for (const key of FEATURE_KEYS) {
-      expect(planHasFeature("trial", key), key).toBe(planHasFeature("equipe", key))
+      const expected = TRIAL_EXCLUDED_FEATURES.includes(key) ? false : planHasFeature("equipe", key)
+      expect(planHasFeature("trial", key), key).toBe(expected)
     }
-    expect(featuresForPlan("trial")).toEqual(featuresForPlan("equipe"))
+    expect(featuresForPlan("trial")).toEqual(
+      featuresForPlan("equipe").filter((key) => !TRIAL_EXCLUDED_FEATURES.includes(key))
+    )
   })
 
   it("é cumulativo: cada plano tem tudo do plano anterior", () => {

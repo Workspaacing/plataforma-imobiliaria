@@ -9,43 +9,111 @@
 // sobrem conversas na franquia.
 //
 // Estas funções são puras: o app usa para projetar e explicar, mas quem aplica o
-// corte de verdade é o banco (RPC reserve_ai_usage, migração ai_usage_metering),
-// que repete a mesma regra. Ao mudar qualquer constante aqui, mude também
-// private.ai_pricing() e private.ai_cost_cap_cents() no SQL.
+// corte de verdade é o banco (RPC reserve_ai_usage), que repete a mesma regra.
+//
+// FONTE ÚNICA DOS NÚMEROS: este arquivo. O banco guarda cópias — ao mudar preço,
+// câmbio, desconto do lote ou teto aqui, copie para private.ai_models(),
+// private.ai_pricing() e private.ai_cost_cap_cents() numa migração nova (a última
+// foi ai_trial_without_ai_model_pricing_batch). A tela Console → Custos de IA
+// confere banco x core e marca "Diferente" quando não batem.
 
 import type { BillingState } from "./state"
 import { PLANS, type BillingPlanKey, type PlanKey } from "./plans"
 
 // ---------------------------------------------------------------------------
-// 1. Modelo e preços (US$ por milhão de tokens)
+// 1. Modelos e preços (US$ por milhão de tokens)
 // ---------------------------------------------------------------------------
 
-/** Modelo fixo do produto. Trocar de modelo muda o custo: revise os tetos junto. */
-export const AI_MODEL = "claude-sonnet-5"
-export const AI_MODEL_LABEL = "Claude Sonnet 5"
-export const AI_MODEL_CONTEXT_TOKENS = 1_000_000
-
 /** Data da tabela de preços consultada. Preço muda: confira antes de reajustar planos. */
-export const AI_PRICING_CHECKED_AT = "2026-09-16"
+export const AI_PRICING_CHECKED_AT = "2026-09-17"
+
+/** Página oficial de onde vêm os preços abaixo. */
+export const AI_PRICING_SOURCE_URL = "https://platform.claude.com/docs/en/about-claude/pricing"
+
+/** Modelos que o produto chama. Qualquer outro é recusado na medição (nunca subcobrar). */
+export const AI_MODELS = ["claude-sonnet-5", "claude-haiku-4-5"] as const
+
+export type AiModel = (typeof AI_MODELS)[number]
+
+export type AiModelPrice = {
+  input: number
+  output: number
+  cacheRead: number
+  /** Escrita de cache de 5 min: o único preço de escrita que o banco mede. */
+  cacheWrite: number
+  /** Escrita de cache de 1 h: só usada na conversão de `aiUsageFromApi`. */
+  cacheWrite1h: number
+}
+
+export type AiModelDefinition = {
+  label: string
+  contextTokens: number
+  priceUsdPerMtok: AiModelPrice
+  /**
+   * Aceita `output_config.effort`. O Haiku 4.5 NÃO aceita (fica fora da lista de
+   * modelos suportados em platform.claude.com/docs/en/build-with-claude/effort,
+   * conferida em 2026-09-17): mandar o campo para ele é erro 400.
+   */
+  supportsEffort: boolean
+  /**
+   * Aceita `thinking: {type: "adaptive"}`. O Haiku 4.5 só tem o raciocínio manual
+   * (budget_tokens) e, sem o campo `thinking`, não raciocina.
+   */
+  adaptiveThinking: boolean
+}
 
 /**
- * Preço oficial em US$ por milhão de tokens (Sonnet 5, conferido em 2026-09-16 em
- * platform.claude.com/docs/en/about-claude/pricing): entrada 2,00; saída 10,00;
- * leitura de cache 0,20 (10% da entrada); escrita de cache de 5 min 2,50 (1,25x).
+ * Preço oficial em US$ por milhão de tokens, conferido em 2026-09-17 em
+ * platform.claude.com/docs/en/about-claude/pricing:
+ *  - Claude Sonnet 5: entrada 2; escrita de cache 5 min 2,50; 1 h 4; leitura 0,20; saída 10.
+ *  - Claude Haiku 4.5: entrada 1; escrita de cache 5 min 1,25; 1 h 2; leitura 0,10; saída 5.
  *
- * O banco guarda um único preço de escrita (o de 5 min). A escrita de 1 hora
- * custa 4,00 (2x a entrada) e por isso NUNCA vai direto para `cacheWriteTokens`:
- * passe o `usage` da API por `aiUsageFromApi`, que converte.
+ * Espelho: private.ai_models() no banco.
  */
-export const AI_PRICE_USD_PER_MTOK = {
-  input: 2,
-  output: 10,
-  cacheRead: 0.2,
-  cacheWrite: 2.5,
-} as const
+export const AI_MODEL_CATALOG: Record<AiModel, AiModelDefinition> = {
+  "claude-sonnet-5": {
+    label: "Claude Sonnet 5",
+    contextTokens: 1_000_000,
+    priceUsdPerMtok: { input: 2, output: 10, cacheRead: 0.2, cacheWrite: 2.5, cacheWrite1h: 4 },
+    supportsEffort: true,
+    adaptiveThinking: true,
+  },
+  "claude-haiku-4-5": {
+    label: "Claude Haiku 4.5",
+    contextTokens: 200_000,
+    priceUsdPerMtok: { input: 1, output: 5, cacheRead: 0.1, cacheWrite: 1.25, cacheWrite1h: 2 },
+    supportsEffort: false,
+    adaptiveThinking: false,
+  },
+}
 
-/** Escrita de cache de 1 hora (US$ por milhão). Só usada na conversão de `aiUsageFromApi`. */
-export const AI_PRICE_CACHE_WRITE_1H_USD_PER_MTOK = 4
+/**
+ * Modelo assumido quando a chamada não informa qual usou (chamada antiga ao
+ * banco): o mais caro do catálogo, para nunca medir a menos. Espelho de
+ * private.ai_default_model().
+ */
+export const AI_DEFAULT_MODEL: AiModel = "claude-sonnet-5"
+
+/**
+ * Batch API: 50% de desconto em entrada e saída (Sonnet 5 1/5; Haiku 4.5
+ * 0,50/2,50), e os multiplicadores de cache se somam ao desconto — ou seja, o
+ * lote custa metade em tudo. Resposta em até 24 h: só para trabalho que pode
+ * esperar (perfil com `batchable`). Espelho de private.ai_pricing().batch_multiplier.
+ */
+export const AI_BATCH_PRICE_MULTIPLIER = 0.5
+
+export function isAiModel(value: unknown): value is AiModel {
+  return typeof value === "string" && (AI_MODELS as readonly string[]).includes(value)
+}
+
+/** Preço do modelo. Modelo desconhecido lança erro: sem preço não há como medir sem subcobrar. */
+export function aiModelPrice(model: string): AiModelPrice {
+  if (!isAiModel(model)) {
+    throw new Error(`Modelo de IA desconhecido: ${String(model)}`)
+  }
+
+  return AI_MODEL_CATALOG[model].priceUsdPerMtok
+}
 
 /**
  * Câmbio configurável. `ptax` é a cotação oficial do dia consultado; `card` é o
@@ -71,41 +139,59 @@ export const AI_EXCHANGE_RATE_DEFAULT: number = AI_EXCHANGE_RATES.card
 // ---------------------------------------------------------------------------
 
 /**
- * Fatia do preço de tabela do plano que pode virar custo de IA num ciclo.
+ * Fatia máxima do preço de tabela do plano que pode virar custo de IA num ciclo.
  *
  * Era 15%. Subiu para 20% em 16/09/2026 (decisão do dono) quando a conversa
  * típica foi recalculada com o comportamento real do Sonnet 5: com 15%, Equipe e
- * Rede batiam o teto antes de entregar a franquia anunciada (~159 de 200 e ~396
- * de 500). Com 20% as três franquias cabem e todo plano segue com lucro no pior
- * caso. Ajuste aqui (um número só) e em private.ai_cost_cap_cents() no SQL.
+ * Rede batiam o teto antes de entregar a franquia anunciada. Desde 17/09/2026 é
+ * só o limite de cima: o teto é o MENOR entre isto e o custo da franquia com
+ * folga (`AI_COST_CAP_FRANCHISE_SLACK`).
  */
 export const AI_COST_CAP_PCT = 0.2
 
 /**
- * Teto do teste grátis em centavos (o trial não paga nada: valor fixo e pequeno).
- * R$ 6,00 desde 16/09/2026: é o que as 10 conversas prometidas no teste custam
- * na conversa típica recalculada (antes, R$ 3,00 pagava só ~5).
+ * Folga sobre o custo da franquia inteira em conversas típicas (decisão do dono
+ * em 17/09/2026). 20% do preço sobrava demais no plano Imobiliária: a franquia de
+ * 50 conversas custa ~R$ 27,65 no pior caso e o teto era R$ 49,80. Com 1,25 o
+ * teto cobre a franquia com 25% de margem de erro na estimativa e não autoriza
+ * gasto além disso.
  */
-export const AI_TRIAL_COST_CAP_CENTS = 600
+export const AI_COST_CAP_FRANCHISE_SLACK = 1.25
+
+/**
+ * Teto do teste grátis em centavos: ZERO. Decisão do dono em 17/09/2026: o teste
+ * tem os recursos do Equipe, menos a IA — a IA começa quando a imobiliária
+ * assina. Antes eram 10 conversas e R$ 6,00. O banco recusa em qualquer conta
+ * 'trialing' (inclusive teste criado na Stripe), não só no plano "trial".
+ */
+export const AI_TRIAL_COST_CAP_CENTS = 0
 
 /** O teto do ciclo também vale por dia (1/N) e por semana (1/M): ninguém queima o mês num dia. */
 export const AI_DAILY_CAP_DIVISOR = 15
 export const AI_WEEKLY_CAP_DIVISOR = 4
 
 /**
- * Piso das janelas curtas, em centavos. Sem ele, num teto de ciclo pequeno (o
- * teste grátis) a fração diária não pagaria nem uma conversa e o corte do dia
- * viraria o corte real. O piso só afrouxa o ritmo: nunca passa do teto do
- * ciclo, que continua sendo o limite de gasto.
+ * Piso das janelas curtas, em centavos. Sem ele, num teto de ciclo pequeno a
+ * fração diária não pagaria nem uma conversa e o corte do dia viraria o corte
+ * real. O piso só afrouxa o ritmo: nunca passa do teto do ciclo, que continua
+ * sendo o limite de gasto (teto zero, como no teste grátis, segue zero).
  */
 export const AI_MIN_DAILY_CAP_CENTS = 100
 export const AI_MIN_WEEKLY_CAP_CENTS = 150
 
 /**
- * Teto de custo de IA do ciclo, em centavos.
+ * Teto de custo de IA do ciclo mensal, por imobiliária, em centavos. É o MÁXIMO
+ * que o banco deixa gastar, não o gasto esperado.
  *
- * Usa sempre o PREÇO DE TABELA MENSAL do plano, nunca o valor efetivamente
- * cobrado. Dois motivos:
+ * Regra (decisão do dono em 17/09/2026): o menor valor entre
+ *  - 20% do PREÇO DE TABELA MENSAL do plano, e
+ *  - franquia × custo da conversa típica × 1,25, arredondado para cima.
+ *
+ * Resultado hoje: Imobiliária R$ 34,56 (era R$ 49,80), Equipe R$ 119,80 e Rede
+ * R$ 298,00 (os 20% já eram o menor). Corretor e teste grátis: zero. Copie os
+ * valores para private.ai_cost_cap_cents() ao mudar qualquer entrada.
+ *
+ * Sempre o preço de tabela, nunca o valor cobrado:
  *  - Indique e ganhe: quem acumula 100% de desconto paga R$ 0, mas as
  *    indicações dele pagam; calcular sobre o valor com desconto deixaria esse
  *    cliente sem IA nenhuma.
@@ -117,11 +203,27 @@ export function aiCostCapCents(plan: BillingPlanKey): number {
     return AI_TRIAL_COST_CAP_CENTS
   }
 
+  const franchise = PLANS[plan].limits.ai_conversations
+
   // Plano sem franquia de IA (Corretor) não tem teto a autorizar: nada pode ser
   // gasto. A franquia 0 já bloqueia antes, mas o teto zero fecha a segunda porta.
-  return PLANS[plan].limits.ai_conversations === 0
-    ? 0
-    : Math.round(PLANS[plan].prices.month * AI_COST_CAP_PCT)
+  if (franchise === 0) {
+    return 0
+  }
+
+  const byPrice = Math.round(PLANS[plan].prices.month * AI_COST_CAP_PCT)
+
+  // Franquia ilimitada não tem custo de franquia a calcular: vale só o limite de cima.
+  if (franchise < 0) {
+    return byPrice
+  }
+
+  const byFranchise = Math.ceil(
+    (franchise * typicalConversationCostMillicents() * AI_COST_CAP_FRANCHISE_SLACK) /
+      AI_MILLICENTS_PER_CENT
+  )
+
+  return Math.min(byPrice, byFranchise)
 }
 
 /** Teto do dia, em centavos: 1/15 do teto do ciclo (para cima), com piso e nunca acima do ciclo. */
@@ -222,19 +324,43 @@ export const AI_UNIT_WEIGHTS: Record<AiUsageKind, number> = {
   reply_suggestion: 1,
 }
 
+export type AiEffort = "low" | "medium" | "high"
+
 /**
- * Como cada tipo de uso chama o modelo. Conferido em 2026-09-16 nas páginas
- * oficiais de effort, thinking e prompt caching (platform.claude.com/docs).
+ * Effort padrão de qualquer chamada sem perfil próprio (decisão do dono em
+ * 17/09/2026). Sem o campo, a API usa `high` — o nível mais caro que faz sentido
+ * aqui. A documentação do Sonnet 5 descreve `medium` como o degrau de economia a
+ * partir do padrão (platform.claude.com/docs/en/build-with-claude/effort).
+ * Nunca omitir: `aiMessageParams` sempre manda o effort para quem aceita.
+ */
+export const AI_DEFAULT_EFFORT: AiEffort = "medium"
+
+/**
+ * Como cada tipo de uso chama o modelo. Conferido em 2026-09-17 nas páginas
+ * oficiais de pricing, effort e thinking (platform.claude.com/docs).
  *
- * Três fatos do Sonnet 5 que mandam aqui:
- *  - Sem o campo `thinking`, o raciocínio adaptativo LIGA sozinho, e o effort
- *    padrão é `high` ("almost always thinks"). Raciocínio é cobrado como saída
- *    (US$ 10/milhão) mesmo quando não aparece. Por isso o effort é sempre
- *    explícito: omitir é pagar o nível mais caro por padrão.
+ * Fatos que mandam aqui:
+ *  - Sonnet 5: sem o campo `thinking`, o raciocínio adaptativo LIGA sozinho, e o
+ *    effort padrão é `high`. Raciocínio é cobrado como saída (US$ 10/milhão)
+ *    mesmo quando não aparece. Por isso o effort é sempre explícito.
  *  - A documentação recomenda `low` para "chat and non-coding use cases" de alto
- *    volume, e `medium` como degrau de economia quando a qualidade pesa mais.
- *  - Trocar o effort no meio da conversa invalida o cache: o nível é por tipo de
- *    uso e fica fixo durante a conversa inteira.
+ *    volume, e `medium` como degrau de economia a partir do padrão. `low` gasta
+ *    MENOS que `medium`: os perfis que já estavam em `low` continuam em `low`
+ *    (o dono pediu para baratear) e o que não tem perfil cai em
+ *    `AI_DEFAULT_EFFORT` (`medium`), nunca no `high` da API.
+ *  - Haiku 4.5 (metade do preço do Sonnet 5; a página de preços o indica para
+ *    tarefas simples) NÃO aceita `effort` (erro 400) e só raciocina se o campo
+ *    `thinking` vier ligado com budget_tokens. Resumo e sugestão de resposta
+ *    rodam nele SEM raciocínio: mais barato que Sonnet 5 em `low`. Por isso o
+ *    effort desses perfis é `null` (não é mandado), e não `low`.
+ *  - Trocar o effort ou o modelo no meio da conversa invalida o cache: o perfil
+ *    é por tipo de uso e fica fixo durante a conversa inteira.
+ *
+ * Alavanca futura, NÃO aplicada: desligar o raciocínio da conversa no WhatsApp
+ * (`thinking: {type: "disabled"}` no Sonnet 5) cortaria a parte de saída que é
+ * raciocínio (~120 de ~445 tokens por turno na estimativa). Só depois de
+ * avaliação de qualidade com conversas reais — atendimento ruim custa mais que
+ * o token economizado.
  *
  * `maxTokens` é o teto de saída TOTAL da chamada (raciocínio + texto). Se a
  * resposta vier com `stop_reason: "max_tokens"`, o texto veio cortado: não envie
@@ -244,7 +370,11 @@ export const AI_UNIT_WEIGHTS: Record<AiUsageKind, number> = {
  * padrão devolve erro 400.
  */
 export type AiRequestProfile = {
-  effort: "low" | "medium" | "high"
+  model: AiModel
+  /** null = o modelo não aceita effort (Haiku 4.5): o campo não é mandado. */
+  effort: AiEffort | null
+  /** `adaptive` = raciocínio adaptativo (Sonnet 5); `off` = sem o campo e sem raciocínio (Haiku 4.5). */
+  thinking: "adaptive" | "off"
   maxTokens: number
   /**
    * `1h` quando o intervalo entre chamadas costuma passar de 5 minutos (cliente
@@ -257,36 +387,94 @@ export type AiRequestProfile = {
 }
 
 export const AI_REQUEST_PROFILES: Record<AiUsageKind, AiRequestProfile> = {
-  // Atendimento no WhatsApp: alto volume, resposta curta, precisa ser rápido.
+  // Atendimento no WhatsApp: alto volume, resposta curta, precisa ser rápido e
+  // bom. Sonnet 5 em `low`, com raciocínio adaptativo (ver alavanca futura acima).
   conversation: {
+    model: "claude-sonnet-5",
     effort: "low",
+    thinking: "adaptive",
     maxTokens: AI_MAX_OUTPUT_TOKENS,
     cacheTtl: "1h",
     batchable: false,
   },
-  // Texto de anúncio é vitrine: um degrau acima, e em lote (imóveis importados) vai pela Batch API.
+  // Texto de anúncio é vitrine: Sonnet 5 em `medium`, e em lote (imóveis
+  // importados) vai pela Batch API.
   listing_copy: {
+    model: "claude-sonnet-5",
     effort: "medium",
+    thinking: "adaptive",
     maxTokens: AI_MAX_OUTPUT_TOKENS,
     cacheTtl: "5m",
     batchable: true,
   },
+  // Tarefas simples: Haiku 4.5, sem effort (não aceita) e sem raciocínio.
   conversation_summary: {
-    effort: "low",
+    model: "claude-haiku-4-5",
+    effort: null,
+    thinking: "off",
     maxTokens: AI_MAX_OUTPUT_TOKENS,
     cacheTtl: "5m",
     batchable: true,
   },
   reply_suggestion: {
-    effort: "low",
+    model: "claude-haiku-4-5",
+    effort: null,
+    thinking: "off",
     maxTokens: AI_MAX_OUTPUT_TOKENS,
     cacheTtl: "5m",
     batchable: false,
   },
 }
 
+/**
+ * Perfil de qualquer chamada que ainda não tem tipo de uso próprio: Sonnet 5 em
+ * `AI_DEFAULT_EFFORT` (`medium`), nunca o `high` que a API usaria sem o campo.
+ */
+export const AI_DEFAULT_REQUEST_PROFILE: AiRequestProfile = {
+  model: AI_DEFAULT_MODEL,
+  effort: AI_DEFAULT_EFFORT,
+  thinking: "adaptive",
+  maxTokens: AI_MAX_OUTPUT_TOKENS,
+  cacheTtl: "5m",
+  batchable: false,
+}
+
 export function isAiUsageKind(value: unknown): value is AiUsageKind {
   return typeof value === "string" && (AI_USAGE_KINDS as readonly string[]).includes(value)
+}
+
+/** Perfil do tipo de uso; tipo desconhecido ou ausente cai no perfil padrão (`medium`). */
+export function aiRequestProfile(kind: unknown): AiRequestProfile {
+  return isAiUsageKind(kind) ? AI_REQUEST_PROFILES[kind] : AI_DEFAULT_REQUEST_PROFILE
+}
+
+/**
+ * Campos da Messages API que o perfil controla, no formato do corpo da
+ * requisição (sem depender do SDK). Quem chamar o modelo espalha isto no corpo:
+ *  - `output_config.effort` vai SEMPRE para o modelo que aceita (sem ele a API
+ *    usaria `high`); perfil sem effort num modelo que aceita recebe o padrão;
+ *  - `thinking` adaptativo só vai para o modelo que o aceita; `off` omite o campo.
+ */
+export type AiMessageParams = {
+  model: AiModel
+  max_tokens: number
+  thinking?: { type: "adaptive" }
+  output_config?: { effort: AiEffort }
+}
+
+export function aiMessageParams(profile: AiRequestProfile): AiMessageParams {
+  const definition = AI_MODEL_CATALOG[profile.model]
+  const params: AiMessageParams = { model: profile.model, max_tokens: profile.maxTokens }
+
+  if (definition.adaptiveThinking && profile.thinking === "adaptive") {
+    params.thinking = { type: "adaptive" }
+  }
+
+  if (definition.supportsEffort) {
+    params.output_config = { effort: profile.effort ?? AI_DEFAULT_EFFORT }
+  }
+
+  return params
 }
 
 /** Unidades da franquia consumidas por `units` requisições do tipo. */
@@ -317,21 +505,39 @@ function tokens(value: number | undefined): number {
   return Number.isFinite(value) && (value ?? 0) > 0 ? Math.floor(value as number) : 0
 }
 
-/** Custo em dólares dos tokens informados (entrada, saída, escrita e leitura de cache). */
-export function aiCostUsd(usage: AiTokenUsage): number {
+/**
+ * Como a chamada foi (ou vai ser) cobrada. Mesmo contrato do banco
+ * (private.ai_cost_millicents): sem modelo = `AI_DEFAULT_MODEL` (o mais caro),
+ * sem `batch` = preço cheio; modelo desconhecido lança erro.
+ */
+export type AiCostOptions = {
+  model?: AiModel
+  /** Chamada pela Batch API: metade do preço em tudo. */
+  batch?: boolean
+  /** Câmbio US$ → R$; inválido ou ausente cai no padrão. */
+  rate?: number
+}
+
+/** Custo em dólares dos tokens informados, pelo preço do modelo e com o desconto do lote. */
+export function aiCostUsd(usage: AiTokenUsage, options: AiCostOptions = {}): number {
+  const price = aiModelPrice(options.model ?? AI_DEFAULT_MODEL)
+  const multiplier = options.batch ? AI_BATCH_PRICE_MULTIPLIER : 1
+
   return (
-    (tokens(usage.inputTokens) * AI_PRICE_USD_PER_MTOK.input +
-      tokens(usage.outputTokens) * AI_PRICE_USD_PER_MTOK.output +
-      tokens(usage.cacheReadTokens) * AI_PRICE_USD_PER_MTOK.cacheRead +
-      tokens(usage.cacheWriteTokens) * AI_PRICE_USD_PER_MTOK.cacheWrite) /
-    1_000_000
+    ((tokens(usage.inputTokens) * price.input +
+      tokens(usage.outputTokens) * price.output +
+      tokens(usage.cacheReadTokens) * price.cacheRead +
+      tokens(usage.cacheWriteTokens) * price.cacheWrite) /
+      1_000_000) *
+    multiplier
   )
 }
 
 /** Custo em millicents, arredondado para cima (nunca contar menos do que custou). */
-export function aiCostMillicents(usage: AiTokenUsage, rate = AI_EXCHANGE_RATE_DEFAULT): number {
+export function aiCostMillicents(usage: AiTokenUsage, options: AiCostOptions = {}): number {
+  const rate = options.rate ?? AI_EXCHANGE_RATE_DEFAULT
   const safeRate = Number.isFinite(rate) && rate > 0 ? rate : AI_EXCHANGE_RATE_DEFAULT
-  return Math.ceil(aiCostUsd(usage) * safeRate * 100 * AI_MILLICENTS_PER_CENT)
+  return Math.ceil(aiCostUsd(usage, options) * safeRate * 100 * AI_MILLICENTS_PER_CENT)
 }
 
 /**
@@ -354,11 +560,16 @@ export type AnthropicUsage = {
  * Converte o `usage` da API para o formato que o banco mede.
  *
  * O banco tem um preço só de escrita de cache (5 min). A escrita de 1 hora custa
- * 1,6x isso, então ela entra convertida em tokens equivalentes de 5 min,
- * arredondando para cima. Quando a API não detalha a escrita por duração, tudo é
- * tratado como 1 hora: na dúvida, medir a mais, nunca a menos.
+ * 1,6x isso (nos dois modelos do catálogo: 4/2,50 no Sonnet 5 e 2/1,25 no Haiku
+ * 4.5), então ela entra convertida em tokens equivalentes de 5 min, arredondando
+ * para cima. Quando a API não detalha a escrita por duração, tudo é tratado como
+ * 1 hora: na dúvida, medir a mais, nunca a menos.
  */
-export function aiUsageFromApi(usage: AnthropicUsage | null | undefined): Required<AiTokenUsage> {
+export function aiUsageFromApi(
+  usage: AnthropicUsage | null | undefined,
+  model: AiModel = AI_DEFAULT_MODEL
+): Required<AiTokenUsage> {
+  const price = aiModelPrice(model)
   const written = tokens(usage?.cache_creation_input_tokens ?? undefined)
   const detail = usage?.cache_creation
   const fiveMinutes = detail ? tokens(detail.ephemeral_5m_input_tokens ?? undefined) : 0
@@ -367,9 +578,7 @@ export function aiUsageFromApi(usage: AnthropicUsage | null | undefined): Requir
     detail ? tokens(detail.ephemeral_1h_input_tokens ?? undefined) : 0,
     written - fiveMinutes
   )
-  const oneHourAsFiveMinutes = Math.ceil(
-    (oneHour * AI_PRICE_CACHE_WRITE_1H_USD_PER_MTOK) / AI_PRICE_USD_PER_MTOK.cacheWrite
-  )
+  const oneHourAsFiveMinutes = Math.ceil((oneHour * price.cacheWrite1h) / price.cacheWrite)
 
   return {
     inputTokens: tokens(usage?.input_tokens ?? undefined),
@@ -418,7 +627,9 @@ export const AI_TYPICAL_CONVERSATION = {
 
 /**
  * Requisição avulsa típica (redigir anúncio, resumir conversa, sugerir resposta),
- * com o tokenizador do Sonnet 5 e o raciocínio do perfil incluídos. Estimativa.
+ * com o tokenizador do Sonnet 5 e o raciocínio do perfil incluídos. ESTIMATIVA.
+ * Vale também para o Haiku 4.5 sem descontar o raciocínio que ele não faz:
+ * conservador de propósito até haver média medida.
  */
 export const AI_TYPICAL_REQUEST = { inputTokens: 2_000, outputTokens: 900 } as const
 
@@ -436,14 +647,48 @@ export function typicalConversationTokens(): Required<AiTokenUsage> {
   }
 }
 
-/** Custo da conversa típica, em millicents. */
+/** Custo da conversa típica, em millicents, no modelo do perfil de conversa (Sonnet 5). */
 export function typicalConversationCostMillicents(rate = AI_EXCHANGE_RATE_DEFAULT): number {
-  return aiCostMillicents(typicalConversationTokens(), rate)
+  return aiCostMillicents(typicalConversationTokens(), {
+    model: AI_REQUEST_PROFILES.conversation.model,
+    rate,
+  })
 }
 
-/** Custo da requisição avulsa típica, em millicents. */
+/**
+ * Custo da requisição avulsa típica, em millicents, no modelo mais caro e sem
+ * lote: a projeção de pior caso para pedidos avulsos.
+ */
 export function typicalRequestCostMillicents(rate = AI_EXCHANGE_RATE_DEFAULT): number {
-  return aiCostMillicents(AI_TYPICAL_REQUEST, rate)
+  return aiCostMillicents(AI_TYPICAL_REQUEST, { model: AI_DEFAULT_MODEL, rate })
+}
+
+export type AiTypicalUsageCost = {
+  kind: AiUsageKind
+  model: AiModel
+  effort: AiEffort | null
+  /** Custo típico de uma unidade do tipo (conversa inteira ou pedido avulso), em millicents. */
+  costMillicents: number
+  /** O mesmo pela Batch API; null quando o tipo não vai em lote. */
+  batchCostMillicents: number | null
+}
+
+/** Custo típico de cada tipo de uso no modelo do seu perfil (ESTIMATIVA, para projeção e para o Console). */
+export function aiTypicalUsageCosts(rate = AI_EXCHANGE_RATE_DEFAULT): AiTypicalUsageCost[] {
+  return AI_USAGE_KINDS.map((kind) => {
+    const profile = AI_REQUEST_PROFILES[kind]
+    const usage = kind === "conversation" ? typicalConversationTokens() : AI_TYPICAL_REQUEST
+
+    return {
+      kind,
+      model: profile.model,
+      effort: profile.effort,
+      costMillicents: aiCostMillicents(usage, { model: profile.model, rate }),
+      batchCostMillicents: profile.batchable
+        ? aiCostMillicents(usage, { model: profile.model, batch: true, rate })
+        : null,
+    }
+  })
 }
 
 /** Projeção de custo do ciclo, em millicents, para N conversas e M requisições avulsas. */
@@ -485,8 +730,18 @@ export type AiBlockReason =
   | "quota_exhausted"
   | "overage_cap"
 
-/** Estados em que a IA roda. Carência e modo leitura bloqueiam: IA é dinheiro saindo. */
+/**
+ * Estados em que a assinatura não bloqueia a IA. Carência e modo leitura
+ * bloqueiam (`billing_blocked`): IA é dinheiro saindo. O teste grátis passa por
+ * aqui, mas não tem IA: cai em `feature_unavailable` logo depois (franquia e
+ * teto zero), com a mesma razão que o banco devolve.
+ */
 export const AI_ALLOWED_BILLING_STATES: readonly BillingState[] = ["trialing", "active"]
+
+/** Teste grátis (qualquer conta 'trialing' ou o plano "trial"): sem IA até assinar. */
+export function isAiTrial(state: Pick<AiQuotaState, "planKey" | "billingState">): boolean {
+  return state.billingState === "trialing" || state.planKey === "trial"
+}
 
 export type AiQuotaState = {
   planKey: BillingPlanKey
@@ -536,21 +791,25 @@ export function isAiRequestTooLarge(usage: AiTokenUsage): boolean {
 }
 
 /**
- * Mesma regra de `private.ai_quota_decision` no banco (o banco é quem bloqueia;
- * aqui é para projetar, explicar e testar). Ordem dos cortes:
+ * Mesma regra de `reserve_ai_usage` no banco (o banco é quem bloqueia; aqui é
+ * para projetar, explicar e testar). Ordem dos cortes:
  *  1. assinatura fora de trialing/active;
- *  2. teto do dia; 3. teto da semana (calculados sobre o teto efetivo do ciclo);
- *  4. teto do ciclo (plano + excedente);
- *  5. franquia de conversas.
+ *  2. teste grátis ou plano sem franquia (`feature_unavailable`);
+ *  3. teto do dia; 4. teto da semana (calculados sobre o teto efetivo do ciclo);
+ *  5. teto do ciclo (plano + excedente);
+ *  6. franquia de conversas.
  * Rajada e tamanho da requisição são checados antes, fora daqui.
  */
 export function resolveAiQuota(state: AiQuotaState, request: AiQuotaRequest): AiQuotaDecision {
-  const planCap = centsToMillicents(aiCostCapCents(state.planKey))
+  // Teste grátis sem IA: franquia e tetos zerados, como private.ai_quota_context.
+  const trial = isAiTrial(state)
+  const planCap = trial ? 0 : centsToMillicents(aiCostCapCents(state.planKey))
   // Excedente gravado antes de a cobrança existir não vale: sem preço na Stripe
   // ele seria gasto nosso sem receita. A trava é aqui e também no banco.
-  const overageCap = AI_OVERAGE_BILLING_AVAILABLE
-    ? centsToMillicents(Math.max(0, state.overageCapCents))
-    : 0
+  const overageCap =
+    AI_OVERAGE_BILLING_AVAILABLE && !trial
+      ? centsToMillicents(Math.max(0, state.overageCapCents))
+      : 0
   const effectiveCap = planCap + overageCap
   const dayCap = centsToMillicents(aiDailyCapCents(millicentsToCents(effectiveCap)))
   const weekCap = centsToMillicents(aiWeeklyCapCents(millicentsToCents(effectiveCap)))
@@ -558,7 +817,7 @@ export function resolveAiQuota(state: AiQuotaState, request: AiQuotaRequest): Ai
   const cost = Math.max(0, state.costMillicents)
   const requestCost = Math.max(0, request.estimatedCostMillicents)
   const units = aiUnitsFor(request.kind, request.units ?? 1)
-  const limit = state.conversationsLimit
+  const limit = trial ? 0 : state.conversationsLimit
   const unlimited = limit < 0
   const used = Math.max(0, state.conversationsUsed)
   const remaining = unlimited ? null : Math.max(0, limit - used)

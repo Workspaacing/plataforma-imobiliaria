@@ -594,7 +594,16 @@ export function isFeatureKey(value: unknown): value is FeatureKey {
   return typeof value === "string" && Object.hasOwn(FEATURES, value)
 }
 
-/** O teste grátis tem os recursos do plano Equipe. Plano ou recurso desconhecido → false. */
+/**
+ * Recursos de IA, que o teste grátis NÃO tem (decisão do dono em 17/09/2026: a IA
+ * começa quando a imobiliária assina; franquia e teto zero no core e no banco).
+ */
+export const TRIAL_EXCLUDED_FEATURES: readonly FeatureKey[] = ["feature_ai_whatsapp"]
+
+/**
+ * O teste grátis tem os recursos do plano Equipe, menos os de IA
+ * (TRIAL_EXCLUDED_FEATURES). Plano ou recurso desconhecido → false.
+ */
 export function planHasFeature(plan: BillingPlanKey, feature: FeatureKey): boolean {
   const definition: FeatureDefinition | undefined = isFeatureKey(feature)
     ? FEATURES[feature]
@@ -604,11 +613,14 @@ export function planHasFeature(plan: BillingPlanKey, feature: FeatureKey): boole
     return false
   }
 
-  const effectivePlan = plan === "trial" ? "equipe" : plan
-  return definition.plans.includes(effectivePlan)
+  if (plan === "trial") {
+    return !TRIAL_EXCLUDED_FEATURES.includes(feature) && definition.plans.includes("equipe")
+  }
+
+  return definition.plans.includes(plan)
 }
 
-/** Recursos do plano na ordem de FEATURE_KEYS (o teste grátis herda os do Equipe). */
+/** Recursos do plano na ordem de FEATURE_KEYS (o teste grátis herda os do Equipe, menos a IA). */
 export function featuresForPlan(plan: BillingPlanKey): FeatureKey[] {
   return FEATURE_KEYS.filter((feature) => planHasFeature(plan, feature))
 }

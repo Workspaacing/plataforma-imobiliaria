@@ -86,6 +86,47 @@ describe("parsePublicStatusSnapshot", () => {
     expect(text).not.toContain("createdBy")
   })
 
+  it("traz a origem do incidente (automático ou equipe); ausente vira equipe", () => {
+    const raw = rpcSnapshot()
+    const automatic = parsePublicStatusSnapshot({
+      ...raw,
+      activeIncidents: raw.activeIncidents.map((incident) => ({
+        ...incident,
+        source: "automatic",
+      })),
+    })
+
+    expect(automatic?.activeIncidents[0]?.source).toBe("automatic")
+    expect(parsePublicStatusSnapshot(raw)?.activeIncidents[0]?.source).toBe("team")
+    expect(
+      parsePublicStatusSnapshot({
+        ...raw,
+        activeIncidents: raw.activeIncidents.map((incident) => ({ ...incident, source: "ia" })),
+      })
+    ).toBeNull()
+  })
+
+  it("traz o sinal automático por parte; ausente fica sem a chave; inválido recusa", () => {
+    const raw = rpcSnapshot()
+    const withSignal = parsePublicStatusSnapshot({
+      ...raw,
+      components: raw.components.map((component) => ({
+        ...component,
+        automaticSignal: component.key !== "billing",
+      })),
+    })
+
+    expect(withSignal?.components.find((c) => c.key === "billing")?.automaticSignal).toBe(false)
+    expect(withSignal?.components.find((c) => c.key === "crm")?.automaticSignal).toBe(true)
+    expect(parsePublicStatusSnapshot(raw)?.components[0]).not.toHaveProperty("automaticSignal")
+    expect(
+      parsePublicStatusSnapshot({
+        ...raw,
+        components: raw.components.map((component) => ({ ...component, automaticSignal: "sim" })),
+      })
+    ).toBeNull()
+  })
+
   it("formato inesperado vira null", () => {
     expect(parsePublicStatusSnapshot(null)).toBeNull()
     expect(parsePublicStatusSnapshot({})).toBeNull()

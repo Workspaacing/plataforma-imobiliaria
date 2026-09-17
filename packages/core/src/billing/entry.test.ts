@@ -16,7 +16,7 @@ describe("@workspace/core/billing", () => {
     expect(billing.BILLING_STATE_LABELS[state]).toBe("Em carência")
     expect(billing.TRIAL_DAYS).toBe(14)
     expect(billing.GRACE_DAYS).toBe(7)
-    expect(billing.TRIAL_LIMITS.ai_conversations).toBe(10)
+    expect(billing.TRIAL_LIMITS.ai_conversations).toBe(0)
     expect(billing.ADDONS.length).toBeGreaterThan(0)
 
     for (const name of [

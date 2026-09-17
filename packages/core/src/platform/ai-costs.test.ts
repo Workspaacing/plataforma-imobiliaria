@@ -68,8 +68,29 @@ function payload(organizations: unknown[] = [organization()]) {
       usd_per_mtok_cache_read: 0.2,
       usd_per_mtok_cache_write: 2.5,
       exchange_rate: 5.6675,
+      batch_multiplier: 0.5,
     },
-    plan_caps_cents: { trial: 600, corretor: 0, imobiliaria: 4980, equipe: 11980, rede: 29800 },
+    models: [
+      {
+        model: "claude-sonnet-5",
+        label: "Claude Sonnet 5",
+        usd_per_mtok_input: 2,
+        usd_per_mtok_output: 10,
+        usd_per_mtok_cache_read: 0.2,
+        usd_per_mtok_cache_write: 2.5,
+        usd_per_mtok_cache_write_1h: 4,
+      },
+      {
+        model: "claude-haiku-4-5",
+        label: "Claude Haiku 4.5",
+        usd_per_mtok_input: 1,
+        usd_per_mtok_output: 5,
+        usd_per_mtok_cache_read: 0.1,
+        usd_per_mtok_cache_write: 1.25,
+        usd_per_mtok_cache_write_1h: 2,
+      },
+    ],
+    plan_caps_cents: { trial: 0, corretor: 0, imobiliaria: 3456, equipe: 11980, rede: 29800 },
     organizations_total: 3,
     organizations_with_ai: 2,
     organizations,
@@ -106,10 +127,30 @@ describe("parsePlatformAiCosts", () => {
     expect(snapshot.organizations[0]?.previous?.costMillicents).toBe(1_000_000)
   })
 
+  it("lê os dois modelos e o desconto do lote", () => {
+    const snapshot = parsed()
+
+    expect(snapshot.pricing?.batchMultiplier).toBe(0.5)
+    expect(snapshot.models.map((model) => model.model)).toEqual([
+      "claude-sonnet-5",
+      "claude-haiku-4-5",
+    ])
+    expect(snapshot.models[1]?.usdPerMtokCacheWrite1h).toBe(2)
+  })
+
   it("formato inesperado volta null; preço ausente não derruba o resto", () => {
     expect(parsePlatformAiCosts(null)).toBeNull()
     expect(parsePlatformAiCosts({ ...payload(), organizations: "x" })).toBeNull()
     expect(parsePlatformAiCosts({ ...payload(), pricing: { model: 1 } })?.pricing).toBeNull()
+    // Banco anterior à medição por modelo: sem `models` e sem `batch_multiplier`.
+    const legacy: Record<string, unknown> = {
+      ...payload(),
+      pricing: { ...payload().pricing, batch_multiplier: undefined },
+    }
+    delete legacy.models
+    const old = parsePlatformAiCosts(legacy)
+    expect(old?.models).toEqual([])
+    expect(old?.pricing?.batchMultiplier).toBeNull()
   })
 
   it("contagem negativa é recusada", () => {
@@ -278,11 +319,79 @@ describe("checkAiPricing", () => {
     const check = checkAiPricing(parsed())
 
     expect(check.exchangeRateMatches).toBe(true)
+    expect(check.batchMultiplierMatches).toBe(true)
     expect(check.pricesMatch).toBe(true)
+    expect(check.models.map((model) => [model.model, model.matches])).toEqual([
+      ["claude-sonnet-5", true],
+      ["claude-haiku-4-5", true],
+    ])
     expect(check.planCaps.every((cap) => cap.matches)).toBe(true)
     expect(check.planCaps.find((cap) => cap.planKey === "rede")?.coreCents).toBe(
       aiCostCapCents("rede")
     )
+  })
+
+  it("mostra franquia e conversas que cabem em cada teto (teste grátis sem IA)", () => {
+    const caps = checkAiPricing(parsed()).planCaps
+
+    expect(
+      caps.map((cap) => [
+        cap.planKey,
+        cap.databaseCents,
+        cap.conversations,
+        cap.conversationsWithinCap,
+      ])
+    ).toEqual([
+      ["corretor", 0, 0, 0],
+      ["trial", 0, 0, 0],
+      ["imobiliaria", 3456, 50, 62],
+      ["equipe", 11980, 200, 216],
+      ["rede", 29800, 500, 538],
+    ])
+  })
+
+  it("aponta modelo com preço diferente, modelo só no banco e lote divergente", () => {
+    const base = payload()
+    const snapshot = parsePlatformAiCosts({
+      ...base,
+      pricing: { ...base.pricing, batch_multiplier: 1 },
+      models: [
+        { ...base.models[0], usd_per_mtok_output: 15 },
+        {
+          model: "claude-desconhecido",
+          label: "Desconhecido",
+          usd_per_mtok_input: 0,
+          usd_per_mtok_output: 0,
+          usd_per_mtok_cache_read: 0,
+          usd_per_mtok_cache_write: 0,
+          usd_per_mtok_cache_write_1h: 0,
+        },
+      ],
+    })
+
+    if (!snapshot) throw new Error("payload inválido")
+
+    const check = checkAiPricing(snapshot)
+    expect(check.batchMultiplierMatches).toBe(false)
+    expect(check.pricesMatch).toBe(false)
+    expect(
+      check.models.map((model) => [model.model, model.matches, model.database !== null])
+    ).toEqual([
+      ["claude-sonnet-5", false, true],
+      ["claude-haiku-4-5", false, false],
+      ["claude-desconhecido", false, true],
+    ])
+  })
+
+  it("resumo traz o custo típico por tipo de uso ao câmbio do banco", () => {
+    const summary = summarizeAiCosts(parsed(), "atual")
+
+    expect(summary.typicalCosts.map((cost) => [cost.kind, cost.model])).toEqual([
+      ["conversation", "claude-sonnet-5"],
+      ["listing_copy", "claude-sonnet-5"],
+      ["conversation_summary", "claude-haiku-4-5"],
+      ["reply_suggestion", "claude-haiku-4-5"],
+    ])
   })
 
   it("aponta câmbio e teto divergentes", () => {
@@ -297,13 +406,20 @@ describe("checkAiPricing", () => {
     const check = checkAiPricing(snapshot)
     expect(check.exchangeRateMatches).toBe(false)
     expect(check.databaseExchangeRate).toBe(5.6)
-    expect(check.planCaps).toEqual([
-      { planKey: "desconhecido", databaseCents: 10, coreCents: null, matches: false },
+    expect(check.planCaps).toMatchObject([
+      {
+        planKey: "desconhecido",
+        databaseCents: 10,
+        coreCents: null,
+        matches: false,
+        conversations: null,
+      },
       {
         planKey: "equipe",
         databaseCents: 8985,
         coreCents: aiCostCapCents("equipe"),
         matches: false,
+        conversations: 200,
       },
     ])
   })

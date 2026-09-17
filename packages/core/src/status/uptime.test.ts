@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest"
 
+import type { StatusDay } from "./public"
 import {
   countDaysWithoutProblems,
+  formatStatusDayKey,
   periodUptimePct,
   STATUS_HISTORY_DAYS,
   statusDayKey,
   statusDayKeys,
+  UPTIME_CAPTIONS,
+  uptimeCaption,
+  uptimeCoverage,
   uptimePct,
 } from "./uptime"
 
@@ -86,5 +91,63 @@ describe("countDaysWithoutProblems", () => {
         { date: "2026-09-17", uptimePct: 98.5, worstLevel: "partial_outage", incidentIds: [] },
       ])
     ).toBe(2)
+  })
+})
+
+/** 90 dias terminando em 2026-12-15; os `unmeasured` primeiros ficam sem medição. */
+function barDays(unmeasured: number): StatusDay[] {
+  return statusDayKeys(new Date("2026-12-15T15:00:00Z")).map((date, index) => ({
+    date,
+    uptimePct: index < unmeasured ? null : 100,
+    worstLevel: "operational",
+    incidentIds: [],
+  }))
+}
+
+const pct = (value: number) => `${String(value).replace(".", ",")}%`
+
+describe("uptimeCoverage", () => {
+  it("primeiro dia medido e se a janela inteira foi medida", () => {
+    expect(uptimeCoverage(barDays(0))).toEqual({ measuredSince: "2026-09-17", fullWindow: true })
+    expect(uptimeCoverage(barDays(89))).toEqual({ measuredSince: "2026-12-15", fullWindow: false })
+    expect(uptimeCoverage(barDays(90))).toEqual({ measuredSince: null, fullWindow: false })
+    expect(uptimeCoverage(barDays(0).slice(1))).toEqual({
+      measuredSince: "2026-09-18",
+      fullWindow: false,
+    })
+  })
+})
+
+describe("uptimeCaption", () => {
+  it("com os 90 dias medidos mantém 'em 90 dias'", () => {
+    expect(uptimeCaption({ uptime90dPct: 99.95, days: barDays(0) }, pct)).toBe(
+      "99,95% disponível em 90 dias"
+    )
+  })
+
+  it("com menos de 90 dias medidos diz desde quando (1 dia de medição não vira 90)", () => {
+    expect(uptimeCaption({ uptime90dPct: 100, days: barDays(89) }, pct)).toBe(
+      "100% disponível desde 15/12/2026"
+    )
+    expect(uptimeCaption({ uptime90dPct: 100, days: barDays(10) }, pct)).toBe(
+      "100% disponível desde 27/09/2026"
+    )
+  })
+
+  it("sem percentual: sem sinal, aguardando a primeira medição ou retrato antigo", () => {
+    expect(
+      uptimeCaption({ uptime90dPct: null, days: barDays(90), automaticSignal: false }, pct)
+    ).toBe("Sem medição automática · acompanhado pela equipe")
+    expect(
+      uptimeCaption({ uptime90dPct: null, days: barDays(90), automaticSignal: true }, pct)
+    ).toBe(UPTIME_CAPTIONS.waitingFirstMeasurement)
+    expect(uptimeCaption({ uptime90dPct: null, days: barDays(90) }, pct)).toBe(
+      UPTIME_CAPTIONS.noMeasurement
+    )
+  })
+
+  it("formata a data do calendário", () => {
+    expect(formatStatusDayKey("2026-09-17")).toBe("17/09/2026")
+    expect(formatStatusDayKey("ontem")).toBe("ontem")
   })
 })

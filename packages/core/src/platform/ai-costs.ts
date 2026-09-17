@@ -14,22 +14,31 @@
  * - A estimativa usada nos planos (AI_TYPICAL_CONVERSATION) é calculada com o
  *   câmbio do BANCO, o mesmo que gerou `cost_millicents`, para comparar igual
  *   com igual.
+ * - O banco mede por modelo (Sonnet 5 e Haiku 4.5) e com desconto da Batch API;
+ *   a conferência compara cada preço, o desconto do lote, o câmbio e o teto de
+ *   cada plano com o core (packages/core/src/billing/ai-usage.ts, fonte única).
  */
 
 import { z } from "zod"
 
 import {
+  AI_BATCH_PRICE_MULTIPLIER,
+  AI_DEFAULT_MODEL,
   AI_EXCHANGE_RATE_DEFAULT,
   AI_MILLICENTS_PER_CENT,
-  AI_MODEL,
-  AI_PRICE_USD_PER_MTOK,
+  AI_MODEL_CATALOG,
+  AI_MODELS,
   AI_USAGE_WARNING_RATIO,
   aiCostCapCents,
+  aiTypicalUsageCosts,
+  conversationsWithinCapCents,
+  isAiModel,
   millicentsToCents,
   typicalConversationCostMillicents,
   typicalConversationTokens,
+  type AiTypicalUsageCost,
 } from "../billing/ai-usage"
-import { isBillingPlanKey } from "../billing/plans"
+import { isBillingPlanKey, isPlanKey, PLANS, TRIAL_LIMITS } from "../billing/plans"
 
 // ---------------------------------------------------------------------------
 // Leitura
@@ -80,17 +89,33 @@ export type AiCostOrganization = {
 }
 
 export type AiPricingSnapshot = {
+  /** Modelo padrão do banco (chamada sem modelo é medida nele). */
   model: string
   usdPerMtokInput: number
   usdPerMtokOutput: number
   usdPerMtokCacheRead: number
   usdPerMtokCacheWrite: number
   exchangeRate: number
+  /** Multiplicador da Batch API (0,5); null em banco anterior à medição por modelo. */
+  batchMultiplier: number | null
+}
+
+/** Preço de um modelo do catálogo do banco (private.ai_models). */
+export type AiModelPriceSnapshot = {
+  model: string
+  label: string
+  usdPerMtokInput: number
+  usdPerMtokOutput: number
+  usdPerMtokCacheRead: number
+  usdPerMtokCacheWrite: number
+  usdPerMtokCacheWrite1h: number
 }
 
 export type PlatformAiCostsSnapshot = {
   generatedAt: string | null
   pricing: AiPricingSnapshot | null
+  /** Todos os modelos que o banco sabe medir; vazio em banco anterior à medição por modelo. */
+  models: AiModelPriceSnapshot[]
   /** Teto do ciclo por plano no banco (private.ai_cost_cap_cents), em centavos. */
   planCapsCents: Record<string, number>
   organizationsTotal: number
@@ -134,11 +159,23 @@ const pricingSchema = z.object({
   usd_per_mtok_cache_read: finite,
   usd_per_mtok_cache_write: finite,
   exchange_rate: finite,
+  batch_multiplier: finite.nullable().optional(),
+})
+
+const modelSchema = z.object({
+  model: z.string(),
+  label: z.string(),
+  usd_per_mtok_input: finite,
+  usd_per_mtok_output: finite,
+  usd_per_mtok_cache_read: finite,
+  usd_per_mtok_cache_write: finite,
+  usd_per_mtok_cache_write_1h: finite,
 })
 
 const snapshotSchema = z.object({
   generated_at: z.string().nullable().catch(null),
   pricing: pricingSchema.nullable().catch(null),
+  models: z.array(modelSchema).catch([]),
   plan_caps_cents: z.record(z.string(), count).catch({}),
   organizations_total: count,
   organizations_with_ai: count,
@@ -181,8 +218,18 @@ export function parsePlatformAiCosts(data: unknown): PlatformAiCostsSnapshot | n
           usdPerMtokCacheRead: snapshot.pricing.usd_per_mtok_cache_read,
           usdPerMtokCacheWrite: snapshot.pricing.usd_per_mtok_cache_write,
           exchangeRate: snapshot.pricing.exchange_rate,
+          batchMultiplier: snapshot.pricing.batch_multiplier ?? null,
         }
       : null,
+    models: snapshot.models.map((model) => ({
+      model: model.model,
+      label: model.label,
+      usdPerMtokInput: model.usd_per_mtok_input,
+      usdPerMtokOutput: model.usd_per_mtok_output,
+      usdPerMtokCacheRead: model.usd_per_mtok_cache_read,
+      usdPerMtokCacheWrite: model.usd_per_mtok_cache_write,
+      usdPerMtokCacheWrite1h: model.usd_per_mtok_cache_write_1h,
+    })),
     planCapsCents: snapshot.plan_caps_cents,
     organizationsTotal: snapshot.organizations_total,
     organizationsWithAi: snapshot.organizations_with_ai,
@@ -287,20 +334,40 @@ export type AiConversationCalibration = {
 
 export type AiPlanCapCheck = {
   planKey: string
+  /** Teto do ciclo mensal por imobiliária no banco: o MÁXIMO que ele deixa gastar. */
   databaseCents: number
   coreCents: number | null
+  matches: boolean
+  /** Franquia de conversas do plano no core (0 = sem IA); null para plano desconhecido. */
+  conversations: number | null
+  /** Quantas conversas típicas cabem no teto do banco, ao câmbio do banco. */
+  conversationsWithinCap: number
+}
+
+export type AiModelPriceCheck = {
+  model: string
+  label: string
+  database: AiModelPriceSnapshot | null
+  /** Preço do core no mesmo formato; null quando o modelo não existe no core. */
+  core: AiModelPriceSnapshot | null
   matches: boolean
 }
 
 export type AiPricingCheck = {
+  /** Modelo que o banco assume quando a chamada não informa. */
   databaseModel: string | null
   coreModel: string
   /** Câmbio que a medição usa de fato (private.ai_pricing). */
   databaseExchangeRate: number | null
   coreExchangeRate: number
   exchangeRateMatches: boolean
-  /** Preço por milhão de tokens do banco confere com o do core. */
+  /** Multiplicador da Batch API no banco e no core (0,5 = 50% de desconto). */
+  databaseBatchMultiplier: number | null
+  coreBatchMultiplier: number
+  batchMultiplierMatches: boolean
+  /** Todos os modelos do core existem no banco com o mesmo preço, e vice-versa. */
   pricesMatch: boolean
+  models: AiModelPriceCheck[]
   planCaps: AiPlanCapCheck[]
 }
 
@@ -315,6 +382,8 @@ export type AiCostSummary = {
   overWarning: AiCostRow[]
   calibration: AiConversationCalibration
   pricing: AiPricingCheck
+  /** Custo típico de cada tipo de uso no modelo do perfil, ao câmbio do banco (estimativa). */
+  typicalCosts: AiTypicalUsageCost[]
 }
 
 function roundRatio(value: number): number {
@@ -452,29 +521,98 @@ export function calibrateAiConversation(
   }
 }
 
-/** Confere o espelho banco x core: modelo, preços, câmbio e teto por plano. */
+function coreModelPrice(model: string): AiModelPriceSnapshot | null {
+  if (!isAiModel(model)) {
+    return null
+  }
+
+  const { label, priceUsdPerMtok: price } = AI_MODEL_CATALOG[model]
+
+  return {
+    model,
+    label,
+    usdPerMtokInput: price.input,
+    usdPerMtokOutput: price.output,
+    usdPerMtokCacheRead: price.cacheRead,
+    usdPerMtokCacheWrite: price.cacheWrite,
+    usdPerMtokCacheWrite1h: price.cacheWrite1h,
+  }
+}
+
+function samePrice(a: AiModelPriceSnapshot | null, b: AiModelPriceSnapshot | null): boolean {
+  return (
+    a !== null &&
+    b !== null &&
+    a.model === b.model &&
+    a.usdPerMtokInput === b.usdPerMtokInput &&
+    a.usdPerMtokOutput === b.usdPerMtokOutput &&
+    a.usdPerMtokCacheRead === b.usdPerMtokCacheRead &&
+    a.usdPerMtokCacheWrite === b.usdPerMtokCacheWrite &&
+    a.usdPerMtokCacheWrite1h === b.usdPerMtokCacheWrite1h
+  )
+}
+
+/** Franquia de conversas do plano no core (o teste grátis vem de TRIAL_LIMITS). */
+function planConversations(planKey: string): number | null {
+  if (planKey === "trial") {
+    return TRIAL_LIMITS.ai_conversations
+  }
+
+  return isPlanKey(planKey) ? PLANS[planKey].limits.ai_conversations : null
+}
+
+/** Confere o espelho banco x core: modelos, preços, lote, câmbio e teto por plano. */
 export function checkAiPricing(snapshot: PlatformAiCostsSnapshot): AiPricingCheck {
   const pricing = snapshot.pricing
+  const rate = pricing?.exchangeRate ?? AI_EXCHANGE_RATE_DEFAULT
   const planCaps = Object.entries(snapshot.planCapsCents)
     .map(([planKey, databaseCents]) => {
       const coreCents = isBillingPlanKey(planKey) ? aiCostCapCents(planKey) : null
-      return { planKey, databaseCents, coreCents, matches: coreCents === databaseCents }
+
+      return {
+        planKey,
+        databaseCents,
+        coreCents,
+        matches: coreCents === databaseCents,
+        conversations: planConversations(planKey),
+        conversationsWithinCap: conversationsWithinCapCents(databaseCents, rate),
+      }
     })
     .sort((a, b) => a.databaseCents - b.databaseCents || a.planKey.localeCompare(b.planKey))
 
+  // Modelos do core primeiro (na ordem do catálogo), depois os que só o banco tem.
+  const databaseModels = new Map(snapshot.models.map((model) => [model.model, model]))
+  const modelKeys = [
+    ...AI_MODELS,
+    ...snapshot.models.map((model) => model.model).filter((model) => !isAiModel(model)),
+  ]
+  const models = modelKeys.map((model) => {
+    const database = databaseModels.get(model) ?? null
+    const core = coreModelPrice(model)
+
+    return {
+      model,
+      label: core?.label ?? database?.label ?? model,
+      database,
+      core,
+      matches: samePrice(database, core),
+    }
+  })
+
   return {
     databaseModel: pricing?.model ?? null,
-    coreModel: AI_MODEL,
+    coreModel: AI_DEFAULT_MODEL,
     databaseExchangeRate: pricing?.exchangeRate ?? null,
     coreExchangeRate: AI_EXCHANGE_RATE_DEFAULT,
     exchangeRateMatches: pricing?.exchangeRate === AI_EXCHANGE_RATE_DEFAULT,
+    databaseBatchMultiplier: pricing?.batchMultiplier ?? null,
+    coreBatchMultiplier: AI_BATCH_PRICE_MULTIPLIER,
+    batchMultiplierMatches: pricing?.batchMultiplier === AI_BATCH_PRICE_MULTIPLIER,
     pricesMatch:
       pricing !== null &&
-      pricing.model === AI_MODEL &&
-      pricing.usdPerMtokInput === AI_PRICE_USD_PER_MTOK.input &&
-      pricing.usdPerMtokOutput === AI_PRICE_USD_PER_MTOK.output &&
-      pricing.usdPerMtokCacheRead === AI_PRICE_USD_PER_MTOK.cacheRead &&
-      pricing.usdPerMtokCacheWrite === AI_PRICE_USD_PER_MTOK.cacheWrite,
+      pricing.model === AI_DEFAULT_MODEL &&
+      models.every((model) => model.matches),
+    models,
     planCaps,
   }
 }
@@ -512,6 +650,7 @@ export function summarizeAiCosts(
       snapshot.pricing?.exchangeRate ?? AI_EXCHANGE_RATE_DEFAULT
     ),
     pricing: checkAiPricing(snapshot),
+    typicalCosts: aiTypicalUsageCosts(snapshot.pricing?.exchangeRate ?? AI_EXCHANGE_RATE_DEFAULT),
   }
 }
 

@@ -133,6 +133,12 @@ export type StatusDay = {
 
 export type PublicStatusComponent = StatusComponentInfo & {
   level: StatusLevel
+  /**
+   * A parte tem sinal automático ligado (mesmo que ainda sem medição)? false =
+   * só a equipe acompanha (incidente/manutenção). Opcional para aceitar
+   * retratos antigos; ausente = não informado.
+   */
+  automaticSignal?: boolean
   /** Disponibilidade dos últimos 90 dias; null sem medição. */
   uptime90dPct: number | null
   /** 90 dias, do mais antigo para o mais recente. */
@@ -158,6 +164,12 @@ export type PublicIncident = {
   /** Manutenção: início e fim previstos. */
   scheduledFor: string | null
   scheduledUntil: string | null
+  /**
+   * Quem abriu: a automação da página de status (regras fixas, sem IA) ou a
+   * equipe. Opcional para aceitar retratos antigos; ausente = equipe. Nunca diz
+   * quem da equipe.
+   */
+  source?: "automatic" | "team"
   /** Da mais recente para a mais antiga. */
   updates: PublicIncidentUpdate[]
 }

@@ -21,9 +21,14 @@ export const BILLING_INTERVALS: readonly BillingInterval[] = ["month", "year"]
 
 export const TRIAL_DAYS = 14
 export const GRACE_DAYS = 7
-/** O teste grátis usa os limites e recursos deste plano (com IA reduzida). */
+/** O teste grátis usa os limites e recursos deste plano, menos a IA. */
 export const TRIAL_BASE_PLAN: PlanKey = "equipe"
-export const TRIAL_AI_CONVERSATIONS = 10
+/**
+ * Teste grátis SEM IA (decisão do dono em 17/09/2026): a IA é o único custo
+ * variável relevante e quem ainda não assinou não paga nada. Antes eram 10
+ * conversas. O banco recusa em qualquer conta 'trialing' (private.ai_quota_context).
+ */
+export const TRIAL_AI_CONVERSATIONS = 0
 
 export const BILLING_INTERVAL_LABELS: Record<BillingInterval, { label: string; suffix: string }> = {
   month: { label: "Mensal", suffix: "/mês" },
@@ -307,7 +312,7 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
   ),
 }
 
-/** Limites do teste grátis: os do plano Equipe, com franquia de IA reduzida. */
+/** Limites do teste grátis: os do plano Equipe, sem franquia de IA. */
 export const TRIAL_LIMITS: Record<LimitKey, number> = {
   ...PLANS[TRIAL_BASE_PLAN].limits,
   ai_conversations: TRIAL_AI_CONVERSATIONS,
@@ -338,6 +343,8 @@ export const AI_OVERAGE_NOTE = "O excedente de conversas de IA tem sempre um tet
 /** Primeiro plano com franquia de IA (o Corretor não tem: ai_conversations = 0). */
 export const AI_FIRST_PLAN: PlanKey = "imobiliaria"
 export const AI_PLAN_NOTE = `O agente de IA no WhatsApp começa no plano ${PLANS[AI_FIRST_PLAN].name}`
+/** O teste grátis tem tudo do plano base, menos a IA (TRIAL_AI_CONVERSATIONS = 0). */
+export const AI_TRIAL_NOTE = `O teste grátis tem os recursos do plano ${PLANS[TRIAL_BASE_PLAN].name}, menos a IA: a IA começa quando você assina`
 /**
  * Decisão do dono em 2026-09-16: nós cobramos só o software. O WhatsApp oficial
  * é contratado pela própria imobiliária na Meta, que fatura o envio direto dela.
@@ -459,6 +466,7 @@ export const PLAN_CONDITIONS: readonly string[] = [
   OWNED_LISTINGS_NOTE,
   LISTING_PHOTO_SIZE_NOTE,
   AI_PLAN_NOTE,
+  AI_TRIAL_NOTE,
   AI_OVERAGE_NOTE,
   WHATSAPP_BILLING_NOTE,
   THIRD_PARTY_ACCOUNTS_NOTE,

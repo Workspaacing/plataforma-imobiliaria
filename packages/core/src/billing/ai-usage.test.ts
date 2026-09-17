@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  AI_BATCH_PRICE_MULTIPLIER,
+  AI_COST_CAP_FRANCHISE_SLACK,
   AI_COST_CAP_PCT,
+  AI_DEFAULT_EFFORT,
+  AI_DEFAULT_MODEL,
+  AI_DEFAULT_REQUEST_PROFILE,
   AI_EXCHANGE_RATES,
+  AI_MODEL_CATALOG,
+  AI_MODELS,
   AI_MAX_INPUT_TOKENS,
   AI_MAX_OUTPUT_TOKENS,
   AI_MIN_DAILY_CAP_CENTS,
@@ -13,14 +20,16 @@ import {
   AI_UNIT_WEIGHTS,
   AI_MAX_OVERAGE_CAP_CENTS,
   AI_OVERAGE_BILLING_AVAILABLE,
-  AI_PRICE_CACHE_WRITE_1H_USD_PER_MTOK,
-  AI_PRICE_USD_PER_MTOK,
   AI_REQUEST_PROFILES,
   aiCostCapCents,
   aiCostMillicents,
   aiCostUsd,
   aiDailyCapCents,
+  aiMessageParams,
+  aiModelPrice,
   aiPlanAllowances,
+  aiRequestProfile,
+  aiTypicalUsageCosts,
   aiUnitsFor,
   aiUsageFromApi,
   aiUsageNoticeLevel,
@@ -28,25 +37,85 @@ import {
   aiWeeklyCapCents,
   centsToMillicents,
   conversationsWithinCapCents,
+  isAiModel,
   isAiRequestTooLarge,
+  isAiTrial,
   isAiUsageKind,
   millicentsToCents,
   projectAiCostMillicents,
   resolveAiQuota,
   typicalConversationCostMillicents,
   typicalConversationTokens,
+  typicalRequestCostMillicents,
   type AiQuotaState,
 } from "./ai-usage"
-import { PLANS } from "./plans"
-import { TRIAL_AI_CONVERSATIONS } from "./plans"
+import { PLANS, TRIAL_AI_CONVERSATIONS, TRIAL_LIMITS } from "./plans"
 
 describe("preços e câmbio", () => {
-  it("cobra entrada, saída, escrita e leitura de cache pela tabela do Sonnet 5", () => {
+  it("usa a tabela oficial de cada modelo (conferida em 2026-09-17)", () => {
+    expect(AI_MODELS).toEqual(["claude-sonnet-5", "claude-haiku-4-5"])
+    expect(AI_MODEL_CATALOG["claude-sonnet-5"].priceUsdPerMtok).toEqual({
+      input: 2,
+      output: 10,
+      cacheRead: 0.2,
+      cacheWrite: 2.5,
+      cacheWrite1h: 4,
+    })
+    expect(AI_MODEL_CATALOG["claude-haiku-4-5"].priceUsdPerMtok).toEqual({
+      input: 1,
+      output: 5,
+      cacheRead: 0.1,
+      cacheWrite: 1.25,
+      cacheWrite1h: 2,
+    })
+    // Batch API: metade do preço em tudo.
+    expect(AI_BATCH_PRICE_MULTIPLIER).toBe(0.5)
+  })
+
+  it("cobra entrada, saída, escrita e leitura de cache pela tabela do Sonnet 5 por padrão", () => {
+    expect(AI_DEFAULT_MODEL).toBe("claude-sonnet-5")
     expect(aiCostUsd({ inputTokens: 1_000_000 })).toBeCloseTo(2, 10)
     expect(aiCostUsd({ outputTokens: 1_000_000 })).toBeCloseTo(10, 10)
     // Leitura de cache: 10% da entrada. Escrita: 1,25x a entrada.
     expect(aiCostUsd({ cacheReadTokens: 1_000_000 })).toBeCloseTo(0.2, 10)
     expect(aiCostUsd({ cacheWriteTokens: 1_000_000 })).toBeCloseTo(2.5, 10)
+  })
+
+  it("o modelo padrão é o mais caro do catálogo (chamada sem modelo nunca mede a menos)", () => {
+    const usage = {
+      inputTokens: 1_000,
+      outputTokens: 1_000,
+      cacheReadTokens: 1_000,
+      cacheWriteTokens: 1_000,
+    }
+
+    for (const model of AI_MODELS) {
+      expect(aiCostUsd(usage)).toBeGreaterThanOrEqual(aiCostUsd(usage, { model }))
+    }
+  })
+
+  it("Haiku 4.5 custa metade do Sonnet 5 e o lote custa metade do preço cheio", () => {
+    const usage = {
+      inputTokens: 1_000_000,
+      outputTokens: 1_000_000,
+      cacheReadTokens: 1_000_000,
+      cacheWriteTokens: 1_000_000,
+    }
+
+    expect(aiCostUsd(usage, { model: "claude-sonnet-5" })).toBeCloseTo(14.7, 10)
+    expect(aiCostUsd(usage, { model: "claude-haiku-4-5" })).toBeCloseTo(7.35, 10)
+    expect(aiCostUsd(usage, { model: "claude-sonnet-5", batch: true })).toBeCloseTo(7.35, 10)
+    expect(aiCostUsd(usage, { model: "claude-haiku-4-5", batch: true })).toBeCloseTo(3.675, 10)
+  })
+
+  it("recusa modelo desconhecido em vez de medir com preço errado", () => {
+    expect(isAiModel("claude-haiku-4-5")).toBe(true)
+    expect(isAiModel("gpt-4o")).toBe(false)
+    expect(isAiModel("")).toBe(false)
+    expect(() => aiModelPrice("claude-inexistente")).toThrow(/desconhecido/)
+    expect(() => aiCostMillicents({ inputTokens: 1 }, { model: "gpt-4o" as never })).toThrow(
+      /desconhecido/
+    )
   })
 
   it("ignora tokens ausentes, negativos ou inválidos", () => {
@@ -56,20 +125,33 @@ describe("preços e câmbio", () => {
 
   it("converte em millicents arredondando para cima (nunca contar menos do que custou)", () => {
     // 1.000 tokens de entrada = US$ 0,002 = R$ 0,0112 a 5,60 = 1,12 centavo.
-    expect(aiCostMillicents({ inputTokens: 1_000 }, 5.6)).toBe(1_120)
+    expect(aiCostMillicents({ inputTokens: 1_000 }, { rate: 5.6 })).toBe(1_120)
     // 1 token de saída custa fração mínima, mas nunca zero.
-    expect(aiCostMillicents({ outputTokens: 1 }, 5.6)).toBeGreaterThan(0)
+    expect(aiCostMillicents({ outputTokens: 1 }, { rate: 5.6 })).toBeGreaterThan(0)
     // Câmbio inválido cai no padrão em vez de zerar o custo.
-    expect(aiCostMillicents({ inputTokens: 1_000 }, 0)).toBe(
+    expect(aiCostMillicents({ inputTokens: 1_000 }, { rate: 0 })).toBe(
       aiCostMillicents({ inputTokens: 1_000 })
     )
   })
 
+  it("dá os mesmos millicents que o banco (supabase/tests/ia_modelos_lote_teste_gratis.sql)", () => {
+    const request = { inputTokens: 2_000, outputTokens: 900 }
+
+    expect(typicalConversationCostMillicents()).toBe(55_293)
+    expect(aiCostMillicents(request, { model: "claude-sonnet-5" })).toBe(7_368)
+    expect(aiCostMillicents(request, { model: "claude-haiku-4-5" })).toBe(3_684)
+    expect(aiCostMillicents(request, { model: "claude-sonnet-5", batch: true })).toBe(3_684)
+    expect(aiCostMillicents(request, { model: "claude-haiku-4-5", batch: true })).toBe(1_842)
+    expect(
+      aiCostMillicents({ outputTokens: 1_000_000 }, { model: "claude-haiku-4-5", batch: true })
+    ).toBe(1_416_875)
+  })
+
   it("o câmbio padrão é o dólar de cartão, mais caro que o PTAX", () => {
     expect(AI_EXCHANGE_RATES.card).toBeGreaterThan(AI_EXCHANGE_RATES.ptax)
-    expect(aiCostMillicents({ inputTokens: 100_000 }, AI_EXCHANGE_RATES.card)).toBeGreaterThan(
-      aiCostMillicents({ inputTokens: 100_000 }, AI_EXCHANGE_RATES.ptax)
-    )
+    expect(
+      aiCostMillicents({ inputTokens: 100_000 }, { rate: AI_EXCHANGE_RATES.card })
+    ).toBeGreaterThan(aiCostMillicents({ inputTokens: 100_000 }, { rate: AI_EXCHANGE_RATES.ptax }))
   })
 
   it("converte entre centavos e millicents", () => {
@@ -80,18 +162,41 @@ describe("preços e câmbio", () => {
 })
 
 describe("tetos por plano", () => {
-  it("usa 20% do preço de tabela mensal, nunca o valor com desconto", () => {
+  it("usa o menor entre 20% do preço de tabela e a franquia com 25% de folga", () => {
     expect(AI_COST_CAP_PCT).toBe(0.2)
+    expect(AI_COST_CAP_FRANCHISE_SLACK).toBe(1.25)
     // Corretor não tem IA: teto zero, e nenhum excedente muda isso.
     expect(PLANS.corretor.limits.ai_conversations).toBe(0)
     expect(aiCostCapCents("corretor")).toBe(0)
-    expect(aiCostCapCents("imobiliaria")).toBe(4980)
+    // Mesmos números de private.ai_cost_cap_cents (migração ai_trial_without_ai_model_pricing_batch).
+    expect(aiCostCapCents("imobiliaria")).toBe(3456)
     expect(aiCostCapCents("equipe")).toBe(11980)
     expect(aiCostCapCents("rede")).toBe(29800)
-    expect(aiCostCapCents("trial")).toBe(AI_TRIAL_COST_CAP_CENTS)
+    expect(aiCostCapCents("trial")).toBe(0)
 
     for (const plan of ["imobiliaria", "equipe", "rede"] as const) {
-      expect(aiCostCapCents(plan)).toBe(Math.round(PLANS[plan].prices.month * AI_COST_CAP_PCT))
+      const byPrice = Math.round(PLANS[plan].prices.month * AI_COST_CAP_PCT)
+      const byFranchise = Math.ceil(
+        (PLANS[plan].limits.ai_conversations * typicalConversationCostMillicents() * 1.25) / 1000
+      )
+      expect(aiCostCapCents(plan), plan).toBe(Math.min(byPrice, byFranchise))
+    }
+  })
+
+  it("teste grátis não tem IA: franquia e teto zero", () => {
+    expect(TRIAL_AI_CONVERSATIONS).toBe(0)
+    expect(TRIAL_LIMITS.ai_conversations).toBe(0)
+    expect(AI_TRIAL_COST_CAP_CENTS).toBe(0)
+    expect(aiDailyCapCents(AI_TRIAL_COST_CAP_CENTS)).toBe(0)
+    expect(aiWeeklyCapCents(AI_TRIAL_COST_CAP_CENTS)).toBe(0)
+  })
+
+  it("todo plano com IA segue com lucro no pior caso (teto no máximo 20% do preço)", () => {
+    for (const allowance of aiPlanAllowances()) {
+      const price = PLANS[allowance.plan as keyof typeof PLANS].prices.month
+      expect(allowance.cycleCapCents, allowance.plan).toBeLessThanOrEqual(
+        Math.round(price * AI_COST_CAP_PCT)
+      )
     }
   })
 
@@ -104,29 +209,40 @@ describe("tetos por plano", () => {
   })
 
   it("respeita o piso das janelas curtas sem passar do teto do ciclo", () => {
-    // Teste grátis: 1/15 de R$ 6,00 não pagaria nem uma conversa.
-    expect(aiDailyCapCents(AI_TRIAL_COST_CAP_CENTS)).toBe(AI_MIN_DAILY_CAP_CENTS)
-    expect(aiWeeklyCapCents(AI_TRIAL_COST_CAP_CENTS)).toBe(AI_MIN_WEEKLY_CAP_CENTS)
+    // Teto pequeno: 1/15 de R$ 6,00 não pagaria nem uma conversa.
+    expect(aiDailyCapCents(600)).toBe(AI_MIN_DAILY_CAP_CENTS)
+    expect(aiWeeklyCapCents(600)).toBe(AI_MIN_WEEKLY_CAP_CENTS)
     expect(aiDailyCapCents(20)).toBe(20)
     expect(aiWeeklyCapCents(20)).toBe(20)
   })
 
-  it("a franquia anunciada cabe no teto em reais com a conversa típica", () => {
+  it("recorta os tetos novos em dia e semana", () => {
+    expect(aiDailyCapCents(3456)).toBe(231)
+    expect(aiWeeklyCapCents(3456)).toBe(864)
+    expect(aiDailyCapCents(11980)).toBe(799)
+    expect(aiWeeklyCapCents(29800)).toBe(7450)
+  })
+
+  it("a franquia anunciada cabe no teto em reais com a conversa típica (pior caso)", () => {
     for (const allowance of aiPlanAllowances()) {
       expect(allowance.franchiseCostCents).toBeLessThanOrEqual(allowance.cycleCapCents)
       expect(allowance.conversationsWithinCap).toBeGreaterThanOrEqual(allowance.conversations)
     }
-  })
 
-  it("o teto do teste grátis comporta a franquia de 10 conversas", () => {
-    expect(conversationsWithinCapCents(AI_TRIAL_COST_CAP_CENTS)).toBeGreaterThanOrEqual(
-      TRIAL_AI_CONVERSATIONS
-    )
+    expect(
+      aiPlanAllowances().map((a) => [a.plan, a.cycleCapCents, a.conversationsWithinCap])
+    ).toEqual([
+      ["corretor", 0, 0],
+      ["imobiliaria", 3456, 62],
+      ["equipe", 11980, 216],
+      ["rede", 29800, 538],
+    ])
+    expect(conversationsWithinCapCents(AI_TRIAL_COST_CAP_CENTS)).toBe(0)
   })
 
   it("o teto do dia comporta ao menos uma conversa típica em todo plano com IA", () => {
     const withAi = aiPlanAllowances().filter((allowance) => allowance.conversations !== 0)
-    const caps = [...withAi.map((a) => a.cycleCapCents), AI_TRIAL_COST_CAP_CENTS]
+    const caps = withAi.map((a) => a.cycleCapCents)
 
     expect(withAi).toHaveLength(3)
 
@@ -197,7 +313,30 @@ describe("resolveAiQuota", () => {
     expect(decision.reason).toBeNull()
     expect(decision.inOverage).toBe(false)
     expect(decision.conversationsRemaining).toBe(50)
-    expect(decision.effectiveCapMillicents).toBe(centsToMillicents(4980))
+    expect(decision.effectiveCapMillicents).toBe(centsToMillicents(3456))
+  })
+
+  it("teste grátis não tem IA: local ou criado na Stripe, com franquia gravada ou não", () => {
+    const local = resolveAiQuota(
+      state({ planKey: "trial", billingState: "trialing", conversationsLimit: 10 }),
+      request
+    )
+    const stripe = resolveAiQuota(
+      state({ planKey: "equipe", billingState: "trialing", conversationsLimit: 200 }),
+      request
+    )
+
+    for (const decision of [local, stripe]) {
+      expect(decision.allowed).toBe(false)
+      expect(decision.reason).toBe("feature_unavailable")
+      expect(decision.conversationsLimit).toBe(0)
+      expect(decision.planCapMillicents).toBe(0)
+      expect(decision.effectiveCapMillicents).toBe(0)
+      expect(decision.dayCapMillicents).toBe(0)
+    }
+
+    expect(isAiTrial({ planKey: "trial", billingState: "active" })).toBe(true)
+    expect(isAiTrial({ planKey: "equipe", billingState: "active" })).toBe(false)
   })
 
   it("bloqueia fora de trialing/active (carência, modo leitura, inadimplência)", () => {
@@ -216,7 +355,7 @@ describe("resolveAiQuota", () => {
 
   it("bloqueia pelo teto do dia antes de qualquer outro teto", () => {
     const decision = resolveAiQuota(
-      state({ dayCostMillicents: centsToMillicents(aiDailyCapCents(4980)) }),
+      state({ dayCostMillicents: centsToMillicents(aiDailyCapCents(3456)) }),
       request
     )
 
@@ -226,7 +365,7 @@ describe("resolveAiQuota", () => {
 
   it("bloqueia pelo teto da semana", () => {
     const decision = resolveAiQuota(
-      state({ weekCostMillicents: centsToMillicents(aiWeeklyCapCents(4980)) }),
+      state({ weekCostMillicents: centsToMillicents(aiWeeklyCapCents(3456)) }),
       request
     )
 
@@ -235,7 +374,7 @@ describe("resolveAiQuota", () => {
 
   it("bloqueia pelo teto do ciclo mesmo com conversas sobrando na franquia", () => {
     const decision = resolveAiQuota(
-      state({ conversationsUsed: 1, costMillicents: centsToMillicents(4980) }),
+      state({ conversationsUsed: 1, costMillicents: centsToMillicents(3456) }),
       request
     )
 
@@ -265,7 +404,7 @@ describe("resolveAiQuota", () => {
     )
 
     expect(decisao.overageCapMillicents).toBe(0)
-    expect(decisao.effectiveCapMillicents).toBe(centsToMillicents(4980))
+    expect(decisao.effectiveCapMillicents).toBe(centsToMillicents(3456))
     expect(decisao.allowed).toBe(false)
     // Sem excedente, nada estende a franquia esgotada.
     expect(decisao.reason).toBe("quota_exhausted")
@@ -273,7 +412,7 @@ describe("resolveAiQuota", () => {
 
   it("o teto do plano é o limite absoluto de gasto, em qualquer escala", () => {
     // A garantia que sustenta "sem prejuízo": nenhuma combinação de estado
-    // permite gastar acima de 20% do preço de tabela do plano.
+    // permite gastar acima do teto do plano (no máximo 20% do preço de tabela).
     for (const plano of ["imobiliaria", "equipe", "rede"] as const) {
       const teto = aiCostCapCents(plano)
       const decisao = resolveAiQuota(
@@ -297,7 +436,7 @@ describe("resolveAiQuota", () => {
 
   it("franquia ilimitada ainda respeita o teto em reais", () => {
     const decision = resolveAiQuota(
-      state({ conversationsLimit: -1, costMillicents: centsToMillicents(4980) }),
+      state({ conversationsLimit: -1, costMillicents: centsToMillicents(3456) }),
       request
     )
 
@@ -306,7 +445,7 @@ describe("resolveAiQuota", () => {
   })
 
   it("cobra a estimativa antes da chamada, então duas requisições simultâneas não furam o teto", () => {
-    const almostFull = centsToMillicents(4980) - CONVERSATION_COST
+    const almostFull = centsToMillicents(3456) - CONVERSATION_COST
     const first = resolveAiQuota(state({ costMillicents: almostFull }), request)
     // A segunda chega depois de a primeira já ter debitado a estimativa.
     const second = resolveAiQuota(
@@ -376,18 +515,22 @@ describe("uso devolvido pela API", () => {
   })
 
   it("converte escrita de 1 hora em tokens de 5 min pelo preço (nunca mede a menos)", () => {
-    const usage = aiUsageFromApi({
+    const apiUsage = {
       cache_creation_input_tokens: 2_000,
       cache_creation: { ephemeral_5m_input_tokens: 500, ephemeral_1h_input_tokens: 1_500 },
-    })
+    }
 
-    // 1.500 × 4,00 / 2,50 = 2.400 equivalentes, mais os 500 de 5 min.
-    expect(usage.cacheWriteTokens).toBe(2_900)
-    expect(aiCostUsd(usage)).toBeCloseTo(
-      (500 * AI_PRICE_USD_PER_MTOK.cacheWrite + 1_500 * AI_PRICE_CACHE_WRITE_1H_USD_PER_MTOK) /
-        1_000_000,
-      10
-    )
+    for (const model of AI_MODELS) {
+      const usage = aiUsageFromApi(apiUsage, model)
+      const price = AI_MODEL_CATALOG[model].priceUsdPerMtok
+
+      // 1.500 × (1 h / 5 min = 1,6 nos dois modelos) = 2.400 equivalentes, mais os 500 de 5 min.
+      expect(usage.cacheWriteTokens, model).toBe(2_900)
+      expect(aiCostUsd(usage, { model }), model).toBeCloseTo(
+        (500 * price.cacheWrite + 1_500 * price.cacheWrite1h) / 1_000_000,
+        10
+      )
+    }
   })
 
   it("sem detalhe por duração, trata toda escrita como 1 hora", () => {
@@ -413,17 +556,112 @@ describe("uso devolvido pela API", () => {
 })
 
 describe("perfil de chamada por tipo de uso", () => {
-  it("todo tipo tem effort explícito e cabe no teto de saída", () => {
+  it("todo tipo cabe no teto de saída e manda effort explícito quando o modelo aceita", () => {
     for (const kind of AI_USAGE_KINDS) {
       const profile = AI_REQUEST_PROFILES[kind]
-      expect(["low", "medium", "high"]).toContain(profile.effort)
+      const definition = AI_MODEL_CATALOG[profile.model]
+
       expect(profile.maxTokens).toBeGreaterThan(0)
       expect(profile.maxTokens).toBeLessThanOrEqual(AI_MAX_OUTPUT_TOKENS)
+
+      // Effort só onde o modelo aceita (Haiku 4.5 devolve 400), e nunca `high`.
+      if (definition.supportsEffort) {
+        expect(["low", "medium"], kind).toContain(profile.effort)
+      } else {
+        expect(profile.effort, kind).toBeNull()
+      }
+
+      // Raciocínio adaptativo só onde o modelo tem.
+      if (!definition.adaptiveThinking) {
+        expect(profile.thinking, kind).toBe("off")
+      }
     }
   })
 
-  it("atendimento no WhatsApp roda em low e sem lote", () => {
-    expect(AI_REQUEST_PROFILES.conversation.effort).toBe("low")
-    expect(AI_REQUEST_PROFILES.conversation.batchable).toBe(false)
+  it("conversa e anúncio no Sonnet 5; resumo e sugestão no Haiku 4.5 sem raciocínio", () => {
+    expect(AI_REQUEST_PROFILES.conversation).toMatchObject({
+      model: "claude-sonnet-5",
+      effort: "low",
+      thinking: "adaptive",
+      batchable: false,
+    })
+    expect(AI_REQUEST_PROFILES.listing_copy).toMatchObject({
+      model: "claude-sonnet-5",
+      effort: "medium",
+      thinking: "adaptive",
+      batchable: true,
+    })
+    for (const kind of ["conversation_summary", "reply_suggestion"] as const) {
+      expect(AI_REQUEST_PROFILES[kind], kind).toMatchObject({
+        model: "claude-haiku-4-5",
+        effort: null,
+        thinking: "off",
+      })
+    }
+  })
+
+  it("uso sem perfil próprio cai em medium, nunca no high da API", () => {
+    expect(AI_DEFAULT_EFFORT).toBe("medium")
+    expect(AI_DEFAULT_REQUEST_PROFILE).toMatchObject({
+      model: "claude-sonnet-5",
+      effort: "medium",
+      thinking: "adaptive",
+    })
+    expect(aiRequestProfile("qualquer")).toBe(AI_DEFAULT_REQUEST_PROFILE)
+    expect(aiRequestProfile(undefined)).toBe(AI_DEFAULT_REQUEST_PROFILE)
+    expect(aiRequestProfile("listing_copy")).toBe(AI_REQUEST_PROFILES.listing_copy)
+  })
+
+  it("monta os campos da Messages API sem mandar o que o modelo recusa", () => {
+    expect(aiMessageParams(AI_REQUEST_PROFILES.conversation)).toEqual({
+      model: "claude-sonnet-5",
+      max_tokens: AI_MAX_OUTPUT_TOKENS,
+      thinking: { type: "adaptive" },
+      output_config: { effort: "low" },
+    })
+    expect(aiMessageParams(AI_DEFAULT_REQUEST_PROFILE).output_config).toEqual({ effort: "medium" })
+    expect(aiMessageParams(AI_REQUEST_PROFILES.reply_suggestion)).toEqual({
+      model: "claude-haiku-4-5",
+      max_tokens: AI_MAX_OUTPUT_TOKENS,
+    })
+    // Perfil Sonnet sem effort ainda recebe o padrão explícito.
+    expect(aiMessageParams({ ...AI_DEFAULT_REQUEST_PROFILE, effort: null }).output_config).toEqual({
+      effort: AI_DEFAULT_EFFORT,
+    })
+  })
+
+  it("custo típico por tipo de uso no modelo do perfil", () => {
+    expect(aiTypicalUsageCosts()).toEqual([
+      {
+        kind: "conversation",
+        model: "claude-sonnet-5",
+        effort: "low",
+        costMillicents: 55_293,
+        batchCostMillicents: null,
+      },
+      {
+        kind: "listing_copy",
+        model: "claude-sonnet-5",
+        effort: "medium",
+        costMillicents: 7_368,
+        batchCostMillicents: 3_684,
+      },
+      {
+        kind: "conversation_summary",
+        model: "claude-haiku-4-5",
+        effort: null,
+        costMillicents: 3_684,
+        batchCostMillicents: 1_842,
+      },
+      {
+        kind: "reply_suggestion",
+        model: "claude-haiku-4-5",
+        effort: null,
+        costMillicents: 3_684,
+        batchCostMillicents: null,
+      },
+    ])
+    // A projeção de avulsos continua no pior caso (Sonnet 5 sem lote).
+    expect(typicalRequestCostMillicents()).toBe(7_368)
   })
 })

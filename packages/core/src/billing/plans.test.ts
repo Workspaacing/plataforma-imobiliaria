@@ -5,6 +5,7 @@ import { LIMIT_KEYS } from "./limits"
 import {
   ADDONS,
   AI_OVERAGE_NOTE,
+  AI_TRIAL_NOTE,
   ANNUAL_BOLETO_NOTE,
   ANNUAL_BOLETO_PLANS,
   BILLING_INTERVALS,
@@ -204,18 +205,28 @@ describe("teste grátis", () => {
     expect(GRACE_DAYS).toBe(7)
   })
 
-  it("usa os limites do Equipe com 10 conversas de IA", () => {
-    expect(TRIAL_AI_CONVERSATIONS).toBe(10)
-    expect(TRIAL_LIMITS).toEqual({ ...PLANS.equipe.limits, ai_conversations: 10 })
+  it("usa os limites do Equipe, sem IA (a IA começa quando a imobiliária assina)", () => {
+    expect(TRIAL_AI_CONVERSATIONS).toBe(0)
+    expect(TRIAL_LIMITS).toEqual({ ...PLANS.equipe.limits, ai_conversations: 0 })
     expect(TRIAL_LIMITS).toMatchObject({
       users: 5,
       landing_pages: 1,
       owned_listings: 50,
       photos_per_listing: 10,
       pipelines: 10,
-      ai_conversations: 10,
+      ai_conversations: 0,
       esign_docs: 40,
     })
+  })
+
+  it("avisa nas condições que o teste não tem IA", () => {
+    expect(AI_TRIAL_NOTE).toBe(
+      "O teste grátis tem os recursos do plano Equipe, menos a IA: a IA começa quando você assina"
+    )
+    expect(PLAN_CONDITIONS).toContain(AI_TRIAL_NOTE)
+    for (const text of PLAN_CONDITIONS) {
+      expect(text).not.toMatch(/teste[^.]*\d+ conversas de IA/i)
+    }
   })
 })
 

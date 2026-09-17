@@ -48,8 +48,13 @@ export const INCIDENT_IMPACT_LEVEL: Record<IncidentImpact, StatusLevel> = {
   critical: "major_outage",
 }
 
-/** Partes sem sinal automático: só a equipe muda a situação (incidente/manutenção). */
-export const MANUAL_STATUS_COMPONENTS: readonly StatusComponentKey[] = ["billing"]
+/**
+ * Partes sem regra automática: só a equipe muda a situação (incidente/manutenção).
+ * Vazio desde que "Assinaturas e pagamentos" passou a ser medida pelas entregas
+ * do webhook da Stripe (billing-webhook.ts). Uma parte com regra pode estar sem
+ * sinal ligado: isso vem do banco (`automaticSignal`).
+ */
+export const MANUAL_STATUS_COMPONENTS: readonly StatusComponentKey[] = []
 
 export function isStatusLevel(value: unknown): value is StatusLevel {
   return typeof value === "string" && (STATUS_LEVELS as readonly string[]).includes(value)
