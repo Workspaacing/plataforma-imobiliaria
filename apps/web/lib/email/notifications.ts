@@ -2,6 +2,7 @@ import "server-only"
 
 import {
   dailyDigestEmail,
+  visitAssignedEmail,
   visitReminderEmail,
   weeklyReportEmail,
   type DailyDigestEmailParams,
@@ -63,6 +64,7 @@ export type NotificationKind =
   | "authorization_expiring"
   | "daily_digest"
   | "visit_reminder"
+  | "visit_assigned"
   | "weekly_report"
 
 /** Evita a consulta às RPCs públicas quando quem chama já tem nome e cor. */
@@ -239,6 +241,15 @@ export type VisitReminderNotification = {
   brand?: NotificationBrand | null
 }
 
+/**
+ * Visita marcada ou remarcada para o corretor por outra pessoa (fila
+ * private.visit_assignment_notifications). Leva o convite .ics em anexo.
+ */
+export type VisitAssignedNotification = VisitReminderNotification & {
+  /** Nome de quem marcou (ex.: a assistente). */
+  assignedByName?: string | null
+}
+
 /** Relatório semanal ao gestor (cron de segunda). Um por pessoa, imobiliária e semana. */
 export type WeeklyReportNotification = {
   organizationSlug: string
@@ -259,6 +270,7 @@ export type NotificationParams = {
   authorization_expiring: AuthorizationExpiringNotification
   daily_digest: DailyDigestNotification
   visit_reminder: VisitReminderNotification
+  visit_assigned: VisitAssignedNotification
   weekly_report: WeeklyReportNotification
 }
 
@@ -675,6 +687,26 @@ async function notifyDailyDigest(params: DailyDigestNotification): Promise<Notif
   ])
 }
 
+/** Convite .ics da visita (mesmo arquivo do lembrete e do aviso de visita marcada). */
+function visitCalendarAttachments(
+  origin: string,
+  visit: VisitReminderNotification["visit"]
+): EmailAttachment[] {
+  const calendar = buildVisitCalendar({
+    origin,
+    visitId: visit.id,
+    startsAt: visit.startsAt,
+    endsAt: visit.endsAt,
+    status: visit.status,
+    propertyCode: visit.propertyCode,
+    propertyTitle: visit.propertyTitle,
+    address: visit.address,
+    meetingPoint: visit.meetingPoint,
+  })
+
+  return calendar ? [{ name: calendar.fileName, content: calendar.content }] : []
+}
+
 async function notifyVisitReminder(
   params: VisitReminderNotification
 ): Promise<NotificationSummary> {
@@ -686,17 +718,6 @@ async function notifyVisitReminder(
 
   const origin = buildTenantOrigin(params.organizationSlug)
   const brand = params.brand ?? (await loadOrganizationContext(params.organizationSlug))
-  const calendar = buildVisitCalendar({
-    origin,
-    visitId: params.visit.id,
-    startsAt: params.visit.startsAt,
-    endsAt: params.visit.endsAt,
-    status: params.visit.status,
-    propertyCode: params.visit.propertyCode,
-    propertyTitle: params.visit.propertyTitle,
-    address: params.visit.address,
-    meetingPoint: params.visit.meetingPoint,
-  })
 
   return deliver("visit_reminder", [
     {
@@ -708,7 +729,35 @@ async function notifyVisitReminder(
         visit: params.visit,
       }),
       idempotencyKey: deriveIdempotencyKey("visit_reminder", params.reminderId, recipient.email),
-      attachments: calendar ? [{ name: calendar.fileName, content: calendar.content }] : [],
+      attachments: visitCalendarAttachments(origin, params.visit),
+    },
+  ])
+}
+
+async function notifyVisitAssigned(
+  params: VisitAssignedNotification
+): Promise<NotificationSummary> {
+  const recipient = normalizeRecipient(params.to)
+
+  if (!recipient || !isUuid(params.reminderId) || !isUuid(params.visit.id)) {
+    return invalidInput("visit_assigned")
+  }
+
+  const origin = buildTenantOrigin(params.organizationSlug)
+  const brand = params.brand ?? (await loadOrganizationContext(params.organizationSlug))
+
+  return deliver("visit_assigned", [
+    {
+      to: recipient,
+      email: visitAssignedEmail({
+        origin,
+        brand,
+        recipientName: recipient.name,
+        assignedByName: params.assignedByName,
+        visit: params.visit,
+      }),
+      idempotencyKey: deriveIdempotencyKey("visit_assigned", params.reminderId, recipient.email),
+      attachments: visitCalendarAttachments(origin, params.visit),
     },
   ])
 }
@@ -750,6 +799,7 @@ const HANDLERS: {
   authorization_expiring: notifyAuthorizationExpiring,
   daily_digest: notifyDailyDigest,
   visit_reminder: notifyVisitReminder,
+  visit_assigned: notifyVisitAssigned,
   weekly_report: notifyWeeklyReport,
 }
 

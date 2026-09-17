@@ -51,7 +51,8 @@ export type VisitReminder = {
   }
 }
 
-const rowSchema = z.object({
+/** Linha de claim_visit_reminders (o aviso de visita marcada devolve as mesmas colunas e mais algumas). */
+export const visitReminderRowSchema = z.object({
   id: z.string(),
   organization_id: z.string(),
   organization_slug: z.string(),
@@ -76,7 +77,7 @@ const rowSchema = z.object({
   recipient_name: z.string().nullable(),
 })
 
-function toReminder(row: z.infer<typeof rowSchema>): VisitReminder | null {
+export function toVisitReminder(row: z.infer<typeof visitReminderRowSchema>): VisitReminder | null {
   const recipientEmail = normalizeEmailAddress(row.recipient_email)
   const organizationSlug = cleanText(row.organization_slug, { maxLength: 63 })
 
@@ -150,8 +151,8 @@ export async function claimVisitReminders(limit: number): Promise<VisitReminder[
     let discarded = 0
 
     for (const row of data) {
-      const parsed = rowSchema.safeParse(row)
-      const reminder = parsed.success ? toReminder(parsed.data) : null
+      const parsed = visitReminderRowSchema.safeParse(row)
+      const reminder = parsed.success ? toVisitReminder(parsed.data) : null
 
       if (reminder) {
         reminders.push(reminder)

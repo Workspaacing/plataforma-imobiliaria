@@ -2,8 +2,10 @@
 
 import * as React from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { CircleAlertIcon } from "lucide-react"
 import { Controller, useForm } from "react-hook-form"
 
+import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert"
 import { Button } from "@workspace/ui/components/button"
 import {
   Dialog,
@@ -48,6 +50,11 @@ import {
 } from "@/lib/agenda/schemas"
 import type { Role } from "@/lib/auth/roles"
 import type { ClientOption, MemberOption, PropertyOption } from "@/lib/clientes/options"
+import { FormDraftNotice } from "@/lib/forms/draft/form-draft-notice"
+import { useFormDraft } from "@/lib/forms/draft/use-form-draft"
+import { useFormDraftScope } from "@/lib/forms/draft/use-form-draft-scope"
+import { useGuardedSubmit } from "@/lib/forms/submit/use-guarded-submit"
+import { UnsavedChangesGuard } from "@/lib/forms/unsaved/unsaved-changes-guard"
 
 export type AppointmentFormDialogProps = {
   members: MemberOption[]
@@ -190,42 +197,65 @@ function AppointmentForm({
   const isEdit = Boolean(appointment)
   const canChooseBroker = canScheduleForOthers(role)
   const brokers = getVisitBrokers(members)
-  const [isSaving, startSaving] = React.useTransition()
+  const { isPending: isSaving, run: runSave } = useGuardedSubmit()
+  const [formError, setFormError] = React.useState<string | null>(null)
 
   const form = useForm<AppointmentFormValues>({
     resolver: zodResolver(appointmentFormSchema),
     mode: "onTouched",
     defaultValues: buildDefaultValues(props, todayKey),
   })
+  const { isDirty } = form.formState
+
+  // Internet caiu ou o diálogo fechou sem querer: o agendamento volta na próxima abertura.
+  const draftScope = useFormDraftScope({ userId: currentUserId })
+  const draft = useFormDraft({
+    form,
+    scope: draftScope,
+    formId: "visita",
+    recordId: appointment?.id ?? null,
+  })
 
   function onSubmit(values: AppointmentFormValues) {
-    startSaving(async () => {
-      const result = await saveAppointment({ ...values, id: appointment?.id })
+    setFormError(null)
 
-      if (!result.ok) {
-        for (const [path, message] of Object.entries(result.fieldErrors ?? {})) {
-          const field = path.split(".")[0] ?? ""
+    runSave(
+      async () => {
+        const result = await saveAppointment({ ...values, id: appointment?.id })
 
-          if (isFormField(field)) {
-            form.setError(field, { type: "server", message })
+        if (!result.ok) {
+          for (const [path, message] of Object.entries(result.fieldErrors ?? {})) {
+            const field = path.split(".")[0] ?? ""
+
+            if (isFormField(field)) {
+              form.setError(field, { type: "server", message })
+            }
           }
+
+          toast.add({
+            title: isEdit
+              ? "Não foi possível salvar a visita"
+              : "Não foi possível agendar a visita",
+            description: result.error,
+            type: "error",
+          })
+          return
         }
 
         toast.add({
-          title: isEdit ? "Não foi possível salvar a visita" : "Não foi possível agendar a visita",
-          description: result.error,
-          type: "error",
+          title: result.message ?? (isEdit ? "Visita atualizada." : "Visita agendada."),
+          type: "success",
         })
-        return
+        draft.clear()
+        onClose()
+        onSaved?.()
+      },
+      ({ message }) => {
+        // Queda de rede ou erro inesperado: o diálogo continua aberto com os campos.
+        draft.saveNow()
+        setFormError(message)
       }
-
-      toast.add({
-        title: result.message ?? (isEdit ? "Visita atualizada." : "Visita agendada."),
-        type: "success",
-      })
-      onClose()
-      onSaved?.()
-    })
+    )
   }
 
   return (
@@ -238,8 +268,19 @@ function AppointmentForm({
             : "Agende a visita a um imóvel. O cliente é opcional."}
         </DialogDescription>
       </DialogHeader>
+      <UnsavedChangesGuard when={isDirty} />
 
       <FieldGroup>
+        <FormDraftNotice draft={draft} />
+        {formError ? (
+          <Alert variant="destructive">
+            <CircleAlertIcon />
+            <AlertTitle>
+              {isEdit ? "Não foi possível salvar a visita" : "Não foi possível agendar a visita"}
+            </AlertTitle>
+            <AlertDescription>{formError}</AlertDescription>
+          </Alert>
+        ) : null}
         <Controller
           name="property"
           control={form.control}

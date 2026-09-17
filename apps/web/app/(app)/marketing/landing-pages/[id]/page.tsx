@@ -33,13 +33,13 @@ type LandingEditorPageProps = {
 
 export async function generateMetadata({ params }: LandingEditorPageProps): Promise<Metadata> {
   const { id } = await params
-  if (!isUuid(id)) return { title: "Landing page" }
+  if (!isUuid(id)) return { title: "Página de captação" }
 
   const { membership } = await requireMembership()
   const supabase = await createClient()
   const row = await getLandingPageRow(supabase, membership.organizationId, id).catch(() => null)
 
-  return { title: row ? row.name : "Landing page não encontrada" }
+  return { title: row ? row.name : "Página de captação não encontrada" }
 }
 
 export default async function LandingEditorPage({ params }: LandingEditorPageProps) {

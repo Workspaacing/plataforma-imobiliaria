@@ -56,6 +56,10 @@ import { ToggleGroup, ToggleGroupItem } from "@workspace/ui/components/toggle-gr
 
 import { lookupPostalCode, submitCaptureRequest } from "@/app/captar/[slug]/actions"
 import { maskPhoneInput, maskPostalCodeInput } from "@/lib/captacao/masks"
+import { FormDraftNotice } from "@/lib/forms/draft/form-draft-notice"
+import { useFormDraft } from "@/lib/forms/draft/use-form-draft"
+import { useGuardedSubmit } from "@/lib/forms/submit/use-guarded-submit"
+import { UnsavedChangesGuard } from "@/lib/forms/unsaved/unsaved-changes-guard"
 import {
   CAPTURE_PURPOSES,
   publicCaptureSchema,
@@ -104,6 +108,15 @@ const DEFAULT_VALUES: PublicCaptureValues = {
 
 type FormError = { message: string; expired: boolean } | null
 
+/** Quem preenche não tem login: o rascunho fica separado só por imobiliária. */
+const VISITOR_DRAFT_USER = "visitante"
+
+/** O consentimento precisa ser dado de novo a cada envio (LGPD): nunca volta do rascunho. */
+const DRAFT_EXCLUDED_FIELDS = ["consent"] as const
+
+const POSTAL_CODE_OFFLINE_MESSAGE =
+  "Sem conexão para buscar o CEP agora. Preencha bairro, cidade e UF à mão."
+
 type CaptureFormProps = {
   slug: string
   organizationName: string
@@ -115,7 +128,7 @@ type CaptureFormProps = {
 export function CaptureForm({ slug, organizationName, token, brandStyle }: CaptureFormProps) {
   const router = useRouter()
   const lastPostalCodeRef = React.useRef("")
-  const [isSubmitting, startSubmit] = React.useTransition()
+  const { isPending: isSubmitting, run: runSubmit } = useGuardedSubmit()
   const [isLookingUp, startLookup] = React.useTransition()
   const [isReloading, startReload] = React.useTransition()
   const [formError, setFormError] = React.useState<FormError>(null)
@@ -127,6 +140,15 @@ export function CaptureForm({ slug, organizationName, token, brandStyle }: Captu
     mode: "onTouched",
     defaultValues: DEFAULT_VALUES,
   })
+  const { isDirty } = form.formState
+
+  // Sinal fraco no celular não apaga o que o proprietário digitou: fica só neste navegador.
+  const draft = useFormDraft({
+    form,
+    scope: { userId: VISITOR_DRAFT_USER, organizationId: slug },
+    formId: "captacao",
+    exclude: DRAFT_EXCLUDED_FIELDS,
+  })
 
   function runPostalCodeLookup(value: string) {
     const digits = value.replace(/\D/g, "")
@@ -137,7 +159,16 @@ export function CaptureForm({ slug, organizationName, token, brandStyle }: Captu
     setPostalCodeFeedback(null)
 
     startLookup(async () => {
-      const result = await lookupPostalCode(digits)
+      let result: Awaited<ReturnType<typeof lookupPostalCode>>
+
+      try {
+        result = await lookupPostalCode(digits)
+      } catch {
+        // Sem internet: o CEP pode ser buscado de novo e o endereço, digitado.
+        lastPostalCodeRef.current = ""
+        setPostalCodeFeedback(POSTAL_CODE_OFFLINE_MESSAGE)
+        return
+      }
 
       if (!result.ok) {
         setPostalCodeFeedback(result.error)
@@ -156,32 +187,40 @@ export function CaptureForm({ slug, organizationName, token, brandStyle }: Captu
   function submitValues(values: PublicCaptureValues, website: string) {
     setFormError(null)
 
-    startSubmit(async () => {
-      const result = await submitCaptureRequest(slug, values, {
-        token,
-        website,
-      })
+    runSubmit(
+      async () => {
+        const result = await submitCaptureRequest(slug, values, {
+          token,
+          website,
+        })
 
-      if (result.ok) {
-        form.reset(DEFAULT_VALUES)
-        lastPostalCodeRef.current = ""
-        setPostalCodeFeedback(null)
-        setSubmitted(true)
-        window.scrollTo({ top: 0, behavior: "smooth" })
-        return
-      }
-
-      for (const [field, message] of Object.entries(result.fieldErrors ?? {})) {
-        if (message) {
-          form.setError(field as keyof PublicCaptureValues, {
-            type: "server",
-            message,
-          })
+        if (result.ok) {
+          draft.clear()
+          form.reset(DEFAULT_VALUES)
+          lastPostalCodeRef.current = ""
+          setPostalCodeFeedback(null)
+          setSubmitted(true)
+          window.scrollTo({ top: 0, behavior: "smooth" })
+          return
         }
-      }
 
-      setFormError({ message: result.error, expired: Boolean(result.expired) })
-    })
+        for (const [field, message] of Object.entries(result.fieldErrors ?? {})) {
+          if (message) {
+            form.setError(field as keyof PublicCaptureValues, {
+              type: "server",
+              message,
+            })
+          }
+        }
+
+        setFormError({ message: result.error, expired: Boolean(result.expired) })
+      },
+      ({ message }) => {
+        // Queda de rede ou erro inesperado: os campos continuam preenchidos.
+        draft.saveNow()
+        setFormError({ message, expired: false })
+      }
+    )
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -217,6 +256,7 @@ export function CaptureForm({ slug, organizationName, token, brandStyle }: Captu
 
   return (
     <form onSubmit={handleSubmit} noValidate>
+      <UnsavedChangesGuard when={isDirty} />
       {/* Honeypot: invisível para pessoas; robôs costumam preencher. */}
       <div aria-hidden="true" className="sr-only">
         <label htmlFor="captar-website">Não preencha este campo</label>
@@ -231,6 +271,7 @@ export function CaptureForm({ slug, organizationName, token, brandStyle }: Captu
       </div>
 
       <FieldGroup>
+        <FormDraftNotice draft={draft} />
         <FieldSet>
           <FieldLegend>Seus dados</FieldLegend>
           <FieldDescription>Informe ao menos um telefone ou e-mail para contato.</FieldDescription>

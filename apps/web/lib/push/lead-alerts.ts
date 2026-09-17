@@ -1,15 +1,12 @@
 import "server-only"
 
-import { createClient } from "@supabase/supabase-js"
-import { z } from "zod"
-
 import { isUuid } from "@workspace/core/email/sanitize"
 
 import { reserveLeadAlertPushes, type LeadAlert } from "@/lib/leads/alerts"
 import { getVapidConfig } from "@/lib/push/config"
+import { settlePushDeliveries } from "@/lib/push/deliveries"
 import { leadAlertPush, shouldPushLeadAlert } from "@/lib/push/messages"
 import { mapWithConcurrency, sendWebPush } from "@/lib/push/send"
-import { getSupabaseEnv } from "@/lib/supabase/env"
 
 /**
  * Push no celular dos avisos de lead (lead novo, prazo acabando, redistribuído,
@@ -33,41 +30,6 @@ const EMPTY_SUMMARY: LeadAlertPushSummary = { attempted: 0, delivered: 0, remove
 
 /** Envios simultâneos ao serviço de push por lote. */
 const CONCURRENCY = 6
-
-const settledSchema = z.object({ delivered: z.number(), removed: z.number() })
-
-async function settlePushDeliveries(delivered: string[], gone: string[]) {
-  const serverKey = process.env.NOTIFICATION_SERVER_KEY?.trim()
-  const env = getSupabaseEnv()
-
-  if ((delivered.length === 0 && gone.length === 0) || !serverKey || !env) {
-    return { delivered: 0, removed: 0 }
-  }
-
-  try {
-    const supabase = createClient(env.url, env.publishableKey, {
-      auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-    })
-    const { data, error } = await supabase.rpc("settle_push_deliveries", {
-      p_server_key: serverKey,
-      p_delivered: delivered,
-      p_gone: gone,
-    })
-
-    if (error) {
-      console.error(`[push] settle_push_deliveries falhou (código ${error.code || "desconhecido"})`)
-      return { delivered: 0, removed: 0 }
-    }
-
-    const parsed = settledSchema.safeParse(data)
-    return parsed.success ? parsed.data : { delivered: 0, removed: 0 }
-  } catch (cause) {
-    console.error(
-      `[push] settle_push_deliveries falhou (${cause instanceof Error ? cause.name : "erro"})`
-    )
-    return { delivered: 0, removed: 0 }
-  }
-}
 
 export async function pushLeadAlerts(alerts: readonly LeadAlert[]): Promise<LeadAlertPushSummary> {
   const vapid = getVapidConfig()

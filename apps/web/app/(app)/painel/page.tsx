@@ -36,6 +36,7 @@ import {
   PainelCommissionCard,
   PainelCommissionCardSkeleton,
 } from "@/components/comissoes/painel-commission-card"
+import { SupportHelpButton } from "@/components/crm/support-help-button"
 import { getFirstName } from "@/components/crm/utils"
 import {
   AuthorizationAlertsCard,
@@ -43,14 +44,19 @@ import {
 } from "@/components/painel/authorization-alerts-card"
 import { BirthdaysCard, BirthdaysCardSkeleton } from "@/components/painel/birthdays-card"
 import {
+  GettingStartedCard,
+  GettingStartedCardSkeleton,
+} from "@/components/painel/getting-started-card"
+import {
   LeadsFunnelCard,
   LeadsWeeklyCard,
   PainelChartSkeleton,
   PropertiesStatusCard,
 } from "@/components/painel/painel-charts"
 import { ROLE_PERMISSIONS_SETTINGS_PATH } from "@/components/shared/settings-config"
-import { ROLE_LABELS } from "@/lib/auth/roles"
+import { ROLE_LABELS, TEAM_MANAGER_ROLES } from "@/lib/auth/roles"
 import { requireMembership } from "@/lib/auth/session"
+import { getDisplayPreferences } from "@/lib/preferencias/display"
 import { createClient } from "@/lib/supabase/server"
 
 export const metadata: Metadata = {
@@ -104,6 +110,9 @@ export default async function PainelPage({ searchParams }: PainelPageProps) {
 
   const supabase = await createClient()
   const organizationId = membership.organizationId
+  const showGettingStarted =
+    TEAM_MANAGER_ROLES.includes(membership.role) &&
+    !(await getDisplayPreferences(user.id)).gettingStartedDismissed
   const now = new Date()
   const { start, end } = getTodayRange(now)
 
@@ -208,10 +217,20 @@ export default async function PainelPage({ searchParams }: PainelPageProps) {
           <Alert variant="destructive">
             <TriangleAlertIcon />
             <AlertTitle>Alguns indicadores não carregaram</AlertTitle>
-            <AlertDescription>
-              Verifique se as migrações do banco foram aplicadas e recarregue a página.
+            <AlertDescription className="flex flex-col items-start gap-2">
+              <p>Recarregue a página em instantes.</p>
+              <SupportHelpButton label="Chamar o suporte" />
             </AlertDescription>
           </Alert>
+        </div>
+      ) : null}
+
+      {/* Primeiros passos (dono e gerente): some quando tudo está pronto ou com "Esconder". */}
+      {showGettingStarted ? (
+        <div className="px-4 lg:px-6">
+          <Suspense fallback={<GettingStartedCardSkeleton />}>
+            <GettingStartedCard organizationId={organizationId} userId={user.id} />
+          </Suspense>
         </div>
       ) : null}
 

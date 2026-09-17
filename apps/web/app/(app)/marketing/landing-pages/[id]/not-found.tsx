@@ -21,7 +21,7 @@ export default function LandingPageNotFound() {
           <EmptyMedia variant="icon">
             <LayoutTemplateIcon />
           </EmptyMedia>
-          <EmptyTitle>Landing page não encontrada</EmptyTitle>
+          <EmptyTitle>Página de captação não encontrada</EmptyTitle>
           <EmptyDescription>
             Ela pode ter sido removida ou pertence a outra imobiliária. Confira a imobiliária
             selecionada no menu.
@@ -33,7 +33,7 @@ export default function LandingPageNotFound() {
             render={<Link href={LANDING_PAGES_PATH} />}
             nativeButton={false}
           >
-            Ver landing pages
+            Ver páginas de captação
           </Button>
         </EmptyContent>
       </Empty>

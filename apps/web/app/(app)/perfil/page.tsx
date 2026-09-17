@@ -14,13 +14,15 @@ import { ProfileForm } from "@/components/perfil/profile-form"
 import { PushSettings, type PushDevice } from "@/components/push/push-settings"
 import { PageShell } from "@/components/shared/page-shell"
 import { SettingsNav } from "@/components/shared/settings-nav"
-import { ROLE_LABELS } from "@/lib/auth/roles"
+import { ROLE_LABELS, TEAM_MANAGER_ROLES } from "@/lib/auth/roles"
 import { requireMembership, requireUser } from "@/lib/auth/session"
 import { todayInSaoPaulo } from "@/lib/configuracoes/dates"
 import { maskPhoneBr } from "@/lib/configuracoes/masks"
+import { getDisplayPreferences } from "@/lib/preferencias/display"
 import { getVapidConfig } from "@/lib/push/config"
 import { createClient } from "@/lib/supabase/server"
 
+import { DisplayPreferencesForm } from "./display-preferences-form"
 import { EmailPreferencesCard } from "./email-preferences-card"
 
 export const metadata: Metadata = {
@@ -53,14 +55,16 @@ export default async function PerfilPage() {
   const supabase = await createClient()
   // Sem as chaves VAPID a opção de avisos no celular não aparece.
   const vapid = getVapidConfig()
-  const [{ data: profile, error }, pushDevices] = await Promise.all([
+  const [{ data: profile, error }, pushDevices, display] = await Promise.all([
     supabase
       .from("profiles")
       .select("full_name, phone, avatar_url, creci_number, creci_state, creci_valid_until")
       .eq("id", user.id)
       .maybeSingle(),
     vapid ? loadPushDevices(supabase) : Promise.resolve(null),
+    getDisplayPreferences(user.id),
   ])
+  const seesGettingStarted = TEAM_MANAGER_ROLES.includes(membership.role)
 
   if (error) {
     throw new Error(`Não foi possível carregar o perfil (${error.code ?? "erro"}).`)
@@ -73,7 +77,7 @@ export default async function PerfilPage() {
       header={
         <PageHeading
           title="Meu perfil"
-          description="Seus dados, CRECI, avisos no celular, e-mails automáticos e senha."
+          description="Seus dados, CRECI, tamanho da letra, avisos no celular, e-mails automáticos e senha."
         />
       }
       rail={
@@ -117,12 +121,27 @@ export default async function PerfilPage() {
           />
         </CardContent>
       </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Tela</CardTitle>
+          <CardDescription>Vale para você, em todos os aparelhos em que entrar.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DisplayPreferencesForm
+            largeText={display.largeText}
+            gettingStarted={
+              seesGettingStarted ? { visible: !display.gettingStartedDismissed } : null
+            }
+          />
+        </CardContent>
+      </Card>
       {vapid && pushDevices ? (
         <Card>
           <CardHeader>
             <CardTitle>Avisos no celular</CardTitle>
             <CardDescription>
-              Receba o lead novo e o prazo de primeiro contato na hora, mesmo com o CRM fechado.
+              Receba o lead novo, o prazo de primeiro contato, a visita marcada para você e o
+              lembrete de tarefa na hora, mesmo com o CRM fechado.
             </CardDescription>
           </CardHeader>
           <CardContent>

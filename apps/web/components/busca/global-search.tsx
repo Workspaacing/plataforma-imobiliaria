@@ -167,16 +167,16 @@ export function GlobalSearch() {
 
   return (
     <>
-      {/* Celular: só o ícone. A partir de md: o campo com o atalho visível. */}
+      {/* Celular: ícone com a palavra "Buscar". A partir de md: o campo com o atalho visível. */}
       <Button
         variant="outline"
-        size="icon"
         aria-keyshortcuts="/"
         onClick={() => setOpen(true)}
         className="md:hidden"
       >
-        <SearchIcon />
-        <span className="sr-only">Buscar cliente, lead ou imóvel</span>
+        <SearchIcon data-icon="inline-start" />
+        Buscar
+        <span className="sr-only"> cliente, lead ou imóvel</span>
       </Button>
       <Button
         variant="outline"

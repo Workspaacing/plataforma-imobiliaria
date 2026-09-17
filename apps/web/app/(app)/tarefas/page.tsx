@@ -14,6 +14,7 @@ import {
 } from "@workspace/ui/components/empty"
 
 import { PageHeading } from "@/components/crm/page-placeholder"
+import { SupportHelpButton } from "@/components/crm/support-help-button"
 import { PageShell } from "@/components/shared/page-shell"
 import { NewTaskButton } from "@/components/tarefas/new-task-button"
 import { TaskFilters } from "@/components/tarefas/task-filters"
@@ -87,9 +88,9 @@ export default async function TarefasPage({
       <Alert variant="destructive">
         <TriangleAlertIcon />
         <AlertTitle>Não foi possível carregar as tarefas</AlertTitle>
-        <AlertDescription>
-          Recarregue a página. Se o problema continuar, verifique se as migrações do banco foram
-          aplicadas.
+        <AlertDescription className="flex flex-col items-start gap-2">
+          <p>Recarregue a página. Se o problema continuar, chame o suporte.</p>
+          <SupportHelpButton label="Chamar o suporte" />
         </AlertDescription>
       </Alert>
     )

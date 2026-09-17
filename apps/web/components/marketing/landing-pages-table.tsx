@@ -78,18 +78,18 @@ type PendingConfirm = {
 const CONFIRM_COPY: Record<LandingStatus, { title: string; description: string; confirm: string }> =
   {
     published: {
-      title: "Publicar a landing page?",
+      title: "Publicar a página de captação?",
       description: "A página fica acessível no endereço público e passa a receber leads no funil.",
       confirm: "Publicar",
     },
     draft: {
-      title: "Despublicar a landing page?",
+      title: "Despublicar a página de captação?",
       description:
         "O endereço público deixa de funcionar e a página volta a ser rascunho. Os leads já recebidos continuam no funil.",
       confirm: "Despublicar",
     },
     archived: {
-      title: "Arquivar a landing page?",
+      title: "Arquivar a página de captação?",
       description:
         "A página sai do ar e vai para a lista de arquivadas. Você pode restaurá-la como rascunho depois.",
       confirm: "Arquivar",
@@ -107,7 +107,7 @@ function CopyUrlButton({ url }: { url: string }) {
             type="button"
             variant="ghost"
             size="icon-sm"
-            onClick={() => copy(url, "Endereço da landing page copiado.")}
+            onClick={() => copy(url, "Endereço da página de captação copiado.")}
           />
         }
       >
@@ -333,7 +333,7 @@ export function LandingPagesTable({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {isRestore ? "Restaurar a landing page?" : copy?.title}
+              {isRestore ? "Restaurar a página de captação?" : copy?.title}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {pending ? `${pending.row.name}. ` : ""}

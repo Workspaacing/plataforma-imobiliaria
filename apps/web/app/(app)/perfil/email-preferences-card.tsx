@@ -12,8 +12,8 @@ import { getEmailPreferences } from "@/lib/lembretes/preferences"
 import { EmailPreferencesForm } from "./email-preferences-form"
 
 /**
- * "E-mails automáticos" em Meu perfil: resumo diário, lembrete de visita e
- * relatório semanal. Componente separado da página para não misturar com os
+ * "E-mails e avisos automáticos" em Meu perfil: resumo diário, lembrete e aviso
+ * de visita, lembrete de tarefa no celular e relatório semanal. Componente separado da página para não misturar com os
  * avisos no celular; a preferência fica em public.email_preferences.
  */
 export async function EmailPreferencesCard() {
@@ -23,10 +23,10 @@ export async function EmailPreferencesCard() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>E-mails automáticos</CardTitle>
+        <CardTitle>E-mails e avisos automáticos</CardTitle>
         <CardDescription>
-          Vão para {user.email ?? "o seu e-mail"} e valem para todas as imobiliárias em que você
-          trabalha.
+          Os e-mails vão para {user.email ?? "o seu e-mail"}. Tudo vale para todas as imobiliárias
+          em que você trabalha.
         </CardDescription>
       </CardHeader>
       <CardContent>

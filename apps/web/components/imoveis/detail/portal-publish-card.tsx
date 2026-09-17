@@ -55,15 +55,17 @@ export function PortalPublishCard({
   if (optimisticPublished) {
     description = publishedAt
       ? `Publicado desde ${formatDateTime(publishedAt)}.`
-      : "Publicado no feed dos portais."
+      : "Publicado no arquivo para os portais."
   } else if (restricted) {
     description = "Imóvel restrito não vai para os portais."
   } else if (!isActive) {
-    description = "Ative o imóvel para publicar no feed VRSync."
+    description = "Ative o imóvel para enviar no arquivo para os portais."
   } else if (!isValid) {
     description = "Corrija as pendências para publicar."
   } else {
-    description = canEdit ? "Pronto para publicar no feed VRSync." : "Não publicado nos portais."
+    description = canEdit
+      ? "Pronto para enviar no arquivo para os portais."
+      : "Não publicado nos portais."
   }
 
   function handleCheckedChange(checked: boolean) {

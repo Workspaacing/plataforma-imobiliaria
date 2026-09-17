@@ -19,6 +19,7 @@ import { CondominiumsCards, CondominiumsTable } from "@/components/condominios/c
 import { CondominiumsPagination } from "@/components/condominios/condominiums-pagination"
 import { NewCondominiumButton } from "@/components/condominios/new-condominium-button"
 import { PageHeading } from "@/components/crm/page-placeholder"
+import { SupportHelpButton } from "@/components/crm/support-help-button"
 import { PageShell } from "@/components/shared/page-shell"
 import { requireMembership } from "@/lib/auth/session"
 import { CONDOMINIUMS_PAGE_SIZE, listCondominiums } from "@/lib/condominios/queries"
@@ -80,8 +81,9 @@ export default async function CondominiosPage({ searchParams }: CondominiosPageP
         <Alert variant="destructive">
           <TriangleAlertIcon />
           <AlertTitle>Não foi possível carregar os condomínios</AlertTitle>
-          <AlertDescription>
-            Tente novamente em instantes. Se o problema continuar, fale com o suporte.
+          <AlertDescription className="flex flex-col items-start gap-2">
+            <p>Tente novamente em instantes. Se o problema continuar, chame o suporte.</p>
+            <SupportHelpButton label="Chamar o suporte" />
           </AlertDescription>
           <AlertAction>
             <Button

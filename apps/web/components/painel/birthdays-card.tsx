@@ -159,12 +159,13 @@ export async function BirthdaysCard({
                     {whatsapp ? (
                       <Button
                         variant="outline"
-                        size="icon-sm"
+                        size="sm"
                         render={<a href={whatsapp} target="_blank" rel="noopener noreferrer" />}
                         nativeButton={false}
                       >
-                        <MessageCircleIcon />
-                        <span className="sr-only">Dar parabéns a {firstName} no WhatsApp</span>
+                        <MessageCircleIcon data-icon="inline-start" />
+                        Parabéns
+                        <span className="sr-only"> para {firstName} no WhatsApp</span>
                       </Button>
                     ) : null}
                   </ItemActions>

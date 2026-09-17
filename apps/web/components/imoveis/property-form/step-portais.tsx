@@ -194,8 +194,8 @@ export function StepPortais({
       <FieldSet>
         <FieldLegend>Publicação nos portais</FieldLegend>
         <FieldDescription>
-          ZAP Imóveis, Viva Real e OLX recebem pelo feed VRSync os imóveis ativos com a publicação
-          ligada.
+          ZAP Imóveis, Viva Real e OLX recebem, pelo arquivo para os portais, os imóveis ativos com
+          a publicação ligada.
         </FieldDescription>
 
         <Controller
@@ -244,7 +244,7 @@ export function StepPortais({
         ) : (
           <Alert>
             <CircleCheckIcon />
-            <AlertTitle>Anúncio dentro das regras do VRSync</AlertTitle>
+            <AlertTitle>Anúncio dentro das regras dos portais</AlertTitle>
             <AlertDescription>
               Título, descrição, preço, área, endereço e fotos atendem aos portais.
             </AlertDescription>

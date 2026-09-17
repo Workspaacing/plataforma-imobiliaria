@@ -20,6 +20,7 @@ import {
 } from "@workspace/ui/components/card"
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -27,6 +28,7 @@ import {
 } from "@workspace/ui/components/empty"
 import { Skeleton } from "@workspace/ui/components/skeleton"
 
+import { SupportHelpButton } from "@/components/crm/support-help-button"
 import { LeadsFunnelChartView } from "@/components/painel/leads-funnel-chart"
 import { LeadsWeeklyChartView } from "@/components/painel/leads-weekly-chart"
 import { PropertiesStatusChartView } from "@/components/painel/properties-status-chart"
@@ -49,16 +51,17 @@ const percentFormat = new Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 1,
 })
 
-const LOAD_ERROR_DESCRIPTION =
-  "Recarregue a página em instantes. Se continuar assim, confira se as migrações do banco foram aplicadas."
+const LOAD_ERROR_DESCRIPTION = "Recarregue a página em instantes."
 
 type ChartEmptyProps = {
   icon: LucideIcon
   title: string
   description: string
+  /** Falha de leitura: oferece o suporte (o botão só aparece com contato configurado). */
+  withSupport?: boolean
 }
 
-function ChartEmpty({ icon: Icon, title, description }: ChartEmptyProps) {
+function ChartEmpty({ icon: Icon, title, description, withSupport = false }: ChartEmptyProps) {
   return (
     <Empty className="min-h-64 border">
       <EmptyHeader>
@@ -68,6 +71,11 @@ function ChartEmpty({ icon: Icon, title, description }: ChartEmptyProps) {
         <EmptyTitle>{title}</EmptyTitle>
         <EmptyDescription>{description}</EmptyDescription>
       </EmptyHeader>
+      {withSupport ? (
+        <EmptyContent>
+          <SupportHelpButton label="Chamar o suporte" />
+        </EmptyContent>
+      ) : null}
     </Empty>
   )
 }
@@ -121,12 +129,13 @@ export async function LeadsWeeklyCard({ organizationId }: { organizationId: stri
             icon={TriangleAlertIcon}
             title="Não foi possível carregar a captação"
             description={LOAD_ERROR_DESCRIPTION}
+            withSupport
           />
         ) : chart.total === 0 ? (
           <ChartEmpty
             icon={SproutIcon}
             title="Nenhum lead nas últimas semanas"
-            description="Publique uma landing page ou cadastre um lead do telefone para o gráfico começar a mostrar a captação."
+            description="Publique uma página de captação ou cadastre um lead do telefone para o gráfico começar a mostrar a captação."
           />
         ) : (
           <>
@@ -177,6 +186,7 @@ export async function LeadsFunnelCard({ organizationId }: { organizationId: stri
             icon={TriangleAlertIcon}
             title="Não foi possível carregar o funil"
             description={LOAD_ERROR_DESCRIPTION}
+            withSupport
           />
         ) : chart.total === 0 ? (
           <ChartEmpty
@@ -248,6 +258,7 @@ export async function PropertiesStatusCard({ organizationId }: { organizationId:
             icon={TriangleAlertIcon}
             title="Não foi possível carregar a carteira"
             description={LOAD_ERROR_DESCRIPTION}
+            withSupport
           />
         ) : chart.total === 0 ? (
           <ChartEmpty

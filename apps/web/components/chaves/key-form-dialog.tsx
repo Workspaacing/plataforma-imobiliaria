@@ -31,6 +31,11 @@ import { toast } from "@workspace/ui/components/toast"
 import { OptionCombobox, type ComboboxOption } from "@/components/propostas/option-combobox"
 import { createKey, updateKey } from "@/lib/chaves/actions"
 import { keyCreateSchema, type KeyCreateValues } from "@/lib/chaves/schemas"
+import { FormDraftNotice } from "@/lib/forms/draft/form-draft-notice"
+import { useFormDraft } from "@/lib/forms/draft/use-form-draft"
+import { useFormDraftScope } from "@/lib/forms/draft/use-form-draft-scope"
+import { useGuardedSubmit } from "@/lib/forms/submit/use-guarded-submit"
+import { UnsavedChangesGuard } from "@/lib/forms/unsaved/unsaved-changes-guard"
 
 export type EditableKey = {
   id: string
@@ -75,7 +80,7 @@ function KeyForm({
   defaultPropertyId,
   onDone,
 }: KeyFormProps & { onDone: () => void }) {
-  const [isSubmitting, startSubmit] = React.useTransition()
+  const { isPending: isSubmitting, run: runSubmit } = useGuardedSubmit()
   const [formError, setFormError] = React.useState<string | null>(null)
   const isEditing = Boolean(editingKey)
 
@@ -96,6 +101,18 @@ function KeyForm({
           notes: "",
         },
   })
+  const { isDirty } = form.formState
+
+  // Internet caiu ou o diálogo fechou sem querer: o cadastro da chave volta na próxima abertura.
+  const draftScope = useFormDraftScope()
+  const draft = useFormDraft({
+    form,
+    scope: draftScope,
+    formId: "chave",
+    recordId: editingKey?.id ?? null,
+    // Na edição o imóvel não muda: vem sempre do registro.
+    exclude: editingKey ? ["propertyId"] : undefined,
+  })
 
   const propertyOptions = React.useMemo(
     () =>
@@ -108,23 +125,31 @@ function KeyForm({
   function onSubmit(values: KeyCreateValues) {
     setFormError(null)
 
-    startSubmit(async () => {
-      const result = editingKey
-        ? await updateKey(editingKey.id, {
-            label: values.label,
-            location: values.location,
-            notes: values.notes,
-          })
-        : await createKey(values)
+    runSubmit(
+      async () => {
+        const result = editingKey
+          ? await updateKey(editingKey.id, {
+              label: values.label,
+              location: values.location,
+              notes: values.notes,
+            })
+          : await createKey(values)
 
-      if (!result.ok) {
-        setFormError(result.error)
-        return
+        if (!result.ok) {
+          setFormError(result.error)
+          return
+        }
+
+        draft.clear()
+        toast.add({ title: result.message ?? "Chave salva.", type: "success" })
+        onDone()
+      },
+      ({ message }) => {
+        // Queda de rede ou erro inesperado: o diálogo continua aberto com os campos.
+        draft.saveNow()
+        setFormError(message)
       }
-
-      toast.add({ title: result.message ?? "Chave salva.", type: "success" })
-      onDone()
-    })
+    )
   }
 
   return (
@@ -138,7 +163,9 @@ function KeyForm({
         </DialogDescription>
       </DialogHeader>
       <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="flex flex-col gap-6">
+        <UnsavedChangesGuard when={isDirty} />
         <FieldGroup>
+          <FormDraftNotice draft={draft} />
           {formError ? (
             <Alert variant="destructive">
               <CircleAlertIcon />

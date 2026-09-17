@@ -19,6 +19,7 @@ import { ROLE_LABELS } from "@/lib/auth/roles"
 import { PLATFORM_ADMIN_PATH_PREFIX } from "@/lib/auth/routes"
 import { requireMembership, type MembershipContext } from "@/lib/auth/session"
 import { canOpenPlatformConsole } from "@/lib/plataforma/admin"
+import { getDisplayPreferences } from "@/lib/preferencias/display"
 import { isSupabaseConfigured } from "@/lib/supabase/env"
 import {
   buildTenantOrigin,
@@ -71,12 +72,16 @@ export default async function AppLayout({
   // Host único: links relativos (evita trocar de host em deploys de preview).
   const appOrigin = isSubdomain ? getAppOrigin() : ""
   // Equipe da plataforma: atalho para o Console no menu de imobiliárias.
-  const platformConsoleHref = (await canOpenPlatformConsole(user.email))
-    ? `${appOrigin}${PLATFORM_ADMIN_PATH_PREFIX}`
-    : null
+  const [canOpenConsole, display] = await Promise.all([
+    canOpenPlatformConsole(user.email),
+    getDisplayPreferences(user.id),
+  ])
+  const platformConsoleHref = canOpenConsole ? `${appOrigin}${PLATFORM_ADMIN_PATH_PREFIX}` : null
 
   return (
     <Toaster>
+      {/* "Letra e botões maiores" (Meu perfil): o CSS global aumenta a página inteira. */}
+      {display.largeText ? <span data-ui-size="grande" hidden /> : null}
       <SidebarProvider defaultOpen={sidebarOpen}>
         <CrmSidebar
           role={membership.role}
@@ -106,7 +111,10 @@ export default async function AppLayout({
           do quadro, e o conteúdo passava por baixo da barra lateral.
         */}
         <SidebarInset className="min-w-0">
-          <CrmHeader />
+          {/* Sem contato do suporte configurado, só a equipe da plataforma vê o aviso. */}
+          <CrmHeader
+            supportSetupHref={platformConsoleHref ? `${platformConsoleHref}/saude` : null}
+          />
           {/* Avisos de assinatura e da plataforma: não bloqueiam a página nem quebram se a RPC falhar. */}
           <Suspense fallback={null}>
             <SubscriptionBanner organizationId={membership.organizationId} role={membership.role} />

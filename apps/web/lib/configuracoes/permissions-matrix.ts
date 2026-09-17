@@ -77,12 +77,12 @@ export const ROLE_PERMISSION_AREAS: RolePermissionArea[] = [
     id: "marketing",
     title: "Marketing e portais",
     byRole: {
-      owner: "Cria, edita e publica landing pages. Configura os portais e o feed.",
-      manager: "Cria, edita e publica landing pages. Vê a configuração dos portais.",
-      broker: "Só visualiza as landing pages.",
-      capturer: "Só visualiza as landing pages.",
-      assistant: "Cria, edita e publica landing pages.",
-      finance: "Só visualiza as landing pages.",
+      owner: "Cria, edita e publica páginas de captação. Configura os portais e o feed.",
+      manager: "Cria, edita e publica páginas de captação. Vê a configuração dos portais.",
+      broker: "Só visualiza as páginas de captação.",
+      capturer: "Só visualiza as páginas de captação.",
+      assistant: "Cria, edita e publica páginas de captação.",
+      finance: "Só visualiza as páginas de captação.",
     },
   },
   {

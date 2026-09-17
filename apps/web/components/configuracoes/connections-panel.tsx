@@ -50,6 +50,7 @@ import {
   type ConnectionActionResult,
 } from "@/app/(app)/configuracoes/conexoes/actions"
 import { WhatsappConnectDialog } from "@/components/configuracoes/whatsapp-connect-dialog"
+import { SupportHelpButton } from "@/components/crm/support-help-button"
 import type { ConnectionView, WhatsappChannelView } from "@/lib/conexoes/queries"
 import { formatDateTime } from "@/lib/format"
 
@@ -247,8 +248,9 @@ function ConnectionCard({
           <Alert variant="destructive">
             <TriangleAlertIcon />
             <AlertTitle>Conexão suspensa pela plataforma</AlertTitle>
-            <AlertDescription>
-              {account.blockedReason ?? "Fale com o suporte para entender e reativar."}
+            <AlertDescription className="flex flex-col items-start gap-2">
+              <p>{account.blockedReason ?? "Fale com o suporte para entender e reativar."}</p>
+              <SupportHelpButton label="Chamar o suporte" />
             </AlertDescription>
           </Alert>
         ) : null}

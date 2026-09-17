@@ -3,6 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { LifeBuoyIcon } from "lucide-react"
 
 import {
   Breadcrumb,
@@ -12,11 +13,13 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb"
+import { Button } from "@workspace/ui/components/button"
 import { Separator } from "@workspace/ui/components/separator"
 import { SidebarTrigger } from "@workspace/ui/components/sidebar"
 
 import { GlobalSearch } from "@/components/busca/global-search"
 import { EXTRA_PAGE_TITLES, findNavMatch } from "@/components/crm/nav-config"
+import { hasSupportContact } from "@/components/crm/support"
 import { SupportHelpButton } from "@/components/crm/support-help-button"
 
 const SEGMENT_LABELS: Record<string, string> = {
@@ -113,7 +116,18 @@ function HeaderBreadcrumb() {
   )
 }
 
-export function CrmHeader() {
+type CrmHeaderProps = {
+  /**
+   * Tela "Saúde do sistema" do Console, só para a equipe da plataforma. Sem
+   * NEXT_PUBLIC_SUPPORT_WHATSAPP/EMAIL, ela vê um aviso discreto no lugar do
+   * botão "Ajuda"; clientes não veem nada (o botão simplesmente não aparece).
+   */
+  supportSetupHref?: string | null
+}
+
+export function CrmHeader({ supportSetupHref = null }: CrmHeaderProps) {
+  const showSupportSetup = Boolean(supportSetupHref) && !hasSupportContact()
+
   return (
     <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center gap-2 rounded-t-xl border-b bg-background transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
       <div className="flex min-w-0 flex-1 items-center gap-2 ps-4">
@@ -128,6 +142,18 @@ export function CrmHeader() {
       <div className="flex shrink-0 items-center gap-2 pe-4">
         <GlobalSearch />
         <SupportHelpButton />
+        {showSupportSetup && supportSetupHref ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground"
+            render={<a href={supportSetupHref} />}
+            nativeButton={false}
+          >
+            <LifeBuoyIcon data-icon="inline-start" />
+            <span className="max-lg:sr-only">Configure o contato do suporte</span>
+          </Button>
+        ) : null}
       </div>
     </header>
   )

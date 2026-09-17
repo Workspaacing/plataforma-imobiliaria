@@ -1,6 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { after } from "next/server"
 
 import type { TablesUpdate } from "@workspace/database/types"
 
@@ -28,6 +29,7 @@ import {
   type ActionResultWithData,
 } from "@/lib/clientes/action-result"
 import { permissionDeniedMessage, translateDatabaseError } from "@/lib/clientes/db-errors"
+import { drainVisitAssignmentNotices } from "@/lib/lembretes/visit-assignments"
 import { createClient } from "@/lib/supabase/server"
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>
@@ -35,6 +37,21 @@ type ServerClient = Awaited<ReturnType<typeof createClient>>
 const ACTIVITY_BODY_MAX_LENGTH = 10000
 const HISTORY_NOT_UPDATED = "O histórico do cliente não foi atualizado."
 const APPOINTMENT_NOT_FOUND = "Visita não encontrada. Ela pode ter sido removida."
+
+/** E-mails de "visita marcada para você" enviados logo depois de salvar (o resto vai pelo job). */
+const ASSIGNMENT_NOTICE_EMAILS_NOW = 5
+
+/**
+ * Quem marcou não é o corretor da visita: o banco já enfileirou o aviso
+ * (gatilho em appointments); envia push e e-mail depois da resposta.
+ */
+function notifyBrokerAfterSave(brokerId: string | null | undefined, userId: string) {
+  if (!brokerId || brokerId === userId) return
+
+  after(async () => {
+    await drainVisitAssignmentNotices(ASSIGNMENT_NOTICE_EMAILS_NOW)
+  })
+}
 
 const STATUS_SUCCESS_MESSAGES: Record<AppointmentStatus, string> = {
   scheduled: "Visita reaberta como agendada.",
@@ -180,14 +197,15 @@ export async function saveAppointment(
       }
     }
 
+    // Corretor e captador só agendam para si (espelha o RLS).
+    const brokerId = canScheduleForOthers(role) ? input.brokerId : user.id
     const { data: created, error } = await supabase
       .from("appointments")
       .insert({
         organization_id: organizationId,
         property_id: property.id,
         client_id: clientId,
-        // Corretor e captador só agendam para si (espelha o RLS).
-        broker_id: canScheduleForOthers(role) ? input.brokerId : user.id,
+        broker_id: brokerId,
         starts_at: startsAt,
         ends_at: endsAt,
         meeting_point: meetingPoint,
@@ -217,6 +235,7 @@ export async function saveAppointment(
     }
 
     revalidateAgenda({ clientIds: [clientId], propertyIds: [property.id] })
+    notifyBrokerAfterSave(brokerId, user.id)
 
     return {
       ok: true,
@@ -298,6 +317,7 @@ export async function saveAppointment(
     clientIds: [existing.client_id, clientId],
     propertyIds: [existing.property_id, property.id],
   })
+  notifyBrokerAfterSave(changes.broker_id ?? existing.broker_id, user.id)
 
   return { ok: true, data: { id: existing.id }, message: "Visita atualizada." }
 }

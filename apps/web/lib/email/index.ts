@@ -14,6 +14,7 @@ export {
   type ReferralNoticeNotification,
   type SubscriptionNoticeNotification,
   type TeamInvitationNotification,
+  type VisitAssignedNotification,
   type VisitReminderNotification,
   type WeeklyReportNotification,
 } from "@/lib/email/notifications"

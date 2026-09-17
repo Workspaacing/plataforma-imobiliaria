@@ -32,7 +32,7 @@ import { getLandingPublicUrl } from "@/lib/marketing/urls"
 import { createClient } from "@/lib/supabase/server"
 
 export const metadata: Metadata = {
-  title: "Landing pages",
+  title: "Páginas de captação",
 }
 
 type SearchParams = Record<string, string | string[] | undefined>
@@ -63,13 +63,13 @@ export default async function LandingPagesPage({
   const heading = (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <PageHeading
-        title="Landing pages"
+        title="Páginas de captação"
         description="Páginas de campanha com a marca da imobiliária. Os contatos entram direto no funil do CRM."
       />
       {canEdit && result.available ? (
         <Button render={<Link href={NEW_LANDING_PAGE_PATH} />} nativeButton={false}>
           <PlusIcon data-icon="inline-start" />
-          Criar landing page
+          Criar página de captação
         </Button>
       ) : null}
     </div>
@@ -81,10 +81,10 @@ export default async function LandingPagesPage({
         {heading}
         <Alert>
           <TriangleAlertIcon />
-          <AlertTitle>Landing pages ainda não ativadas</AlertTitle>
+          <AlertTitle>Páginas de captação ainda não ativadas</AlertTitle>
           <AlertDescription>
-            O banco desta instalação ainda não tem as tabelas das landing pages. Assim que a
-            atualização for aplicada, as páginas aparecem aqui.
+            As páginas de captação ainda não estão disponíveis nesta instalação. Assim que forem
+            liberadas, elas aparecem aqui.
           </AlertDescription>
         </Alert>
       </PageShell>
@@ -125,18 +125,18 @@ export default async function LandingPagesPage({
             <EmptyMedia variant="icon">
               <LayoutTemplateIcon />
             </EmptyMedia>
-            <EmptyTitle>Nenhuma landing page ainda</EmptyTitle>
+            <EmptyTitle>Nenhuma página de captação ainda</EmptyTitle>
             <EmptyDescription>
               {canEdit
                 ? "Escolha um dos 9 modelos, aplique a marca da imobiliária e publique. Cada contato vira um lead no funil."
-                : "Quando o dono, o gerente ou um assistente criar uma landing page, ela aparece aqui."}
+                : "Quando o dono, o gerente ou um assistente criar uma página de captação, ela aparece aqui."}
             </EmptyDescription>
           </EmptyHeader>
           {canEdit ? (
             <EmptyContent>
               <Button render={<Link href={NEW_LANDING_PAGE_PATH} />} nativeButton={false}>
                 <PlusIcon data-icon="inline-start" />
-                Criar landing page
+                Criar página de captação
               </Button>
             </EmptyContent>
           ) : null}
@@ -163,13 +163,13 @@ export default async function LandingPagesPage({
                 </EmptyMedia>
                 <EmptyTitle>
                   {status
-                    ? `Nenhuma landing page com status “${LANDING_STATUS_LABELS[status]}”`
-                    : "Nenhuma landing page ativa"}
+                    ? `Nenhuma página de captação com status “${LANDING_STATUS_LABELS[status]}”`
+                    : "Nenhuma página de captação ativa"}
                 </EmptyTitle>
                 <EmptyDescription>
                   {status === "archived"
                     ? "As páginas arquivadas aparecem aqui."
-                    : "Todas as landing pages desta imobiliária estão arquivadas."}
+                    : "Todas as páginas de captação desta imobiliária estão arquivadas."}
                 </EmptyDescription>
               </EmptyHeader>
               <EmptyContent>

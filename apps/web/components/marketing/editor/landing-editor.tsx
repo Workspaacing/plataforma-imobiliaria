@@ -132,7 +132,7 @@ const STATUS_CONFIRM: Record<
   { title: string; description: string; action: string }
 > = {
   published: {
-    title: "Publicar a landing page?",
+    title: "Publicar a página de captação?",
     description:
       "A página fica no ar no endereço público e cada contato enviado vira um lead no funil.",
     action: "Publicar",
@@ -144,7 +144,7 @@ const STATUS_CONFIRM: Record<
     action: "Despublicar",
   },
   archived: {
-    title: "Arquivar a landing page?",
+    title: "Arquivar a página de captação?",
     description: "A página sai do ar e vai para a lista de arquivadas.",
     action: "Arquivar",
   },
@@ -557,12 +557,12 @@ export function LandingEditor({
             nativeButton={false}
           >
             <ArrowLeftIcon />
-            <span className="sr-only">Voltar para as landing pages</span>
+            <span className="sr-only">Voltar para as páginas de captação</span>
           </Button>
           <div className="flex min-w-0 flex-col gap-1">
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <h1 className="truncate text-xl font-semibold tracking-tight">
-                {watched.publication.name || "Landing page"}
+                {watched.publication.name || "Página de captação"}
               </h1>
               <LandingStatusBadge status={status} />
             </div>
@@ -808,7 +808,7 @@ export function LandingEditor({
             </ToggleGroup>
           </div>
           <div className="min-h-0 flex-1 overflow-hidden rounded-xl border lg:rounded-e-none lg:border-e-0">
-            <LandingPreviewFrame device={device} title="Pré-visualização da landing page">
+            <LandingPreviewFrame device={device} title="Pré-visualização da página de captação">
               <LandingTemplate mode="preview" payload={payload} leadForm={<InertLeadForm />} />
             </LandingPreviewFrame>
           </div>

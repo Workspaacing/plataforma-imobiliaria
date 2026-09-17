@@ -46,6 +46,11 @@ import { PropertyCombobox } from "@/components/agenda/property-combobox"
 import { ClientCombobox } from "@/components/clientes/client-combobox"
 import type { Role } from "@/lib/auth/roles"
 import type { ClientOption, MemberOption, PropertyOption } from "@/lib/clientes/options"
+import { FormDraftNotice } from "@/lib/forms/draft/form-draft-notice"
+import { useFormDraft } from "@/lib/forms/draft/use-form-draft"
+import { useFormDraftScope } from "@/lib/forms/draft/use-form-draft-scope"
+import { useGuardedSubmit } from "@/lib/forms/submit/use-guarded-submit"
+import { UnsavedChangesGuard } from "@/lib/forms/unsaved/unsaved-changes-guard"
 import { saveTask } from "@/lib/tarefas/actions"
 import { dueIsoToInput } from "@/lib/tarefas/due"
 import { canCreateTasks } from "@/lib/tarefas/permissions"
@@ -192,7 +197,7 @@ function TaskForm({
   onSaved,
   onClose,
 }: TaskFormBodyProps) {
-  const [isSubmitting, startSubmit] = React.useTransition()
+  const { isPending: isSubmitting, run: runSubmit } = useGuardedSubmit()
   const [formError, setFormError] = React.useState<string | null>(null)
   const isEditing = Boolean(task)
   const canSubmit = isEditing || canCreateTasks(role)
@@ -201,6 +206,19 @@ function TaskForm({
     resolver: zodResolver(taskFormSchema),
     mode: "onTouched",
     defaultValues: getDefaultValues({ task, defaults, currentUserId }),
+  })
+  const { isDirty } = form.formState
+
+  // Internet caiu ou o diálogo fechou sem querer: a tarefa volta na próxima abertura.
+  const draftScope = useFormDraftScope({ userId: currentUserId }, canSubmit)
+  const draft = useFormDraft({
+    form,
+    scope: draftScope,
+    formId: "tarefa",
+    recordId: task?.id ?? null,
+    // O id vem do registro aberto, nunca do rascunho.
+    exclude: ["id"],
+    enabled: canSubmit,
   })
   const hasDueDate = Boolean(useWatch({ control: form.control, name: "dueDate" }))
 
@@ -220,31 +238,41 @@ function TaskForm({
   function onSubmit(values: TaskFormValues) {
     setFormError(null)
 
-    startSubmit(async () => {
-      const result = await saveTask(values)
+    runSubmit(
+      async () => {
+        const result = await saveTask(values)
 
-      if (!result.ok) {
-        for (const [key, message] of Object.entries(result.fieldErrors ?? {})) {
-          const name = key.split(".")[0] ?? ""
+        if (!result.ok) {
+          for (const [key, message] of Object.entries(result.fieldErrors ?? {})) {
+            const name = key.split(".")[0] ?? ""
 
-          if (message && isFormFieldName(name)) {
-            form.setError(name, { type: "server", message })
+            if (message && isFormFieldName(name)) {
+              form.setError(name, { type: "server", message })
+            }
           }
+
+          setFormError(result.error)
+          return
         }
 
-        setFormError(result.error)
-        return
+        draft.clear()
+        toast.add({ title: result.message ?? "Tarefa salva.", type: "success" })
+        onClose()
+        onSaved?.()
+      },
+      ({ message }) => {
+        // Queda de rede ou erro inesperado: o diálogo continua aberto com os campos.
+        draft.saveNow()
+        setFormError(message)
       }
-
-      toast.add({ title: result.message ?? "Tarefa salva.", type: "success" })
-      onClose()
-      onSaved?.()
-    })
+    )
   }
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} noValidate className="flex flex-col gap-6">
+      <UnsavedChangesGuard when={isDirty} />
       <FieldGroup>
+        <FormDraftNotice draft={draft} />
         {formError ? (
           <Alert variant="destructive">
             <CircleAlertIcon />

@@ -23,7 +23,7 @@ import { canEditLandingPages } from "@/lib/marketing/permissions"
 import { maxPropertiesFor } from "@/lib/marketing/schemas"
 
 export const metadata: Metadata = {
-  title: "Nova landing page",
+  title: "Nova página de captação",
 }
 
 const CATEGORY_DESCRIPTIONS: Record<LandingTemplateCategory, string> = {
@@ -57,7 +57,7 @@ export default async function NewLandingPage() {
   const heading = (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <PageHeading
-        title="Nova landing page"
+        title="Nova página de captação"
         description="Escolha um modelo. Depois você aplica cores, logo, textos e imóveis; a estrutura do modelo é fixa."
       />
       <Button variant="outline" render={<Link href={LANDING_PAGES_PATH} />} nativeButton={false}>
@@ -73,9 +73,10 @@ export default async function NewLandingPage() {
         {heading}
         <Alert>
           <LockIcon />
-          <AlertTitle>Sem permissão para criar landing pages</AlertTitle>
+          <AlertTitle>Sem permissão para criar páginas de captação</AlertTitle>
           <AlertDescription>
-            Somente o dono, o gerente ou um assistente da imobiliária cria e edita landing pages.
+            Somente o dono, o gerente ou um assistente da imobiliária cria e edita páginas de
+            captação.
           </AlertDescription>
         </Alert>
       </PageShell>

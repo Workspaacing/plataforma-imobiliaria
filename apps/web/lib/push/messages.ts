@@ -1,3 +1,5 @@
+import { visitWhenLabel } from "@workspace/core/email/agenda-templates"
+import { formatSaoPauloTime, toSaoPauloDateKey } from "@workspace/core/email/reminders"
 import { cleanText } from "@workspace/core/email/sanitize"
 import { LEAD_SOURCE_EMAIL_LABELS } from "@workspace/core/email/templates"
 
@@ -128,6 +130,72 @@ export function leadAlertPush(
         },
         options: { ttlSeconds: LEAD_ALERT_TTL_SECONDS, urgency: "high" },
       }
+  }
+}
+
+/**
+ * Visita marcada para o corretor por outra pessoa. Na tela bloqueada vai só o
+ * horário, o código do imóvel e quem marcou (sem cliente nem endereço).
+ */
+export function visitAssignedPush(
+  notice: {
+    visitId: string
+    startsAt: string
+    propertyCode: string | null
+    assignedByName: string | null
+  },
+  now = new Date()
+): { payload: PushPayload; options: PushDeliveryOptions } | null {
+  const when = visitWhenLabel(notice.startsAt, now)
+  const dayKey = toSaoPauloDateKey(notice.startsAt)
+
+  if (!when || !dayKey) {
+    return null
+  }
+
+  const code = cleanText(notice.propertyCode, { maxLength: 30 })
+  const author = cleanText(notice.assignedByName, { maxLength: 60 }) || "Alguém da equipe"
+  const startsIn = Date.parse(notice.startsAt) - now.getTime()
+
+  return {
+    payload: {
+      title: "Visita marcada para você",
+      body: `${when.charAt(0).toUpperCase()}${when.slice(1)}${code ? ` · ${code}` : ""}. Marcada por ${author}.`,
+      url: `/agenda?dia=${dayKey}`,
+      tag: `visita-${notice.visitId}`,
+    },
+    // Depois do início da visita o aviso não serve mais.
+    options: {
+      ttlSeconds: Math.max(60, Math.min(Math.floor(startsIn / 1000), LEAD_ALERT_TTL_SECONDS)),
+      urgency: "normal",
+    },
+  }
+}
+
+/** Lembrete de tarefa ~15 min antes do prazo. O título é da própria pessoa. */
+export function taskReminderPush(
+  reminder: { taskId: string; title: string; dueAt: string },
+  now = new Date()
+): { payload: PushPayload; options: PushDeliveryOptions } | null {
+  const time = formatSaoPauloTime(reminder.dueAt)
+  const due = Date.parse(reminder.dueAt)
+
+  if (!time || Number.isNaN(due)) {
+    return null
+  }
+
+  const minutes = Math.max(1, Math.ceil((due - now.getTime()) / 60_000))
+  const title = cleanText(reminder.title, { maxLength: 80 }) || "Tarefa"
+
+  return {
+    payload: {
+      title: `Tarefa às ${time}: faltam ${minutes} min`,
+      body: title,
+      url: "/tarefas",
+      tag: `tarefa-${reminder.taskId}`,
+    },
+    // Depois do prazo o lembrete não serve mais.
+    options: { ttlSeconds: Math.max(60, minutes * 60), urgency: "high" },
   }
 }
 

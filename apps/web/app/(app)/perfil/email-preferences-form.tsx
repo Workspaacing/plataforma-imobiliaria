@@ -35,6 +35,18 @@ const OPTIONS: readonly PreferenceOption[] = [
       "E-mail até 2 horas antes de cada visita em que você é o corretor, com o convite para o Google Agenda ou o Outlook.",
   },
   {
+    key: "visit_assigned",
+    label: "Aviso de visita marcada para você",
+    description:
+      "E-mail e aviso no celular na hora em que outra pessoa da equipe marca ou remarca uma visita em que você é o corretor.",
+  },
+  {
+    key: "task_reminders",
+    label: "Lembrete de tarefa no celular",
+    description:
+      "Aviso no celular cerca de 15 minutos antes do horário de cada tarefa sua. Precisa dos avisos no celular ligados neste aparelho.",
+  },
+  {
     key: "weekly_report",
     label: "Relatório semanal da equipe",
     description:
@@ -74,7 +86,7 @@ function PreferenceSwitch({ option, checked }: { option: PreferenceOption; check
   )
 }
 
-/** Liga e desliga os e-mails automáticos (salva a cada troca). */
+/** Liga e desliga os e-mails e avisos automáticos (salva a cada troca). */
 export function EmailPreferencesForm({ preferences }: { preferences: EmailPreferences }) {
   return (
     <FieldGroup>

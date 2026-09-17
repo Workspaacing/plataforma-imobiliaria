@@ -1,6 +1,8 @@
 import { sendNotificationEmail } from "@/lib/email"
 import { checkCronAuthorization, cronReply } from "@/lib/lembretes/cron-auth"
 import { drainReminderQueue, logDrainSummary } from "@/lib/lembretes/drain"
+import { drainTaskReminders } from "@/lib/lembretes/task-reminders"
+import { drainVisitAssignmentNotices } from "@/lib/lembretes/visit-assignments"
 import {
   claimVisitReminders,
   settleVisitReminders,
@@ -9,7 +11,9 @@ import {
 
 /**
  * Lembrete de visita por e-mail, 2 horas antes, para o corretor da visita, com
- * o convite .ics (RFC 5545) em anexo.
+ * o convite .ics (RFC 5545) em anexo. A mesma chamada drena o aviso "marcaram
+ * uma visita para você" (e-mail + push) e o lembrete de tarefa no celular
+ * (15 min antes), que usam o mesmo job e o mesmo webhook.
  *
  * O cron da Vercel no plano Hobby só roda 1x/dia, então quem agenda é o banco:
  * o job pg_cron `lembretes-de-visita` (a cada 5 min) enfileira em
@@ -32,6 +36,12 @@ const MAX_EMAILS_PER_RUN = 40
 const BATCH_SIZE = 20
 
 const MAX_BATCHES = 2
+
+/** Avisos de visita marcada por chamada (a action da agenda já drena na hora). */
+const MAX_ASSIGNMENT_EMAILS_PER_RUN = 20
+
+/** Lembretes de tarefa por chamada (só push: não gasta a cota de e-mail). */
+const MAX_TASK_REMINDERS_PER_RUN = 50
 
 function send(item: VisitReminder) {
   return sendNotificationEmail("visit_reminder", {
@@ -61,7 +71,26 @@ async function handle(request: Request) {
 
   logDrainSummary("lembretes/visita", summary)
 
-  return cronReply(200, { ok: true, ...summary })
+  const assignments = await drainVisitAssignmentNotices(MAX_ASSIGNMENT_EMAILS_PER_RUN)
+
+  if (assignments.claimed > 0) {
+    logDrainSummary("lembretes/visita-marcada", assignments)
+  }
+
+  const tasks = await drainTaskReminders(MAX_TASK_REMINDERS_PER_RUN)
+
+  if (tasks.claimed > 0) {
+    console.info(
+      `[lembretes/tarefa] ${tasks.sent}/${tasks.claimed} lembrete(s) entregue(s), ${tasks.failed} sem entrega, ${tasks.released} para a próxima execução`
+    )
+  }
+
+  return cronReply(200, {
+    ok: true,
+    ...summary,
+    assignments: { claimed: assignments.claimed, sent: assignments.sent },
+    tasks: { claimed: tasks.claimed, sent: tasks.sent },
+  })
 }
 
 export async function GET(request: Request) {
