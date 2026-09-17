@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { ArrowUpRightIcon, InfoIcon, LogOutIcon, PlusIcon } from "lucide-react"
+import { ArrowUpRightIcon, InfoIcon, LogOutIcon, PlusIcon, ShieldCheckIcon } from "lucide-react"
 
 import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert"
 import { Badge } from "@workspace/ui/components/badge"
@@ -29,8 +29,15 @@ import { SupabaseSetupNotice } from "@/components/crm/supabase-setup-notice"
 import { getFirstName, getInitials } from "@/components/crm/utils"
 import { enterOrganization, signOut } from "@/lib/auth/actions"
 import { ROLE_LABELS } from "@/lib/auth/roles"
-import { HOME_PATH, isRootOnlyPath, ONBOARDING_PATH, sanitizeRedirectPath } from "@/lib/auth/routes"
+import {
+  HOME_PATH,
+  isRootOnlyPath,
+  ONBOARDING_PATH,
+  PLATFORM_ADMIN_PATH_PREFIX,
+  sanitizeRedirectPath,
+} from "@/lib/auth/routes"
 import { getOrganizationContext, requireUser } from "@/lib/auth/session"
+import { canOpenPlatformConsole } from "@/lib/plataforma/admin"
 import { isSupabaseConfigured } from "@/lib/supabase/env"
 import {
   buildTenantUrl,
@@ -65,11 +72,15 @@ export default async function ImobiliariasPage({ searchParams }: ImobiliariasPag
   }
 
   const [user, params] = await Promise.all([requireUser(), searchParams])
-  const context = await getOrganizationContext()
+  const [context, showPlatformConsole] = await Promise.all([
+    getOrganizationContext(),
+    canOpenPlatformConsole(user.email),
+  ])
   const memberships = context?.memberships ?? []
 
   if (memberships.length === 0) {
-    redirect(ONBOARDING_PATH)
+    // Conta só da equipe da plataforma: vai ao console em vez de criar imobiliária.
+    redirect(showPlatformConsole ? PLATFORM_ADMIN_PATH_PREFIX : ONBOARDING_PATH)
   }
 
   const requested = sanitizeRedirectPath(readParam(params.next), HOME_PATH)
@@ -169,6 +180,31 @@ export default async function ImobiliariasPage({ searchParams }: ImobiliariasPag
                 )
               })}
             </ItemGroup>
+            {showPlatformConsole ? (
+              <Item variant="muted">
+                <ItemMedia>
+                  <div className="flex size-9 items-center justify-center rounded-lg border bg-background">
+                    <ShieldCheckIcon />
+                  </div>
+                </ItemMedia>
+                <ItemContent className="min-w-0">
+                  <ItemTitle className="truncate">Console da Plataforma</ItemTitle>
+                  <ItemDescription className="truncate">
+                    Área de desenvolvedor, só para a equipe da plataforma
+                  </ItemDescription>
+                </ItemContent>
+                <ItemActions>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    render={<Link href={PLATFORM_ADMIN_PATH_PREFIX} />}
+                    nativeButton={false}
+                  >
+                    Abrir
+                  </Button>
+                </ItemActions>
+              </Item>
+            ) : null}
           </CardContent>
           <CardFooter>
             <Button

@@ -16,6 +16,7 @@ import {
 import { Spinner } from "@workspace/ui/components/spinner"
 
 import { SupportHelpButton } from "@/components/crm/support-help-button"
+import { cancelPushBeforeSignOut } from "@/components/push/cancel-push-on-sign-out"
 import { signOut } from "@/lib/auth/actions"
 
 /** Exibida quando a casca do CRM não consegue carregar as imobiliárias do usuário. */
@@ -51,7 +52,13 @@ export function CrmLoadError() {
             <Button
               variant="outline"
               disabled={isSigningOut}
-              onClick={() => startSignOut(() => signOut())}
+              onClick={() =>
+                startSignOut(async () => {
+                  // Push deste aparelho sai junto com a sessão (nunca impede sair).
+                  await cancelPushBeforeSignOut()
+                  await signOut()
+                })
+              }
             >
               <LogOutIcon data-icon="inline-start" />
               Sair

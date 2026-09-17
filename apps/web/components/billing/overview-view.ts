@@ -77,6 +77,15 @@ export function describeBillingState(
   overview: BillingOverview,
   now = new Date()
 ): BillingStateMessage {
+  // Bloqueio da plataforma vem como read_only, mas não se resolve assinando.
+  if (overview.platformBlocked) {
+    return {
+      title: "Conta suspensa pela plataforma",
+      description:
+        "Nada foi apagado: você ainda vê e exporta tudo. Criar, editar, usar a IA e enviar mensagens pelas conexões estão pausados. Fale com o suporte para entender o motivo e liberar a conta.",
+    }
+  }
+
   switch (overview.state) {
     case "trialing": {
       const days = daysUntil(overview.trialEndsAt, now)

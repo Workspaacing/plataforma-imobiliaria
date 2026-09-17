@@ -22,6 +22,7 @@ import {
 } from "@workspace/ui/components/sidebar"
 
 import { getInitials } from "@/components/crm/utils"
+import { cancelPushBeforeSignOut } from "@/components/push/cancel-push-on-sign-out"
 import { signOut } from "@/lib/auth/actions"
 
 export type NavUserData = {
@@ -83,7 +84,13 @@ export function NavUser({ user }: { user: NavUserData }) {
             <DropdownMenuGroup>
               <DropdownMenuItem
                 disabled={isSigningOut}
-                onClick={() => startSignOut(() => signOut())}
+                onClick={() =>
+                  startSignOut(async () => {
+                    // Desliga os avisos no celular deste aparelho; nunca impede sair.
+                    await cancelPushBeforeSignOut()
+                    await signOut()
+                  })
+                }
               >
                 <LogOutIcon />
                 {isSigningOut ? "Saindo..." : "Sair"}

@@ -38,7 +38,9 @@ export async function SubscriptionBanner({ organizationId, role }: SubscriptionB
         <Icon />
         <AlertTitle>{message.title}</AlertTitle>
         <AlertDescription>
-          {hasRole(role, ORGANIZATION_VIEWER_ROLES) ? (
+          {overview.platformBlocked ? (
+            message.description
+          ) : hasRole(role, ORGANIZATION_VIEWER_ROLES) ? (
             <Link href={SUBSCRIPTION_SETTINGS_PATH}>
               {overview.state === "grace" && overview.hasSubscription
                 ? "Regularizar o pagamento"

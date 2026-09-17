@@ -27,6 +27,7 @@ export function CrmSidebar({
   tenancyMode,
   role,
   user,
+  platformConsoleHref = null,
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
   organizations: OrganizationOption[]
@@ -36,6 +37,8 @@ export function CrmSidebar({
   tenancyMode: TenancyMode
   role: Role
   user: NavUserData
+  /** Atalho para o Console da Plataforma (só equipe da plataforma; conferido no servidor). */
+  platformConsoleHref?: string | null
 }) {
   const groups = React.useMemo(() => getNavGroupsForRole(role), [role])
 
@@ -47,6 +50,7 @@ export function CrmSidebar({
           currentOrganizationId={currentOrganizationId}
           appOrigin={appOrigin}
           tenancyMode={tenancyMode}
+          platformConsoleHref={platformConsoleHref}
         />
       </SidebarHeader>
       <SidebarContent>

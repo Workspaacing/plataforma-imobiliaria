@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { ChevronsUpDownIcon, LayoutGridIcon, PlusIcon } from "lucide-react"
+import { ChevronsUpDownIcon, LayoutGridIcon, PlusIcon, ShieldCheckIcon } from "lucide-react"
 
 import {
   DropdownMenu,
@@ -45,18 +45,24 @@ export type OrganizationOption = {
  * Troca de imobiliária:
  * - subdomain: navega para o subdomínio (nada é gravado; o servidor confere a membership);
  * - single-host: grava a escolha num cookie validado no servidor e recarrega.
+ *
+ * Para a equipe da plataforma, o mesmo menu leva ao Console da Plataforma (e o
+ * console tem o menu inverso, de volta às imobiliárias).
  */
 export function OrganizationSwitcher({
   organizations,
   currentOrganizationId,
   appOrigin,
   tenancyMode,
+  platformConsoleHref = null,
 }: {
   organizations: OrganizationOption[]
   currentOrganizationId: string
   /** Origem do domínio raiz; "" no host único (links relativos). */
   appOrigin: string
   tenancyMode: TenancyMode
+  /** Endereço do Console da Plataforma; null para quem não é da equipe (conferido no servidor). */
+  platformConsoleHref?: string | null
 }) {
   const { isMobile } = useSidebar()
   const router = useRouter()
@@ -172,6 +178,29 @@ export function OrganizationSwitcher({
                 ))}
               </DropdownMenuRadioGroup>
             </DropdownMenuGroup>
+            {platformConsoleHref ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel>Equipe da plataforma</DropdownMenuLabel>
+                  <DropdownMenuItem
+                    render={<a href={platformConsoleHref} />}
+                    disabled={isBusy}
+                    className="gap-2 p-2"
+                  >
+                    <div className="flex size-6 shrink-0 items-center justify-center rounded-md border">
+                      <ShieldCheckIcon />
+                    </div>
+                    <div className="grid flex-1 text-start leading-tight">
+                      <span className="truncate">Console da Plataforma</span>
+                      <span className="truncate text-xs text-muted-foreground">
+                        Área de desenvolvedor
+                      </span>
+                    </div>
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </>
+            ) : null}
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               {organizations.length > 1 ? (
