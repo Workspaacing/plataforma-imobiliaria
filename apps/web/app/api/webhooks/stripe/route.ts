@@ -26,6 +26,7 @@ import {
   syncSubscriptionFromStripe,
   type SyncResult,
 } from "@/lib/billing/sync"
+import { looksLikeStripeDelivery, recordBillingWebhookDelivery } from "@/lib/status/billing-webhook"
 
 /**
  * Webhook da Stripe (pagamentos e assinatura). Público e sem sessão: a
@@ -38,6 +39,13 @@ import {
  *
  * Respostas: 400 assinatura inválida; 500 falha transitória (a Stripe reenvia);
  * 200 nos demais casos, inclusive eventos ignorados. Logs sem dados pessoais.
+ *
+ * Página de status: depois de responder (`after`), grava só o resultado da
+ * entrega (ok, config_ausente, assinatura_invalida ou erro_processamento) e o
+ * tipo do evento verificado — a medição automática de "Assinaturas e
+ * pagamentos" (lib/status/billing-webhook.ts). Falha de configuração só conta
+ * com cabeçalho Stripe-Signature recente (robô e reenvio velho não contam).
+ * Gravar nunca muda nem atrasa a resposta.
  */
 
 export const runtime = "nodejs"
@@ -280,6 +288,11 @@ export async function POST(request: Request) {
     console.error(
       "[billing/webhook] STRIPE_SECRET_KEY ou STRIPE_WEBHOOK_SECRET ausente ou inválida"
     )
+
+    if (looksLikeStripeDelivery(request)) {
+      after(() => recordBillingWebhookDelivery("config_ausente"))
+    }
+
     return reply(500, { error: "not_configured" })
   }
 
@@ -297,10 +310,18 @@ export async function POST(request: Request) {
     event = await stripe.webhooks.constructEventAsync(payload, signature, webhookSecret)
   } catch (error) {
     console.error(`[billing/webhook] assinatura inválida (${describeBillingError(error)})`)
+
+    if (looksLikeStripeDelivery(request)) {
+      after(() => recordBillingWebhookDelivery("assinatura_invalida"))
+    }
+
     return reply(400, { error: "invalid_signature" })
   }
 
-  if (!HANDLED_EVENT_TYPES.has(event.type)) {
+  const eventType = event.type
+
+  if (!HANDLED_EVENT_TYPES.has(eventType)) {
+    after(() => recordBillingWebhookDelivery("ok", eventType))
     return reply(200, { received: true })
   }
 
@@ -308,6 +329,7 @@ export async function POST(request: Request) {
     const result = await handleEvent(stripe, event)
     await applyReferralEffects(stripe, event, result)
     console.info(`[billing/webhook] ${event.id} ${event.type}: ${describeResult(result)}`)
+    after(() => recordBillingWebhookDelivery("ok", eventType))
     return reply(200, { received: true })
   } catch (error) {
     const transient = isTransientFailure(error)
@@ -316,6 +338,7 @@ export async function POST(request: Request) {
       `[billing/webhook] ${event.id} ${event.type}: falha ${transient ? "transitória" : "permanente"} (${describeBillingError(error)})`
     )
 
+    after(() => recordBillingWebhookDelivery("erro_processamento", eventType))
     return transient ? reply(500, { error: "retry" }) : reply(200, { received: true })
   }
 }

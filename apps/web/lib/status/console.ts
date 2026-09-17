@@ -3,6 +3,15 @@ import "server-only"
 import { z } from "zod"
 
 import type {
+  AutomationStopReason,
+  IncidentSource,
+  VendorIndicator,
+} from "@workspace/core/status/automation"
+import {
+  BILLING_WEBHOOK_OUTCOMES,
+  type BillingWebhookOutcome,
+} from "@workspace/core/status/billing-webhook"
+import type {
   AnyIncidentStatus,
   IncidentCreatePayload,
   IncidentEditPayload,
@@ -69,10 +78,40 @@ export type StatusMeasurement = {
   detail: string | null
 }
 
+/** Entrega do webhook da Stripe (só o resultado; nunca payload, ids ou valores). */
+export type BillingWebhookDelivery = {
+  receivedAt: string
+  outcome: BillingWebhookOutcome
+  /** Tipo do evento, só quando a assinatura conferiu. */
+  eventType: string | null
+}
+
+/** Sinal automático de "Assinaturas e pagamentos": entregas do webhook da Stripe. */
+export type BillingWebhookState = {
+  lastReceivedAt: string | null
+  lastOutcome: BillingWebhookOutcome | null
+  lastEventType: string | null
+  lastOkAt: string | null
+  lastProblemAt: string | null
+  lastProblemOutcome: BillingWebhookOutcome | null
+  /** Entregas por resultado nas últimas 2 h (a janela da medição). */
+  counts2h: Record<BillingWebhookOutcome, number>
+  /** Até 10, da mais nova para a mais antiga (guardadas por 14 dias). */
+  recent: BillingWebhookDelivery[]
+}
+
 export type StatusConsoleComponent = {
   key: StatusComponentKey
-  /** automatic = há sinal automático; manual = só incidente/manutenção (ex.: billing). */
+  /** automatic = há regra automática; manual = só incidente/manutenção. */
   source: "automatic" | "manual"
+  /**
+   * O sinal automático está ligado (segredo da sonda, rotina ativa, webhook de
+   * avisos, entrega da Stripe em 14 dias)? false = a página pública diz
+   * "acompanhado pela equipe". null = banco anterior à informação.
+   */
+  signalConfigured: boolean | null
+  /** Só em billing: entregas do webhook da Stripe. null nas demais partes. */
+  billingWebhook: BillingWebhookState | null
   /** Nível automático estável (histerese); null sem medição confirmada. */
   automaticLevel: StatusLevel | null
   /** Nível diferente esperando a 2ª medição igual para valer. */
@@ -86,10 +125,44 @@ export type StatusConsoleComponent = {
   recent: StatusMeasurement[]
 }
 
+/** Última passada da automação de incidentes (no banco, a cada minuto). */
+export type StatusAutomationRun = {
+  lastRunAt: string | null
+  /** SQLSTATE do último erro (sem mensagem); null se nunca falhou. */
+  lastError: string | null
+  lastErrorAt: string | null
+}
+
+/** Situação pública de um fornecedor (API oficial de status), só sinal interno. */
+export type StatusVendor = {
+  key: string
+  name: string
+  enabled: boolean
+  indicator: VendorIndicator | null
+  /** Última leitura boa. */
+  checkedAt: string | null
+  lastResult: string | null
+  lastAttemptAt: string | null
+}
+
+/** Fila do aviso por e-mail aos Donos. */
+export type StatusAlertsQueue = {
+  /** Os dois segredos do webhook existem no Vault? (nunca os valores) */
+  webhookConfigured: boolean
+  pending: number
+  expiredLast7d: number
+  emailsUsed24h: number
+  emailsLimit: number
+  lastSentAt: string | null
+}
+
 export type StatusConsoleOverview = {
   generatedAt: string
   probe: StatusProbeState
   components: StatusConsoleComponent[]
+  automation: StatusAutomationRun
+  vendors: StatusVendor[]
+  alerts: StatusAlertsQueue
 }
 
 export type StatusConsoleIncidentUpdate = {
@@ -97,11 +170,15 @@ export type StatusConsoleIncidentUpdate = {
   status: AnyIncidentStatus
   message: string
   createdAt: string
+  /** Publicada pela automação (texto de modelo), não por alguém da equipe. */
+  automatic: boolean
 }
 
 export type StatusConsoleIncident = {
   id: string
   kind: IncidentKind
+  /** automatic = aberto pela automação da página de status; team = pela equipe. */
+  source: IncidentSource
   title: string
   impact: IncidentImpact
   /** Estado gravado pela equipe. */
@@ -116,6 +193,13 @@ export type StatusConsoleIncident = {
   scheduledUntil: string | null
   createdAt: string
   updatedAt: string
+  /** Incidente automático: quando a automação parou de mexer nele (null = ainda conduz). */
+  automationStoppedAt: string | null
+  automationStoppedReason: AutomationStopReason | null
+  /** Incidente automático em "monitorando": desde quando voltou ao normal. */
+  autoMonitoringSince: string | null
+  /** Automático em aberto sem medição recente em nenhuma parte: a automação não confirma a recuperação. */
+  waitingMeasurement: boolean
   /** Da mais recente para a mais antiga. */
   updates: StatusConsoleIncidentUpdate[]
 }
@@ -147,6 +231,30 @@ const incidentStatusSchema = z.enum([
   "completed",
 ])
 
+const billingWebhookOutcomeSchema = z.enum(BILLING_WEBHOOK_OUTCOMES)
+
+const billingWebhookSchema = z.object({
+  last_received_at: z.string().nullable(),
+  last_outcome: billingWebhookOutcomeSchema.nullable(),
+  last_event_type: z.string().nullable(),
+  last_ok_at: z.string().nullable(),
+  last_problem_at: z.string().nullable(),
+  last_problem_outcome: billingWebhookOutcomeSchema.nullable(),
+  counts_2h: z.object({
+    ok: z.number().int().nonnegative(),
+    config_ausente: z.number().int().nonnegative(),
+    assinatura_invalida: z.number().int().nonnegative(),
+    erro_processamento: z.number().int().nonnegative(),
+  }),
+  recent: z.array(
+    z.object({
+      received_at: z.string(),
+      outcome: billingWebhookOutcomeSchema,
+      event_type: z.string().nullable(),
+    })
+  ),
+})
+
 const overviewSchema = z.object({
   generated_at: z.string(),
   probe: z.object({
@@ -162,6 +270,7 @@ const overviewSchema = z.object({
     z.object({
       key: componentKeySchema,
       source: z.enum(["automatic", "manual"]),
+      signal_configured: z.boolean().optional(),
       automatic_level: levelSchema.nullable(),
       candidate_level: levelSchema.nullable(),
       candidate_count: z.number().int().nonnegative(),
@@ -178,12 +287,38 @@ const overviewSchema = z.object({
       ),
     })
   ),
+  automation: z.object({
+    last_run_at: z.string().nullable(),
+    last_error: z.string().nullable(),
+    last_error_at: z.string().nullable(),
+  }),
+  vendors: z.array(
+    z.object({
+      key: z.string(),
+      name: z.string(),
+      enabled: z.boolean(),
+      indicator: z.enum(["none", "minor", "major", "critical"]).nullable(),
+      checked_at: z.string().nullable(),
+      last_result: z.string().nullable(),
+      last_attempt_at: z.string().nullable(),
+    })
+  ),
+  alerts: z.object({
+    webhook_configured: z.boolean(),
+    pending: z.number().int().nonnegative(),
+    expired_last_7d: z.number().int().nonnegative(),
+    emails_used_24h: z.number().int().nonnegative(),
+    emails_limit: z.number().int().positive(),
+    last_sent_at: z.string().nullable(),
+  }),
+  billing_webhook: billingWebhookSchema.nullable().optional(),
 })
 
 const incidentsSchema = z.array(
   z.object({
     id: z.string(),
     kind: z.enum(["incident", "maintenance"]),
+    source: z.enum(["automatic", "team"]),
     title: z.string(),
     impact: z.enum(["none", "minor", "major", "critical"]),
     status: incidentStatusSchema,
@@ -195,27 +330,36 @@ const incidentsSchema = z.array(
     scheduled_until: z.string().nullable(),
     created_at: z.string(),
     updated_at: z.string(),
+    automation_stopped_at: z.string().nullable(),
+    automation_stopped_reason: z.enum(["equipe", "limite_de_atualizacoes"]).nullable(),
+    auto_monitoring_since: z.string().nullable(),
+    waiting_measurement: z.boolean(),
     updates: z.array(
       z.object({
         id: z.number().int(),
         status: incidentStatusSchema,
         message: z.string(),
         created_at: z.string(),
+        automatic: z.boolean(),
       })
     ),
   })
 )
 
-/** Medições automáticas e estado da sonda (`platform_status_overview`). */
-export async function getStatusConsoleOverview(): Promise<
-  PlatformRpcResult<StatusConsoleOverview>
-> {
+/**
+ * Medições automáticas, estado da sonda, automação, fornecedores e fila do
+ * aviso por e-mail (`platform_status_overview`). `samplesPerComponent` baixo
+ * (ex.: 1) serve para quem só quer o resumo.
+ */
+export async function getStatusConsoleOverview(
+  samplesPerComponent = 15
+): Promise<PlatformRpcResult<StatusConsoleOverview>> {
   const operation = "platform_status_overview"
 
   return withPlatformRpc(operation, async ({ supabase, serverKey }) => {
     const { data, error } = await supabase.rpc(operation, {
       p_server_key: serverKey,
-      p_samples_per_component: 15,
+      p_samples_per_component: samplesPerComponent,
     })
 
     if (error) {
@@ -228,7 +372,24 @@ export async function getStatusConsoleOverview(): Promise<
       throw new PlatformRpcError(operation, null, "dados_invalidos")
     }
 
-    const { probe } = parsed.data
+    const { probe, automation, alerts } = parsed.data
+    const webhook = parsed.data.billing_webhook
+    const billingWebhook: BillingWebhookState | null = webhook
+      ? {
+          lastReceivedAt: webhook.last_received_at,
+          lastOutcome: webhook.last_outcome,
+          lastEventType: webhook.last_event_type,
+          lastOkAt: webhook.last_ok_at,
+          lastProblemAt: webhook.last_problem_at,
+          lastProblemOutcome: webhook.last_problem_outcome,
+          counts2h: webhook.counts_2h,
+          recent: webhook.recent.map((delivery) => ({
+            receivedAt: delivery.received_at,
+            outcome: delivery.outcome,
+            eventType: delivery.event_type,
+          })),
+        }
+      : null
 
     return {
       generatedAt: parsed.data.generated_at,
@@ -244,6 +405,8 @@ export async function getStatusConsoleOverview(): Promise<
       components: parsed.data.components.map((component) => ({
         key: component.key,
         source: component.source,
+        signalConfigured: component.signal_configured ?? null,
+        billingWebhook: component.key === "billing" ? billingWebhook : null,
         automaticLevel: component.automatic_level,
         candidateLevel: component.candidate_level,
         candidateCount: component.candidate_count,
@@ -257,6 +420,28 @@ export async function getStatusConsoleOverview(): Promise<
           detail: sample.detail,
         })),
       })),
+      automation: {
+        lastRunAt: automation.last_run_at,
+        lastError: automation.last_error,
+        lastErrorAt: automation.last_error_at,
+      },
+      vendors: parsed.data.vendors.map((vendor) => ({
+        key: vendor.key,
+        name: vendor.name,
+        enabled: vendor.enabled,
+        indicator: vendor.indicator,
+        checkedAt: vendor.checked_at,
+        lastResult: vendor.last_result,
+        lastAttemptAt: vendor.last_attempt_at,
+      })),
+      alerts: {
+        webhookConfigured: alerts.webhook_configured,
+        pending: alerts.pending,
+        expiredLast7d: alerts.expired_last_7d,
+        emailsUsed24h: alerts.emails_used_24h,
+        emailsLimit: alerts.emails_limit,
+        lastSentAt: alerts.last_sent_at,
+      },
     }
   })
 }
@@ -284,6 +469,7 @@ export async function listStatusIncidents(): Promise<PlatformRpcResult<StatusCon
     return parsed.data.map((incident) => ({
       id: incident.id,
       kind: incident.kind,
+      source: incident.source,
       title: incident.title,
       impact: incident.impact,
       status: incident.status,
@@ -295,11 +481,16 @@ export async function listStatusIncidents(): Promise<PlatformRpcResult<StatusCon
       scheduledUntil: incident.scheduled_until,
       createdAt: incident.created_at,
       updatedAt: incident.updated_at,
+      automationStoppedAt: incident.automation_stopped_at,
+      automationStoppedReason: incident.automation_stopped_reason,
+      autoMonitoringSince: incident.auto_monitoring_since,
+      waitingMeasurement: incident.waiting_measurement,
       updates: incident.updates.map((update) => ({
         id: update.id,
         status: update.status,
         message: update.message,
         createdAt: update.created_at,
+        automatic: update.automatic,
       })),
     }))
   })
@@ -385,6 +576,35 @@ export async function editStatusIncident(
       p_component_keys: payload.componentKeys,
       p_scheduled_for: payload.scheduledFor ?? undefined,
       p_scheduled_until: payload.scheduledUntil ?? undefined,
+    })
+
+    if (error) {
+      throwPlatformRpcError(operation, error)
+    }
+
+    if (typeof data !== "string") {
+      throw new PlatformRpcError(operation, null, "dados_invalidos")
+    }
+
+    return { id: data }
+  })
+}
+
+/**
+ * Marca um incidente automático como assumido pela equipe: a automação não
+ * abre, atualiza, resolve nem reabre mais esse incidente.
+ */
+export async function takeOverStatusIncident(
+  incidentId: string
+): Promise<PlatformRpcResult<{ id: string }>> {
+  const operation = "platform_status_take_over"
+
+  return withPlatformRpc(operation, async ({ supabase, serverKey, admin }) => {
+    const { data, error } = await supabase.rpc(operation, {
+      p_server_key: serverKey,
+      p_actor_user_id: admin.id,
+      p_actor_email: admin.email,
+      p_incident_id: incidentId,
     })
 
     if (error) {

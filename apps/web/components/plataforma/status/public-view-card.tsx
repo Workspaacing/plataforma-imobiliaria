@@ -16,6 +16,7 @@ import {
   CardTitle,
 } from "@workspace/ui/components/card"
 
+import { BillingWebhookConfigAlert } from "@/components/plataforma/status/billing-webhook-panel"
 import { formatUptime } from "@/components/plataforma/status/status-format"
 import { StatusLevelBadge } from "@/components/plataforma/status/status-level-badge"
 import { formatDateTime, formatNumber } from "@/lib/format"
@@ -36,9 +37,19 @@ function SourceInfo({ component }: { component: StatusConsoleComponent | undefin
     )
   }
 
+  if (component.signalConfigured === false && !component.lastMeasuredAt) {
+    return (
+      <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+        <Badge variant="outline">Sinal desligado</Badge>
+        Sem medição: só muda com incidente ou manutenção (o público lê “acompanhado pela equipe”)
+      </span>
+    )
+  }
+
   return (
     <span className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
       <Badge variant="outline">Automática</Badge>
+      {component.signalConfigured === false ? <span>Sinal desligado ·</span> : null}
       <span>
         Medição estável:{" "}
         {component.automaticLevel
@@ -89,6 +100,7 @@ export function PublicViewCard({
     snapshot.components.map((component) => [component.key, component])
   )
   const consoleByKey = new Map(consoleComponents?.map((component) => [component.key, component]))
+  const billingWebhook = consoleByKey.get("billing")?.billingWebhook ?? null
   const openIncidents = snapshot.activeIncidents.filter((incident) => incident.kind === "incident")
   const runningMaintenances = snapshot.activeIncidents.filter(
     (incident) => incident.kind === "maintenance"
@@ -107,6 +119,7 @@ export function PublicViewCard({
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
+        <BillingWebhookConfigAlert webhook={billingWebhook} />
         <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div className="flex min-w-0 flex-col gap-1">
             <dt className="text-xs text-muted-foreground">Situação geral</dt>

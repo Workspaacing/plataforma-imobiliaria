@@ -22,6 +22,7 @@ import {
   listStatusIncidents,
   PLATFORM_STATUS_PATH,
   statusIncidentFailureMessage,
+  takeOverStatusIncident,
   type StatusConsoleIncident,
 } from "@/lib/status/console"
 import { PUBLIC_STATUS_CACHE_TAG } from "@/lib/status/public"
@@ -232,4 +233,55 @@ export async function editIncidentAction(
   revalidateStatus()
 
   return { ok: true, message: "Alterações salvas." }
+}
+
+/**
+ * "Assumir" um incidente automático: a automação para de mexer nele (não
+ * atualiza, não resolve, não reabre). Relê o registro para conferir que é
+ * automático; o banco confere de novo.
+ */
+export async function takeOverIncidentAction(
+  incidentId: string
+): Promise<StatusIncidentActionResult<never>> {
+  const admin = await getPlatformAdmin()
+
+  if (!admin) {
+    return { ok: false, error: PLATFORM_RPC_FAILURE_MESSAGES.sem_acesso }
+  }
+
+  if (!canAct(admin)) {
+    return { ok: false, error: PLATFORM_READ_ONLY_MESSAGE }
+  }
+
+  if (typeof incidentId !== "string" || !UUID_PATTERN.test(incidentId)) {
+    return { ok: false, error: INVALID_ID_MESSAGE }
+  }
+
+  const stored = await findStoredIncident(incidentId)
+
+  if (!stored.ok) {
+    return { ok: false, error: stored.error }
+  }
+
+  if (stored.incident.source !== "automatic") {
+    return { ok: false, error: "Só incidente detectado automaticamente pode ser assumido." }
+  }
+
+  if (stored.incident.automationStoppedReason === "equipe") {
+    return { ok: true, message: "Este incidente já estava com a equipe." }
+  }
+
+  const result = await takeOverStatusIncident(stored.incident.id)
+
+  if (!result.ok) {
+    return { ok: false, error: statusIncidentFailureMessage(result) }
+  }
+
+  revalidateStatus()
+
+  return {
+    ok: true,
+    message:
+      "Incidente assumido: a automação não mexe mais nele. Publique as próximas atualizações.",
+  }
 }

@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 import { ExternalLinkIcon, RadarIcon } from "lucide-react"
 
 import { isClosedIncidentStatus } from "@workspace/core/status/incidents"
@@ -17,6 +18,7 @@ import { PageHeading } from "@/components/crm/page-placeholder"
 import { PlatformReadOnlyNotice } from "@/components/plataforma/equipe/read-only-notice"
 import { PlatformRpcFailureAlert } from "@/components/plataforma/platform-rpc-failure-alert"
 import { RefreshButton } from "@/components/plataforma/refresh-button"
+import { AutomationCard } from "@/components/plataforma/status/automation-card"
 import { IncidentCreateDialog } from "@/components/plataforma/status/incident-create-dialog"
 import { IncidentsSection } from "@/components/plataforma/status/incidents-section"
 import { MeasurementsCard } from "@/components/plataforma/status/measurements-card"
@@ -26,6 +28,7 @@ import { canAct, requirePlatformAdmin } from "@/lib/plataforma/admin"
 import {
   getStatusConsoleOverview,
   listStatusIncidents,
+  PLATFORM_STATUS_PATH,
   type StatusConsoleIncident,
 } from "@/lib/status/console"
 import { getPublicStatusUncached } from "@/lib/status/public"
@@ -36,6 +39,34 @@ export const metadata: Metadata = {
 
 /** Encerrados mostrados no console (a página pública lista só os dos últimos 14 dias). */
 const CLOSED_LIMIT = 20
+
+type OriginFilter = "" | "automatico" | "equipe"
+
+const ORIGIN_FILTERS: readonly { value: OriginFilter; label: string }[] = [
+  { value: "", label: "Todos" },
+  { value: "automatico", label: "Detectados automaticamente" },
+  { value: "equipe", label: "Da equipe" },
+]
+
+type PlatformStatusPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}
+
+function parseOriginFilter(params: Record<string, string | string[] | undefined>): OriginFilter {
+  const raw = params.origem
+  const value = Array.isArray(raw) ? raw[0] : raw
+  return value === "automatico" || value === "equipe" ? value : ""
+}
+
+function matchesOrigin(incident: StatusConsoleIncident, filter: OriginFilter): boolean {
+  if (filter === "automatico") return incident.source === "automatic"
+  if (filter === "equipe") return incident.source === "team"
+  return true
+}
+
+function originHref(filter: OriginFilter): string {
+  return filter ? `${PLATFORM_STATUS_PATH}?origem=${filter}` : PLATFORM_STATUS_PATH
+}
 
 /** Incidentes primeiro (mais novos antes); depois manutenções pela data prevista. */
 function compareOpen(a: StatusConsoleIncident, b: StatusConsoleIncident): number {
@@ -56,9 +87,10 @@ function compareOpen(a: StatusConsoleIncident, b: StatusConsoleIncident): number
  * manutenções escritos pela equipe. Cada mudança grava o registro do console
  * na mesma transação (RPC) e invalida o cache da página pública.
  */
-export default async function PlatformStatusPage() {
+export default async function PlatformStatusPage({ searchParams }: PlatformStatusPageProps) {
   const admin = await requirePlatformAdmin()
   const readOnly = !canAct(admin)
+  const origin = parseOriginFilter(await searchParams)
 
   const [overview, incidentsResult, snapshot] = await Promise.all([
     getStatusConsoleOverview(),
@@ -67,7 +99,8 @@ export default async function PlatformStatusPage() {
   ])
 
   const now = new Date()
-  const incidents = incidentsResult.ok ? incidentsResult.data : []
+  const allIncidents = incidentsResult.ok ? incidentsResult.data : []
+  const incidents = allIncidents.filter((incident) => matchesOrigin(incident, origin))
   const open = incidents
     .filter((incident) => !isClosedIncidentStatus(incident.effectiveStatus))
     .sort(compareOpen)
@@ -119,7 +152,48 @@ export default async function PlatformStatusPage() {
         </div>
       ) : null}
 
-      {incidentsResult.ok && incidents.length === 0 ? (
+      {overview.ok ? (
+        <AutomationCard
+          automation={overview.data.automation}
+          vendors={overview.data.vendors}
+          alerts={overview.data.alerts}
+          now={now}
+        />
+      ) : null}
+
+      {incidentsResult.ok && allIncidents.length > 0 ? (
+        <nav aria-label="Filtrar incidentes por origem" className="flex flex-wrap gap-2">
+          {ORIGIN_FILTERS.map((filter) => {
+            const active = filter.value === origin
+            const total = allIncidents.filter((incident) =>
+              matchesOrigin(incident, filter.value)
+            ).length
+
+            return (
+              <Button
+                key={filter.value || "todos"}
+                size="sm"
+                variant={active ? "secondary" : "ghost"}
+                nativeButton={false}
+                render={
+                  <Link
+                    href={originHref(filter.value)}
+                    aria-current={active ? "page" : undefined}
+                  />
+                }
+              >
+                {filter.label} ({total})
+              </Button>
+            )
+          })}
+        </nav>
+      ) : null}
+
+      {incidentsResult.ok && allIncidents.length > 0 && incidents.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Nenhum incidente com esta origem.</p>
+      ) : null}
+
+      {incidentsResult.ok && allIncidents.length === 0 ? (
         <Empty className="border">
           <EmptyHeader>
             <EmptyMedia variant="icon">

@@ -5,6 +5,7 @@ import {
   type PublicIncident,
   type PublicStatusComponent,
 } from "@workspace/core/status/public"
+import { uptimeCaption } from "@workspace/core/status/uptime"
 import { Card, CardContent } from "@workspace/ui/components/card"
 import { cn } from "@workspace/ui/lib/utils"
 
@@ -47,10 +48,8 @@ const ComponentRow = React.memo(function ComponentRow({
               <span className="hidden sm:inline md:hidden">60 dias atrás</span>
               <span className="hidden md:inline">90 dias atrás</span>
             </span>
-            <span className="text-center tabular-nums">
-              {component.uptime90dPct === null
-                ? "Sem medição nos últimos 90 dias"
-                : `${formatUptime(component.uptime90dPct)} disponível em 90 dias`}
+            <span className="text-center text-pretty tabular-nums">
+              {uptimeCaption(component, formatUptime)}
             </span>
             <span className="shrink-0">Hoje</span>
           </div>

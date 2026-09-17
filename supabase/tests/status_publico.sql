@@ -109,6 +109,7 @@ declare
   v_old_sample bigint;
   v_new_sample bigint;
   v_sent boolean;
+  v_probe_url_id uuid;
 begin
   select ds.decrypted_secret into key
   from vault.decrypted_secrets ds
@@ -261,14 +262,23 @@ begin
   r := r || jsonb_build_object('sonda_sem_pendente',
     (select count(*) from private.status_samples where component_key in ('crm', 'login', 'leads_capture')) - v_before);
 
-  -- Sem o segredo status_probe_url a sonda não sai (só confere se ele não existe).
-  if not exists (select 1 from vault.secrets s where s.name = 'status_probe_url') then
-    v_sent := private.status_send_probe();
-    r := r || jsonb_build_object('sonda_sem_url',
-      v_sent = false
-      and (select request_id is null and last_result = 'sem_url' from private.status_probe_state));
-  else
-    r := r || jsonb_build_object('sonda_sem_url', 'PULADO: status_probe_url configurado');
+  -- Sem o segredo status_probe_url a sonda não sai. A função não recebe
+  -- parâmetro, então simula a ausência renomeando o segredo real (função do
+  -- Vault, que só troca o nome, não o valor) dentro desta transação (desfeito
+  -- no rollback do `raise exception` final) e devolve o nome original em
+  -- seguida, sem apagar nem trocar o segredo de verdade.
+  select id into v_probe_url_id from vault.secrets where name = 'status_probe_url';
+  if v_probe_url_id is not null then
+    perform vault.update_secret(v_probe_url_id, null, 'status_probe_url__teste_status_publico');
+  end if;
+
+  v_sent := private.status_send_probe();
+  r := r || jsonb_build_object('sonda_sem_url',
+    v_sent = false
+    and (select request_id is null and last_result = 'sem_url' from private.status_probe_state));
+
+  if v_probe_url_id is not null then
+    perform vault.update_secret(v_probe_url_id, null, 'status_probe_url');
   end if;
 
   -- ---------------------------------------------------------------------------
@@ -520,7 +530,7 @@ begin
       and not exists (
         select 1 from jsonb_array_elements(v_json -> 'components') c
         where (select array_agg(k order by k collate "C") from jsonb_object_keys(c.value) k)
-          <> array['days', 'description', 'key', 'level', 'name', 'uptime90dPct']
+          <> array['automaticSignal', 'days', 'description', 'key', 'level', 'name', 'uptime90dPct']
       ),
     'publico_90_dias', not exists (
       select 1 from jsonb_array_elements(v_json -> 'components') c

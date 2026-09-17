@@ -10,9 +10,18 @@ import {
   type AiCostCycle,
   type AiCostRow,
   type AiCostSummary,
+  type AiModelPriceSnapshot,
   type AiPricingCheck,
   type PlatformAiCostsSnapshot,
 } from "@workspace/core/platform/ai-costs"
+import {
+  AI_COST_CAP_FRANCHISE_SLACK,
+  AI_COST_CAP_PCT,
+  AI_MODEL_CATALOG,
+  AI_USAGE_KIND_LABELS,
+  isAiModel,
+  type AiTypicalUsageCost,
+} from "@workspace/core/billing/ai-usage"
 import { formatBRL } from "@workspace/core/billing/format"
 import { isBillingPlanKey, PLANS } from "@workspace/core/billing/plans"
 import { BILLING_STATE_LABELS, type BillingState } from "@workspace/core/billing/state"
@@ -290,29 +299,45 @@ function MatchBadge({ matches }: { matches: boolean }) {
   )
 }
 
+function usdPrice(value: number) {
+  return `US$ ${formatNumber(value)}`
+}
+
+function modelPrices(prices: AiModelPriceSnapshot) {
+  return `entrada ${usdPrice(prices.usdPerMtokInput)} · saída ${usdPrice(prices.usdPerMtokOutput)} · cache lido ${usdPrice(prices.usdPerMtokCacheRead)} · cache gravado ${usdPrice(prices.usdPerMtokCacheWrite)} (5 min) e ${usdPrice(prices.usdPerMtokCacheWrite1h)} (1 h)`
+}
+
+function modelLabel(model: string) {
+  return isAiModel(model) ? AI_MODEL_CATALOG[model].label : model
+}
+
+const EFFORT_LABELS = { low: "effort baixo", medium: "effort médio", high: "effort alto" } as const
+
 function PricingCard({
   pricing,
-  snapshot,
+  typicalCosts,
 }: {
   pricing: AiPricingCheck
-  snapshot: PlatformAiCostsSnapshot
+  typicalCosts: AiTypicalUsageCost[]
 }) {
-  const prices = snapshot.pricing
   const rate = (value: number | null) =>
     value === null
       ? "—"
       : `R$ ${new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 4 }).format(value)}`
+  const discount = (multiplier: number | null) =>
+    multiplier === null ? "—" : formatAiRatio(1 - multiplier)
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Preço e câmbio em uso</CardTitle>
         <CardDescription>
-          O banco (private.ai_pricing e private.ai_cost_cap_cents) é quem mede e corta; o core
-          (packages/core/src/billing/ai-usage.ts) projeta os planos. Os dois precisam bater.
+          O banco (private.ai_models, private.ai_pricing e private.ai_cost_cap_cents) é quem mede e
+          corta; o core (packages/core/src/billing/ai-usage.ts) é a fonte dos números e projeta os
+          planos. Os dois precisam bater.
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-4 text-sm">
+      <CardContent className="flex flex-col gap-6 text-sm">
         <dl className="flex flex-col divide-y">
           <div className="flex flex-wrap items-center justify-between gap-2 py-2">
             <dt className="text-muted-foreground">Câmbio da medição (US$ → R$)</dt>
@@ -323,27 +348,101 @@ function PricingCard({
             </dd>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 py-2">
-            <dt className="text-muted-foreground">Modelo e preço por milhão de tokens</dt>
+            <dt className="text-muted-foreground">Desconto da Batch API (em tudo)</dt>
             <dd className="flex flex-wrap items-center gap-2 tabular-nums">
-              {prices
-                ? `${prices.model}: entrada US$ ${formatNumber(prices.usdPerMtokInput)} · saída US$ ${formatNumber(prices.usdPerMtokOutput)} · cache lido US$ ${formatNumber(prices.usdPerMtokCacheRead)} · cache gravado US$ ${formatNumber(prices.usdPerMtokCacheWrite)}`
-                : "Indisponível"}
-              <MatchBadge matches={pricing.pricesMatch} />
+              {discount(pricing.databaseBatchMultiplier)}
+              <span className="text-muted-foreground">
+                core {discount(pricing.coreBatchMultiplier)}
+              </span>
+              <MatchBadge matches={pricing.batchMultiplierMatches} />
+            </dd>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 py-2">
+            <dt className="text-muted-foreground">Chamada sem modelo informado</dt>
+            <dd className="flex flex-wrap items-center gap-2">
+              {pricing.databaseModel === null ? "—" : modelLabel(pricing.databaseModel)}
+              <span className="text-muted-foreground">(o mais caro: nunca mede a menos)</span>
             </dd>
           </div>
         </dl>
 
         <div className="flex flex-col gap-2">
-          <h3 className="text-sm font-medium">Teto de IA por plano (por ciclo)</h3>
+          <h3 className="text-sm font-medium">Preço por milhão de tokens</h3>
+          <ul className="flex flex-col divide-y">
+            {pricing.models.map((model) => (
+              <li key={model.model} className="flex min-w-0 flex-col gap-1 py-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-medium">{model.label}</span>
+                  <MatchBadge matches={model.matches} />
+                </div>
+                <p className="break-words text-muted-foreground tabular-nums">
+                  {model.database
+                    ? modelPrices(model.database)
+                    : "Não está no banco: chamadas com este modelo são recusadas."}
+                </p>
+                {!model.matches && model.core ? (
+                  <p className="break-words text-muted-foreground tabular-nums">
+                    core: {modelPrices(model.core)}
+                  </p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <h3 className="text-sm font-medium">Custo típico por tipo de uso (estimativa)</h3>
+          <ul className="flex flex-col divide-y">
+            {typicalCosts.map((cost) => (
+              <li
+                key={cost.kind}
+                className="flex flex-wrap items-center justify-between gap-2 py-2"
+              >
+                <span className="flex min-w-0 flex-col">
+                  <span>{AI_USAGE_KIND_LABELS[cost.kind]}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {AI_MODEL_CATALOG[cost.model].label}
+                    {cost.effort ? `, ${EFFORT_LABELS[cost.effort]}` : ", sem raciocínio"}
+                  </span>
+                </span>
+                <span className="flex flex-col items-end tabular-nums">
+                  {formatAiMillicents(cost.costMillicents)}
+                  {cost.batchCostMillicents === null ? null : (
+                    <span className="text-xs text-muted-foreground">
+                      {formatAiMillicents(cost.batchCostMillicents)} em lote
+                    </span>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <h3 className="text-sm font-medium">Teto de IA por plano</h3>
+          <p className="text-xs text-muted-foreground">
+            Máximo que cada imobiliária pode gastar por ciclo mensal — não é o gasto esperado. Ao
+            bater o teto, a IA para. Regra: o menor entre {formatAiRatio(AI_COST_CAP_PCT)} do preço
+            de tabela e a franquia × conversa típica × {formatNumber(AI_COST_CAP_FRANCHISE_SLACK)}.
+            O teste grátis não tem IA.
+          </p>
           <ul className="flex flex-col divide-y">
             {pricing.planCaps.map((cap) => (
               <li
                 key={cap.planKey}
                 className="flex flex-wrap items-center justify-between gap-2 py-2"
               >
-                <span>{planLabel(cap.planKey)}</span>
+                <span className="flex min-w-0 flex-col">
+                  <span>{planLabel(cap.planKey)}</span>
+                  {cap.databaseCents > 0 && cap.conversations !== null ? (
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      Franquia {formatNumber(cap.conversations)} · cabem{" "}
+                      {formatNumber(cap.conversationsWithinCap)} conversas típicas
+                    </span>
+                  ) : null}
+                </span>
                 <span className="flex flex-wrap items-center gap-2 tabular-nums">
-                  {cap.databaseCents === 0 ? "Sem IA" : formatBRL(cap.databaseCents)}
+                  {cap.databaseCents === 0 ? "Sem IA" : `até ${formatBRL(cap.databaseCents)}`}
                   {cap.matches ? null : (
                     <span className="text-muted-foreground">
                       core {cap.coreCents === null ? "—" : formatBRL(cap.coreCents)}
@@ -420,7 +519,7 @@ export function AiCostsOverview({
 
       <div className="grid gap-6 xl:grid-cols-2">
         <CalibrationCard calibration={summary.calibration} />
-        <PricingCard pricing={summary.pricing} snapshot={snapshot} />
+        <PricingCard pricing={summary.pricing} typicalCosts={summary.typicalCosts} />
       </div>
     </>
   )

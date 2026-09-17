@@ -68,6 +68,37 @@ function buildPastIncidents(now: number): PublicIncident[] {
       ],
     },
     {
+      id: "exemplo-passado-automatico",
+      kind: "incident",
+      title: "Instabilidade em Avisos por e-mail e no celular",
+      impact: "major",
+      status: "resolved",
+      componentKeys: ["notifications"],
+      startedAt: iso(now - 5 * DAY - 40 * 60 * 1000),
+      resolvedAt: iso(now - 5 * DAY),
+      scheduledFor: null,
+      scheduledUntil: null,
+      source: "automatic",
+      updates: [
+        {
+          status: "resolved",
+          message: "Resolvido. O funcionamento está normal.",
+          createdAt: iso(now - 5 * DAY),
+        },
+        {
+          status: "monitoring",
+          message: "O funcionamento voltou ao normal. Seguimos acompanhando.",
+          createdAt: iso(now - 5 * DAY - 15 * 60 * 1000),
+        },
+        {
+          status: "investigating",
+          message:
+            "Detectamos automaticamente uma instabilidade nesta parte do sistema. Estamos verificando.",
+          createdAt: iso(now - 5 * DAY - 40 * 60 * 1000),
+        },
+      ],
+    },
+    {
       id: "exemplo-passado-2",
       kind: "maintenance",
       title: "Manutenção programada do banco de dados",
@@ -257,7 +288,7 @@ export function getStatusExample(
       .map((incident) => incident.id)
     const days = buildDays(index, info.key, today, now, level, todayIncidentIds)
 
-    return { ...info, level, uptime90dPct: averageUptime(days), days }
+    return { ...info, level, automaticSignal: true, uptime90dPct: averageUptime(days), days }
   })
 
   const overall: StatusLevel =

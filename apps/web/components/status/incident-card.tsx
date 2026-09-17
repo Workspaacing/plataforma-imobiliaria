@@ -1,3 +1,6 @@
+import { ScanSearchIcon } from "lucide-react"
+
+import { INCIDENT_SOURCE_LABELS } from "@workspace/core/status/automation"
 import {
   INCIDENT_STATUS_LABELS,
   type PublicIncident,
@@ -104,6 +107,12 @@ export function IncidentCard({
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <Badge variant="outline">{INCIDENT_STATUS_LABELS[incident.status]}</Badge>
             {incident.kind === "incident" ? getImpactLabel(incident.impact) : null}
+            {incident.source === "automatic" ? (
+              <span className="inline-flex items-center gap-1 text-xs">
+                <ScanSearchIcon aria-hidden className="size-3.5 shrink-0" />
+                {INCIDENT_SOURCE_LABELS.automatic}
+              </span>
+            ) : null}
           </span>
           {period ? <span>{period}</span> : null}
           {affected ? <span>Afeta: {affected}</span> : null}

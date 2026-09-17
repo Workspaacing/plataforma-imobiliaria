@@ -27,6 +27,7 @@ import {
   TableRow,
 } from "@workspace/ui/components/table"
 
+import { BillingWebhookPanel } from "@/components/plataforma/status/billing-webhook-panel"
 import { StatusLevelBadge } from "@/components/plataforma/status/status-level-badge"
 import { formatDateTime, formatNumber } from "@/lib/format"
 import type { StatusConsoleComponent, StatusMeasurement } from "@/lib/status/console"
@@ -109,6 +110,16 @@ function ComponentMeasurements({ component }: { component: StatusConsoleComponen
   }
 
   const facts = [
+    ...(component.signalConfigured === null
+      ? []
+      : [
+          {
+            label: "Sinal automático",
+            value: component.signalConfigured
+              ? "Ligado"
+              : "Desligado: a página pública diz “acompanhado pela equipe” enquanto não houver medição",
+          },
+        ]),
     {
       label: "Nível automático estável",
       value: <ConfirmedLevel level={component.automaticLevel} />,
@@ -143,6 +154,9 @@ function ComponentMeasurements({ component }: { component: StatusConsoleComponen
           </div>
         ))}
       </dl>
+      {component.key === "billing" ? (
+        <BillingWebhookPanel webhook={component.billingWebhook} />
+      ) : null}
       <RecentMeasurements recent={component.recent} />
     </>
   )

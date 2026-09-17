@@ -1,5 +1,20 @@
-import { ChevronDownIcon, ClockAlertIcon, SirenIcon, WrenchIcon } from "lucide-react"
+import {
+  ChevronDownIcon,
+  CircleDashedIcon,
+  ClockAlertIcon,
+  HandIcon,
+  PauseIcon,
+  ScanSearchIcon,
+  SirenIcon,
+  WrenchIcon,
+} from "lucide-react"
 
+import {
+  AUTO_INCIDENT_RULES,
+  AUTOMATION_STATE_LABELS,
+  automationStateOf,
+  INCIDENT_SOURCE_LABELS,
+} from "@workspace/core/status/automation"
 import { INCIDENT_KIND_LABELS, isClosedIncidentStatus } from "@workspace/core/status/incidents"
 import { INCIDENT_STATUS_LABELS } from "@workspace/core/status/public"
 import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert"
@@ -26,6 +41,7 @@ import {
   IncidentImpactBadge,
   IncidentStatusBadge,
 } from "@/components/plataforma/status/status-level-badge"
+import { TakeOverButton } from "@/components/plataforma/status/take-over-button"
 import { formatDateTime } from "@/lib/format"
 import type { StatusConsoleIncident, StatusConsoleIncidentUpdate } from "@/lib/status/console"
 
@@ -42,6 +58,9 @@ function UpdateList({ updates }: { updates: readonly StatusConsoleIncidentUpdate
             <span className="text-xs text-muted-foreground tabular-nums">
               {formatDateTime(update.createdAt)}
             </span>
+            {update.automatic ? (
+              <span className="text-xs text-muted-foreground">· publicada pela automação</span>
+            ) : null}
           </span>
           <span className="break-words whitespace-pre-line">{update.message}</span>
         </li>
@@ -108,6 +127,32 @@ function periodFacts(incident: StatusConsoleIncident): { label: string; value: s
   return facts
 }
 
+/** Origem e estado da automação (só em incidente detectado automaticamente). */
+function AutomationBadges({ incident }: { incident: StatusConsoleIncident }) {
+  const state = automationStateOf(incident)
+
+  if (state === "nao_se_aplica") {
+    return null
+  }
+
+  return (
+    <>
+      <Badge variant="outline">
+        <ScanSearchIcon data-icon="inline-start" />
+        {INCIDENT_SOURCE_LABELS.automatic}
+      </Badge>
+      <Badge variant={state === "ativa" ? "secondary" : "outline"}>
+        {state === "assumido" ? (
+          <HandIcon data-icon="inline-start" />
+        ) : state === "pausada" ? (
+          <PauseIcon data-icon="inline-start" />
+        ) : null}
+        {AUTOMATION_STATE_LABELS[state]}
+      </Badge>
+    </>
+  )
+}
+
 function IncidentCard({
   incident,
   now,
@@ -124,6 +169,8 @@ function IncidentCard({
     Date.parse(incident.scheduledUntil) <= now.getTime()
   const movedByClock =
     incident.kind === "maintenance" && incident.status !== incident.effectiveStatus
+  const automation = automationStateOf(incident)
+  const canTakeOver = !closed && (automation === "ativa" || automation === "pausada")
 
   return (
     <Card size="sm">
@@ -139,8 +186,15 @@ function IncidentCard({
           </Badge>
           <IncidentStatusBadge status={incident.effectiveStatus} />
           <IncidentImpactBadge impact={incident.impact} />
+          <AutomationBadges incident={incident} />
         </div>
         <CardTitle className="break-words">{incident.title}</CardTitle>
+        {automation === "ativa" && !closed ? (
+          <CardDescription>
+            Aberto pela medição automática. A automação atualiza e resolve sozinha; publicar
+            atualização, editar ou assumir passa o incidente para a equipe.
+          </CardDescription>
+        ) : null}
         {movedByClock ? (
           <CardDescription>
             {incident.effectiveStatus === "completed"
@@ -150,6 +204,27 @@ function IncidentCard({
         ) : null}
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
+        {automation === "pausada" && !closed ? (
+          <Alert>
+            <PauseIcon />
+            <AlertTitle>A automação pausou: assuma este incidente</AlertTitle>
+            <AlertDescription>
+              Ele chegou a {AUTO_INCIDENT_RULES.maxUpdatesPerIncident} atualizações (a parte está
+              oscilando). A automação não mexe mais nele; assuma, publique o que está acontecendo e
+              resolva quando normalizar.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        {incident.waitingMeasurement && !closed ? (
+          <Alert>
+            <CircleDashedIcon />
+            <AlertTitle>Sem medição recente das partes afetadas</AlertTitle>
+            <AlertDescription>
+              A automação só resolve com medição: sem ela, o incidente fica aberto. Confira a sonda
+              e as rotinas abaixo, ou assuma e resolva à mão.
+            </AlertDescription>
+          </Alert>
+        ) : null}
         {overdue ? (
           <Alert>
             <ClockAlertIcon />
@@ -171,6 +246,9 @@ function IncidentCard({
         <UpdatesTimeline updates={incident.updates} />
       </CardContent>
       <CardFooter className="flex flex-wrap gap-2">
+        {canTakeOver ? (
+          <TakeOverButton incidentId={incident.id} title={incident.title} readOnly={readOnly} />
+        ) : null}
         {closed ? null : (
           <IncidentUpdateDialog
             incidentId={incident.id}

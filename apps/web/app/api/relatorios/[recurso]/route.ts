@@ -1,5 +1,4 @@
 import type { NextRequest } from "next/server"
-import { z } from "zod"
 
 import { csvFileName } from "@workspace/core/reports/csv"
 import { resolveReportPeriod } from "@workspace/core/reports/period"
@@ -8,6 +7,7 @@ import { requireMembership } from "@/lib/auth/session"
 import { getExportRoles } from "@/lib/configuracoes/export-audit"
 import { exportDeniedMessage } from "@/lib/configuracoes/export-permissions"
 import {
+  isAggregateReportDataset,
   isReportDataset,
   REPORT_CSV_DATASETS,
   reportDatasetFilePrefix,
@@ -15,14 +15,15 @@ import {
 } from "@/lib/relatorios/datasets"
 import { csvResponse } from "@/lib/relatorios/export"
 import type { ReportScope } from "@/lib/relatorios/queries"
+import { parseReportFilterParams } from "@/lib/relatorios/url"
 
 /**
  * Download em CSV dos relatórios e da base, em `/api/relatorios/<recurso>`.
  *
  * `recurso` é um dos nomes de `REPORT_DATASETS`; qualquer outra coisa é 404
- * (nada de mensagem dizendo o que existe). O período e o corretor vêm da URL
- * nos mesmos parâmetros da tela, então o arquivo bate com o que estava sendo
- * lido quando o botão foi clicado.
+ * (nada de mensagem dizendo o que existe). O período, o corretor e a equipe vêm
+ * da URL nos mesmos parâmetros da tela, então o arquivo bate com o que estava
+ * sendo lido quando o botão foi clicado.
  *
  * Antes de qualquer linha, a exportação é registrada em `audit_events` (quem,
  * quando, conjunto e filtros) e o banco diz se o papel exporta nesta
@@ -67,15 +68,16 @@ export async function GET(
     to: search.get("ate"),
   })
 
-  // Corretor inválido vira "toda a equipe"; quem não pode ver a equipe é
-  // recortado pela RPC de qualquer jeito.
-  const rawBroker = search.get("corretor")
-  const broker = rawBroker && z.guid().safeParse(rawBroker).success ? rawBroker : null
+  // Corretor ou equipe inválidos viram "toda a equipe"; quem não pode ver os
+  // colegas é recortado pela RPC de qualquer jeito. A equipe só vale para os
+  // relatórios agregados: a base não recorta por equipe.
+  const filters = parseReportFilterParams(search)
 
   const scope: ReportScope = {
     organizationId: membership.organizationId,
     period,
-    broker,
+    broker: filters.broker,
+    team: isAggregateReportDataset(recurso) ? filters.team : null,
   }
 
   const started = await startReportExport(recurso, scope)
