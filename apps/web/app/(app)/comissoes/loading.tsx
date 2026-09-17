@@ -14,7 +14,7 @@ export default function ComissoesLoading() {
         </div>
       }
     >
-      <div className="grid gap-4 @min-[40rem]/main:grid-cols-3">
+      <div className="grid gap-4 @min-[40rem]/page:grid-cols-3">
         {[0, 1, 2].map((card) => (
           <Skeleton key={card} className="h-28 w-full" />
         ))}

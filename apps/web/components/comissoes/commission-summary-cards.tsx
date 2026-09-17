@@ -39,7 +39,7 @@ export function CommissionSummaryCards({
   ]
 
   return (
-    <div className="grid gap-4 @min-[40rem]/main:grid-cols-3">
+    <div className="grid gap-4 @min-[40rem]/page:grid-cols-3">
       {cards.map((card) => (
         <Card key={card.label} className="@container/card">
           <CardHeader>
