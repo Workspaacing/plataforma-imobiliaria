@@ -19,6 +19,7 @@ import {
   ItemTitle,
 } from "@workspace/ui/components/item"
 
+import { AddToCalendarButton } from "@/components/agenda/add-to-calendar-button"
 import { AppointmentActions } from "@/components/agenda/appointment-actions"
 import { AppointmentStatusBadge } from "@/components/agenda/appointment-status-badge"
 import { formatDateKey } from "@/lib/agenda/datetime"
@@ -56,6 +57,9 @@ export function AppointmentCard({
   const { property, client } = appointment
   const hasReturn =
     appointment.status === "done" && (appointment.rating !== null || Boolean(appointment.feedback))
+  const isUpcoming =
+    (appointment.status === "scheduled" || appointment.status === "confirmed") &&
+    !appointment.overdue
 
   return (
     <Card size="sm">
@@ -76,7 +80,7 @@ export function AppointmentCard({
           />
         </CardAction>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex flex-col gap-3">
         <dl className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-3 gap-y-2">
           <dt className="flex h-5 items-center text-muted-foreground">
             <HouseIcon aria-hidden className="size-4" />
@@ -126,6 +130,7 @@ export function AppointmentCard({
             </>
           ) : null}
         </dl>
+        {isUpcoming ? <AddToCalendarButton appointmentId={appointment.id} /> : null}
       </CardContent>
       {hasReturn ? (
         <CardFooter className="flex-col items-start gap-2">

@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { CalendarClockIcon, UserIcon } from "lucide-react"
+import { CalendarClockIcon, LockIcon, UserIcon } from "lucide-react"
 
 import {
   daysBetweenDates,
@@ -73,6 +73,18 @@ function AuthorizationBadge({ item, today }: { item: PropertyListItem; today: st
       {daysLeft == null
         ? "Autorização vencendo"
         : `Autorização ${describeAuthorizationDeadline(daysLeft)}`}
+    </Badge>
+  )
+}
+
+/** Imóvel em sigilo: só dono, gerente, captador, corretor responsável e quem recebeu acesso veem. */
+function RestrictedBadge({ item }: { item: PropertyListItem }) {
+  if (!item.is_restricted) return null
+
+  return (
+    <Badge variant="secondary">
+      <LockIcon data-icon="inline-start" />
+      Restrito
     </Badge>
   )
 }
@@ -173,6 +185,7 @@ export function PropertiesList({
                 <TableCell>
                   <div className="flex flex-col items-start gap-1">
                     <PropertyStatusBadge status={item.status} />
+                    <RestrictedBadge item={item} />
                     {item.published_to_portals ? (
                       <Badge variant="outline">Nos portais</Badge>
                     ) : null}
@@ -213,6 +226,7 @@ export function PropertiesList({
             <ItemFooter className="flex-wrap justify-start">
               <PropertyStatusBadge status={item.status} />
               <ImobScoreBadge score={item.imob_score} />
+              <RestrictedBadge item={item} />
               {item.published_to_portals ? <Badge variant="outline">Nos portais</Badge> : null}
               <AuthorizationBadge item={item} today={today} />
             </ItemFooter>

@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { ArrowLeftIcon, MapPinIcon } from "lucide-react"
+import { ArrowLeftIcon, LockIcon, MapPinIcon } from "lucide-react"
 
 import {
   buildPropertyShareText,
@@ -50,8 +50,11 @@ export function PropertyHeader({
     .filter(Boolean)
     .join(", ")
   const prices = getDisplayPrices(property)
+  // Imóvel restrito não tem página pública.
   const publicUrl =
-    property.status === "active" ? tryBuildPublicPropertyUrl(organizationSlug, property.code) : null
+    property.status === "active" && !property.is_restricted
+      ? tryBuildPublicPropertyUrl(organizationSlug, property.code)
+      : null
   // Só bairro e cidade: o modo de exibição do endereço nunca é furado aqui.
   const whatsappHref = buildWhatsappShareUrl(
     buildPropertyShareText({
@@ -101,6 +104,12 @@ export function PropertyHeader({
               </Badge>
               <PropertyStatusBadge status={property.status} />
               <ImobScoreBadge score={score} showLabel showName />
+              {property.is_restricted ? (
+                <Badge variant="secondary">
+                  <LockIcon data-icon="inline-start" />
+                  Restrito
+                </Badge>
+              ) : null}
               {property.published_to_portals ? (
                 <Badge variant="secondary">Nos portais</Badge>
               ) : null}
@@ -150,6 +159,7 @@ export function PropertyHeader({
             canEdit={canEdit}
             errors={portalErrors}
             warnings={portalWarnings}
+            restricted={property.is_restricted}
           />
         </div>
       </div>

@@ -26,6 +26,8 @@ import { CAIXA_BASE_PATH, CAIXA_MISSING_FIELDS_NOTICE } from "@/lib/caixa/consta
 import { getCaixaListing } from "@/lib/caixa/detail-queries"
 import { getCaixaCatalogStatus } from "@/lib/caixa/list-queries"
 import { areCaixaPhotosEnabled } from "@/lib/caixa/photos"
+import { formatBrDate } from "@workspace/core/caixa/normalize"
+
 import { formatArea, formatCurrency, formatDate } from "@/lib/format"
 import { createClient } from "@/lib/supabase/server"
 
@@ -164,10 +166,7 @@ export default async function CaixaListingPage({ params }: CaixaDetailPageProps)
                       : "Não aceita"
                 }
               />
-              <Fact
-                label="Visto na lista de"
-                value={listing.listaGeradaEm ? formatDate(listing.listaGeradaEm) : "—"}
-              />
+              <Fact label="Visto na lista de" value={formatBrDate(listing.listaGeradaEm) ?? "—"} />
             </dl>
           </CardContent>
         </Card>

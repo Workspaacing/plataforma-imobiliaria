@@ -1,3 +1,4 @@
+import type { PropertyDocumentKind } from "@workspace/core/properties/documents"
 import type {
   ClientKind,
   KeyStatus,
@@ -67,6 +68,37 @@ export type ProposalItem = {
   status: ProposalStatus
   validUntil: string | null
   createdAt: string
+}
+
+/** Documento do dossiê (property_documents). */
+export type PropertyDocumentItem = {
+  id: string
+  kind: PropertyDocumentKind
+  description: string | null
+  /** AAAA-MM-DD. */
+  validUntil: string | null
+  mimeType: string
+  sizeBytes: number
+  uploadedByName: string
+  createdAt: string
+}
+
+/** Pessoa da equipe com acesso ao imóvel restrito. */
+export type PropertyAccessPerson = {
+  userId: string
+  name: string
+  roleLabel: string
+  /** Por que vê: papel (dono/gerente), captador, corretor responsável ou escolhida. */
+  reason: string
+  /** Só quem foi escolhida pode ser removida da lista. */
+  removable: boolean
+}
+
+/** Membro ativo que ainda não vê o imóvel restrito (opções para compartilhar). */
+export type PropertyShareCandidate = {
+  userId: string
+  name: string
+  roleLabel: string
 }
 
 export type OwnerClientOption = {

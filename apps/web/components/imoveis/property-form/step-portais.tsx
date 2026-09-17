@@ -11,6 +11,7 @@ import {
   Field,
   FieldContent,
   FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
   FieldLegend,
@@ -27,6 +28,7 @@ import {
   type SelectOption,
 } from "@/components/imoveis/property-form/fields"
 import type { PropertySummary } from "@/components/imoveis/property-form/types"
+import type { Role } from "@/lib/auth/roles"
 import { PROPERTY_STATUSES } from "@/lib/imoveis/constants"
 import {
   findStepForField,
@@ -41,6 +43,7 @@ import {
   type AuthorizationPeriod,
   type MediaSource,
 } from "@/lib/imoveis/mappers"
+import { canManageProperty, mustStayAssigned } from "@/lib/imoveis/permissions"
 import {
   formValuesToColumns,
   getStatusRequirementIssues,
@@ -64,10 +67,12 @@ export function getPublishState(
     { ...columns, code: property?.code ?? "" },
     mediaSummary
   )
-  const canPublish = property !== null && values.status === "active" && portal.valid
+  const canPublish =
+    property !== null && values.status === "active" && portal.valid && !values.isRestricted
 
   let reason = "Pronto para publicar."
-  if (!property) reason = "Salve o imóvel e envie as fotos antes de publicar."
+  if (values.isRestricted) reason = "Imóvel restrito não vai para os portais."
+  else if (!property) reason = "Salve o imóvel e envie as fotos antes de publicar."
   else if (values.status !== "active") reason = "Disponível só para imóveis com status Ativo."
   else if (!portal.valid) reason = "Corrija os itens abaixo para publicar."
 
@@ -80,12 +85,19 @@ export function StepPortais({
   media,
   authorizations,
   onGoToStep,
+  role,
+  userId,
+  savedAssignment,
 }: {
   control: PropertyFormControl
   property: PropertySummary | null
   media: readonly MediaSource[]
   authorizations: readonly AuthorizationPeriod[]
   onGoToStep: (step: PropertyFormStepKey) => void
+  role: Role
+  userId: string
+  /** Captador e corretor gravados no banco (null no cadastro). */
+  savedAssignment: { captured_by: string | null; broker_id: string | null } | null
 }) {
   const values = useWatch({ control }) as PropertyFormValues
   const { columns, mediaSummary, portal, canPublish, reason } = getPublishState(
@@ -95,6 +107,16 @@ export function StepPortais({
   )
   const statusIssues = getStatusRequirementIssues(columns)
   const score = computePropertyScore(columns, mediaSummary, authorizations)
+
+  // Mesma regra do gatilho properties_guard_restricted: vale o captador e o
+  // corretor já gravados; no cadastro, os do formulário (ou quem cadastra).
+  const assignment = savedAssignment ?? {
+    captured_by:
+      values.capturedBy ||
+      (mustStayAssigned(role) && !values.capturedBy && !values.brokerId ? userId : null),
+    broker_id: values.brokerId || null,
+  }
+  const canChangeRestriction = canManageProperty(role, userId, assignment)
 
   return (
     <FieldGroup>
@@ -133,6 +155,39 @@ export function StepPortais({
           </AlertDescription>
         </Alert>
       ) : null}
+
+      <FieldSeparator />
+
+      <FieldSet>
+        <FieldLegend>Sigilo</FieldLegend>
+        <Controller
+          name="isRestricted"
+          control={control}
+          render={({ field, fieldState }) => (
+            <Field
+              orientation="horizontal"
+              data-invalid={fieldState.invalid || undefined}
+              data-disabled={!canChangeRestriction || undefined}
+            >
+              <FieldContent>
+                <FieldLabel htmlFor={fieldId("isRestricted")}>Imóvel restrito</FieldLabel>
+                <FieldDescription>
+                  {canChangeRestriction
+                    ? "Só o dono, o gerente, o captador, o corretor responsável e as pessoas escolhidas na ficha veem o imóvel, os documentos e as propostas. Não vai para os portais nem para a página pública."
+                    : "Só o dono, o gerente, o captador ou o corretor responsável mudam o sigilo."}
+                </FieldDescription>
+                {fieldState.invalid ? <FieldError errors={[fieldState.error]} /> : null}
+              </FieldContent>
+              <Switch
+                id={fieldId("isRestricted")}
+                checked={field.value}
+                onCheckedChange={(checked) => field.onChange(checked)}
+                disabled={!canChangeRestriction}
+              />
+            </Field>
+          )}
+        />
+      </FieldSet>
 
       <FieldSeparator />
 

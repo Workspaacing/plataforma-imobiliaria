@@ -4,6 +4,7 @@ export const PROPERTY_DETAIL_TABS = [
   { value: "midia", label: "Mídia" },
   { value: "proprietarios", label: "Proprietários" },
   { value: "autorizacao", label: "Autorização" },
+  { value: "documentos", label: "Documentos" },
   { value: "compativeis", label: "Clientes compatíveis" },
   { value: "chaves-propostas", label: "Chaves e propostas" },
   { value: "historico", label: "Histórico" },

@@ -41,6 +41,7 @@ import {
   AuthorizationAlertsCard,
   AuthorizationAlertsCardSkeleton,
 } from "@/components/painel/authorization-alerts-card"
+import { BirthdaysCard, BirthdaysCardSkeleton } from "@/components/painel/birthdays-card"
 import {
   LeadsFunnelCard,
   LeadsWeeklyCard,
@@ -250,6 +251,16 @@ export default async function PainelPage({ searchParams }: PainelPageProps) {
       <div className="px-4 lg:px-6">
         <Suspense fallback={<AuthorizationAlertsCardSkeleton />}>
           <AuthorizationAlertsCard organizationId={organizationId} />
+        </Suspense>
+      </div>
+
+      {/* Aniversariantes: parabéns no dia certo é o que traz o cliente antigo de volta. */}
+      <div className="px-4 lg:px-6">
+        <Suspense fallback={<BirthdaysCardSkeleton />}>
+          <BirthdaysCard
+            organizationId={organizationId}
+            organizationName={membership.organization.name}
+          />
         </Suspense>
       </div>
 

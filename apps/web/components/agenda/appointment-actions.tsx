@@ -233,6 +233,7 @@ export function AppointmentActions({
             onOpenChange={setFeedbackOpen}
             defaultRating={appointment.rating}
             defaultFeedback={appointment.feedback}
+            offerFollowUp={isOpen}
           />
         </>
       ) : null}

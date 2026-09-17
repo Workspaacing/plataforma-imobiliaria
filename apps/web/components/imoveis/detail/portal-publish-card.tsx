@@ -30,6 +30,7 @@ export function PortalPublishCard({
   canEdit,
   errors,
   warnings,
+  restricted = false,
 }: {
   propertyId: string
   status: PropertyStatus
@@ -38,6 +39,8 @@ export function PortalPublishCard({
   canEdit: boolean
   errors: string[]
   warnings: string[]
+  /** Imóvel restrito (sigilo) nunca vai para os portais. */
+  restricted?: boolean
 }) {
   const [isPending, startTransition] = React.useTransition()
   const [optimisticPublished, setOptimisticPublished] = React.useOptimistic(published)
@@ -45,13 +48,16 @@ export function PortalPublishCard({
   const isActive = status === "active"
   const isValid = errors.length === 0
   // Despublicar é sempre possível para quem edita; publicar exige ativo + VRSync válido.
-  const disabled = isPending || !canEdit || (!optimisticPublished && !(isActive && isValid))
+  const disabled =
+    isPending || !canEdit || (!optimisticPublished && !(isActive && isValid && !restricted))
 
   let description: string
   if (optimisticPublished) {
     description = publishedAt
       ? `Publicado desde ${formatDateTime(publishedAt)}.`
       : "Publicado no feed dos portais."
+  } else if (restricted) {
+    description = "Imóvel restrito não vai para os portais."
   } else if (!isActive) {
     description = "Ative o imóvel para publicar no feed VRSync."
   } else if (!isValid) {
@@ -80,7 +86,7 @@ export function PortalPublishCard({
     })
   }
 
-  const showIssues = errors.length > 0 || warnings.length > 0
+  const showIssues = !restricted && (errors.length > 0 || warnings.length > 0)
 
   return (
     <Card size="sm">

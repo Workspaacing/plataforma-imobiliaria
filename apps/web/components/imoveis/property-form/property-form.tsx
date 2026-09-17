@@ -245,6 +245,16 @@ export function PropertyForm({
             media={media}
             authorizations={authorizations}
             onGoToStep={setStep}
+            role={role}
+            userId={userId}
+            savedAssignment={
+              property
+                ? {
+                    captured_by: initialValues.capturedBy || null,
+                    broker_id: initialValues.brokerId || null,
+                  }
+                : null
+            }
           />
         )
     }

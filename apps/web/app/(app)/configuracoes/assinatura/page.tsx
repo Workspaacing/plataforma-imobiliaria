@@ -171,9 +171,12 @@ export default async function AssinaturaPage({ searchParams }: AssinaturaPagePro
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
                 <p>{stateMessage.description}</p>
-                {overview.state === "read_only" ? <ReadOnlyDetails /> : null}
+                {overview.state === "read_only" && !overview.platformBlocked ? (
+                  <ReadOnlyDetails />
+                ) : null}
               </CardContent>
-              {isOwner && overview.state !== "active" ? (
+              {/* Conta suspensa pela plataforma: assinar não libera, então sem botão de plano. */}
+              {isOwner && overview.state !== "active" && !overview.platformBlocked ? (
                 <CardFooter className="flex-wrap gap-2">
                   {overview.state === "grace" && overview.hasSubscription ? (
                     <BillingPortalButton

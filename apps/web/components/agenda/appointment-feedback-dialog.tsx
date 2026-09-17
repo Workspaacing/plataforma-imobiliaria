@@ -4,6 +4,7 @@ import * as React from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Controller, useForm } from "react-hook-form"
 
+import { nextBusinessDay } from "@workspace/core/email/reminders"
 import { Button } from "@workspace/ui/components/button"
 import {
   Dialog,
@@ -16,6 +17,7 @@ import {
 } from "@workspace/ui/components/dialog"
 import {
   Field,
+  FieldContent,
   FieldDescription,
   FieldError,
   FieldGroup,
@@ -23,11 +25,15 @@ import {
   FieldTitle,
 } from "@workspace/ui/components/field"
 import { Spinner } from "@workspace/ui/components/spinner"
+import { Switch } from "@workspace/ui/components/switch"
 import { Textarea } from "@workspace/ui/components/textarea"
 import { toast } from "@workspace/ui/components/toast"
 import { ToggleGroup, ToggleGroupItem } from "@workspace/ui/components/toggle-group"
 
+import { DatePicker } from "@/components/agenda/date-picker"
 import { updateAppointmentStatus } from "@/lib/agenda/actions"
+import { formatDateKey, toDateKey } from "@/lib/agenda/datetime"
+import { createVisitFollowUpTask } from "@/lib/agenda/follow-up"
 import {
   appointmentFeedbackFormSchema,
   FEEDBACK_MAX_LENGTH,
@@ -44,6 +50,11 @@ type AppointmentFeedbackDialogProps = {
   onOpenChange: (open: boolean) => void
   defaultRating?: number | null
   defaultFeedback?: string | null
+  /**
+   * Visita saindo de agendada/confirmada para realizada: oferece criar a tarefa
+   * de retorno (já ligada, com o próximo dia útil sugerido).
+   */
+  offerFollowUp?: boolean
 }
 
 /** "Marcar como realizada": nota de 1 a 5 obrigatória e retorno opcional. */
@@ -67,11 +78,20 @@ function AppointmentFeedbackForm({
   summary,
   defaultRating,
   defaultFeedback,
+  offerFollowUp: offerFollowUpProp = false,
   onClose,
 }: Omit<AppointmentFeedbackDialogProps, "open" | "onOpenChange"> & {
   onClose: () => void
 }) {
   const [isSaving, startSaving] = React.useTransition()
+  // Fixo na abertura: ao salvar, a visita vira "realizada" e a prop muda antes de fechar.
+  const [offerFollowUp] = React.useState(offerFollowUpProp)
+  const [createFollowUp, setCreateFollowUp] = React.useState(true)
+  // Monta a cada abertura (só no navegador): a sugestão é o próximo dia útil.
+  const [suggestedDate] = React.useState(() => nextBusinessDay(toDateKey(new Date())))
+  const [followUpDate, setFollowUpDate] = React.useState(suggestedDate)
+  const [followUpError, setFollowUpError] = React.useState<string | null>(null)
+  const wantsFollowUp = offerFollowUp && createFollowUp
   const form = useForm<AppointmentFeedbackFormValues>({
     resolver: zodResolver(appointmentFeedbackFormSchema),
     defaultValues: {
@@ -81,6 +101,11 @@ function AppointmentFeedbackForm({
   })
 
   function onSubmit(values: AppointmentFeedbackFormValues) {
+    if (wantsFollowUp && !followUpDate) {
+      setFollowUpError("Escolha a data do retorno ou desligue a tarefa.")
+      return
+    }
+
     startSaving(async () => {
       const result = await updateAppointmentStatus({
         id: appointmentId,
@@ -98,10 +123,30 @@ function AppointmentFeedbackForm({
         return
       }
 
-      toast.add({
-        title: result.message ?? "Retorno da visita registrado.",
-        type: "success",
-      })
+      if (!wantsFollowUp) {
+        toast.add({
+          title: result.message ?? "Retorno da visita registrado.",
+          type: "success",
+        })
+        onClose()
+        return
+      }
+
+      const task = await createVisitFollowUpTask({ appointmentId, dueDate: followUpDate })
+
+      toast.add(
+        task.ok
+          ? {
+              title: result.message ?? "Retorno da visita registrado.",
+              description: task.message,
+              type: "success",
+            }
+          : {
+              title: "Visita registrada, mas a tarefa de retorno não foi criada",
+              description: task.error,
+              type: "error",
+            }
+      )
       onClose()
     })
   }
@@ -170,6 +215,54 @@ function AppointmentFeedbackForm({
             </Field>
           )}
         />
+
+        {offerFollowUp ? (
+          <>
+            <Field orientation="horizontal">
+              <FieldContent>
+                <FieldLabel htmlFor="appointment-follow-up">Criar tarefa de retorno</FieldLabel>
+                <FieldDescription>
+                  Fica com o corretor da visita, ligada ao cliente e ao imóvel.
+                </FieldDescription>
+              </FieldContent>
+              <Switch
+                id="appointment-follow-up"
+                checked={createFollowUp}
+                onCheckedChange={(checked) => {
+                  setCreateFollowUp(checked)
+                  setFollowUpError(null)
+                }}
+                disabled={isSaving}
+              />
+            </Field>
+            {createFollowUp ? (
+              <Field data-invalid={Boolean(followUpError)}>
+                <FieldLabel htmlFor="appointment-follow-up-date">Data do retorno</FieldLabel>
+                <DatePicker
+                  id="appointment-follow-up-date"
+                  value={followUpDate}
+                  onChange={(value) => {
+                    setFollowUpDate(value)
+                    setFollowUpError(null)
+                  }}
+                  disabled={isSaving}
+                  invalid={Boolean(followUpError)}
+                />
+                {followUpError ? (
+                  <FieldError>{followUpError}</FieldError>
+                ) : (
+                  <FieldDescription>
+                    {!followUpDate
+                      ? "Escolha quando ligar de volta para o cliente."
+                      : followUpDate === suggestedDate
+                        ? `Próximo dia útil: ${formatDateKey(followUpDate, "weekday")}.`
+                        : `Vence no fim do dia: ${formatDateKey(followUpDate, "weekday")}.`}
+                  </FieldDescription>
+                )}
+              </Field>
+            ) : null}
+          </>
+        ) : null}
       </FieldGroup>
 
       <DialogFooter>

@@ -11,9 +11,13 @@ import { APP_NAME } from "@/components/crm/brand"
 import { CrmHeader } from "@/components/crm/crm-header"
 import { CrmLoadError } from "@/components/crm/crm-load-error"
 import { CrmSidebar } from "@/components/crm/crm-sidebar"
+import { PlatformAnnouncementBanner } from "@/components/crm/platform-announcement-banner"
 import { SupabaseSetupNotice } from "@/components/crm/supabase-setup-notice"
+import { ServiceWorkerRegistration } from "@/components/push/service-worker-registration"
 import { ROLE_LABELS } from "@/lib/auth/roles"
+import { PLATFORM_ADMIN_PATH_PREFIX } from "@/lib/auth/routes"
 import { requireMembership, type MembershipContext } from "@/lib/auth/session"
+import { canOpenPlatformConsole } from "@/lib/plataforma/admin"
 import { isSupabaseConfigured } from "@/lib/supabase/env"
 import {
   buildTenantOrigin,
@@ -63,6 +67,12 @@ export default async function AppLayout({
   const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false"
   const tenancyMode = getTenancyMode()
   const isSubdomain = tenancyMode === "subdomain"
+  // Host único: links relativos (evita trocar de host em deploys de preview).
+  const appOrigin = isSubdomain ? getAppOrigin() : ""
+  // Equipe da plataforma: atalho para o Console no menu de imobiliárias.
+  const platformConsoleHref = (await canOpenPlatformConsole(user.email))
+    ? `${appOrigin}${PLATFORM_ADMIN_PATH_PREFIX}`
+    : null
 
   return (
     <Toaster>
@@ -71,8 +81,8 @@ export default async function AppLayout({
           role={membership.role}
           currentOrganizationId={membership.organizationId}
           tenancyMode={tenancyMode}
-          // Host único: links relativos (evita trocar de host em deploys de preview).
-          appOrigin={isSubdomain ? getAppOrigin() : ""}
+          appOrigin={appOrigin}
+          platformConsoleHref={platformConsoleHref}
           organizations={memberships.map((item) => ({
             id: item.organizationId,
             name: item.organization.name,
@@ -96,13 +106,18 @@ export default async function AppLayout({
         */}
         <SidebarInset className="min-w-0">
           <CrmHeader />
-          {/* Aviso de assinatura: não bloqueia a página nem quebra se a RPC falhar. */}
+          {/* Avisos de assinatura e da plataforma: não bloqueiam a página nem quebram se a RPC falhar. */}
           <Suspense fallback={null}>
             <SubscriptionBanner organizationId={membership.organizationId} role={membership.role} />
+          </Suspense>
+          <Suspense fallback={null}>
+            <PlatformAnnouncementBanner role={membership.role} />
           </Suspense>
           <div className="flex flex-1 flex-col">{children}</div>
         </SidebarInset>
       </SidebarProvider>
+      {/* Service worker só nas rotas logadas: push no celular, sem cache de páginas. */}
+      <ServiceWorkerRegistration />
     </Toaster>
   )
 }

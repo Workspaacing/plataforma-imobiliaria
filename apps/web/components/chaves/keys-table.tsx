@@ -48,6 +48,11 @@ import { cn } from "@workspace/ui/lib/utils"
 import { KeyCheckoutDialog } from "@/components/chaves/key-checkout-dialog"
 import { KeyFormDialog } from "@/components/chaves/key-form-dialog"
 import { KeyHistorySheet } from "@/components/chaves/key-history-sheet"
+import {
+  MobileCard,
+  MobileCardList,
+  type MobileCardFact,
+} from "@/components/mobile-cards/mobile-card"
 import type { ComboboxOption } from "@/components/propostas/option-combobox"
 import { markKeyFound, markKeyLost, returnKey } from "@/lib/chaves/actions"
 import type { KeyRow } from "@/lib/chaves/queries"
@@ -101,6 +106,154 @@ function KeyStatusBadge({ row }: { row: KeyTableRow }) {
     row.status === "available" ? "secondary" : row.status === "checked_out" ? "default" : "outline"
 
   return <Badge variant={variant}>{KEY_STATUS_LABELS[row.status]}</Badge>
+}
+
+/** Quem está com a chave e até quando (coluna "Com quem" e cartão do celular). */
+function KeyTaker({ row }: { row: KeyTableRow }) {
+  const movement = row.openMovement
+
+  if (!movement) {
+    return <span className="text-muted-foreground">—</span>
+  }
+
+  const isOverdue = movement.isOverdue
+
+  return (
+    <div className="flex min-w-0 flex-col">
+      <span className={cn("truncate", isOverdue && "font-medium text-destructive")}>
+        {movement.takerLabel}
+        {movement.takerKind === "client" ? " (cliente)" : ""}
+      </span>
+      <span className={cn("text-xs text-muted-foreground", isOverdue && "text-destructive")}>
+        {movement.dueAt
+          ? `${isOverdue ? "Deveria voltar em" : "Devolver até"} ${formatDateTime(movement.dueAt)}`
+          : `Retirada em ${formatDateTime(movement.takenAt)}`}
+      </span>
+    </div>
+  )
+}
+
+function KeyActionsMenu({
+  row,
+  onOpen,
+}: {
+  row: KeyTableRow
+  onOpen: (kind: DialogKind, row: KeyTableRow) => void
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
+        <MoreHorizontalIcon />
+        <span className="sr-only">Ações da chave {row.label}</span>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuGroup>
+          {row.status === "available" ? (
+            <DropdownMenuItem disabled={!row.canCheckout} onClick={() => onOpen("checkout", row)}>
+              <ArrowUpFromLineIcon />
+              Registrar retirada
+            </DropdownMenuItem>
+          ) : null}
+          {row.status === "checked_out" ? (
+            <DropdownMenuItem disabled={!row.canReturn} onClick={() => onOpen("return", row)}>
+              <ArrowDownToLineIcon />
+              Registrar devolução
+            </DropdownMenuItem>
+          ) : null}
+          <DropdownMenuItem onClick={() => onOpen("history", row)}>
+            <HistoryIcon />
+            Histórico
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled={!row.canEdit} onClick={() => onOpen("edit", row)}>
+            <PencilIcon />
+            Editar local e rótulo
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          {row.status === "lost" ? (
+            <DropdownMenuItem disabled={!row.canEdit} onClick={() => onOpen("found", row)}>
+              <SearchCheckIcon />
+              Marcar como encontrada
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem
+              variant="destructive"
+              disabled={!row.canEdit}
+              onClick={() => onOpen("lost", row)}
+            >
+              <TriangleAlertIcon />
+              Marcar como perdida
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+/**
+ * Cartão do celular: status e prazo em destaque, com retirada ou devolução e
+ * histórico a um toque (retirada em até 3 toques: botão, quem retira, confirmar).
+ */
+function KeyMobileCard({
+  row,
+  onOpen,
+}: {
+  row: KeyTableRow
+  onOpen: (kind: DialogKind, row: KeyTableRow) => void
+}) {
+  const facts: MobileCardFact[] = [
+    {
+      label: "Local",
+      value: row.location ?? <span className="text-muted-foreground">Não informado</span>,
+    },
+  ]
+
+  if (row.openMovement) {
+    facts.push({ label: "Com quem", value: <KeyTaker row={row} /> })
+  }
+
+  if (row.notes) {
+    facts.push({ label: "Observação", value: row.notes })
+  }
+
+  return (
+    <MobileCard
+      highlight={Boolean(row.openMovement?.isOverdue)}
+      title={row.label}
+      description={
+        row.property ? (
+          <span className="block truncate">
+            <span className="font-mono text-xs">{row.property.code}</span> {row.property.title}
+          </span>
+        ) : null
+      }
+      menu={<KeyActionsMenu row={row} onOpen={onOpen} />}
+      badges={<KeyStatusBadge row={row} />}
+      facts={facts}
+      actions={
+        <>
+          {row.status === "available" && row.canCheckout ? (
+            <Button onClick={() => onOpen("checkout", row)}>
+              <ArrowUpFromLineIcon data-icon="inline-start" />
+              Registrar retirada
+            </Button>
+          ) : null}
+          {row.status === "checked_out" && row.canReturn ? (
+            <Button onClick={() => onOpen("return", row)}>
+              <ArrowDownToLineIcon data-icon="inline-start" />
+              Registrar devolução
+            </Button>
+          ) : null}
+          <Button variant="outline" onClick={() => onOpen("history", row)}>
+            <HistoryIcon data-icon="inline-start" />
+            Histórico
+          </Button>
+        </>
+      }
+    />
+  )
 }
 
 type KeysTableProps = {
@@ -159,26 +312,26 @@ export function KeysTable({
 
   return (
     <>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Imóvel</TableHead>
-            <TableHead>Chave</TableHead>
-            <TableHead>Local</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Com quem</TableHead>
-            <TableHead className="w-12">
-              <span className="sr-only">Ações</span>
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rows.map((row) => {
-            const movement = row.openMovement
-            const isOverdue = Boolean(movement?.isOverdue)
-
-            return (
-              <TableRow key={row.id} className={cn(isOverdue && "bg-destructive/5")}>
+      <div className="max-sm:hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Imóvel</TableHead>
+              <TableHead>Chave</TableHead>
+              <TableHead>Local</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Com quem</TableHead>
+              <TableHead className="w-12">
+                <span className="sr-only">Ações</span>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row) => (
+              <TableRow
+                key={row.id}
+                className={cn(row.openMovement?.isOverdue && "bg-destructive/5")}
+              >
                 <TableCell>
                   {row.property ? (
                     <div className="flex min-w-0 flex-col">
@@ -213,94 +366,22 @@ export function KeysTable({
                   <KeyStatusBadge row={row} />
                 </TableCell>
                 <TableCell>
-                  {movement ? (
-                    <div className="flex min-w-0 flex-col">
-                      <span className={cn("truncate", isOverdue && "font-medium text-destructive")}>
-                        {movement.takerLabel}
-                        {movement.takerKind === "client" ? " (cliente)" : ""}
-                      </span>
-                      <span
-                        className={cn(
-                          "text-xs text-muted-foreground",
-                          isOverdue && "text-destructive"
-                        )}
-                      >
-                        {movement.dueAt
-                          ? `${isOverdue ? "Deveria voltar em" : "Devolver até"} ${formatDateTime(movement.dueAt)}`
-                          : `Retirada em ${formatDateTime(movement.takenAt)}`}
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
+                  <KeyTaker row={row} />
                 </TableCell>
                 <TableCell className="text-end">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" />}>
-                      <MoreHorizontalIcon />
-                      <span className="sr-only">Ações da chave {row.label}</span>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56">
-                      <DropdownMenuGroup>
-                        {row.status === "available" ? (
-                          <DropdownMenuItem
-                            disabled={!row.canCheckout}
-                            onClick={() => openDialog("checkout", row)}
-                          >
-                            <ArrowUpFromLineIcon />
-                            Registrar retirada
-                          </DropdownMenuItem>
-                        ) : null}
-                        {row.status === "checked_out" ? (
-                          <DropdownMenuItem
-                            disabled={!row.canReturn}
-                            onClick={() => openDialog("return", row)}
-                          >
-                            <ArrowDownToLineIcon />
-                            Registrar devolução
-                          </DropdownMenuItem>
-                        ) : null}
-                        <DropdownMenuItem onClick={() => openDialog("history", row)}>
-                          <HistoryIcon />
-                          Histórico
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          disabled={!row.canEdit}
-                          onClick={() => openDialog("edit", row)}
-                        >
-                          <PencilIcon />
-                          Editar local e rótulo
-                        </DropdownMenuItem>
-                      </DropdownMenuGroup>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuGroup>
-                        {row.status === "lost" ? (
-                          <DropdownMenuItem
-                            disabled={!row.canEdit}
-                            onClick={() => openDialog("found", row)}
-                          >
-                            <SearchCheckIcon />
-                            Marcar como encontrada
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem
-                            variant="destructive"
-                            disabled={!row.canEdit}
-                            onClick={() => openDialog("lost", row)}
-                          >
-                            <TriangleAlertIcon />
-                            Marcar como perdida
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuGroup>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <KeyActionsMenu row={row} onOpen={openDialog} />
                 </TableCell>
               </TableRow>
-            )
-          })}
-        </TableBody>
-      </Table>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      <MobileCardList aria-label="Chaves">
+        {rows.map((row) => (
+          <KeyMobileCard key={row.id} row={row} onOpen={openDialog} />
+        ))}
+      </MobileCardList>
 
       <KeyFormDialog
         open={dialog === "edit"}

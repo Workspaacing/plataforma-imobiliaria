@@ -12,25 +12,35 @@ import {
   PropertyDetailTabs,
   type PropertyDetailTabItem,
 } from "@/components/imoveis/detail/detail-tabs"
+import { DocumentsTab } from "@/components/imoveis/detail/documents-tab"
 import { KeysProposalsTab } from "@/components/imoveis/detail/keys-proposals-tab"
 import { MatchesTab } from "@/components/imoveis/detail/matches-tab"
 import { MediaTab } from "@/components/imoveis/detail/media-tab"
 import { OverviewTab } from "@/components/imoveis/detail/overview-tab"
 import { OwnersPanel } from "@/components/imoveis/detail/owners-panel"
+import { PrivacyCard } from "@/components/imoveis/detail/privacy-card"
 import { PropertyHeader } from "@/components/imoveis/detail/property-header"
 import { PROPERTY_DETAIL_TABS, type PropertyDetailTab } from "@/components/imoveis/detail/tabs"
+import type {
+  PropertyAccessPerson,
+  PropertyShareCandidate,
+} from "@/components/imoveis/detail/types"
 import { canViewAuditTrail } from "@/lib/auditoria/permissions"
 import { getPropertyAuditEvents } from "@/lib/auditoria/queries"
+import { ROLE_LABELS } from "@/lib/auth/roles"
 import { requireMembership } from "@/lib/auth/session"
+import { getBillingOverview } from "@/lib/billing/queries"
 import {
   getCondominiumSummary,
   getConvertedCapture,
   getPropertyAuthorizations,
+  getPropertyDocuments,
   getPropertyForPage,
   getPropertyKeys,
   getPropertyMatches,
   getPropertyOwners,
   getPropertyProposals,
+  getPropertyShares,
 } from "@/lib/imoveis/detail-queries"
 import { findStepForField } from "@/lib/imoveis/form-steps"
 import { isUuid } from "@/lib/imoveis/ids"
@@ -43,12 +53,14 @@ import {
 import {
   canDeletePropertyRecords,
   canEditProperty,
+  canManageProperty,
   canReadCaptureRequests,
 } from "@/lib/imoveis/permissions"
 import {
   getOrganizationMembers,
   getPropertyMediaRows,
   toMemberNameMap,
+  type OrganizationMember,
 } from "@/lib/imoveis/queries"
 import { getStatusRequirementIssues } from "@/lib/imoveis/schema"
 import { createClient } from "@/lib/supabase/server"
@@ -65,6 +77,50 @@ export async function generateMetadata({ params }: PropertyDetailPageProps): Pro
   const property = await getPropertyForPage(membership.organizationId, id).catch(() => null)
 
   return { title: property ? property.code : "Imóvel não encontrado" }
+}
+
+/**
+ * Quem vê o imóvel restrito e por quê (espelho de private.can_view_property_row)
+ * e quem ainda pode ser escolhido. Uma pessoa aparece uma vez, pelo motivo mais
+ * forte; só o acesso escolhido pode ser removido.
+ */
+function buildAccessList(
+  members: readonly OrganizationMember[],
+  property: { captured_by: string | null; broker_id: string | null },
+  shares: readonly { userId: string }[]
+): { people: PropertyAccessPerson[]; candidates: PropertyShareCandidate[] } {
+  const active = members.filter((member) => member.active)
+  const sharedIds = new Set(shares.map((share) => share.userId))
+  const people: PropertyAccessPerson[] = []
+
+  for (const member of active) {
+    let reason: string | null = null
+    if (member.role === "owner" || member.role === "manager") reason = "Vê todos os imóveis"
+    else if (member.id === property.captured_by) reason = "Captador"
+    else if (member.id === property.broker_id) reason = "Corretor responsável"
+    else if (sharedIds.has(member.id)) reason = "Acesso escolhido"
+
+    if (reason) {
+      people.push({
+        userId: member.id,
+        name: member.name,
+        roleLabel: ROLE_LABELS[member.role],
+        reason,
+        removable: reason === "Acesso escolhido",
+      })
+    }
+  }
+
+  const withAccess = new Set(people.map((person) => person.userId))
+  const candidates = active
+    .filter((member) => !withAccess.has(member.id))
+    .map((member) => ({
+      userId: member.id,
+      name: member.name,
+      roleLabel: ROLE_LABELS[member.role],
+    }))
+
+  return { people, candidates }
 }
 
 function memberName(names: Map<string, string>, id: string | null) {
@@ -97,6 +153,9 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
     proposals,
     capture,
     auditEvents,
+    documents,
+    shares,
+    billing,
   ] = await Promise.all([
     getPropertyMediaRows(supabase, organizationId, property.id),
     getPropertyOwners(supabase, organizationId, property.id),
@@ -112,10 +171,14 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
     canViewHistory
       ? getPropertyAuditEvents(supabase, organizationId, property.id)
       : Promise.resolve(null),
+    getPropertyDocuments(supabase, organizationId, property.id),
+    getPropertyShares(supabase, organizationId, property.id),
+    getBillingOverview(organizationId),
   ])
 
   const canEdit = canEditProperty(role, user.id, property)
   const canDelete = canDeletePropertyRecords(role)
+  const canManage = canManageProperty(role, user.id, property)
   const today = todayInSaoPaulo()
 
   const mediaSummary = summarizeMedia(media)
@@ -138,6 +201,17 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
   const issueMessages = requirementIssues.map((issue) => issue.message)
 
   const memberNames = toMemberNameMap(members)
+  const access = buildAccessList(members, property, shares)
+  const documentItems = documents.map((document) => ({
+    id: document.id,
+    kind: document.kind,
+    description: document.description,
+    validUntil: document.validUntil,
+    mimeType: document.mimeType,
+    sizeBytes: document.sizeBytes,
+    uploadedByName: memberName(memberNames, document.uploadedBy),
+    createdAt: document.createdAt,
+  }))
   const ownerOptions = owners.map((owner) => ({
     value: owner.clientId,
     label: owner.clientName ?? "Cliente sem acesso",
@@ -147,6 +221,7 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
     midia: mediaSummary.photosCount,
     proprietarios: owners.length,
     autorizacao: authorizations.length,
+    documentos: documents.length,
     compativeis: matches.length,
     "chaves-propostas": keys.length + proposals.length,
   }
@@ -192,6 +267,15 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
             capturedByName={memberName(memberNames, property.captured_by)}
             brokerName={memberName(memberNames, property.broker_id)}
             score={score}
+            aside={
+              <PrivacyCard
+                propertyId={property.id}
+                restricted={property.is_restricted}
+                canManage={canManage}
+                people={access.people}
+                candidates={access.candidates}
+              />
+            }
           />
         </TabsContent>
         <TabsContent value="midia">
@@ -219,6 +303,16 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
             today={today}
             canEdit={canEdit}
             canDelete={canDelete}
+          />
+        </TabsContent>
+        <TabsContent value="documentos">
+          <DocumentsTab
+            organizationId={organizationId}
+            propertyId={property.id}
+            documents={documentItems}
+            today={today}
+            canManage={canManage}
+            uploadsBlocked={billing?.state === "read_only"}
           />
         </TabsContent>
         <TabsContent value="compativeis">

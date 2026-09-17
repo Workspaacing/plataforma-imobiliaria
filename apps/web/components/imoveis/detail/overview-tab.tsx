@@ -35,12 +35,15 @@ export function OverviewTab({
   capturedByName,
   brokerName,
   score,
+  aside,
 }: {
   property: Tables<"properties">
   condominium: CondominiumSummary | null
   capturedByName: string
   brokerName: string
   score: ImobScoreResult
+  /** Cartões da coluna lateral, acima da Nota do Anúncio (ex.: sigilo). */
+  aside?: React.ReactNode
 }) {
   const streetLine = [property.street, property.street_number].filter(Boolean).join(", ")
   const cityLine = [property.city, property.state].filter(Boolean).join("/")
@@ -71,6 +74,7 @@ export function OverviewTab({
               </DetailItem>
               <DetailItem label="Captador">{capturedByName}</DetailItem>
               <DetailItem label="Corretor">{brokerName}</DetailItem>
+              <DetailItem label="Matrícula">{property.registry_number || "—"}</DetailItem>
             </DetailList>
           </CardContent>
         </Card>
@@ -190,7 +194,10 @@ export function OverviewTab({
         </Card>
       </div>
 
-      <ImobScoreCard result={score} title="Nota do Anúncio" />
+      <div className="flex min-w-0 flex-col gap-4">
+        {aside}
+        <ImobScoreCard result={score} title="Nota do Anúncio" />
+      </div>
     </div>
   )
 }

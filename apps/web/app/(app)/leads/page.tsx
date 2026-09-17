@@ -1,7 +1,13 @@
 import type { Metadata } from "next"
+import { headers } from "next/headers"
 import Link from "next/link"
 import { FilterXIcon, InboxIcon, PlusIcon, TriangleAlertIcon } from "lucide-react"
 
+import {
+  defaultLeadViewForRequest,
+  resolveLeadView,
+  withLeadView,
+} from "@workspace/core/leads/initial-view"
 import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert"
 import { Button } from "@workspace/ui/components/button"
 import {
@@ -26,6 +32,7 @@ import {
   hasActiveLeadFilters,
   LEAD_PERIOD_LABELS,
   parseLeadListFilters,
+  type LeadListFilters,
   type RawSearchParams,
 } from "@/lib/leads/filters"
 import { canCreateLeads, canSeeLeadTrackingIds, canViewAllLeads } from "@/lib/leads/permissions"
@@ -47,10 +54,24 @@ type LeadsPageProps = {
 }
 
 export default async function LeadsPage({ searchParams }: LeadsPageProps) {
-  const [{ user, membership }, params] = await Promise.all([requireMembership(), searchParams])
+  const [{ user, membership }, params, requestHeaders] = await Promise.all([
+    requireMembership(),
+    searchParams,
+    headers(),
+  ])
   const organizationId = membership.organizationId
   const role = membership.role
-  const filters = parseLeadListFilters(params)
+  // Sem `?visao=`, a visão inicial sai já do servidor pelo aparelho do pedido
+  // (lista em cartões no celular, quadro no computador): o quadro não pisca no
+  // celular antes da troca. Nada é redirecionado.
+  const defaultView = defaultLeadViewForRequest({
+    secChUaMobile: requestHeaders.get("sec-ch-ua-mobile"),
+    userAgent: requestHeaders.get("user-agent"),
+  })
+  const filters: LeadListFilters = {
+    ...parseLeadListFilters(params),
+    visao: resolveLeadView(params.visao, defaultView),
+  }
   const now = new Date()
   const supabase = await createLeadsClient()
 
@@ -121,6 +142,7 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
         landingPages={landingPages}
         campaigns={campaigns}
         showMemberOptions={canViewAllLeads(role)}
+        defaultView={defaultView}
       />
 
       {result.failed ? (
@@ -142,7 +164,11 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
               <EmptyDescription>Nenhum lead corresponde aos filtros escolhidos.</EmptyDescription>
             </EmptyHeader>
             <EmptyContent>
-              <Button variant="outline" render={<Link href={LEADS_PATH} />} nativeButton={false}>
+              <Button
+                variant="outline"
+                render={<Link href={withLeadView(LEADS_PATH, filters.visao)} />}
+                nativeButton={false}
+              >
                 Limpar filtros
               </Button>
             </EmptyContent>

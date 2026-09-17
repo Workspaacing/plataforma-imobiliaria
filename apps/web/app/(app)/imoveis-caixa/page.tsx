@@ -155,11 +155,8 @@ export default async function ImoveisCaixaPage({ searchParams }: CaixaPageProps)
             <EmptyMedia variant="icon">
               <LandmarkIcon />
             </EmptyMedia>
-            <EmptyTitle>O catálogo ainda não foi carregado</EmptyTitle>
-            <EmptyDescription>
-              A lista pública da Caixa é trazida para o CRM por uma rotina diária. Assim que a
-              primeira carga rodar, os imóveis aparecem aqui.
-            </EmptyDescription>
+            <EmptyTitle>O catálogo da Caixa ainda está sendo carregado.</EmptyTitle>
+            <EmptyDescription>Volte em breve.</EmptyDescription>
           </EmptyHeader>
         </Empty>
       )}
