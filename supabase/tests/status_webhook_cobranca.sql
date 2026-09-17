@@ -19,7 +19,9 @@
 --      fora da janela não contam; erro_processamento acima de 50% com 3+
 --      processadas = lentidão (exatamente 50% ou menos de 3 = operacional);
 --   3. rotina de medição: 1ª medição fica sem nível (histerese), 2ª confirma
---      instabilidade parcial e o incidente automático abre na 3ª confirmada;
+--      instabilidade parcial e o incidente automático abre na 3ª confirmada
+--      (só billing na automação: as amostras das outras partes, que dependem
+--      do ambiente, saem a cada minuto — ver a seção 3);
 --   4. sem entregas na janela, a rotina não grava medição (nunca queda);
 --   5. público: automaticSignal por parte (billing liga com entrega nos
 --      últimos 14 dias) e nada interno (resultado, tipo, motivo);
@@ -226,12 +228,24 @@ begin
   -- 3. Rotina de medição: histerese e incidente automático
   -- ---------------------------------------------------------------------------
   -- Relógio perto de agora, para as outras partes medirem normalmente.
+  --
+  -- Só billing entra na automação: a rotina real também mede as outras partes
+  -- (sonda, job rodizio-de-leads, filas de avisos, portais, Caixa), e o
+  -- resultado delas depende do ambiente. No banco local do CI o job
+  -- rodizio-de-leads não tem execução recente, lead_routing mede fora do ar e,
+  -- no mesmo minuto, entra no MESMO incidente automático: impacto crítico e
+  -- billing aparece "fora do ar" no público (o incidente impõe o nível a todas
+  -- as suas partes), o que é o comportamento documentado, mas não é o que este
+  -- teste prova. Por isso, depois de cada medição, as amostras das outras
+  -- partes daquele minuto saem (status_auto_update_trackers só lê
+  -- measured_at = p_now): mesmo resultado na nuvem e num banco vazio.
   delete from private.status_billing_webhook_deliveries;
   insert into private.status_billing_webhook_deliveries (received_at, outcome)
   values (now(), 'config_ausente');
 
   t := now() + interval '1 minute';
   perform private.status_collect_measurements(t);
+  delete from private.status_samples x where x.measured_at = t and x.component_key <> 'billing';
   perform private.status_auto_incidents_step(t);
 
   r := r || jsonb_build_object('histerese_1a', (
@@ -242,6 +256,7 @@ begin
 
   t := now() + interval '2 minutes';
   perform private.status_collect_measurements(t);
+  delete from private.status_samples x where x.measured_at = t and x.component_key <> 'billing';
   perform private.status_auto_incidents_step(t);
 
   r := r || jsonb_build_object('histerese_2a', (
@@ -253,6 +268,7 @@ begin
   -- 2ª medição confirmada (a 1ª confirmada foi no minuto 2): ainda não abre.
   t := now() + interval '3 minutes';
   perform private.status_collect_measurements(t);
+  delete from private.status_samples x where x.measured_at = t and x.component_key <> 'billing';
   perform private.status_auto_incidents_step(t);
 
   r := r || jsonb_build_object('incidente_antes_da_3a', (
@@ -265,6 +281,7 @@ begin
   t := now() + interval '4 minutes';
   t_last := t;
   perform private.status_collect_measurements(t);
+  delete from private.status_samples x where x.measured_at = t and x.component_key <> 'billing';
   perform private.status_auto_incidents_step(t);
 
   r := r || jsonb_build_object('incidente_automatico', (

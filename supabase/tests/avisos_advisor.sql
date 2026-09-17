@@ -144,6 +144,14 @@ begin
   r := r || jsonb_build_object('private_tabelas_sem_negacao', v_int);
 
   -- Trava: grant e política permissiva "por engano" não abrem nada.
+  -- A contagem só prova algo se a tabela tiver linhas; num banco vazio (CI) ela
+  -- não tem, então o teste grava um resumo de um dia antigo (desfeito no fim),
+  -- e o resultado é o mesmo na nuvem e no banco vazio. "on conflict" só evita
+  -- erro se essa linha já existir.
+  insert into private.status_daily_summaries (component_key, day, good_samples, total_samples, worst_level)
+  values ('crm', date '2000-01-01', 1, 1, 'operational')
+  on conflict (component_key, day) do nothing;
+
   select count(*) into v_total from private.status_daily_summaries;
   r := r || jsonb_build_object('private_tem_linhas', v_total > 0);
 

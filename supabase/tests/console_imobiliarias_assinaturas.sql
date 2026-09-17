@@ -39,7 +39,7 @@
 --   filtro_plano_trial_inclui        : true
 --   filtro_situacao_invalida         : "NEGADO:22023"
 --   filtro_plano_invalido            : "NEGADO:22023"
---   lista_numeros                    : {"membros": 1, "leads_30_dias": 1, "teto_ia": 600}
+--   lista_numeros                    : {"membros": 1, "leads_30_dias": 1, "teto_ia": 0}
 --   lista_sem_coluna_de_contato      : true
 --   lista_sem_email                  : true
 --   lista_sem_lead                   : true
@@ -80,6 +80,13 @@
 --   rpcs_para_anon                   : true
 --   rpcs_para_authenticated          : false
 --   historico_para_authenticated     : false
+--
+-- teto_ia era 600 quando este teste foi escrito. Desde a migração
+-- 20260917091437_ai_trial_without_ai_model_pricing_batch (decisão do dono:
+-- teste grátis sem IA), private.ai_quota_context devolve teto 0 para qualquer
+-- conta 'trialing', e a imobiliária criada aqui está no teste grátis; o Console
+-- mostra esse teto (platform_organization_metrics). Conferido na nuvem em
+-- 17/09/2026; não depende de dado existente, então vale também no banco vazio.
 
 do $$
 declare

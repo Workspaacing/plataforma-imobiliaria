@@ -123,7 +123,8 @@ export function lerValorJson(texto) {
   }
 }
 
-const LINHA_CHAVE = /^([a-z0-9_]+(?:\s*\/\s*_?[a-z0-9_]+)*)\s*:\s?(.*)$/i
+// Sem `_?` antes da classe, que já aceita `_`: a ambiguidade causava backtracking exponencial.
+const LINHA_CHAVE = /^([a-z0-9_]+(?:\s*\/\s*[a-z0-9_]+)*)\s*:\s?(.*)$/i
 
 /**
  * Lê o bloco "Resultado esperado" dos comentários do topo do arquivo.
@@ -276,7 +277,7 @@ function escaparComando(texto, propriedade = false) {
 }
 
 function escaparTabela(texto) {
-  return String(texto).replace(/\|/g, "\\|").replace(/\r?\n/g, " ")
+  return String(texto).replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/\r?\n/g, " ")
 }
 
 /** Imprime texto vindo do banco sem deixar o runner interpretar `::comandos::`. */
