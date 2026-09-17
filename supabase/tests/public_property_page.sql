@@ -53,8 +53,10 @@ declare
     'parking_spaces', 'year_built', 'features', 'furnished', 'accepts_pets', 'address_display',
     'street', 'street_number', 'neighborhood', 'city', 'state', 'listed_at', 'updated_at'
   ];
+  -- owner_creci_*: CRECI F do dono, só sem CRECI J (migração public_pages_owner_creci).
   organization_keys constant text[] := array[
-    'slug', 'name', 'city', 'state', 'phone', 'email', 'creci', 'brand'
+    'slug', 'name', 'city', 'state', 'phone', 'email', 'creci', 'brand',
+    'owner_creci_number', 'owner_creci_state'
   ];
   media_keys constant text[] := array['kind', 'storage_path', 'external_url', 'caption', 'is_cover'];
 begin
