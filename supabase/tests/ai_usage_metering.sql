@@ -5,8 +5,10 @@
 -- `raise exception` — o resultado sai na mensagem do erro (P0001) e a transação
 -- inteira é desfeita. Rode no SQL Editor do projeto ou por `psql -f`.
 --
--- A imobiliária de teste usa o plano Imobiliária (teto de R$ 49,80 por ciclo)
--- com a franquia reduzida para 3 conversas, só para o corte acontecer rápido.
+-- A imobiliária de teste usa o plano Imobiliária (teto de R$ 34,56 por ciclo,
+-- migração ai_trial_without_ai_model_pricing_batch) com a franquia reduzida para
+-- 3 conversas, só para o corte acontecer rápido. As chamadas usam a assinatura
+-- antiga (sem p_model/p_batch), que continua valendo e mede como Sonnet 5.
 --
 -- Resultado esperado (ordem das chaves pode variar):
 --   ciclo_de_um_mes                : true
@@ -299,11 +301,11 @@ begin
   -- ---------------------------------------------------------------------------
   r := r || jsonb_build_object('grant_reserve_anon', has_function_privilege(
     'anon',
-    'public.reserve_ai_usage(text, uuid, text, integer, uuid, text, text, integer, integer, integer, integer)',
+    'public.reserve_ai_usage(text, uuid, text, integer, uuid, text, text, integer, integer, integer, integer, text, boolean)',
     'execute'));
   r := r || jsonb_build_object('grant_reserve_authenticated', has_function_privilege(
     'authenticated',
-    'public.reserve_ai_usage(text, uuid, text, integer, uuid, text, text, integer, integer, integer, integer)',
+    'public.reserve_ai_usage(text, uuid, text, integer, uuid, text, text, integer, integer, integer, integer, text, boolean)',
     'execute'));
 
   raise exception 'TESTE DE IA (rollback): %', jsonb_pretty(r);

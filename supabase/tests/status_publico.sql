@@ -531,7 +531,7 @@ begin
     'publico_incidente_chaves', not exists (
       select 1 from jsonb_array_elements(v_json -> 'pastIncidents') a
       where (select array_agg(k order by k collate "C") from jsonb_object_keys(a.value) k)
-        <> array['componentKeys', 'id', 'impact', 'kind', 'resolvedAt', 'scheduledFor', 'scheduledUntil', 'startedAt', 'status', 'title', 'updates']
+        <> array['componentKeys', 'id', 'impact', 'kind', 'resolvedAt', 'scheduledFor', 'scheduledUntil', 'source', 'startedAt', 'status', 'title', 'updates']
     ) and jsonb_array_length(v_json -> 'pastIncidents') >= 3,
     'publico_sem_dado_interno',
       v_json::text !~ '[^[:space:]@"]+@[^[:space:]@"]+'
