@@ -45,6 +45,15 @@ describe("evaluateVaultSecrets", () => {
     )
   })
 
+  it("sonda da página de status faltando é atenção, com o comando", () => {
+    const item = evaluateVaultSecrets({ ...allPresent, status_probe_url: false }).find(
+      (entry) => entry.key === "vault_status_probe_url"
+    )
+    expect(PLATFORM_VAULT_SECRET_NAMES).toContain("status_probe_url")
+    expect(item?.status).toBe("atencao")
+    expect(item?.action).toContain("/api/status/ping")
+  })
+
   it("só um dos dois segredos do par é problema", () => {
     const item = evaluateVaultSecrets({ ...allPresent, lead_alerts_webhook_secret: false }).find(
       (entry) => entry.key === "vault_lead_alerts"

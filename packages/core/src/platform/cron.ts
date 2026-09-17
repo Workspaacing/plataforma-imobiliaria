@@ -170,6 +170,7 @@ export const DATABASE_CRON_JOB_LABELS: Record<string, string> = {
   "expurgo-caixa": "Expurgo de imóveis antigos da Caixa",
   "lembretes-de-visita": "Fila de lembretes de visita",
   "retencao-registro-console": "Retenção do registro do console",
+  "status-publico-medicoes": "Medições da página de status pública",
 }
 
 const RUNNING_STATUSES = new Set(["starting", "running", "sending", "connecting"])

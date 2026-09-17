@@ -4738,6 +4738,7 @@ export type Database = {
         Returns: Json
       }
       get_public_sitemap: { Args: { p_org_slug: string }; Returns: Json }
+      get_public_status: { Args: never; Returns: Json }
       get_referral_state: {
         Args: { p_organization_id?: string; p_server_key?: string }
         Returns: Json
@@ -5081,6 +5082,120 @@ export type Database = {
           p_reason: string
           p_server_key: string
         }
+        Returns: Json
+      }
+      platform_staff_accept_invitation: {
+        Args: { p_server_key: string; p_token_hash: string; p_user_id: string }
+        Returns: Json
+      }
+      platform_staff_invitation_preview: {
+        Args: { p_server_key: string; p_token_hash: string; p_user_id?: string }
+        Returns: Json
+      }
+      platform_staff_invite: {
+        Args: {
+          p_actor_email: string
+          p_actor_user_id: string
+          p_email: string
+          p_role: string
+          p_server_key: string
+          p_token_hash: string
+        }
+        Returns: Json
+      }
+      platform_staff_list: {
+        Args: { p_owner_emails?: string[]; p_server_key: string }
+        Returns: Json
+      }
+      platform_staff_remove: {
+        Args: {
+          p_actor_email: string
+          p_actor_user_id: string
+          p_server_key: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      platform_staff_resend_invitation: {
+        Args: {
+          p_actor_email: string
+          p_actor_user_id: string
+          p_invitation_id: string
+          p_server_key: string
+          p_token_hash: string
+        }
+        Returns: Json
+      }
+      platform_staff_revoke_invitation: {
+        Args: {
+          p_actor_email: string
+          p_actor_user_id: string
+          p_invitation_id: string
+          p_server_key: string
+        }
+        Returns: Json
+      }
+      platform_staff_role: {
+        Args: { p_server_key: string; p_user_id: string }
+        Returns: string
+      }
+      platform_staff_set_role: {
+        Args: {
+          p_actor_email: string
+          p_actor_user_id: string
+          p_role: string
+          p_server_key: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      platform_status_add_update: {
+        Args: {
+          p_actor_email: string
+          p_actor_user_id: string
+          p_incident_id: string
+          p_message: string
+          p_server_key: string
+          p_status: string
+        }
+        Returns: number
+      }
+      platform_status_create_incident: {
+        Args: {
+          p_actor_email: string
+          p_actor_user_id: string
+          p_component_keys: string[]
+          p_impact: string
+          p_kind: string
+          p_message: string
+          p_scheduled_for?: string
+          p_scheduled_until?: string
+          p_server_key: string
+          p_status?: string
+          p_title: string
+        }
+        Returns: string
+      }
+      platform_status_edit_incident: {
+        Args: {
+          p_actor_email: string
+          p_actor_user_id: string
+          p_component_keys: string[]
+          p_impact: string
+          p_incident_id: string
+          p_scheduled_for?: string
+          p_scheduled_until?: string
+          p_server_key: string
+          p_title: string
+        }
+        Returns: string
+      }
+      platform_status_list_incidents: {
+        Args: { p_limit?: number; p_server_key: string }
+        Returns: Json
+      }
+      platform_status_overview: {
+        Args: { p_samples_per_component?: number; p_server_key: string }
         Returns: Json
       }
       queue_whatsapp_message: {
@@ -5799,6 +5914,7 @@ export type Database = {
           export_id: string
         }[]
       }
+      status_ping: { Args: never; Returns: boolean }
       submit_capture_request: {
         Args: {
           org_slug: string

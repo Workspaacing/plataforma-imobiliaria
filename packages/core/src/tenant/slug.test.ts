@@ -46,6 +46,11 @@ describe("isValidTenantSlug", () => {
     }
   })
 
+  it("reserva status (página de status pública no domínio raiz)", () => {
+    expect(RESERVED_SUBDOMAINS.has("status")).toBe(true)
+    expect(getTenantSlugIssue("status")).toBe("reserved")
+  })
+
   it("recusa reservados curtos pela regra de tamanho", () => {
     expect(isValidTenantSlug("lp")).toBe(false)
   })

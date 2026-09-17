@@ -72,10 +72,31 @@ export const EXPECTED_WEBHOOK_SECRET_PAIRS: readonly ExpectedWebhookSecretPair[]
   },
 ]
 
+export type ExpectedUrlSecret = {
+  name: string
+  label: string
+  /** Rota do Next que o banco chama (GET, sem segredo). */
+  route: string
+  /** Consequência da falta, em pt-BR. */
+  missing: string
+}
+
+/** Endereços cadastrados à mão que o banco usa sem segredo junto. */
+export const EXPECTED_URL_SECRETS: readonly ExpectedUrlSecret[] = [
+  {
+    name: "status_probe_url",
+    label: "Sonda da página de status",
+    route: "/api/status/ping",
+    missing:
+      "CRM, Login e Captação ficam sem medição na página de status (barra cinza, sem disponibilidade).",
+  },
+]
+
 /** Nomes pedidos a `platform_health(p_secret_names)`. */
 export const PLATFORM_VAULT_SECRET_NAMES: readonly string[] = [
   ...EXPECTED_SERVER_KEY_SECRETS.map((secret) => secret.name),
   ...EXPECTED_WEBHOOK_SECRET_PAIRS.flatMap((pair) => [pair.url, pair.secret]),
+  ...EXPECTED_URL_SECRETS.map((secret) => secret.name),
 ]
 
 function webhookAction(pair: ExpectedWebhookSecretPair, missing: readonly string[]): string {
@@ -140,5 +161,25 @@ export function evaluateVaultSecrets(present: Readonly<Record<string, boolean>>)
     }
   })
 
-  return [...keys, ...webhooks]
+  const urls = EXPECTED_URL_SECRETS.map<HealthItem>((secret) =>
+    present[secret.name] === true
+      ? {
+          key: `vault_${secret.name}`,
+          label: secret.label,
+          reference: secret.name,
+          status: "ok",
+          detail: "Existe no Vault.",
+          action: null,
+        }
+      : {
+          key: `vault_${secret.name}`,
+          label: secret.label,
+          reference: secret.name,
+          status: "atencao",
+          detail: `Não configurado. ${secret.missing}`,
+          action: `No SQL Editor do Supabase: select vault.create_secret('https://<seu-dominio>${secret.route}', '${secret.name}');`,
+        }
+  )
+
+  return [...keys, ...webhooks, ...urls]
 }
