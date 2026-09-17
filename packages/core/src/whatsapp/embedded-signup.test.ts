@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { isMetaMessageOrigin } from "./embedded-signup"
+import { isMetaMessageOrigin, META_MESSAGE_ORIGINS } from "./embedded-signup"
 
 describe("isMetaMessageOrigin", () => {
   it("aceita facebook.com e subdomínios em HTTPS", () => {
@@ -23,5 +23,11 @@ describe("isMetaMessageOrigin", () => {
     expect(isMetaMessageOrigin("null")).toBe(false)
     expect(isMetaMessageOrigin("")).toBe(false)
     expect(isMetaMessageOrigin(undefined)).toBe(false)
+  })
+})
+
+describe("META_MESSAGE_ORIGINS", () => {
+  it("só tem origens que a regra de subdomínio também aceita", () => {
+    expect(META_MESSAGE_ORIGINS.every((origin) => isMetaMessageOrigin(origin))).toBe(true)
   })
 })

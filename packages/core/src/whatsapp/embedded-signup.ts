@@ -9,6 +9,17 @@
  */
 export const META_MESSAGE_ROOT_DOMAIN = "facebook.com"
 
+/**
+ * Origens exatas de onde a janela da Meta costuma responder. O handler confere
+ * primeiro esta lista (comparação direta, reconhecida pelo CodeQL) e só depois
+ * a regra de subdomínio de `isMetaMessageOrigin`, que continua segura.
+ */
+export const META_MESSAGE_ORIGINS: readonly string[] = [
+  "https://www.facebook.com",
+  "https://web.facebook.com",
+  "https://business.facebook.com",
+]
+
 export function isMetaMessageOrigin(origin: unknown): boolean {
   if (typeof origin !== "string" || origin.length === 0) {
     return false

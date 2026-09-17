@@ -5,7 +5,7 @@ import Script from "next/script"
 import { CircleAlertIcon, MessageCircleIcon } from "lucide-react"
 
 import { META_WHATSAPP_TERMS } from "@workspace/core/connections"
-import { isMetaMessageOrigin } from "@workspace/core/whatsapp/embedded-signup"
+import { isMetaMessageOrigin, META_MESSAGE_ORIGINS } from "@workspace/core/whatsapp/embedded-signup"
 import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert"
 import { Button } from "@workspace/ui/components/button"
 import { Checkbox } from "@workspace/ui/components/checkbox"
@@ -167,7 +167,7 @@ export function WhatsappConnectDialog({
     function onMessage(event: MessageEvent) {
       // A Meta manda o resultado por postMessage. Origem que não seja
       // https://facebook.com (ou subdomínio) é ignorada sem olhar o conteúdo.
-      if (!isMetaMessageOrigin(event.origin)) {
+      if (!META_MESSAGE_ORIGINS.includes(event.origin) && !isMetaMessageOrigin(event.origin)) {
         return
       }
 

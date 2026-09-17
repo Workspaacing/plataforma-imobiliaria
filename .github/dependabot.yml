@@ -63,6 +63,14 @@ updates:
           - "vitest"
           - "@vitest/*"
         update-types: [minor, patch]
+      # Geração de PDF (proposta e ficha): pdf-lib e o fontkit que embute a Geist
+      # sobem juntos para não quebrar o embutimento da fonte.
+      pdf:
+        patterns:
+          - "pdf-lib"
+          - "@pdf-lib/*"
+          - "geist"
+        update-types: [minor, patch]
       demais-menores:
         patterns:
           - "*"
