@@ -1,5 +1,6 @@
 import "server-only"
 
+import type { ProposalRoundKind } from "@workspace/core/proposals/rounds"
 import type { Enums } from "@workspace/database/types"
 
 import type { ProposalDiscountRequest } from "@/lib/propostas/discount"
@@ -33,6 +34,9 @@ export type ProposalRow = {
   status: ProposalStatus
   purpose: ProposalPurpose
   amount: number
+  /** Rodada vigente da negociação (1 = proposta inicial). Mantida pelo banco. */
+  roundNumber: number
+  roundKind: ProposalRoundKind
   paymentTerms: string | null
   conditions: string | null
   validUntil: string | null
@@ -105,7 +109,7 @@ export async function listProposals(
   let rowsQuery = supabase
     .from("proposals")
     .select(
-      "id, status, purpose, amount, payment_terms, conditions, valid_until, decided_at, created_at, broker_id, property_id, client_id, property:properties!proposals_property_fkey(id, code, title, status, captured_by, broker_id, sale_price, rent_price), client:clients!proposals_client_fkey(id, name)"
+      "id, status, purpose, amount, round_number, round_kind, payment_terms, conditions, valid_until, decided_at, created_at, broker_id, property_id, client_id, property:properties!proposals_property_fkey(id, code, title, status, captured_by, broker_id, sale_price, rent_price), client:clients!proposals_client_fkey(id, name)"
     )
     .eq("organization_id", organizationId)
     .order("created_at", { ascending: false })
@@ -179,6 +183,8 @@ export async function listProposals(
     status: row.status,
     purpose: row.purpose === "rent" ? "rent" : "sale",
     amount: row.amount,
+    roundNumber: row.round_number,
+    roundKind: row.round_kind,
     paymentTerms: row.payment_terms,
     conditions: row.conditions,
     validUntil: row.valid_until,

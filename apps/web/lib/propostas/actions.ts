@@ -90,7 +90,33 @@ function toProposalColumns(values: ProposalFormValues) {
     payment_terms: values.paymentTerms || null,
     conditions: values.conditions || null,
     valid_until: values.validUntil || null,
+    down_payment: values.downPayment ? parseBrlInput(values.downPayment) : null,
+    financing_amount: values.financingAmount ? parseBrlInput(values.financingAmount) : null,
+    exchange_description: values.exchangeDescription?.trim() || null,
+    payment_deadline: values.paymentDeadline?.trim() || null,
   }
+}
+
+/** Valores e condições da negociação: só mudam por rodada (round-actions). */
+const NEGOTIATION_COLUMNS = [
+  "amount",
+  "payment_terms",
+  "conditions",
+  "valid_until",
+  "down_payment",
+  "financing_amount",
+  "exchange_description",
+  "payment_deadline",
+] as const
+
+type NegotiationColumn = (typeof NEGOTIATION_COLUMNS)[number]
+
+function withoutNegotiationColumns<T extends object>(columns: T): Omit<T, NegotiationColumn> {
+  return Object.fromEntries(
+    Object.entries(columns).filter(
+      ([key]) => !(NEGOTIATION_COLUMNS as readonly string[]).includes(key)
+    )
+  ) as Omit<T, NegotiationColumn>
 }
 
 export async function createProposal(values: ProposalFormValues): Promise<ActionResult> {
@@ -184,15 +210,17 @@ export async function updateProposal(
 
   if (purposeError) return { ok: false, error: purposeError }
 
+  // Valor, condições e validade ficam na rodada vigente: mudam por
+  // registerProposalRound, que grava a rodada no histórico.
   const { data, error } = await supabase
     .from("proposals")
-    .update(toProposalColumns(parsed.data))
+    .update(withoutNegotiationColumns(toProposalColumns(parsed.data)))
     .eq("id", id.data)
     .eq("organization_id", membership.organizationId)
     .in("status", [...OPEN_PROPOSAL_STATUSES])
     .select("id")
 
-  // Baixar o valor de proposta enviada além do limite também passa pelo gatilho.
+  // Trocar o imóvel ou a finalidade de proposta enviada também passa pelo gatilho de desconto.
   if (error) return toProposalFailure(error)
   if (data.length === 0) return { ok: false, error: NO_UPDATE_PERMISSION }
 

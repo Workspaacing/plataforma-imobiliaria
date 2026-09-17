@@ -76,7 +76,7 @@ const TRANSITION_COPY: Record<ProposalStatus, TransitionCopy> = {
     action: "Registrar contraproposta",
     title: "Registrar contraproposta?",
     description:
-      "O proprietário respondeu com outra condição. Depois, edite o valor e as condições e reenvie a proposta.",
+      "O proprietário respondeu com outra condição. Para guardar o valor e as condições dele no histórico, abra a proposta e registre a rodada como contraproposta do proprietário.",
     confirm: "Registrar contraproposta",
     success: "Contraproposta registrada.",
   },
@@ -114,7 +114,8 @@ export function getTransitionCopy(from: ProposalStatus, to: ProposalStatus): Tra
       ...copy,
       action: "Reenviar proposta",
       title: "Reenviar a proposta?",
-      description: "Confirme que o valor e as condições já foram ajustados após a contraproposta.",
+      description:
+        "Se o cliente mudou o valor ou as condições, registre antes a nova oferta na proposta: ela entra no histórico e já reenvia.",
       confirm: "Reenviar",
       success: "Proposta reenviada.",
     }

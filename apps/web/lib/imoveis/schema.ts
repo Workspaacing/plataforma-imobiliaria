@@ -37,6 +37,9 @@ const MAX_MONEY = 999_999_999_999.99
 /** Mesmo limite do CHECK properties_external_code_format. */
 export const EXTERNAL_CODE_MAX_LENGTH = 60
 
+/** Mesmo limite do CHECK properties_registry_number_format. */
+export const REGISTRY_NUMBER_MAX_LENGTH = 40
+
 function text(max: number, label: string) {
   return z.string().trim().max(max, `${label} pode ter no máximo ${max} caracteres.`)
 }
@@ -131,6 +134,8 @@ export const propertyFormSchema = z
     brokerId: optionalId("Corretor inválido."),
     // Código do imóvel no sistema anterior (vem da importação; a busca acha por ele).
     externalCode: text(EXTERNAL_CODE_MAX_LENGTH, "O código no sistema anterior"),
+    // Número da matrícula no cartório de registro de imóveis (dossiê).
+    registryNumber: text(REGISTRY_NUMBER_MAX_LENGTH, "O número da matrícula"),
 
     salePrice: money("O preço de venda", { positive: true }),
     rentPrice: money("O preço de locação", { positive: true }),
@@ -192,6 +197,8 @@ export const propertyFormSchema = z
 
     status: z.enum(PROPERTY_STATUSES),
     publishedToPortals: z.boolean(),
+    // Sigilo: só dono, gerente, captador, corretor responsável e pessoas escolhidas veem.
+    isRestricted: z.boolean(),
   })
   .superRefine((values, ctx) => {
     const bedrooms = parseIntegerInput(values.bedrooms)
@@ -229,6 +236,8 @@ export type PropertyEditableColumns = Pick<
   | "captured_by"
   | "broker_id"
   | "external_code"
+  | "registry_number"
+  | "is_restricted"
   | "sale_price"
   | "rent_price"
   | "condo_fee"
@@ -279,6 +288,8 @@ export function formValuesToColumns(values: PropertyFormValues): PropertyEditabl
     broker_id: values.brokerId || null,
     // O banco recusa caractere de controle (tab colado de planilha): vira espaço.
     external_code: nullableText(values.externalCode.replace(/\p{Cc}/gu, " ")),
+    registry_number: nullableText(values.registryNumber.replace(/\p{Cc}/gu, " ")),
+    is_restricted: values.isRestricted,
     // Preço de uma finalidade que não se aplica fica vazio, para não confundir o feed.
     sale_price: hasSale ? toNullableNumber(parseBrlInput(values.salePrice)) : null,
     rent_price: hasRent ? toNullableNumber(parseBrlInput(values.rentPrice)) : null,

@@ -122,6 +122,7 @@ export type PropertyListItem = Pick<
   | "captured_by"
   | "broker_id"
   | "published_to_portals"
+  | "is_restricted"
 > & {
   coverPath: string | null
   /** Nome do proprietário que casou com a busca (para explicar o resultado). */
@@ -200,6 +201,7 @@ export async function listProperties(
     captured_by: row.captured_by,
     broker_id: row.broker_id,
     published_to_portals: row.published_to_portals,
+    is_restricted: row.is_restricted,
     coverPath: row.cover_path,
     matchedOwner: row.matched_owner,
     authorizationState: toAuthorizationState(row.authorization_state),

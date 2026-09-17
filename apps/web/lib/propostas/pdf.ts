@@ -12,6 +12,7 @@ import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFImage, type PDFP
 
 import { formatBRL } from "@workspace/core/billing/format"
 import { toWinAnsi, wrapText } from "@workspace/core/proposals/pdf-text"
+import { describeRoundTerms } from "@workspace/core/proposals/rounds"
 
 import { formatDateOnly } from "@/lib/chaves/datetime"
 import type { ProposalDocument } from "@/lib/propostas/document"
@@ -218,16 +219,19 @@ function drawAmount(layout: Layout, document: ProposalDocument) {
     color: layout.accent,
   })
 
-  layout.page.drawText(
-    toWinAnsi(`Valor proposto para ${document.proposal.purposeLabel.toLowerCase()}`),
-    {
-      x: MARGIN + 18,
-      y: top - 24,
-      size: 8.5,
-      font: layout.font,
-      color: MUTED,
-    }
-  )
+  const purpose = document.proposal.purposeLabel.toLowerCase()
+  const amountLabel =
+    document.proposal.round?.kind === "owner_counter"
+      ? `Contraproposta do proprietário para ${purpose}`
+      : `Valor proposto para ${purpose}`
+
+  layout.page.drawText(toWinAnsi(amountLabel), {
+    x: MARGIN + 18,
+    y: top - 24,
+    size: 8.5,
+    font: layout.font,
+    color: MUTED,
+  })
   layout.page.drawText(toWinAnsi(amount), {
     x: MARGIN + 18,
     y: top - 50,
@@ -576,7 +580,25 @@ export async function renderProposalPdf(
   ])
 
   drawSectionTitle(layout, "Proposta")
+
+  // Rodada vigente da negociação e as condições dela (sinal, financiamento,
+  // permuta e prazo), duas por linha.
+  const round = document.proposal.round
+  if (round) {
+    drawFieldRow(layout, [
+      { label: "Rodada da negociação", value: `Rodada ${round.number} · ${round.label}` },
+      { label: "Registrada em", value: round.createdAt ? formatDateTime(round.createdAt) : null },
+    ])
+  }
+
   drawAmount(layout, document)
+
+  const terms = describeRoundTerms(document.proposal.terms, (value) =>
+    formatBRL(Math.round(value * 100))
+  )
+  for (let index = 0; index < terms.length; index += 2) {
+    drawFieldRow(layout, terms.slice(index, index + 2))
+  }
   drawFieldRow(layout, [{ label: "Forma de pagamento", value: document.proposal.paymentTerms }])
   drawFieldRow(layout, [{ label: "Condições", value: document.proposal.conditions }])
   drawFieldRow(layout, [

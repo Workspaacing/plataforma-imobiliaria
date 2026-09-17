@@ -30,6 +30,23 @@ export function canEditProperty(role: Role, userId: string, property: PropertyAs
   return false
 }
 
+/**
+ * private.can_manage_property_row: dono, gerente, captador e corretor
+ * responsável. Muda o sigilo (imóvel restrito), escolhe quem vê e envia ou
+ * remove documentos do dossiê.
+ */
+export function canManageProperty(role: Role, userId: string, property: PropertyAssignment) {
+  return (
+    OWNER_MANAGER_ROLES.includes(role) ||
+    property.captured_by === userId ||
+    property.broker_id === userId
+  )
+}
+
+/** Recusa das ações de sigilo e dossiê (quem pode fazer). */
+export const MANAGE_PROPERTY_DENIED_MESSAGE =
+  "Só o dono, o gerente, o captador ou o corretor responsável pelo imóvel podem fazer isso."
+
 /** Remoção de fotos, proprietários, autorizações e do próprio imóvel: dono e gerente. */
 export function canDeletePropertyRecords(role: Role) {
   return OWNER_MANAGER_ROLES.includes(role)

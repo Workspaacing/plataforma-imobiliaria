@@ -9,6 +9,7 @@ export const PROPERTY_FORM_STEPS = [
       "title",
       "description",
       "externalCode",
+      "registryNumber",
       "purpose",
       "usage",
       "type",
@@ -69,8 +70,8 @@ export const PROPERTY_FORM_STEPS = [
   {
     key: "portais",
     title: "Portais",
-    description: "Status do anúncio e publicação.",
-    fields: ["status", "publishedToPortals"],
+    description: "Status do anúncio, publicação e sigilo.",
+    fields: ["status", "publishedToPortals", "isRestricted"],
   },
 ] as const satisfies ReadonlyArray<{
   key: string

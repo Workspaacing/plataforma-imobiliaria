@@ -173,6 +173,66 @@ export async function getPropertyProposals(
   }))
 }
 
+const DOCUMENTS_LIMIT = 200
+
+export type PropertyDocumentRow = {
+  id: string
+  kind: Tables<"property_documents">["kind"]
+  description: string | null
+  validUntil: string | null
+  mimeType: string
+  sizeBytes: number
+  uploadedBy: string | null
+  createdAt: string
+}
+
+/** Dossiê do imóvel (o RLS esconde tudo de quem não vê o imóvel restrito). */
+export async function getPropertyDocuments(
+  supabase: ServerSupabaseClient,
+  organizationId: string,
+  propertyId: string
+): Promise<PropertyDocumentRow[]> {
+  const { data, error } = await supabase
+    .from("property_documents")
+    .select("id, kind, description, valid_until, mime_type, size_bytes, uploaded_by, created_at")
+    .eq("organization_id", organizationId)
+    .eq("property_id", propertyId)
+    .order("created_at", { ascending: false })
+    .limit(DOCUMENTS_LIMIT)
+
+  if (error) throw loadError("os documentos", error)
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    kind: row.kind,
+    description: row.description,
+    validUntil: row.valid_until,
+    mimeType: row.mime_type,
+    sizeBytes: row.size_bytes,
+    uploadedBy: row.uploaded_by,
+    createdAt: row.created_at,
+  }))
+}
+
+/** Pessoas escolhidas para ver o imóvel restrito (property_shares). */
+export async function getPropertyShares(
+  supabase: ServerSupabaseClient,
+  organizationId: string,
+  propertyId: string
+): Promise<{ userId: string; createdAt: string }[]> {
+  const { data, error } = await supabase
+    .from("property_shares")
+    .select("user_id, created_at")
+    .eq("organization_id", organizationId)
+    .eq("property_id", propertyId)
+    .order("created_at")
+    .limit(200)
+
+  if (error) throw loadError("quem tem acesso ao imóvel", error)
+
+  return (data ?? []).map((row) => ({ userId: row.user_id, createdAt: row.created_at }))
+}
+
 /** Captação que originou o imóvel. Chame só para papéis que leem captações. */
 export async function getConvertedCapture(
   supabase: ServerSupabaseClient,

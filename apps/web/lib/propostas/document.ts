@@ -22,6 +22,12 @@ import {
   type PropertyType,
   type PropertyUsage,
 } from "@workspace/core/properties/enums"
+import {
+  PROPOSAL_ROUND_KIND_LABELS,
+  PROPOSAL_ROUND_KIND_VALUES,
+  type ProposalRoundKind,
+  type ProposalRoundTerms,
+} from "@workspace/core/proposals/rounds"
 
 import { readOrganizationBrand, type OrganizationBrand } from "@/lib/configuracoes/brand"
 import type { ProposalStatus } from "@/lib/propostas/status"
@@ -54,6 +60,16 @@ const proposalSchema = z.object({
   valid_until: text,
   decided_at: timestamp,
   created_at: z.string(),
+  // Rodada vigente da negociação (migração proposal_negotiation_rounds).
+  round_number: z.number().int().positive().nullish(),
+  round_kind: z
+    .enum(PROPOSAL_ROUND_KIND_VALUES as [ProposalRoundKind, ...ProposalRoundKind[]])
+    .nullish(),
+  round_created_at: timestamp,
+  down_payment: numeric,
+  financing_amount: numeric,
+  exchange_description: text,
+  payment_deadline: text,
 })
 
 const organizationSchema = z.object({
@@ -158,6 +174,15 @@ export type ProposalDocument = {
     validUntil: string | null
     decidedAt: string | null
     createdAt: string
+    /** Rodada vigente; null em payload antigo, sem rodadas. */
+    round: {
+      number: number
+      kind: ProposalRoundKind
+      label: string
+      createdAt: string | null
+    } | null
+    /** Sinal, financiamento, permuta e prazo da rodada vigente. */
+    terms: ProposalRoundTerms
   }
   organization: {
     slug: string
@@ -266,6 +291,21 @@ export function parseProposalDocument(payload: unknown): ProposalDocument | null
       validUntil: proposal.valid_until,
       decidedAt: proposal.decided_at,
       createdAt: proposal.created_at,
+      round:
+        proposal.round_number && proposal.round_kind
+          ? {
+              number: proposal.round_number,
+              kind: proposal.round_kind,
+              label: PROPOSAL_ROUND_KIND_LABELS[proposal.round_kind],
+              createdAt: proposal.round_created_at,
+            }
+          : null,
+      terms: {
+        downPayment: proposal.down_payment,
+        financingAmount: proposal.financing_amount,
+        exchangeDescription: proposal.exchange_description,
+        paymentDeadline: proposal.payment_deadline,
+      },
     },
     organization: {
       slug: organization.slug,

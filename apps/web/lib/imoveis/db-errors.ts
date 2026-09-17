@@ -48,6 +48,19 @@ const CONSTRAINT_MESSAGES: Record<string, string> = {
   property_owners_client_fkey: "O cliente selecionado não existe mais nesta imobiliária.",
   listing_authorizations_owner_client_fkey:
     "O proprietário selecionado não existe mais nesta imobiliária.",
+  properties_restricted_not_published:
+    "Imóvel restrito não vai para os portais. Tire o sigilo antes de publicar.",
+  properties_registry_number_format:
+    "Número da matrícula inválido: use até 40 caracteres, sem espaços nas pontas nem quebra de linha.",
+  property_documents_description_format:
+    "A descrição do documento pode ter no máximo 120 caracteres, sem quebra de linha.",
+  property_documents_storage_path_format:
+    "O arquivo foi enviado para uma pasta que não pertence a este imóvel.",
+  property_documents_size_bytes: "O documento passa de 10 MB.",
+  property_documents_mime_type: "Formato não aceito. Envie PDF, JPG, PNG ou WebP.",
+  property_documents_storage_path_key: "Este arquivo já foi registrado.",
+  property_shares_pkey: "Esta pessoa já pode ver o imóvel.",
+  property_shares_property_fkey: "O imóvel não existe mais nesta imobiliária.",
 }
 
 /** CHECKs inline ganham o nome "<tabela>_<coluna>_check". */

@@ -20,7 +20,9 @@ import {
 import {
   canCreateProperty,
   canEditProperty,
+  canManageProperty,
   canReadCaptureRequests,
+  MANAGE_PROPERTY_DENIED_MESSAGE,
   mustStayAssigned,
 } from "@/lib/imoveis/permissions"
 import {
@@ -241,8 +243,31 @@ export async function savePropertyAction(input: SavePropertyInput): Promise<Save
     }
   }
 
-  // Publicação só para imóvel ativo, já salvo e sem erros de VRSync.
-  let publish = values.publishedToPortals && values.status === "active" && existing !== null
+  // Sigilo: só dono, gerente, captador e corretor responsável mudam (o banco confere).
+  const changesRestriction = values.isRestricted !== (existing?.is_restricted ?? false)
+  if (changesRestriction) {
+    // Cadastro sem captador nem corretor: o banco põe o corretor/captador que cadastra.
+    const autoCapturer =
+      mustStayAssigned(role) && !columns.captured_by && !columns.broker_id ? user.id : null
+    const assignment = existing ?? {
+      captured_by: columns.captured_by ?? autoCapturer,
+      broker_id: columns.broker_id,
+    }
+    if (!canManageProperty(role, user.id, assignment)) {
+      return {
+        ok: false,
+        error: MANAGE_PROPERTY_DENIED_MESSAGE,
+        fieldErrors: { isRestricted: MANAGE_PROPERTY_DENIED_MESSAGE },
+      }
+    }
+  }
+
+  // Publicação só para imóvel ativo, já salvo, sem erros de VRSync e sem sigilo.
+  let publish =
+    values.publishedToPortals &&
+    values.status === "active" &&
+    existing !== null &&
+    !values.isRestricted
 
   if (publish && existing) {
     let media: MediaSource[]
@@ -484,6 +509,13 @@ export async function setPublishedToPortalsAction(
   const { supabase, organizationId, property } = loaded.context
 
   if (published) {
+    if (property.is_restricted) {
+      return {
+        ok: false,
+        error: "Imóvel restrito não vai para os portais. Tire o sigilo antes de publicar.",
+      }
+    }
+
     if (property.status !== "active") {
       return {
         ok: false,

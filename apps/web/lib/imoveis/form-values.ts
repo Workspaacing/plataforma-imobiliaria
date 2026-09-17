@@ -40,6 +40,7 @@ export function emptyPropertyFormValues(role: Role, userId: string): PropertyFor
     capturedBy: role === "capturer" ? userId : "",
     brokerId: role === "broker" ? userId : "",
     externalCode: "",
+    registryNumber: "",
     salePrice: "",
     rentPrice: "",
     condoFee: "",
@@ -71,6 +72,7 @@ export function emptyPropertyFormValues(role: Role, userId: string): PropertyFor
     tourUrl: "",
     status: "draft",
     publishedToPortals: false,
+    isRestricted: false,
   }
 }
 
@@ -111,6 +113,7 @@ export function propertyRowToFormValues(
     capturedBy: property.captured_by ?? "",
     brokerId: property.broker_id ?? "",
     externalCode: property.external_code ?? "",
+    registryNumber: property.registry_number ?? "",
     salePrice: formatBrlInputValue(property.sale_price),
     rentPrice: formatBrlInputValue(property.rent_price),
     condoFee: formatBrlInputValue(property.condo_fee),
@@ -142,5 +145,6 @@ export function propertyRowToFormValues(
     tourUrl: media.tourUrl ?? "",
     status: property.status,
     publishedToPortals: property.published_to_portals,
+    isRestricted: property.is_restricted,
   }
 }
