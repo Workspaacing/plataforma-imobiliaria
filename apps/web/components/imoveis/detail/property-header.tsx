@@ -1,17 +1,27 @@
 import Link from "next/link"
-import { ArrowLeftIcon, LockIcon, MapPinIcon } from "lucide-react"
+import {
+  ArrowLeftIcon,
+  CircleAlertIcon,
+  LockIcon,
+  MapPinIcon,
+  TriangleAlertIcon,
+} from "lucide-react"
 
 import {
   buildPropertyShareText,
   buildWhatsappShareUrl,
 } from "@workspace/core/properties/share-text"
+import type { ListingPublication } from "@workspace/core/properties/listing-publication"
 import type { Tables } from "@workspace/database/types"
+import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert"
 import { Badge } from "@workspace/ui/components/badge"
 import { Button } from "@workspace/ui/components/button"
 
 import { ImobScoreBadge } from "@/components/imoveis/imob-score-badge"
 import { PortalPublishCard } from "@/components/imoveis/detail/portal-publish-card"
 import { PropertyHeaderActions } from "@/components/imoveis/detail/property-header-actions"
+import { PublicPageCard } from "@/components/imoveis/detail/public-page-card"
+import { propertyTabHref } from "@/components/imoveis/detail/tabs"
 import { PropertyCover } from "@/components/imoveis/property-cover"
 import { PropertyStatusBadge } from "@/components/imoveis/property-status-badge"
 import { formatCurrency } from "@/lib/format"
@@ -30,6 +40,7 @@ export function PropertyHeader({
   organizationName,
   organizationSlug,
   canDelete = false,
+  publication,
 }: {
   property: Tables<"properties">
   coverPath: string | null
@@ -45,6 +56,8 @@ export function PropertyHeader({
   organizationName: string
   /** Monta o link da página pública do imóvel (só imóvel ativo tem página). */
   organizationSlug: string
+  /** Situação do anúncio (autorização vigente e página pública), calculada na página. */
+  publication: ListingPublication
 }) {
   const location = [
     property.neighborhood,
@@ -53,11 +66,11 @@ export function PropertyHeader({
     .filter(Boolean)
     .join(", ")
   const prices = getDisplayPrices(property)
-  // Imóvel restrito não tem página pública.
-  const publicUrl =
-    property.status === "active" && !property.is_restricted
-      ? tryBuildPublicPropertyUrl(organizationSlug, property.code)
-      : null
+  // Só com a página no ar: ativo, não restrito, chave ligada e autorização em dia.
+  const publicUrl = publication.publicPage.online
+    ? tryBuildPublicPropertyUrl(organizationSlug, property.code)
+    : null
+  const authorizationHref = propertyTabHref(property.id, "autorizacao")
   // Só bairro e cidade: o modo de exibição do endereço nunca é furado aqui.
   const whatsappHref = buildWhatsappShareUrl(
     buildPropertyShareText({
@@ -164,9 +177,45 @@ export function PropertyHeader({
             errors={portalErrors}
             warnings={portalWarnings}
             restricted={property.is_restricted}
+            offAirByAuthorization={publication.blockedByAuthorization}
+          />
+          <PublicPageCard
+            propertyId={property.id}
+            state={publication.publicPage}
+            canEdit={canEdit}
+            restricted={property.is_restricted}
           />
         </div>
       </div>
+
+      {publication.blockedByAuthorization ? (
+        <Alert variant="destructive">
+          <CircleAlertIcon />
+          <AlertTitle>Anúncio fora do ar: sem autorização vigente</AlertTitle>
+          <AlertDescription>
+            <p>
+              A autorização de venda ou locação deste imóvel venceu (ou a nova ainda não começou).
+              Ele saiu do arquivo dos portais, da página pública, das landing pages e do Google.
+              Registre a renovação e ele volta ao ar sozinho.
+            </p>
+            <Link href={authorizationHref}>Registrar a renovação</Link>
+          </AlertDescription>
+        </Alert>
+      ) : publication.authorizationLapsed &&
+        property.status === "active" &&
+        !property.is_restricted ? (
+        <Alert>
+          <TriangleAlertIcon />
+          <AlertTitle>Autorização vencida, mas o anúncio continua no ar</AlertTitle>
+          <AlertDescription>
+            <p>
+              A imobiliária desligou a retirada automática dos anúncios sem autorização vigente.
+              Regularize a autorização para não anunciar sem contrato.
+            </p>
+            <Link href={authorizationHref}>Ver autorização</Link>
+          </AlertDescription>
+        </Alert>
+      ) : null}
     </div>
   )
 }

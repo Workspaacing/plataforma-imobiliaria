@@ -36,6 +36,7 @@ import { Spinner } from "@workspace/ui/components/spinner"
 import { Textarea } from "@workspace/ui/components/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@workspace/ui/components/toggle-group"
 
+import { trackLeadConversion } from "@/components/leads-publicos/tracking"
 import { maskPhoneInput } from "@/lib/captacao/masks"
 import { issuePropertyFormToken, submitPropertyLead } from "@/lib/imovel-publico/actions"
 import type { SubmitLandingLeadResult } from "@/lib/leads-publicos/actions"
@@ -80,7 +81,8 @@ function wait(ms: number) {
 
 /**
  * Atribuição só pelo link aberto (utm_*, gclid/gbraid/wbraid/fbclid), sem
- * cookies: a página do imóvel não usa cookies nem scripts de medição.
+ * cookies próprios de atribuição. Meta Pixel e gtag.js só existem na página
+ * depois do aceite de cookies (LandingTracking).
  */
 function readLinkAttribution() {
   const { search, href } = window.location
@@ -224,6 +226,11 @@ export function PropertyLeadForm({
         })
 
         applyResult(result)
+
+        if (result.ok) {
+          // Sem aceite de cookies os scripts não existem e nada é enviado.
+          trackLeadConversion({ eventId, interest: values.interest || null })
+        }
       } catch {
         setFormError({
           message: "Sem conexão com o servidor. Verifique sua internet e tente de novo.",

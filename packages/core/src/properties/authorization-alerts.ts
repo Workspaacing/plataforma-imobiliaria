@@ -34,17 +34,23 @@ export function isAuthorizationTrackedStatus(status: PropertyStatus): boolean {
   return AUTHORIZATION_TRACKED_STATUSES.includes(status)
 }
 
-/** Filtro da lista de imóveis: valor da URL (pt-BR) → valor da RPC. */
+/**
+ * Filtro da lista de imóveis: valor da URL (pt-BR) → valor da RPC.
+ * `not_valid` = sem autorização vigente (none, expired ou upcoming), espelho de
+ * private.authorization_filter_states (migração listing_publication_rules).
+ */
 export const AUTHORIZATION_LIST_FILTERS = {
   vencendo: "expiring",
   vencida: "expired",
-} as const satisfies Record<string, AuthorizationState>
+  sem: "not_valid",
+} as const satisfies Record<string, AuthorizationState | "not_valid">
 
 export type AuthorizationListFilter = keyof typeof AUTHORIZATION_LIST_FILTERS
 
 export const AUTHORIZATION_LIST_FILTER_LABELS: Record<AuthorizationListFilter, string> = {
   vencendo: `Vencendo em ${AUTHORIZATION_EXPIRING_WINDOW_DAYS} dias`,
   vencida: "Vencida",
+  sem: "Sem autorização vigente",
 }
 
 export function isAuthorizationListFilter(value: unknown): value is AuthorizationListFilter {

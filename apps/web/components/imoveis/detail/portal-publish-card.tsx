@@ -31,6 +31,7 @@ export function PortalPublishCard({
   errors,
   warnings,
   restricted = false,
+  offAirByAuthorization = false,
 }: {
   propertyId: string
   status: PropertyStatus
@@ -41,6 +42,8 @@ export function PortalPublishCard({
   warnings: string[]
   /** Imóvel restrito (sigilo) nunca vai para os portais. */
   restricted?: boolean
+  /** Publicado, mas fora do arquivo por falta de autorização vigente. */
+  offAirByAuthorization?: boolean
 }) {
   const [isPending, startTransition] = React.useTransition()
   const [optimisticPublished, setOptimisticPublished] = React.useOptimistic(published)
@@ -52,7 +55,10 @@ export function PortalPublishCard({
     isPending || !canEdit || (!optimisticPublished && !(isActive && isValid && !restricted))
 
   let description: string
-  if (optimisticPublished) {
+  if (optimisticPublished && offAirByAuthorization) {
+    description =
+      "Fora do arquivo para os portais: sem autorização vigente. Volta ao registrar a renovação."
+  } else if (optimisticPublished) {
     description = publishedAt
       ? `Publicado desde ${formatDateTime(publishedAt)}.`
       : "Publicado no arquivo para os portais."

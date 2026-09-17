@@ -160,6 +160,13 @@ async function run(): Promise<RunSummary> {
         continue
       }
 
+      // Cota diária da plataforma: nem tentou, volta sem gastar tentativa.
+      if (result?.reasons.daily_quota) {
+        released.push(...ids)
+        summary.halted = true
+        continue
+      }
+
       failed.push(...ids)
 
       if (result?.reasons.not_configured || result?.reasons.rate_limited) {

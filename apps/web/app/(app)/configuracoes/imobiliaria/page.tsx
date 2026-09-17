@@ -21,9 +21,11 @@ import { BILLING_STATE_LABELS, planDisplayName } from "@/components/billing/over
 import { BrandForm } from "@/components/configuracoes/brand-form"
 import { CopyField } from "@/components/configuracoes/copy-field"
 import { FeedPreview } from "@/components/configuracoes/feed-preview"
+import { ListingPublicationSettingsCard } from "@/components/configuracoes/listing-publication-settings-card"
 import { OrganizationForm } from "@/components/configuracoes/organization-form"
 import { RotateFeedTokenButton } from "@/components/configuracoes/rotate-feed-token-button"
 import { PageHeading } from "@/components/crm/page-placeholder"
+import { OrganizationDeletionCard } from "@/components/exclusao/organization-deletion-card"
 import { getInitials } from "@/components/crm/utils"
 import { PageShell } from "@/components/shared/page-shell"
 import { ORGANIZATION_VIEWER_ROLES } from "@/lib/auth/roles"
@@ -31,6 +33,7 @@ import { SUBSCRIPTION_SETTINGS_PATH } from "@/lib/auth/routes"
 import { requireRole } from "@/lib/auth/session"
 import { HEX_COLOR_PATTERN, isHttpsUrl, readOrganizationBrand } from "@/lib/configuracoes/brand"
 import { maskCnpj, maskPhoneBr } from "@/lib/configuracoes/masks"
+import { getOrganizationDeletion } from "@/lib/exclusao/queries"
 import { loadFeedPreview } from "@/lib/portais/feed-preview"
 import { loadFeedSettings } from "@/lib/portais/feed-settings"
 import { createClient } from "@/lib/supabase/server"
@@ -77,6 +80,8 @@ export default async function ImobiliariaPage() {
         }
       : null
   const brand = readOrganizationBrand(organization.brand)
+  // "Excluir a imobiliária": só o dono vê (o banco confere o papel de novo).
+  const deletion = isOwner ? await getOrganizationDeletion(organization.id) : null
   const captureUrl = buildCaptureUrl(organization.slug)
 
   const logoUrl = brand.logoUrl && isHttpsUrl(brand.logoUrl) ? brand.logoUrl : undefined
@@ -297,6 +302,16 @@ export default async function ImobiliariaPage() {
           )}
         </CardContent>
       </Card>
+
+      <ListingPublicationSettingsCard organizationId={organization.id} role={membership.role} />
+
+      {isOwner ? (
+        <OrganizationDeletionCard
+          organizationName={organization.name}
+          slug={organization.slug}
+          status={deletion}
+        />
+      ) : null}
     </PageShell>
   )
 }

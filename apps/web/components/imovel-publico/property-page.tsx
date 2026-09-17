@@ -122,9 +122,12 @@ function Paragraphs({ text }: { text: string }) {
 export function PublicPropertyPage({
   view,
   orgSlug,
+  hasTracking = false,
 }: {
   view: PublicPropertyView
   orgSlug: string
+  /** A imobiliária configurou Meta Pixel ou tag do Google (carregam só com aceite). */
+  hasTracking?: boolean
 }) {
   const { organization } = view
   // Barra fixa de contato no celular: espaço extra no fim da página para ela.
@@ -330,11 +333,23 @@ export function PublicPropertyPage({
             interesse e mensagem. Eles servem só para retornar o seu contato sobre este imóvel e o
             atendimento imobiliário, com base no seu consentimento (art. 7º, I, da LGPD).
           </p>
+          {hasTracking ? (
+            <p className="text-muted-foreground">
+              Com o seu aceite no aviso de cookies, esta página ativa cookies de medição de
+              parceiros (Meta Pixel e Google tag) para {organization.name} medir a visita e o envio
+              do contato nos anúncios, sem enviar seus dados pessoais a eles (art. 7º, I). Sem
+              aceite, nada é carregado; a escolha fica guardada em um cookie próprio por 180 dias.
+            </p>
+          ) : (
+            <p className="text-muted-foreground">
+              Esta página não usa cookies nem ferramentas de medição de parceiros.
+            </p>
+          )}
           <p className="text-muted-foreground">
-            Esta página não usa cookies nem ferramentas de medição de parceiros. Se o link trouxer
-            parâmetros de campanha (utm) ou de anúncio, eles seguem com o formulário para a
-            imobiliária saber de onde veio o contato (legítimo interesse, art. 7º, IX). Para evitar
-            envios abusivos, usamos um código calculado a partir do seu IP, sem guardar o IP.
+            Se o link trouxer parâmetros de campanha (utm) ou de anúncio, eles seguem com o
+            formulário para a imobiliária saber de onde veio o contato (legítimo interesse, art. 7º,
+            IX). Para evitar envios abusivos, usamos um código calculado a partir do seu IP, sem
+            guardar o IP.
           </p>
           <p className="text-muted-foreground">
             Você pode pedir acesso, correção ou exclusão dos seus dados e revogar o consentimento

@@ -24,6 +24,7 @@ import {
   LANDING_HEX_COLOR_PATTERN,
   type LandingOrganization,
 } from "@/lib/landing/types"
+import { safeGoogleTagId, safeMetaPixelId } from "@/lib/leads-publicos/tracking-ids"
 
 export const PUBLIC_PROPERTY_ADDRESS_DISPLAYS = ["full", "street", "neighborhood"] as const
 
@@ -77,11 +78,21 @@ export type PublicProperty = {
   updatedAt: string | null
 }
 
+/**
+ * Medição da página (Configurações → Imobiliária → Anúncios e página pública).
+ * IDs revalidados pelas mesmas regex das landing pages; nunca contêiner GTM.
+ */
+export type PublicPropertyTracking = {
+  metaPixelId: string | null
+  googleTagId: string | null
+}
+
 export type PublicPropertyPayload = {
   orgSlug: string
   organization: LandingOrganization
   property: PublicProperty
   media: PublicPropertyMedia[]
+  tracking: PublicPropertyTracking
 }
 
 const LIMITS = {
@@ -273,5 +284,16 @@ export function parsePublicPropertyPayload(
         .slice(0, LIMITS.media)
     : []
 
-  return { orgSlug, organization, property, media }
+  const tracking = isPlainObject(value.tracking) ? value.tracking : {}
+
+  return {
+    orgSlug,
+    organization,
+    property,
+    media,
+    tracking: {
+      metaPixelId: safeMetaPixelId(tracking.meta_pixel_id),
+      googleTagId: safeGoogleTagId(tracking.google_tag_id),
+    },
+  }
 }

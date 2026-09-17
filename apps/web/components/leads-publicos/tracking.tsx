@@ -25,6 +25,11 @@ type LandingTrackingProps = {
   /** tracking.google_tag_id da página (G-, GT- ou AW-). */
   googleTagId?: string | null
   privacyHref: string
+  /**
+   * Guarda UTMs e click ids em cookies próprios ao chegar (padrão: sim). A
+   * página pública do imóvel passa `false`: ela lê a atribuição só do link.
+   */
+  captureFirstPartyAttribution?: boolean
 }
 
 /**
@@ -42,7 +47,12 @@ type LandingTrackingProps = {
  * cookies de sessão. Meta Pixel e gtag.js são scripts oficiais carregados só
  * pelo ID (sem código definido pela imobiliária).
  */
-export function LandingTracking({ metaPixelId, googleTagId, privacyHref }: LandingTrackingProps) {
+export function LandingTracking({
+  metaPixelId,
+  googleTagId,
+  privacyHref,
+  captureFirstPartyAttribution = true,
+}: LandingTrackingProps) {
   const pixelId = safeMetaPixelId(metaPixelId)
   const tagId = safeGoogleTagId(googleTagId)
   const hasTrackers = Boolean(pixelId || tagId)
@@ -50,8 +60,10 @@ export function LandingTracking({ metaPixelId, googleTagId, privacyHref }: Landi
   const canTrack = hasTrackers && consent === "granted"
 
   React.useEffect(() => {
-    captureAttribution()
-  }, [])
+    if (captureFirstPartyAttribution) {
+      captureAttribution()
+    }
+  }, [captureFirstPartyAttribution])
 
   // Revalida cada ID com a regex logo antes de montar o script e interpola só
   // o literal escapado (toInlineScriptString), nunca o texto cru.

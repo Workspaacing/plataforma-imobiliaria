@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 
 import { PublicPropertyPage } from "@/components/imovel-publico/property-page"
+import { LandingTracking } from "@/components/leads-publicos/tracking"
 import { buildPublicPropertyJsonLd } from "@/lib/imovel-publico/json-ld"
 import {
   buildPublicPropertyCanonicalUrl,
@@ -22,6 +23,10 @@ import { serializeJsonLd } from "@/lib/leads-publicos/json-ld"
  * endereço no primeiro acesso e o mantém em cache. Nada aqui lê cookies,
  * headers ou searchParams: o token antirrobô é pedido pelo formulário ao montar
  * e as UTMs são lidas no navegador.
+ *
+ * Medição: Meta Pixel e gtag.js pelos IDs da imobiliária, com os scripts
+ * oficiais e só depois do aceite de cookies (LandingTracking, o mesmo das
+ * landing pages). Sem Google Tag Manager.
  */
 export const revalidate = 60
 
@@ -62,7 +67,17 @@ export default async function PublicPropertyRoute({ params }: PublicPropertyRout
       {jsonLd ? (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd }} />
       ) : null}
-      <PublicPropertyPage view={view} orgSlug={payload.orgSlug} />
+      <PublicPropertyPage
+        view={view}
+        orgSlug={payload.orgSlug}
+        hasTracking={Boolean(payload.tracking.metaPixelId || payload.tracking.googleTagId)}
+      />
+      <LandingTracking
+        metaPixelId={payload.tracking.metaPixelId}
+        googleTagId={payload.tracking.googleTagId}
+        privacyHref="#privacidade"
+        captureFirstPartyAttribution={false}
+      />
     </>
   )
 }

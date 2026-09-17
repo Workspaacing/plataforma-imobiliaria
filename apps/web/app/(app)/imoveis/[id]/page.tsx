@@ -3,6 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { ClipboardListIcon } from "lucide-react"
 
+import { evaluateListingPublication } from "@workspace/core/properties/listing-publication"
 import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert"
 import { TabsContent } from "@workspace/ui/components/tabs"
 
@@ -44,6 +45,7 @@ import {
 } from "@/lib/imoveis/detail-queries"
 import { findStepForField } from "@/lib/imoveis/form-steps"
 import { isUuid } from "@/lib/imoveis/ids"
+import { getListingPublicationSettings } from "@/lib/imoveis/listing-publication"
 import {
   computePropertyScore,
   summarizeMedia,
@@ -156,6 +158,7 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
     documents,
     shares,
     billing,
+    publicationSettings,
   ] = await Promise.all([
     getPropertyMediaRows(supabase, organizationId, property.id),
     getPropertyOwners(supabase, organizationId, property.id),
@@ -174,6 +177,7 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
     getPropertyDocuments(supabase, organizationId, property.id),
     getPropertyShares(supabase, organizationId, property.id),
     getBillingOverview(organizationId),
+    getListingPublicationSettings(supabase, organizationId),
   ])
 
   const canEdit = canEditProperty(role, user.id, property)
@@ -194,6 +198,18 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
     }))
   )
   const portalValidation = validatePropertyForPortals(property, mediaSummary)
+  const publication = evaluateListingPublication({
+    status: property.status,
+    isRestricted: property.is_restricted,
+    publishedToPortals: property.published_to_portals,
+    publicPageEnabled: property.public_page_enabled,
+    authorizations: authorizations.map((item) => ({
+      starts_on: item.startsOn,
+      ends_on: item.endsOn,
+    })),
+    settings: publicationSettings,
+    today,
+  })
 
   const requirementIssues = property.status === "draft" ? getStatusRequirementIssues(property) : []
   const firstIssue = requirementIssues[0]
@@ -247,6 +263,7 @@ export default async function PropertyDetailPage({ params }: PropertyDetailPageP
         organizationName={membership.organization.name}
         organizationSlug={membership.organization.slug}
         canDelete={canDeletePropertyRecords(role)}
+        publication={publication}
       />
 
       {canEdit && issueMessages.length > 0 ? (
