@@ -22,6 +22,8 @@ export const AUDIT_ENTITY_LABELS: Record<string, string> = {
   properties: "o imóvel",
   clients: "o cliente",
   client_documents: "um documento do cliente",
+  /** Dossiê do imóvel (matrícula, IPTU, planta, certidões): envio, remoção e download. */
+  property_documents: "um documento do imóvel",
   memberships: "o acesso de um membro",
   leads: "o lead",
   /** Importação de clientes, leads ou imóveis: "Importou uma planilha". */
@@ -72,6 +74,8 @@ const PROPERTY_FIELD_LABELS: Record<string, string> = {
   imob_score: "Nota do Anúncio",
   published_to_portals: "publicação nos portais",
   published_at: "data de publicação",
+  is_restricted: "imóvel restrito (sigilo)",
+  registry_number: "matrícula",
 }
 
 const CLIENT_FIELD_LABELS: Record<string, string> = {
@@ -108,6 +112,17 @@ const DOCUMENT_FIELD_LABELS: Record<string, string> = {
   uploaded_by: "quem enviou",
 }
 
+const PROPERTY_DOCUMENT_FIELD_LABELS: Record<string, string> = {
+  property_id: "imóvel",
+  kind: "tipo de documento",
+  description: "descrição",
+  valid_until: "validade",
+  storage_path: "arquivo",
+  mime_type: "formato",
+  size_bytes: "tamanho",
+  uploaded_by: "quem enviou",
+}
+
 const MEMBERSHIP_FIELD_LABELS: Record<string, string> = {
   role: "papel",
   active: "acesso",
@@ -129,6 +144,7 @@ const FIELD_LABELS_BY_ENTITY: Record<string, Record<string, string>> = {
   properties: PROPERTY_FIELD_LABELS,
   clients: CLIENT_FIELD_LABELS,
   client_documents: DOCUMENT_FIELD_LABELS,
+  property_documents: PROPERTY_DOCUMENT_FIELD_LABELS,
   memberships: MEMBERSHIP_FIELD_LABELS,
   organization_permission_settings: PERMISSION_SETTINGS_FIELD_LABELS,
 }

@@ -43,6 +43,13 @@ export const WEBHOOKS_PATH_PREFIX = "/api/webhooks"
  */
 export const CRON_PATH_PREFIX = "/api/cron"
 
+/**
+ * Área interna da equipe da plataforma (fora do CRM das imobiliárias). Atendida
+ * no domínio raiz; quem não está em PLATFORM_ADMIN_EMAILS recebe 404 na própria
+ * página e na rota (lib/plataforma/admin.ts).
+ */
+export const PLATFORM_ADMIN_PATH_PREFIX = "/plataforma"
+
 /** Programa Indique e ganhe (dentro de configurações). */
 export const REFERRALS_SETTINGS_PATH = "/configuracoes/indicacoes"
 
@@ -59,12 +66,29 @@ export { REFERRAL_LINK_PATH_PREFIX }
  */
 export { PROPOSAL_SHARE_PATH_PREFIX }
 
+/** Service worker dos avisos no celular (public/sw.js, registrado por lib/push/client.ts). */
+export const SERVICE_WORKER_PATH = "/sw.js"
+
+/** Manifesto do app instalável: caminho que o Next gera para app/manifest.ts. */
+export const WEB_MANIFEST_PATH = "/manifest.webmanifest"
+
+/**
+ * Arquivos do app instalável (PWA). O navegador os busca sem sessão (registro e
+ * atualização do service worker, leitura do manifesto), em qualquer host: nunca
+ * podem receber o redirecionamento para o login nem para a escolha de
+ * imobiliária. O manifesto hoje nem passa pelo proxy (extensão fora do matcher);
+ * fica aqui para continuar público se o matcher mudar.
+ */
+const PWA_PUBLIC_PATHS = [SERVICE_WORKER_PATH, WEB_MANIFEST_PATH]
+
+/** Caminhos exatos públicos. Também atendidos no domínio raiz (ROOT_HOST_PREFIXES). */
 const PUBLIC_PATHS = new Set([
   LOGIN_PATH,
   SIGN_UP_PATH,
   RECOVER_PASSWORD_PATH,
   RESET_PASSWORD_PATH,
   PLANS_PATH,
+  ...PWA_PUBLIC_PATHS,
 ])
 
 /** `/lp` são as landing pages públicas das imobiliárias (tráfego pago e redes sociais). */
@@ -100,6 +124,7 @@ const ROOT_HOST_PREFIXES = [
   CRON_PATH_PREFIX,
   REFERRAL_LINK_PATH_PREFIX,
   PROPOSAL_SHARE_PATH_PREFIX,
+  PLATFORM_ADMIN_PATH_PREFIX,
   ...ROOT_ONLY_PREFIXES,
 ]
 
@@ -122,6 +147,8 @@ const REDIRECT_ALLOWED_SECTIONS = new Set([
   "marketing",
   "painel",
   "perfil",
+  // Área interna da equipe da plataforma (link do lembrete por e-mail).
+  "plataforma",
   "propostas",
   "tarefas",
   "onboarding",

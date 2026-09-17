@@ -245,7 +245,10 @@ export function buildPublicPropertyView(
       name: organization.name,
       initials: initialsOf(organization.name),
       logoUrl: theme.images.logo,
-      creciLabel: organizationCreciLabel(organization.creci),
+      creciLabel: organizationCreciLabel(organization.creci, {
+        number: organization.owner_creci_number,
+        state: organization.owner_creci_state,
+      }),
       place: cityState(organization.city, organization.state),
       email: organization.email,
       phoneDisplay: phoneDisplay(organization.phone),

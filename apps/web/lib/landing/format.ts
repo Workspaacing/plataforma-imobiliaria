@@ -217,10 +217,27 @@ export function phoneDisplay(value: string | null | undefined) {
   return formatPhoneDisplay(value)
 }
 
-/** "CRECI 12345-J" (aceita valor já prefixado). */
-export function organizationCreciLabel(creci: string | null | undefined) {
-  if (!creci) return null
-  return /^creci/i.test(creci) ? creci : `CRECI ${creci}`
+/**
+ * Registro profissional da imobiliária nas páginas públicas: "CRECI 12345-J"
+ * (aceita valor já prefixado) ou, sem CRECI J, "CRECI 12345-F/SP" do dono —
+ * corretor autônomo. Mesmo formato da captação (`publicCreciLabel`).
+ */
+export function organizationCreciLabel(
+  creci: string | null | undefined,
+  owner?: { number?: string | null; state?: string | null }
+) {
+  const agency = creci?.trim()
+  if (agency) return /^creci/i.test(agency) ? agency : `CRECI ${agency}`
+
+  const number = owner?.number
+    ?.trim()
+    .replace(/^creci\s*/i, "")
+    .replace(/[\s-]*f$/i, "")
+    .trim()
+  if (!number) return null
+
+  const state = owner?.state?.trim()
+  return state ? `CRECI ${number}-F/${state}` : `CRECI ${number}-F`
 }
 
 /** "CRECI/SP 123456-F" */

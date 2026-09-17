@@ -196,7 +196,14 @@ export type LandingOrganization = {
   state: string | null
   phone: string | null
   email: string | null
+  /** CRECI J da imobiliária (organizations.creci). */
   creci: string | null
+  /**
+   * CRECI F do dono, só quando não há CRECI J (corretor autônomo). Vem das RPCs
+   * públicas; a pré-visualização do CRM não preenche. Nenhum outro dado do perfil.
+   */
+  owner_creci_number?: string | null
+  owner_creci_state?: string | null
   brand: LandingOrganizationBrand
 }
 
@@ -541,6 +548,8 @@ const organizationSchema = looseObject({
   phone: nullableText(20),
   email: nullableText(160),
   creci: nullableText(40),
+  owner_creci_number: nullableText(30),
+  owner_creci_state: nullableText(2),
   brand: brandSchema,
 })
 

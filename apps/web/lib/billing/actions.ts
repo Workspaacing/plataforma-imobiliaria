@@ -77,6 +77,8 @@ const PAYMENT_PENDING =
 const CANCELLATION_SCHEDULED =
   "A assinatura está com cancelamento agendado. Reative-a em Gerenciar pagamento e faturas antes de reduzir o plano."
 const SAME_CHOICE = "Essa já é a configuração atual da assinatura."
+const PLATFORM_BLOCKED =
+  "A conta está suspensa pela plataforma, e assinar não a libera. Fale com o suporte antes de contratar ou trocar de plano."
 const CURRENT_PLAN_UNKNOWN =
   "Não foi possível identificar o plano atual da assinatura. Fale com o suporte."
 const USAGE_UNKNOWN =
@@ -451,6 +453,13 @@ export async function startCheckout(input: SubscriptionChoice): Promise<BillingA
     return owner
   }
 
+  // Conta suspensa pela plataforma: a Stripe não desbloqueia, então não cobra.
+  const billing = await getBillingOverview(owner.context.membership.organizationId)
+
+  if (billing?.platformBlocked) {
+    return { ok: false, error: PLATFORM_BLOCKED }
+  }
+
   const stripe = getStripe()
 
   if (!stripe) {
@@ -549,6 +558,13 @@ export async function changeSubscription(
 
   if (!owner.ok) {
     return owner
+  }
+
+  // Conta suspensa pela plataforma: a Stripe não desbloqueia, então não cobra.
+  const billing = await getBillingOverview(owner.context.membership.organizationId)
+
+  if (billing?.platformBlocked) {
+    return { ok: false, error: PLATFORM_BLOCKED }
   }
 
   const stripe = getStripe()

@@ -9,6 +9,14 @@ export type EmailAddress = {
   name?: string | null
 }
 
+/** Anexo pequeno (ex.: convite .ics). A Brevo aceita a extensão .ics. */
+export type EmailAttachment = {
+  /** Nome com extensão, ex.: "visita-imv-000123.ics". */
+  name: string
+  /** Conteúdo em texto (UTF-8); o provedor converte para base64. */
+  content: string
+}
+
 export type EmailMessage = {
   to: EmailAddress
   subject: string
@@ -20,6 +28,7 @@ export type EmailMessage = {
   tags?: readonly string[]
   /** UUID; repetir o mesmo valor em até 30 min não duplica o envio. Sem ele, um novo por chamada. */
   idempotencyKey?: string
+  attachments?: readonly EmailAttachment[]
 }
 
 export type EmailSendResult =

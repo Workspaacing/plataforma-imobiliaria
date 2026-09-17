@@ -12,9 +12,10 @@ import { getSupabaseEnv } from "@/lib/supabase/env"
 /**
  * Fila de avisos de lead do rodízio e do SLA de primeiro contato
  * (private.lead_notifications). Único ponto de chamada de
- * claim_lead_notifications e settle_lead_notifications: RPCs sem sessão, com a
- * chave publishable + NOTIFICATION_SERVER_KEY (segredo notification_server_key
- * do Vault). Nunca service_role.
+ * claim_lead_notifications, settle_lead_notifications e
+ * claim_lead_notification_pushes (push no celular, ver lib/push/lead-alerts.ts):
+ * RPCs sem sessão, com a chave publishable + NOTIFICATION_SERVER_KEY (segredo
+ * notification_server_key do Vault). Nunca service_role.
  *
  * Nada aqui lança: em falha devolve lista vazia ou zeros e registra só o código
  * do erro. Os logs nunca levam e-mail, telefone ou nome — só códigos e contagens.
@@ -263,6 +264,89 @@ export async function claimLeadAlerts(limit: number): Promise<LeadAlert[]> {
   } catch (cause) {
     console.error(
       `[leads/alerts] claim_lead_notifications falhou (${cause instanceof Error ? cause.name : "erro"})`
+    )
+    return []
+  }
+}
+
+const pushTargetSchema = z.object({
+  notification_id: z.string(),
+  subscription_id: z.string(),
+  endpoint: z.string(),
+  p256dh: z.string(),
+  auth_secret: z.string(),
+})
+
+/** Aparelho que recebe o push de um aviso da fila. Endpoint e chaves nunca vão para log. */
+export type LeadAlertPushTarget = {
+  alertId: string
+  subscriptionId: string
+  endpoint: string
+  p256dh: string
+  auth: string
+}
+
+/**
+ * Reserva o push dos avisos (UMA vez por aviso: o banco grava push_sent_at) e
+ * devolve os aparelhos de cada destinatário com membership ativa. Aviso que já
+ * teve o push reservado não volta, então o e-mail devolvido à fila e tentado de
+ * novo não repete o push. Chame logo depois do claim, sem esperar o e-mail.
+ */
+export async function reserveLeadAlertPushes(
+  alertIds: readonly string[]
+): Promise<LeadAlertPushTarget[]> {
+  const ids = [...new Set(alertIds.filter((id) => isUuid(id)))].slice(0, MAX_CLAIM)
+
+  if (ids.length === 0) {
+    return []
+  }
+
+  const serverKey = process.env.NOTIFICATION_SERVER_KEY?.trim()
+  const env = getSupabaseEnv()
+
+  if (!serverKey || !env) {
+    return []
+  }
+
+  try {
+    const supabase = createNotificationClient(env.url, env.publishableKey)
+    const { data, error } = await supabase.rpc("claim_lead_notification_pushes", {
+      p_server_key: serverKey,
+      p_notification_ids: ids,
+    })
+
+    if (error) {
+      console.error(
+        `[leads/alerts] claim_lead_notification_pushes falhou (código ${error.code || "desconhecido"})`
+      )
+      return []
+    }
+
+    if (!Array.isArray(data)) {
+      console.error("[leads/alerts] claim_lead_notification_pushes: resposta inesperada")
+      return []
+    }
+
+    const targets: LeadAlertPushTarget[] = []
+
+    for (const row of data) {
+      const parsed = pushTargetSchema.safeParse(row)
+
+      if (parsed.success && isUuid(parsed.data.subscription_id)) {
+        targets.push({
+          alertId: parsed.data.notification_id,
+          subscriptionId: parsed.data.subscription_id,
+          endpoint: parsed.data.endpoint,
+          p256dh: parsed.data.p256dh,
+          auth: parsed.data.auth_secret,
+        })
+      }
+    }
+
+    return targets
+  } catch (cause) {
+    console.error(
+      `[leads/alerts] claim_lead_notification_pushes falhou (${cause instanceof Error ? cause.name : "erro"})`
     )
     return []
   }

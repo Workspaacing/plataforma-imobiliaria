@@ -165,6 +165,9 @@ function parseOrganization(value: unknown): LandingOrganization | null {
     phone: text(value.phone, 20),
     email: text(value.email, 160),
     creci: text(value.creci, 40),
+    // CRECI F do dono (corretor autônomo sem CRECI J); a RPC só manda nesse caso.
+    owner_creci_number: text(value.owner_creci_number, 30),
+    owner_creci_state: stateCode(value.owner_creci_state),
     brand: {
       ...(primaryColor ? { primary_color: primaryColor } : {}),
       ...(logoUrl ? { logo_url: logoUrl } : {}),

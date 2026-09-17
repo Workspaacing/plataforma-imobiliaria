@@ -252,7 +252,10 @@ export function buildLandingViewModel(
       name: organization.name,
       initials: initialsOf(organization.name),
       place: cityState(organization.city, organization.state),
-      creciLabel: organizationCreciLabel(organization.creci),
+      creciLabel: organizationCreciLabel(organization.creci, {
+        number: organization.owner_creci_number,
+        state: organization.owner_creci_state,
+      }),
       logoUrl: theme.images.logo,
       email: organization.email,
       phoneDisplay: phoneDisplay(organization.phone),

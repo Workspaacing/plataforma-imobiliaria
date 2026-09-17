@@ -1,5 +1,14 @@
 import "server-only"
 
+import {
+  dailyDigestEmail,
+  visitReminderEmail,
+  weeklyReportEmail,
+  type DailyDigestEmailParams,
+  type DigestVisit,
+  type WeeklyReportEmailParams,
+} from "@workspace/core/email/agenda-templates"
+import { buildVisitCalendar } from "@workspace/core/email/calendar"
 import { normalizeEmailAddress, isUuid } from "@workspace/core/email/sanitize"
 import {
   aiQuotaNoticeEmail,
@@ -23,7 +32,7 @@ import { deriveIdempotencyKey } from "@/lib/email/idempotency"
 import { getEmailProvider } from "@/lib/email/provider"
 import { loadLandingContext, loadOrganizationContext } from "@/lib/email/public-context"
 import { getNotificationRecipients } from "@/lib/email/recipients"
-import type { EmailAddress, EmailFailureReason } from "@/lib/email/types"
+import type { EmailAddress, EmailAttachment, EmailFailureReason } from "@/lib/email/types"
 import { buildTenantOrigin } from "@/lib/tenant/urls"
 
 /**
@@ -52,6 +61,9 @@ export type NotificationKind =
   | "referral_notice"
   | "ai_quota_notice"
   | "authorization_expiring"
+  | "daily_digest"
+  | "visit_reminder"
+  | "weekly_report"
 
 /** Evita a consulta às RPCs públicas quando quem chama já tem nome e cor. */
 export type NotificationBrand = { name?: string | null; primaryColor?: string | null }
@@ -201,6 +213,41 @@ export type AuthorizationExpiringNotification = {
   brand?: NotificationBrand | null
 }
 
+/**
+ * Resumo diário das 07h (cron): um e-mail por pessoa e imobiliária. O controle
+ * do banco (private.daily_digest_deliveries) garante um por dia.
+ */
+export type DailyDigestNotification = {
+  organizationSlug: string
+  /** Id da reserva no banco: forma a chave de idempotência. */
+  deliveryId: string
+  to: EmailAddress
+  digest: Omit<DailyDigestEmailParams, "origin" | "brand" | "recipientName">
+  brand?: NotificationBrand | null
+}
+
+/**
+ * Lembrete de visita 2 horas antes (fila private.visit_reminder_notifications,
+ * pg_cron + webhook). Leva o convite .ics em anexo.
+ */
+export type VisitReminderNotification = {
+  organizationSlug: string
+  /** Id do lembrete na fila: forma a chave de idempotência. */
+  reminderId: string
+  to: EmailAddress
+  visit: DigestVisit & { id: string; status?: string | null }
+  brand?: NotificationBrand | null
+}
+
+/** Relatório semanal ao gestor (cron de segunda). Um por pessoa, imobiliária e semana. */
+export type WeeklyReportNotification = {
+  organizationSlug: string
+  deliveryId: string
+  to: EmailAddress
+  report: Omit<WeeklyReportEmailParams, "origin" | "brand" | "recipientName">
+  brand?: NotificationBrand | null
+}
+
 export type NotificationParams = {
   new_lead: NewLeadNotification
   lead_sla_notice: LeadSlaNoticeNotification
@@ -210,6 +257,9 @@ export type NotificationParams = {
   referral_notice: ReferralNoticeNotification
   ai_quota_notice: AiQuotaNoticeNotification
   authorization_expiring: AuthorizationExpiringNotification
+  daily_digest: DailyDigestNotification
+  visit_reminder: VisitReminderNotification
+  weekly_report: WeeklyReportNotification
 }
 
 export type NotificationSummary = {
@@ -224,7 +274,12 @@ export type NotificationSummary = {
 
 const MAX_RECIPIENTS = 20
 
-type Outgoing = { to: EmailAddress; email: RenderedEmail; idempotencyKey: string }
+type Outgoing = {
+  to: EmailAddress
+  email: RenderedEmail
+  idempotencyKey: string
+  attachments?: readonly EmailAttachment[]
+}
 
 function emptySummary(kind: NotificationKind): NotificationSummary {
   return { kind, attempted: 0, sent: 0, failed: 0, skipped: 0, reasons: {} }
@@ -253,6 +308,7 @@ async function deliver(kind: NotificationKind, outgoing: Outgoing[]): Promise<No
       text: item.email.text,
       tags: ["crm", kind],
       idempotencyKey: item.idempotencyKey,
+      attachments: item.attachments,
     })
 
     if (result.ok) {
@@ -594,6 +650,93 @@ async function notifyAuthorizationExpiring(
   ])
 }
 
+async function notifyDailyDigest(params: DailyDigestNotification): Promise<NotificationSummary> {
+  const recipient = normalizeRecipient(params.to)
+
+  if (!recipient || !isUuid(params.deliveryId)) {
+    return invalidInput("daily_digest")
+  }
+
+  const origin = buildTenantOrigin(params.organizationSlug)
+  const brand = params.brand ?? (await loadOrganizationContext(params.organizationSlug))
+
+  return deliver("daily_digest", [
+    {
+      to: recipient,
+      email: dailyDigestEmail({
+        ...params.digest,
+        origin,
+        brand,
+        recipientName: recipient.name,
+      }),
+      // O banco já garante um por dia; isto cobre nova tentativa em até 30 min.
+      idempotencyKey: deriveIdempotencyKey("daily_digest", params.deliveryId, recipient.email),
+    },
+  ])
+}
+
+async function notifyVisitReminder(
+  params: VisitReminderNotification
+): Promise<NotificationSummary> {
+  const recipient = normalizeRecipient(params.to)
+
+  if (!recipient || !isUuid(params.reminderId) || !isUuid(params.visit.id)) {
+    return invalidInput("visit_reminder")
+  }
+
+  const origin = buildTenantOrigin(params.organizationSlug)
+  const brand = params.brand ?? (await loadOrganizationContext(params.organizationSlug))
+  const calendar = buildVisitCalendar({
+    origin,
+    visitId: params.visit.id,
+    startsAt: params.visit.startsAt,
+    endsAt: params.visit.endsAt,
+    status: params.visit.status,
+    propertyCode: params.visit.propertyCode,
+    propertyTitle: params.visit.propertyTitle,
+    address: params.visit.address,
+    meetingPoint: params.visit.meetingPoint,
+  })
+
+  return deliver("visit_reminder", [
+    {
+      to: recipient,
+      email: visitReminderEmail({
+        origin,
+        brand,
+        recipientName: recipient.name,
+        visit: params.visit,
+      }),
+      idempotencyKey: deriveIdempotencyKey("visit_reminder", params.reminderId, recipient.email),
+      attachments: calendar ? [{ name: calendar.fileName, content: calendar.content }] : [],
+    },
+  ])
+}
+
+async function notifyWeeklyReport(params: WeeklyReportNotification): Promise<NotificationSummary> {
+  const recipient = normalizeRecipient(params.to)
+
+  if (!recipient || !isUuid(params.deliveryId)) {
+    return invalidInput("weekly_report")
+  }
+
+  const origin = buildTenantOrigin(params.organizationSlug)
+  const brand = params.brand ?? (await loadOrganizationContext(params.organizationSlug))
+
+  return deliver("weekly_report", [
+    {
+      to: recipient,
+      email: weeklyReportEmail({
+        ...params.report,
+        origin,
+        brand,
+        recipientName: recipient.name,
+      }),
+      idempotencyKey: deriveIdempotencyKey("weekly_report", params.deliveryId, recipient.email),
+    },
+  ])
+}
+
 const HANDLERS: {
   [K in NotificationKind]: (params: NotificationParams[K]) => Promise<NotificationSummary>
 } = {
@@ -605,6 +748,9 @@ const HANDLERS: {
   referral_notice: notifyReferral,
   ai_quota_notice: notifyAiQuota,
   authorization_expiring: notifyAuthorizationExpiring,
+  daily_digest: notifyDailyDigest,
+  visit_reminder: notifyVisitReminder,
+  weekly_report: notifyWeeklyReport,
 }
 
 function logSummary(summary: NotificationSummary) {

@@ -11,7 +11,7 @@ import { cleanText, isUuid } from "@workspace/core/email/sanitize"
 
 import { normalizeRecipient } from "@/lib/email/address"
 import type { EmailSender } from "@/lib/email/config"
-import type { EmailAddress, EmailProvider, EmailSendResult } from "@/lib/email/types"
+import type { EmailAddress, EmailMessage, EmailProvider, EmailSendResult } from "@/lib/email/types"
 
 /** Host fixo: a chave nunca segue para outro destino (sem redirecionamento). */
 const BREVO_API_ORIGIN = "https://api.brevo.com"
@@ -46,6 +46,44 @@ async function readResponseBody(response: Response): Promise<unknown> {
   } catch {
     return null
   }
+}
+
+const MAX_ATTACHMENTS = 3
+/** Anexos só para convites e afins: acima disso, algo está errado. */
+const MAX_ATTACHMENT_BYTES = 256 * 1024
+const ATTACHMENT_NAME_PATTERN = /^[a-z0-9][a-z0-9._-]{0,80}\.(ics|pdf|txt|csv)$/i
+
+/**
+ * Anexos no formato da API (`attachment: [{ name, content }]`, conteúdo em
+ * base64). Extensões limitadas às que a Brevo aceita e que o CRM usa; nome e
+ * tamanho validados. https://developers.brevo.com/reference/sendtransacemail
+ */
+function normalizeAttachments(attachments: EmailMessage["attachments"]) {
+  const result: { name: string; content: string }[] = []
+
+  for (const attachment of attachments ?? []) {
+    if (result.length === MAX_ATTACHMENTS) {
+      break
+    }
+
+    if (
+      typeof attachment?.name !== "string" ||
+      typeof attachment.content !== "string" ||
+      !ATTACHMENT_NAME_PATTERN.test(attachment.name)
+    ) {
+      continue
+    }
+
+    const bytes = Buffer.from(attachment.content, "utf8")
+
+    if (bytes.length === 0 || bytes.length > MAX_ATTACHMENT_BYTES) {
+      continue
+    }
+
+    result.push({ name: attachment.name, content: bytes.toString("base64") })
+  }
+
+  return result
 }
 
 /** Só status e código da Brevo: nunca destinatário, corpo ou chave. */
@@ -89,6 +127,7 @@ export function createBrevoProvider(options: BrevoProviderOptions): EmailProvide
 
       const replyTo = normalizeRecipient(message.replyTo ?? options.replyTo)
       const tags = normalizeEmailTags(message.tags)
+      const attachments = normalizeAttachments(message.attachments)
       const idempotencyKey = isUuid(message.idempotencyKey)
         ? message.idempotencyKey.toLowerCase()
         : randomUUID()
@@ -100,6 +139,7 @@ export function createBrevoProvider(options: BrevoProviderOptions): EmailProvide
         textContent: message.text,
         ...(replyTo ? { replyTo } : {}),
         ...(tags.length > 0 ? { tags } : {}),
+        ...(attachments.length > 0 ? { attachment: attachments } : {}),
       })
 
       for (let attempt = 1; attempt <= 2; attempt += 1) {

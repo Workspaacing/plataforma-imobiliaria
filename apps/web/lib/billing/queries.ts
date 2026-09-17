@@ -4,7 +4,9 @@ import { unstable_cache } from "next/cache"
 import { cache } from "react"
 
 import {
+  diffCatalogPrice,
   FEATURES,
+  formatCatalogPriceDivergenceWarning,
   PLANS,
   priceLookupKey,
   resolveBillingState,
@@ -46,6 +48,8 @@ export type BillingOverview = {
   currentPeriodEnd: string | null
   cancelAtPeriodEnd: boolean
   hasSubscription: boolean
+  /** Bloqueada pela equipe da plataforma (Console): estado vem como read_only. */
+  platformBlocked: boolean
   syncedAt: string | null
 }
 
@@ -67,6 +71,8 @@ const INVOICE_LIMIT = 12
 /** A Stripe aceita no máximo 10 lookup_keys por chamada de prices.list. */
 const LOOKUP_KEYS_PER_REQUEST = 10
 const CATALOG_REVALIDATE_SECONDS = 60 * 60
+/** Tag do cache do catálogo: o webhook da Stripe invalida por ela nos eventos de preço e produto. */
+export const BILLING_CATALOG_CACHE_TAG = "billing-catalog"
 
 const MISSING_FUNCTIONS_WARNING =
   "[billing] funções de billing ausentes no banco: resumo e faturas desativados até aplicar as migrações"
@@ -186,6 +192,7 @@ function toBillingOverview(raw: unknown, organizationId: string): BillingOvervie
     cancelAtPeriodEnd: row.cancel_at_period_end === true,
     hasSubscription:
       typeof row.has_subscription === "boolean" ? row.has_subscription : planKey !== "trial",
+    platformBlocked: row.platform_blocked === true,
     syncedAt: readString(row.synced_at),
   }
 }
@@ -350,8 +357,34 @@ const fetchStripeCatalogPrices = unstable_cache(
     return prices
   },
   ["billing-catalog-prices"],
-  { revalidate: CATALOG_REVALIDATE_SECONDS, tags: ["billing-catalog"] }
+  { revalidate: CATALOG_REVALIDATE_SECONDS, tags: [BILLING_CATALOG_CACHE_TAG] }
 )
+
+/**
+ * Avisa (console.warn, sem dado pessoal) quando o preço ativo na Stripe
+ * diverge do catálogo do core para o mesmo lookup_key — só id do plano/
+ * intervalo e os dois valores em centavos. Não muda o preço exibido: a
+ * Stripe continua com prioridade (fica só no `{ ...fallback, ...stripe }`
+ * de `getCatalogPrices`).
+ */
+function warnCatalogPriceDivergences(
+  corePrices: Record<string, number>,
+  stripePrices: Record<string, number>
+) {
+  for (const [lookupKey, stripeCents] of Object.entries(stripePrices)) {
+    const coreCents = corePrices[lookupKey]
+
+    if (coreCents === undefined) {
+      continue
+    }
+
+    const divergence = diffCatalogPrice(lookupKey, coreCents, stripeCents)
+
+    if (divergence) {
+      console.warn(formatCatalogPriceDivergenceWarning(divergence))
+    }
+  }
+}
 
 /** Preço em centavos por lookup_key: Stripe quando houver, senão o catálogo do core. */
 export async function getCatalogPrices(): Promise<Record<string, number>> {
@@ -363,7 +396,9 @@ export async function getCatalogPrices(): Promise<Record<string, number>> {
   }
 
   try {
-    return { ...fallback, ...(await fetchStripeCatalogPrices(mode)) }
+    const stripePrices = await fetchStripeCatalogPrices(mode)
+    warnCatalogPriceDivergences(fallback, stripePrices)
+    return { ...fallback, ...stripePrices }
   } catch (error) {
     console.error(`[billing] leitura dos preços na Stripe falhou (${describeBillingError(error)})`)
     return fallback

@@ -23,6 +23,48 @@ export const LEAD_PERIOD_LABELS: Record<LeadPeriod, string> = {
 export const LEAD_VIEWS = ["quadro", "lista"] as const
 export type LeadView = (typeof LEAD_VIEWS)[number]
 
+export function isLeadView(value: unknown): value is LeadView {
+  return value === "quadro" || value === "lista"
+}
+
+/**
+ * Celular: abaixo de 640 px (o `sm` do Tailwind), onde a lista vira cartões.
+ * Nele a visão padrão é a lista; no computador continua o quadro. O servidor
+ * não sabe a largura da tela, então o padrão do celular é aplicado no navegador.
+ */
+export const LEAD_PHONE_MEDIA_QUERY = "(max-width: 639.98px)"
+export const LEAD_PHONE_DEFAULT_VIEW: LeadView = "lista"
+
+/** Só no navegador; no servidor (sem `window`) é sempre falso. */
+export function isLeadPhoneViewport() {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia(LEAD_PHONE_MEDIA_QUERY).matches
+  )
+}
+
+/** Última visão escolhida no celular (só a preferência, nenhum dado pessoal). */
+const LEAD_PHONE_VIEW_STORAGE_KEY = "leads:visao-celular"
+
+export function readLeadPhoneView(): LeadView | null {
+  try {
+    const stored = window.localStorage.getItem(LEAD_PHONE_VIEW_STORAGE_KEY)
+    return isLeadView(stored) ? stored : null
+  } catch {
+    // Navegação privada ou armazenamento bloqueado: vale o padrão do celular.
+    return null
+  }
+}
+
+export function rememberLeadPhoneView(view: LeadView) {
+  try {
+    window.localStorage.setItem(LEAD_PHONE_VIEW_STORAGE_KEY, view)
+  } catch {
+    // Sem armazenamento, a escolha continua valendo pelo endereço da página.
+  }
+}
+
 export const CAMPAIGN_MAX_LENGTH = 120
 
 export type LeadListFilters = {
@@ -82,13 +124,16 @@ export function hasActiveLeadFilters(filters: LeadListFilters) {
 /** URL do funil com os filtros (valores vazios e padrões são omitidos). */
 export function buildLeadListHref(filters: Partial<LeadListFilters>) {
   const params = new URLSearchParams()
+  // No celular o quadro não é o padrão: quem escolhe o quadro fica com ele no
+  // endereço, e a troca para a lista (padrão do celular) não o desfaz.
+  const omitBoardView = !isLeadPhoneViewport()
 
   for (const [key, value] of Object.entries(filters)) {
     if (
       value === undefined ||
       value === "" ||
       (key === "periodo" && value === "todos") ||
-      (key === "visao" && value === "quadro")
+      (key === "visao" && value === "quadro" && omitBoardView)
     ) {
       continue
     }
