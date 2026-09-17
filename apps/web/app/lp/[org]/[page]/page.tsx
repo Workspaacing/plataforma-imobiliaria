@@ -6,7 +6,6 @@ import { LeadForm } from "@/components/leads-publicos/lead-form"
 import { LandingTracking } from "@/components/leads-publicos/tracking"
 import { buildLandingJsonLd } from "@/lib/landing/json-ld"
 import { serializeJsonLd } from "@/lib/leads-publicos/json-ld"
-import { readGtmContainerId } from "@/lib/leads-publicos/landing-extras"
 import { buildLeadFormProps } from "@/lib/leads-publicos/lead-form-config"
 import {
   buildLandingCanonicalUrl,
@@ -55,10 +54,10 @@ export default async function LandingPublicPage({ params }: LandingPublicPagePro
       {jsonLd ? (
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd }} />
       ) : null}
+      {/* Sem o contêiner do GTM (código livre na origem do CRM): ver LandingTracking. */}
       <LandingTracking
         metaPixelId={payload.page.tracking.meta_pixel_id}
         googleTagId={payload.page.tracking.google_tag_id}
-        gtmContainerId={readGtmContainerId(payload)}
         privacyHref={formProps.privacyHref}
       />
       <LandingTemplate

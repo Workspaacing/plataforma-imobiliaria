@@ -1,9 +1,9 @@
 // Campos do payload público que o módulo de Landing Pages (lib/landing) está
-// acrescentando: tracking.gtm_container_id e content.whatsapp_message. Lidos de
-// forma tolerante para compilar antes e depois de entrarem nos tipos.
+// acrescentando: content.whatsapp_message. Lido de forma tolerante para
+// compilar antes e depois de entrar nos tipos. (tracking.gtm_container_id segue
+// salvo, mas a página pública não o lê: o GTM não é carregado, ver LandingTracking.)
 
 import type { LandingPublicPayload } from "@/lib/landing/types"
-import { safeGtmContainerId } from "@/lib/leads-publicos/tracking-ids"
 
 const WHATSAPP_MESSAGE_MAX_LENGTH = 500
 const WHATSAPP_TEXT_MAX_LENGTH = 1000
@@ -11,11 +11,6 @@ const WHATSAPP_TEXT_MAX_LENGTH = 1000
 const DEFAULT_MESSAGE_WITH_CODE =
   'Olá! Vim pela página "{pagina}" e tenho interesse no imóvel {codigo}.'
 const DEFAULT_MESSAGE_WITHOUT_CODE = 'Olá! Vim pela página "{pagina}" e gostaria de atendimento.'
-
-export function readGtmContainerId(payload: LandingPublicPayload): string | null {
-  const tracking: Record<string, unknown> = payload.page.tracking
-  return safeGtmContainerId(tracking.gtm_container_id)
-}
 
 /** content.whatsapp_message (aceita {codigo} e {pagina}); null quando vazio. */
 export function readWhatsappMessageTemplate(payload: LandingPublicPayload): string | null {

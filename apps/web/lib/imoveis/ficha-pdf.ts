@@ -2,9 +2,9 @@ import "server-only"
 
 // Ficha do imóvel em PDF A4, gerada no servidor com pdf-lib (JavaScript puro:
 // roda na função serverless da Vercel). Mesmo desenho do PDF da proposta
-// (lib/propostas/pdf.ts): faixa com a cor e o logo da imobiliária, fontes padrão
-// Helvetica e todo texto passando por `toWinAnsi`. Corpo com no mínimo 11 pt,
-// para ler impresso e no celular.
+// (lib/propostas/pdf.ts): faixa com a cor e o logo da imobiliária, Geist Regular
+// e SemiBold embutidas (lib/pdf/fonts) e todo texto passando por `toPdfText`.
+// Corpo com no mínimo 11 pt, para ler impresso e no celular.
 
 import {
   clip,
@@ -14,20 +14,20 @@ import {
   rectangle,
   PDFDocument,
   rgb,
-  StandardFonts,
   type PDFFont,
   type PDFImage,
   type PDFPage,
 } from "pdf-lib"
 
 import { formatBRL } from "@workspace/core/billing/format"
-import { toWinAnsi, wrapText } from "@workspace/core/proposals/pdf-text"
+import { toPdfText, wrapText, type SupportsCodePoint } from "@workspace/core/proposals/pdf-text"
 
 import {
   addressDisplayNote,
   type PropertySheetDocument,
   type PropertySheetPhoto,
 } from "@/lib/imoveis/ficha-document"
+import { embedPdfFonts } from "@/lib/pdf/fonts"
 
 const PDF_PRODUCER = "CRM Imobiliário"
 
@@ -68,9 +68,17 @@ type Layout = {
   page: PDFPage
   pages: PDFPage[]
   font: PDFFont
+  /** Peso forte (Geist SemiBold). */
   bold: PDFFont
+  /** O que as fontes desenham: base da limpeza do texto. */
+  supports: SupportsCodePoint
   accent: Rgb
   y: number
+}
+
+/** Texto limpo para as fontes do documento. */
+function pdfText(layout: Layout, value: string | null | undefined) {
+  return toPdfText(value, layout.supports)
 }
 
 function addPage(layout: Layout) {
@@ -85,8 +93,8 @@ function ensure(layout: Layout, height: number) {
   }
 }
 
-function lines(value: string, font: PDFFont, size: number, width: number) {
-  return wrapText(toWinAnsi(value), width, (part) => font.widthOfTextAtSize(part, size))
+function lines(layout: Layout, value: string, font: PDFFont, size: number, width: number) {
+  return wrapText(pdfText(layout, value), width, (part) => font.widthOfTextAtSize(part, size))
 }
 
 type TextOptions = {
@@ -105,7 +113,7 @@ function drawParagraph(layout: Layout, value: string, options: TextOptions = {})
   const width = options.width ?? CONTENT_WIDTH
   const x = options.x ?? MARGIN
   const lineHeight = size * 1.4
-  let wrapped = lines(value, font, size, width)
+  let wrapped = lines(layout, value, font, size, width)
 
   if (options.maxLines && wrapped.length > options.maxLines) {
     wrapped = wrapped.slice(0, options.maxLines)
@@ -125,7 +133,7 @@ function drawParagraph(layout: Layout, value: string, options: TextOptions = {})
 function drawSectionTitle(layout: Layout, title: string) {
   ensure(layout, 60)
   layout.y -= 12
-  layout.page.drawText(toWinAnsi(title.toUpperCase()), {
+  layout.page.drawText(pdfText(layout, title.toUpperCase()), {
     x: MARGIN,
     y: layout.y - 10,
     size: 10,
@@ -238,7 +246,7 @@ function drawHeader(layout: Layout, sheet: PropertySheetDocument, logo: PDFImage
   let lineY = top - bandHeight / 2 + blockHeight / 2
 
   for (const line of headerLines) {
-    const [first] = lines(line.text, line.font, line.size, PAGE_WIDTH - MARGIN - textX)
+    const [first] = lines(layout, line.text, line.font, line.size, PAGE_WIDTH - MARGIN - textX)
     layout.page.drawText(first ?? "", {
       x: textX,
       y: lineY - line.size,
@@ -256,7 +264,7 @@ function drawTitle(layout: Layout, sheet: PropertySheetDocument) {
   const { property } = sheet
 
   layout.page.drawText(
-    toWinAnsi(`FICHA DO IMÓVEL · ${property.code} · ${property.typeLabel.toUpperCase()}`),
+    pdfText(layout, `FICHA DO IMÓVEL · ${property.code} · ${property.typeLabel.toUpperCase()}`),
     { x: MARGIN, y: layout.y - 9, size: 9, font: layout.bold, color: MUTED }
   )
   layout.y -= 18
@@ -333,7 +341,7 @@ function drawPrices(layout: Layout, sheet: PropertySheetDocument) {
   layout.page.drawRectangle({ x: MARGIN, y: top - height, width: 4, height, color: layout.accent })
 
   if (prices.length === 0) {
-    layout.page.drawText(toWinAnsi("Valor sob consulta"), {
+    layout.page.drawText(pdfText(layout, "Valor sob consulta"), {
       x: MARGIN + 18,
       y: top - 36,
       size: 16,
@@ -347,14 +355,14 @@ function drawPrices(layout: Layout, sheet: PropertySheetDocument) {
   prices.forEach((price, index) => {
     const x = MARGIN + 18 + index * columnWidth
 
-    layout.page.drawText(toWinAnsi(price.label), {
+    layout.page.drawText(pdfText(layout, price.label), {
       x,
       y: top - 20,
       size: 9,
       font: layout.font,
       color: MUTED,
     })
-    layout.page.drawText(toWinAnsi(`${price.value}${price.suffix}`), {
+    layout.page.drawText(pdfText(layout, `${price.value}${price.suffix}`), {
       x,
       y: top - 42,
       size: 18,
@@ -364,7 +372,7 @@ function drawPrices(layout: Layout, sheet: PropertySheetDocument) {
   })
 
   if (extras.length > 0) {
-    layout.page.drawText(toWinAnsi(extras.join(" · ")), {
+    layout.page.drawText(pdfText(layout, extras.join(" · ")), {
       x: MARGIN + 18,
       y: top - 64,
       size: 11,
@@ -435,9 +443,9 @@ function drawFacts(layout: Layout, sheet: PropertySheetDocument) {
 
     items.slice(index, index + columns).forEach((fact, column) => {
       const x = MARGIN + column * (columnWidth + gap)
-      const [value] = lines(fact.value ?? "", layout.bold, 12, columnWidth)
+      const [value] = lines(layout, fact.value ?? "", layout.bold, 12, columnWidth)
 
-      layout.page.drawText(toWinAnsi(fact.label), {
+      layout.page.drawText(pdfText(layout, fact.label), {
         x,
         y: layout.y - 9,
         size: 9,
@@ -501,10 +509,10 @@ function drawFooters(layout: Layout, sheet: PropertySheetDocument) {
       color: BORDER,
     })
 
-    const pageLabel = toWinAnsi(`${index + 1}/${total}`)
+    const pageLabel = pdfText(layout, `${index + 1}/${total}`)
     const labelWidth = layout.font.widthOfTextAtSize(pageLabel, 8)
-    const [identityLine] = lines(identity, layout.font, 8, CONTENT_WIDTH - labelWidth - 12)
-    const [generatedLine] = lines(generated, layout.font, 8, CONTENT_WIDTH)
+    const [identityLine] = lines(layout, identity, layout.font, 8, CONTENT_WIDTH - labelWidth - 12)
+    const [generatedLine] = lines(layout, generated, layout.font, 8, CONTENT_WIDTH)
 
     page.drawText(identityLine ?? "", {
       x: MARGIN,
@@ -568,27 +576,27 @@ export async function renderPropertySheetPdf(
   logoBytes: Uint8Array | null = null
 ): Promise<PropertySheetPdf> {
   const doc = await PDFDocument.create()
-  const font = await doc.embedFont(StandardFonts.Helvetica)
-  const bold = await doc.embedFont(StandardFonts.HelveticaBold)
+  const fonts = await embedPdfFonts(doc)
   const firstPage = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT])
 
   const layout: Layout = {
     doc,
     page: firstPage,
     pages: [firstPage],
-    font,
-    bold,
+    font: fonts.regular,
+    bold: fonts.semiBold,
+    supports: fonts.supports,
     accent: hexToRgb(sheet.organization.brand.primaryColor) ?? INK,
     y: PAGE_HEIGHT - MARGIN,
   }
 
   const { property } = sheet
 
-  doc.setTitle(toWinAnsi(`${property.code} · ${property.title}`))
-  doc.setAuthor(toWinAnsi(sheet.organization.name))
-  doc.setSubject(toWinAnsi(`Ficha do imóvel ${property.code}`))
+  doc.setTitle(`${property.code} · ${property.title}`)
+  doc.setAuthor(sheet.organization.name)
+  doc.setSubject(`Ficha do imóvel ${property.code}`)
   doc.setProducer(PDF_PRODUCER)
-  doc.setCreator(toWinAnsi(sheet.organization.name))
+  doc.setCreator(sheet.organization.name)
   doc.setCreationDate(new Date())
 
   const [logo, ...images] = await Promise.all([

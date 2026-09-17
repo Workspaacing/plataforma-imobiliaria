@@ -4,17 +4,18 @@ import "server-only"
 // binário nativo: roda na função serverless da Vercel). Nada disso entra no
 // bundle do navegador — o módulo é importado só pelos route handlers.
 //
-// Fontes: as 14 padrão do PDF (Helvetica), que não precisam ser embutidas e
-// cobrem o pt-BR pela codificação WinAnsi. Todo texto passa por `toWinAnsi`
-// antes de ser desenhado (ver @workspace/core/proposals/pdf-text).
+// Fonte: Geist Regular e SemiBold embutidas (lib/pdf/fonts), com a Helvetica
+// padrão de reserva. Todo texto passa por `toPdfText` antes de ser desenhado
+// (ver @workspace/core/proposals/pdf-text).
 
-import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib"
+import { PDFDocument, rgb, type PDFFont, type PDFImage, type PDFPage } from "pdf-lib"
 
 import { formatBRL } from "@workspace/core/billing/format"
-import { toWinAnsi, wrapText } from "@workspace/core/proposals/pdf-text"
+import { toPdfText, wrapText, type SupportsCodePoint } from "@workspace/core/proposals/pdf-text"
 import { describeRoundTerms } from "@workspace/core/proposals/rounds"
 
 import { formatDateOnly } from "@/lib/chaves/datetime"
+import { embedPdfFonts } from "@/lib/pdf/fonts"
 import type { ProposalDocument } from "@/lib/propostas/document"
 
 /** Mesmo nome de APP_NAME (components/crm/brand): aqui como texto, para o
@@ -65,11 +66,19 @@ type Layout = {
   doc: PDFDocument
   page: PDFPage
   font: PDFFont
+  /** Peso forte (Geist SemiBold). */
   bold: PDFFont
+  /** O que as fontes desenham: base da limpeza do texto. */
+  supports: SupportsCodePoint
   accent: Rgb
   /** Linha de base disponível, do topo para baixo. */
   y: number
   pages: PDFPage[]
+}
+
+/** Texto limpo para as fontes do documento. */
+function pdfText(layout: Layout, value: string | null | undefined) {
+  return toPdfText(value, layout.supports)
 }
 
 function addPage(layout: Layout) {
@@ -103,7 +112,9 @@ function drawParagraph(layout: Layout, value: string, options: TextOptions = {})
   const width = options.width ?? CONTENT_WIDTH
   const x = options.x ?? MARGIN
   const lineHeight = size * 1.35 + (options.lineGap ?? 0)
-  const lines = wrapText(toWinAnsi(value), width, (text) => font.widthOfTextAtSize(text, size))
+  const lines = wrapText(pdfText(layout, value), width, (text) =>
+    font.widthOfTextAtSize(text, size)
+  )
 
   if (lines.length === 0) {
     return 0
@@ -130,7 +141,7 @@ function drawSectionTitle(layout: Layout, title: string) {
   ensure(layout, 34)
   layout.y -= 10
 
-  layout.page.drawText(toWinAnsi(title.toUpperCase()), {
+  layout.page.drawText(pdfText(layout, title.toUpperCase()), {
     x: MARGIN,
     y: layout.y - 9,
     size: 9,
@@ -151,7 +162,7 @@ function drawSectionTitle(layout: Layout, title: string) {
 type Field = { label: string; value: string | null }
 
 function drawField(layout: Layout, field: Field, x: number, width: number) {
-  layout.page.drawText(toWinAnsi(field.label), {
+  layout.page.drawText(pdfText(layout, field.label), {
     x,
     y: layout.y - 7,
     size: 7.5,
@@ -225,14 +236,14 @@ function drawAmount(layout: Layout, document: ProposalDocument) {
       ? `Contraproposta do proprietário para ${purpose}`
       : `Valor proposto para ${purpose}`
 
-  layout.page.drawText(toWinAnsi(amountLabel), {
+  layout.page.drawText(pdfText(layout, amountLabel), {
     x: MARGIN + 18,
     y: top - 24,
     size: 8.5,
     font: layout.font,
     color: MUTED,
   })
-  layout.page.drawText(toWinAnsi(amount), {
+  layout.page.drawText(pdfText(layout, amount), {
     x: MARGIN + 18,
     y: top - 50,
     size: 22,
@@ -244,9 +255,9 @@ function drawAmount(layout: Layout, document: ProposalDocument) {
 
   if (listed) {
     const label = `Anunciado por ${formatBRL(Math.round(listed * 100))}`
-    const width = layout.font.widthOfTextAtSize(toWinAnsi(label), 8.5)
+    const width = layout.font.widthOfTextAtSize(pdfText(layout, label), 8.5)
 
-    layout.page.drawText(toWinAnsi(label), {
+    layout.page.drawText(pdfText(layout, label), {
       x: PAGE_WIDTH - MARGIN - 18 - width,
       y: top - 24,
       size: 8.5,
@@ -283,7 +294,7 @@ function drawSignatures(layout: Layout, document: ProposalDocument) {
       color: INK,
     })
 
-    const name = toWinAnsi(column.name)
+    const name = pdfText(layout, column.name)
     const clipped = wrapText(name, columnWidth, (text) => layout.bold.widthOfTextAtSize(text, 9.5))
 
     layout.page.drawText(clipped[0] ?? name, {
@@ -293,7 +304,7 @@ function drawSignatures(layout: Layout, document: ProposalDocument) {
       font: layout.bold,
       color: INK,
     })
-    layout.page.drawText(toWinAnsi(column.role), {
+    layout.page.drawText(pdfText(layout, column.role), {
       x,
       y: lineY - 25,
       size: 8,
@@ -361,7 +372,7 @@ function drawHeader(layout: Layout, document: ProposalDocument, logo: PDFImage |
   let lineY = top - 14
 
   for (const line of lines) {
-    layout.page.drawText(toWinAnsi(line.text), {
+    layout.page.drawText(pdfText(layout, line.text), {
       x: textX,
       y: lineY - line.size,
       size: line.size,
@@ -375,7 +386,7 @@ function drawHeader(layout: Layout, document: ProposalDocument, logo: PDFImage |
 
   const title = proposal.purpose === "rent" ? "Proposta de locação" : "Proposta de compra"
 
-  layout.page.drawText(toWinAnsi(title), {
+  layout.page.drawText(pdfText(layout, title), {
     x: MARGIN,
     y: layout.y - 17,
     size: 17,
@@ -386,7 +397,7 @@ function drawHeader(layout: Layout, document: ProposalDocument, logo: PDFImage |
 
   const reference = `Proposta ${proposal.id.slice(0, 8).toUpperCase()} · registrada em ${formatDateTime(proposal.createdAt)}`
 
-  layout.page.drawText(toWinAnsi(reference), {
+  layout.page.drawText(pdfText(layout, reference), {
     x: MARGIN,
     y: layout.y - 8,
     size: 8.5,
@@ -416,14 +427,14 @@ function drawFooters(layout: Layout, document: ProposalDocument) {
       color: BORDER,
     })
 
-    page.drawText(toWinAnsi(contact || organization.name), {
+    page.drawText(pdfText(layout, contact || organization.name), {
       x: MARGIN,
       y: MARGIN + 14,
       size: 7.5,
       font: layout.font,
       color: MUTED,
     })
-    page.drawText(toWinAnsi(generated), {
+    page.drawText(pdfText(layout, generated), {
       x: MARGIN,
       y: MARGIN + 4,
       size: 7.5,
@@ -431,7 +442,7 @@ function drawFooters(layout: Layout, document: ProposalDocument) {
       color: MUTED,
     })
 
-    const pageLabel = toWinAnsi(`${index + 1}/${total}`)
+    const pageLabel = pdfText(layout, `${index + 1}/${total}`)
     const width = layout.font.widthOfTextAtSize(pageLabel, 7.5)
 
     page.drawText(pageLabel, {
@@ -513,14 +524,14 @@ export async function renderProposalPdf(
   logoBytes: Uint8Array | null = null
 ): Promise<ProposalPdf> {
   const doc = await PDFDocument.create()
-  const font = await doc.embedFont(StandardFonts.Helvetica)
-  const bold = await doc.embedFont(StandardFonts.HelveticaBold)
+  const fonts = await embedPdfFonts(doc)
 
   const layout: Layout = {
     doc,
     page: doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]),
-    font,
-    bold,
+    font: fonts.regular,
+    bold: fonts.semiBold,
+    supports: fonts.supports,
     accent: hexToRgb(document.organization.brand.primaryColor) ?? INK,
     y: PAGE_HEIGHT - MARGIN,
     pages: [],

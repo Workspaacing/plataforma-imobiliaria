@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/componen
 import { ConsentPreferences } from "@/components/leads-publicos/consent-preferences"
 import { formatPhoneDisplay } from "@/lib/captacao/masks"
 import { getPublicOrganization, publicCreciLabel } from "@/lib/captacao/public-organization"
-import { readGtmContainerId } from "@/lib/leads-publicos/landing-extras"
 import { LANDING_NOT_FOUND_METADATA } from "@/lib/leads-publicos/metadata"
 import { getPublicLandingPage } from "@/lib/leads-publicos/queries"
 import { safeGoogleTagId, safeMetaPixelId } from "@/lib/leads-publicos/tracking-ids"
@@ -66,10 +65,10 @@ export default async function LandingPrivacyPage({ params }: LandingPrivacyPageP
   const phone = formatPhoneDisplay(organization.phone)
   const contacts = [organization.email, phone].filter(Boolean).join(" · ")
   const creciLabel = await responsibleCreciLabel(orgSlug, organization.creci)
+  // Os mesmos rastreadores que LandingTracking carrega (o GTM não é carregado).
   const hasTrackers = Boolean(
     safeMetaPixelId(payload.page.tracking.meta_pixel_id) ||
-    safeGoogleTagId(payload.page.tracking.google_tag_id) ||
-    readGtmContainerId(payload)
+    safeGoogleTagId(payload.page.tracking.google_tag_id)
   )
 
   return (
@@ -154,9 +153,8 @@ export default async function LandingPrivacyPage({ params }: LandingPrivacyPageP
           {hasTrackers ? (
             <>
               <p>
-                Cookies de parceiros (Meta Pixel, Google tag e Google Tag Manager) só são ativados
-                se você aceitar. A escolha fica guardada por 180 dias e pode ser alterada aqui a
-                qualquer momento.
+                Cookies de parceiros (Meta Pixel e Google tag) só são ativados se você aceitar. A
+                escolha fica guardada por 180 dias e pode ser alterada aqui a qualquer momento.
               </p>
               <ConsentPreferences />
             </>

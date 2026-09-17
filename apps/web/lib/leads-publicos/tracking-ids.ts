@@ -1,10 +1,9 @@
 // IDs de rastreamento configurados na landing page. Só IDs que passam por estas
-// regex são interpolados nos scripts do Meta Pixel, do Google e do GTM (nada de
-// texto livre em script).
+// regex são interpolados nos scripts do Meta Pixel e do Google (nada de texto
+// livre em script). O contêiner do GTM não é carregado: ver LandingTracking.
 
 export const META_PIXEL_ID_PATTERN = /^\d{1,20}$/
 export const GOOGLE_TAG_ID_PATTERN = /^(G|GT|AW)-[A-Z0-9]{1,30}$/
-export const GTM_CONTAINER_ID_PATTERN = /^GTM-[A-Z0-9]{1,30}$/
 
 // U+2028 e U+2029 montados por código: literais desses caracteres no fonte
 // quebram a regex/strings para o TypeScript (são tratados como fim de linha).
@@ -60,8 +59,4 @@ export function safeMetaPixelId(value: unknown): string | null {
 
 export function safeGoogleTagId(value: unknown): string | null {
   return matchId(value, GOOGLE_TAG_ID_PATTERN)
-}
-
-export function safeGtmContainerId(value: unknown): string | null {
-  return matchId(value, GTM_CONTAINER_ID_PATTERN)
 }

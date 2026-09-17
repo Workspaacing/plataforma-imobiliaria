@@ -33,7 +33,6 @@ import type { LandingEditorFormValues, UploadTarget } from "@/components/marketi
 import { SearchResultPreview, SharePreview } from "@/components/marketing/seo-previews"
 import { getLandingAssetPublicUrl } from "@/lib/marketing/asset-url"
 import {
-  GTM_CONTAINER_ID_MAX_LENGTH,
   LANDING_NAME_MAX_LENGTH,
   LANDING_SLUG_MAX_LENGTH,
   SEO_DESCRIPTION_MAX_LENGTH,
@@ -409,12 +408,20 @@ export function PublicationSection({
               </Field>
             )}
           />
+          {/*
+            GTM indisponível por segurança: o contêiner roda qualquer código na página, e a
+            página publicada fica no mesmo endereço do CRM (ver LandingTracking). O campo só
+            mostra o ID salvo, que continua no formulário e é mantido ao salvar.
+          */}
           <Controller
             name="publication.gtmContainerId"
             control={control}
             render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid} data-disabled={disabled || undefined}>
-                <FieldLabel htmlFor="lp-gtm">Google Tag Manager</FieldLabel>
+              <Field data-invalid={fieldState.invalid} data-disabled>
+                <div className="flex items-center gap-2">
+                  <FieldLabel htmlFor="lp-gtm">Google Tag Manager</FieldLabel>
+                  <Badge variant="secondary">indisponível</Badge>
+                </div>
                 <Input
                   id="lp-gtm"
                   ref={field.ref}
@@ -422,19 +429,18 @@ export function PublicationSection({
                   value={field.value}
                   autoComplete="off"
                   spellCheck={false}
-                  maxLength={GTM_CONTAINER_ID_MAX_LENGTH}
-                  placeholder="GTM-XXXXXXX"
-                  disabled={disabled}
+                  placeholder="Indisponível por enquanto"
+                  disabled
                   aria-invalid={fieldState.invalid || undefined}
-                  onBlur={field.onBlur}
-                  onChange={(event) =>
-                    field.onChange(event.target.value.replace(/\s/g, "").toUpperCase())
-                  }
+                  readOnly
                 />
                 {fieldState.error ? (
                   <FieldError errors={[fieldState.error]} />
                 ) : (
-                  <FieldDescription>ID do contêiner, no formato GTM-XXXXXXX.</FieldDescription>
+                  <FieldDescription>
+                    Por segurança, a página publicada não carrega o Google Tag Manager por enquanto.
+                    Use o Meta Pixel e a Google Tag acima.
+                  </FieldDescription>
                 )}
               </Field>
             )}
@@ -443,13 +449,15 @@ export function PublicationSection({
           {hasGtm ? (
             <Alert>
               <TriangleAlertIcon />
-              <AlertTitle>Evite eventos duplicados</AlertTitle>
+              <AlertTitle>O Google Tag Manager está pausado nesta página</AlertTitle>
               <AlertDescription>
-                Com GTM configurado, evite repetir o Pixel e a Google Tag dentro do GTM para não
-                duplicar eventos.
+                O contêiner do Google Tag Manager pode rodar qualquer código na página, e as páginas
+                publicadas ainda ficam no mesmo endereço do CRM, onde a sua equipe está conectada.
+                Para proteger as contas, ele não é carregado. O ID salvo fica guardado para quando
+                as páginas tiverem endereço próprio.
                 {hasDirectTags
                   ? " Esta página já envia o Pixel e/ou a Google Tag preenchidos acima."
-                  : ""}
+                  : " Enquanto isso, preencha o Meta Pixel e a Google Tag acima para medir visitas e leads."}
               </AlertDescription>
             </Alert>
           ) : null}

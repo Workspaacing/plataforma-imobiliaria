@@ -1,5 +1,5 @@
-// Consentimento de cookies de medição (LGPD) das landing pages. Meta Pixel,
-// gtag.js e GTM só carregam com "granted". A escolha fica no cookie first-party
+// Consentimento de cookies de medição (LGPD) das landing pages. Meta Pixel e
+// gtag.js só carregam com "granted". A escolha fica no cookie first-party
 // `lp_consent` por 180 dias.
 
 import * as React from "react"
