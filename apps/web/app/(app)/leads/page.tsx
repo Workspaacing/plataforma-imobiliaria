@@ -23,9 +23,11 @@ import { PageHeading } from "@/components/crm/page-placeholder"
 import { LeadFilters } from "@/components/leads/lead-filters"
 import { LeadsSummary } from "@/components/leads/leads-summary"
 import { LeadsWorkspace } from "@/components/leads/leads-workspace"
+import { ImportSheetLink } from "@/components/importacao/import-sheet-link"
 import { NewLeadDialog } from "@/components/leads/new-lead-dialog"
 import { requireMembership } from "@/lib/auth/session"
 import { getOrganizationMembers } from "@/lib/clientes/members"
+import { IMPORT_ROLES } from "@/lib/importacao/constants"
 import { LEADS_LIST_LIMIT, LEADS_PATH } from "@/lib/leads/constants"
 import { createLeadsClient } from "@/lib/leads/db"
 import {
@@ -99,6 +101,7 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
   ])
 
   const canCreate = canCreateLeads(role)
+  const canImport = IMPORT_ROLES.includes(role)
   const isFiltered = hasActiveLeadFilters(filters)
 
   const description =
@@ -185,7 +188,14 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
                 {canCreate ? " Você também pode cadastrar um lead que chegou por outro canal." : ""}
               </EmptyDescription>
             </EmptyHeader>
-            {newLeadButton ? <EmptyContent>{newLeadButton}</EmptyContent> : null}
+            {newLeadButton || canImport ? (
+              <EmptyContent>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {newLeadButton}
+                  {canImport ? <ImportSheetLink /> : null}
+                </div>
+              </EmptyContent>
+            ) : null}
           </Empty>
         )
       ) : (

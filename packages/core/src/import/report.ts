@@ -54,6 +54,11 @@ export type ImportWriteCode =
   | "billing_read_only"
   | "permission_denied"
   | "too_long"
+  | "invalid_owner"
+  | "invalid_owner_share"
+  | "invalid_date"
+  | "invalid_date_order"
+  | "invalid_photo_link"
   | "write_failed"
 
 const WRITE_MESSAGES: Record<ImportWriteCode, string> = {
@@ -74,6 +79,11 @@ const WRITE_MESSAGES: Record<ImportWriteCode, string> = {
   billing_read_only: "Assinatura em modo somente leitura",
   permission_denied: "Sem permissão para alterar este cadastro",
   too_long: "Texto maior que o permitido",
+  invalid_owner: "Proprietário sem nome ou sem CPF/CNPJ, telefone ou e-mail válido",
+  invalid_owner_share: "Percentuais dos proprietários precisam estar em todos e somar 100",
+  invalid_date: "Data inválida (use DD/MM/AAAA, sem data futura)",
+  invalid_date_order: "Data do 1º contato ou de ganho/perda antes da data de entrada",
+  invalid_photo_link: "Link de foto inválido (use http:// ou https://, separados por |)",
   write_failed: "Não foi possível gravar esta linha",
 }
 
@@ -111,6 +121,16 @@ export function describeImportIssue(kind: ImportKind, issue: ImportIssue): strin
       return `${label} não é um número válido`
     case "invalid_external_code":
       return "Código de referência com mais de 60 caracteres"
+    case "invalid_date":
+      return `${label || "Data"} inválida: use DD/MM/AAAA (hora opcional), sem data futura`
+    case "invalid_date_order":
+      return "Data do 1º contato ou de ganho/perda antes da data de entrada"
+    case "invalid_owner":
+      return "Proprietário sem nome ou sem CPF/CNPJ, telefone ou e-mail válido (vários: separe por |)"
+    case "invalid_owner_share":
+      return "Percentuais dos proprietários: informe em todos, de 0,01 a 100, somando 100"
+    case "invalid_photo_link":
+      return "Link de foto inválido: use endereços http:// ou https:// separados por |"
     case "duplicate_in_file":
       return issue.duplicateOf
         ? `Repetido no arquivo (igual à linha ${issue.duplicateOf})`
@@ -295,4 +315,103 @@ export function buildImportErrorsCsv(
   ])
 
   return buildCsvDocument(["Linha", "Motivo", ...headers], rows)
+}
+
+// ---------------------------------------------------------------------------
+// Fotos por link
+// ---------------------------------------------------------------------------
+
+/** Códigos de falha de um link de foto (RPC import_photos_status e servidor). */
+export type ImportPhotoFailureCode =
+  | "invalid_link"
+  | "blocked_address"
+  | "timeout"
+  | "too_large"
+  | "not_image"
+  | "http_error"
+  | "download_failed"
+  | "optimize_failed"
+  | "upload_failed"
+  | "photo_limit_per_listing"
+  | "photo_limit_property"
+  | "listing_limit"
+  | "billing_read_only"
+  | "permission_denied"
+  | "import_undone"
+
+const PHOTO_FAILURE_MESSAGES: Record<ImportPhotoFailureCode, string> = {
+  invalid_link: "link inválido",
+  blocked_address: "endereço não permitido (só sites públicos na internet)",
+  timeout: "o site demorou demais para responder",
+  too_large: "arquivo grande demais (máximo de 15 MB antes de otimizar)",
+  not_image: "o link não é uma foto JPG, PNG, WebP, GIF ou AVIF",
+  http_error: "o site não entregou a foto (link quebrado ou protegido)",
+  download_failed: "não foi possível baixar a foto",
+  optimize_failed: "não foi possível otimizar a foto para até 2 MB",
+  upload_failed: "não foi possível guardar a foto",
+  photo_limit_per_listing: "passou do limite de fotos por imóvel do plano",
+  photo_limit_property: "o imóvel já tem 20 fotos, o máximo",
+  listing_limit: "o plano chegou ao limite de imóveis com foto; este imóvel ficou sem fotos",
+  billing_read_only: "assinatura em modo somente leitura",
+  permission_denied: "sem permissão para editar este imóvel",
+  import_undone: "a importação foi desfeita",
+}
+
+export function describePhotoFailure(code: string | null | undefined): string {
+  if (code && code in PHOTO_FAILURE_MESSAGES) {
+    return PHOTO_FAILURE_MESSAGES[code as ImportPhotoFailureCode]
+  }
+
+  return PHOTO_FAILURE_MESSAGES.download_failed
+}
+
+export type ImportPhotoFailure = { row: number; position: number; code: string | null }
+
+/**
+ * Falhas de foto viram linhas da lista de problemas e do CSV de erros
+ * ("Foto 2: o site demorou demais para responder"). Várias fotos da mesma
+ * linha se juntam num motivo só.
+ */
+export function photoFailuresToProblems(
+  failures: readonly ImportPhotoFailure[]
+): ImportRowProblem[] {
+  const byLine = new Map<number, string[]>()
+
+  for (const failure of [...failures].sort((a, b) => a.row - b.row || a.position - b.position)) {
+    const reasons = byLine.get(failure.row) ?? []
+    reasons.push(`Foto ${failure.position + 1}: ${describePhotoFailure(failure.code)}`)
+    byLine.set(failure.row, reasons)
+  }
+
+  return [...byLine.entries()].map(([line, reasons]) => ({
+    line,
+    status: "failed" as const,
+    reason: reasons.join("; "),
+  }))
+}
+
+/** Aviso único quando o plano barrou fotos (a tela mostra com o link para Assinatura). */
+export function photoLimitNotice(failures: readonly ImportPhotoFailure[]): string | null {
+  const listing = failures.filter((failure) => failure.code === "listing_limit").length
+  const perListing = failures.filter((failure) => failure.code === "photo_limit_per_listing").length
+
+  if (listing === 0 && perListing === 0) {
+    return null
+  }
+
+  const parts: string[] = []
+
+  if (listing > 0) {
+    parts.push(
+      `${listing.toLocaleString("pt-BR")} ${listing === 1 ? "foto ficou" : "fotos ficaram"} de fora porque o plano chegou ao limite de imóveis com foto`
+    )
+  }
+
+  if (perListing > 0) {
+    parts.push(
+      `${perListing.toLocaleString("pt-BR")} ${perListing === 1 ? "foto passou" : "fotos passaram"} do limite de fotos por imóvel`
+    )
+  }
+
+  return `${parts.join(" e ")}. Imóveis vendidos, alugados ou inativos não contam; para liberar vagas, atualize a situação desses imóveis ou mude de plano em Configurações > Assinatura.`
 }

@@ -184,7 +184,7 @@ begin
   execute 'select bool_and(
       (select array_agg(k order by k) from jsonb_object_keys(metadata) k)
         = array[''batches'', ''duplicate_mode'', ''failed'', ''inserted'', ''kind'',
-                ''skipped'', ''total_rows'', ''updated'']
+                ''photo_links'', ''skipped'', ''total_rows'', ''updated'']
       and entity = ''import_jobs'')
     from public.audit_events
     where organization_id = $1 and action = ''import'' and entity_id = $2'

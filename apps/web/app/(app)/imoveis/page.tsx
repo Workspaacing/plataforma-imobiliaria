@@ -19,6 +19,7 @@ import { ListPagination } from "@/components/imoveis/list-pagination"
 import { PropertiesFilters } from "@/components/imoveis/properties-filters"
 import { PropertiesList } from "@/components/imoveis/properties-list"
 import { PropertiesShortcuts } from "@/components/imoveis/properties-shortcuts"
+import { ImportSheetLink } from "@/components/importacao/import-sheet-link"
 import { PageShell } from "@/components/shared/page-shell"
 import { requireMembership } from "@/lib/auth/session"
 import {
@@ -28,6 +29,7 @@ import {
   parsePropertyListFilters,
 } from "@/lib/imoveis/list-queries"
 import { canCreateProperty } from "@/lib/imoveis/permissions"
+import { IMPORT_ROLES } from "@/lib/importacao/constants"
 import { getOrganizationMembers } from "@/lib/imoveis/queries"
 import { createClient } from "@/lib/supabase/server"
 
@@ -55,6 +57,7 @@ export default async function ImoveisPage({ searchParams }: ImoveisPageProps) {
   const memberNames = Object.fromEntries(members.map((member) => [member.id, member.name]))
   const filtered = hasActiveFilters(filters)
   const canCreate = canCreateProperty(membership.role)
+  const canImport = IMPORT_ROLES.includes(membership.role)
   const filterParams = filtersToSearchParams(filters)
 
   const newPropertyButton = canCreate ? (
@@ -160,7 +163,14 @@ export default async function ImoveisPage({ searchParams }: ImoveisPageProps) {
                 : "Quando a equipe cadastrar imóveis, eles aparecem aqui."}
             </EmptyDescription>
           </EmptyHeader>
-          {newPropertyButton ? <EmptyContent>{newPropertyButton}</EmptyContent> : null}
+          {newPropertyButton || canImport ? (
+            <EmptyContent>
+              <div className="flex flex-wrap justify-center gap-2">
+                {newPropertyButton}
+                {canImport ? <ImportSheetLink /> : null}
+              </div>
+            </EmptyContent>
+          ) : null}
         </Empty>
       )}
     </PageShell>

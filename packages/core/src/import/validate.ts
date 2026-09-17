@@ -9,6 +9,7 @@
  */
 
 import { PROPERTY_TYPE_LABELS, type PropertyStatus, type PropertyType } from "../properties/enums"
+import { isImportDateBefore, parseImportDateTime } from "./dates"
 import type { ImportKind } from "./fields"
 import { mapRowValues, type ColumnMapping } from "./mapping"
 import {
@@ -28,6 +29,8 @@ import {
   splitImportList,
   truncate,
 } from "./normalize"
+import { parseImportOwners, type ImportOwnerPayload } from "./owners"
+import { IMPORT_MAX_PHOTO_LINKS, parsePhotoLinks } from "./photo-links"
 import {
   inferPropertyUsage,
   parseClientKind,
@@ -52,6 +55,11 @@ export type ImportIssueCode =
   | "invalid_document"
   | "invalid_number"
   | "invalid_external_code"
+  | "invalid_date"
+  | "invalid_date_order"
+  | "invalid_owner"
+  | "invalid_owner_share"
+  | "invalid_photo_link"
   | "duplicate_in_file"
 
 export type ImportWarningCode =
@@ -66,7 +74,7 @@ export type ImportSourceRow = { line: number; cells: readonly string[] }
 
 export type ImportMember = { id: string; name: string; email: string | null }
 
-export type ImportPayloadValue = string | number | boolean | string[]
+export type ImportPayloadValue = string | number | boolean | string[] | ImportOwnerPayload[]
 
 /** Linha pronta para a RPC: colunas do banco + `row` (número da linha). */
 export type ImportPayload = { row: number } & Record<string, ImportPayloadValue>
@@ -94,6 +102,8 @@ export type ImportValidationContext = {
   members: readonly ImportMember[]
   /** Traduz uma característica escrita na planilha para a chave do catálogo. */
   resolveFeature?: (label: string) => string
+  /** Data de referência para "no futuro" (testes). */
+  now?: Date
 }
 
 export const IMPORT_TEXT_LIMITS = {
@@ -418,9 +428,51 @@ function validateClient(
   return builder.result(keys)
 }
 
+/**
+ * Datas originais do lead: entrada, 1º contato e ganho/perda. 1º contato e
+ * ganho/perda não vêm antes da entrada; data de ganho/perda só vale para lead
+ * ganho ou perdido (nas outras etapas é ignorada com aviso).
+ */
+function validateLeadDates(builder: RowBuilder, now: Date) {
+  const values: Partial<Record<"received_at" | "first_contact_at" | "closed_at", string>> = {}
+
+  for (const key of ["received_at", "first_contact_at", "closed_at"] as const) {
+    const result = parseImportDateTime(builder.raw(key), now)
+
+    if (!result.ok) {
+      builder.error("invalid_date", key)
+    } else if (result.value) {
+      values[key] = result.value
+    }
+  }
+
+  const stage = builder.payload.stage
+
+  if (values.closed_at && stage !== "won" && stage !== "lost") {
+    delete values.closed_at
+    builder.warn("value_ignored", "closed_at")
+  }
+
+  const received = values.received_at
+
+  if (
+    received &&
+    ((values.first_contact_at && isImportDateBefore(values.first_contact_at, received)) ||
+      (values.closed_at && isImportDateBefore(values.closed_at, received)))
+  ) {
+    builder.error("invalid_date_order", "received_at")
+    return
+  }
+
+  builder.set("received_at", values.received_at)
+  builder.set("first_contact_at", values.first_contact_at)
+  builder.set("closed_at", values.closed_at)
+}
+
 function validateLead(
   builder: RowBuilder,
-  resolveMember: (value: string) => string | null
+  resolveMember: (value: string) => string | null,
+  now: Date
 ): RowResult {
   const name = builder.text("name", IMPORT_TEXT_LIMITS.leadName)
 
@@ -465,6 +517,7 @@ function validateLead(
   builder.text("typology", IMPORT_TEXT_LIMITS.leadTypology)
   builder.longText("message", IMPORT_TEXT_LIMITS.leadMessage)
   builder.member("assigned_to", resolveMember)
+  validateLeadDates(builder, now)
 
   const keys: string[] = []
 
@@ -626,6 +679,35 @@ function validateProperty(
   builder.member("broker_id", resolveMember)
   builder.member("captured_by", resolveMember)
 
+  const owners = parseImportOwners({
+    name: builder.raw("owner_name"),
+    document: builder.raw("owner_document"),
+    phone: builder.raw("owner_phone"),
+    email: builder.raw("owner_email"),
+    share: builder.raw("owner_share"),
+  })
+
+  if (owners.issue) {
+    builder.error(
+      owners.issue,
+      owners.issue === "invalid_owner_share" ? "owner_share" : "owner_name"
+    )
+  } else {
+    builder.set("owners", owners.owners)
+  }
+
+  const photos = parsePhotoLinks(builder.raw("photo_urls"))
+
+  if (photos.invalid > 0) {
+    builder.error("invalid_photo_link", "photo_urls")
+  } else {
+    if (photos.truncated) {
+      builder.warn("text_truncated", "photo_urls", IMPORT_MAX_PHOTO_LINKS)
+    }
+
+    builder.set("photo_urls", photos.urls)
+  }
+
   if (
     type &&
     purpose &&
@@ -672,6 +754,7 @@ export function validateImportRows(
 ): ImportValidation {
   const resolveMember = memberResolver(context.members)
   const resolveFeature = context.resolveFeature ?? ((label: string) => label)
+  const now = context.now ?? new Date()
   const firstLineByKey = new Map<string, number>()
   const validation: ImportValidation = {
     kind,
@@ -687,7 +770,7 @@ export function validateImportRows(
       kind === "clients"
         ? validateClient(builder, resolveMember)
         : kind === "leads"
-          ? validateLead(builder, resolveMember)
+          ? validateLead(builder, resolveMember, now)
           : validateProperty(builder, resolveMember, resolveFeature)
 
     if (result.issues.length > 0) {

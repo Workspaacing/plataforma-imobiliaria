@@ -410,3 +410,101 @@ describe("arquivos da importação", () => {
     expect(batches.map((batch) => batch.length)).toEqual([3, 3, 3, 1])
   })
 })
+
+describe("validateImportRows: datas do lead, proprietários e fotos", () => {
+  const now = new Date("2026-09-17T12:00:00-03:00")
+
+  it("leva as datas originais do lead e recusa ordem trocada", () => {
+    const mapping = suggestColumnMapping("leads", [
+      "Nome",
+      "Celular",
+      "Etapa",
+      "Data de entrada",
+      "Data do 1º contato",
+      "Data de ganho",
+    ])
+
+    expect(mapping).toEqual([
+      "name",
+      "phone",
+      "stage",
+      "received_at",
+      "first_contact_at",
+      "closed_at",
+    ])
+
+    const result = validateImportRows(
+      "leads",
+      rows([
+        ["Ana", "21 99876-5432", "Ganho", "10/03/2025 09:15", "10/03/2025 10:40", "20/03/2025"],
+        ["Bia", "21 99876-5433", "Novo", "10/03/2025", "01/03/2025", ""],
+        ["Caio", "21 99876-5434", "Em contato", "31/02/2025", "", ""],
+      ]),
+      mapping,
+      { members, now }
+    )
+
+    expect(result.ready[0]?.payload).toMatchObject({
+      received_at: "2025-03-10T09:15:00-03:00",
+      first_contact_at: "2025-03-10T10:40:00-03:00",
+      closed_at: "2025-03-20T12:00:00-03:00",
+    })
+    expect(result.rejected.map((row) => row.issues.map((issue) => issue.code))).toEqual([
+      ["invalid_date_order"],
+      ["invalid_date"],
+    ])
+  })
+
+  it("monta proprietários e links de foto do imóvel", () => {
+    const mapping = suggestColumnMapping("properties", [
+      "Tipo",
+      "Finalidade",
+      "Preço de venda",
+      "Proprietário",
+      "CPF do proprietário",
+      "Telefone do proprietário",
+      "Percentual do proprietário",
+      "Fotos",
+    ])
+
+    expect(mapping.slice(3)).toEqual([
+      "owner_name",
+      "owner_document",
+      "owner_phone",
+      "owner_share",
+      "photo_urls",
+    ])
+
+    const result = validateImportRows(
+      "properties",
+      rows([
+        [
+          "Apartamento",
+          "Venda",
+          "500.000",
+          "Maria | João",
+          "529.982.247-25 |",
+          " | 11 98765-4321",
+          "60 | 40",
+          "https://exemplo.com/1.jpg | https://exemplo.com/2.jpg",
+        ],
+        ["Casa", "Venda", "1", "Ana | Beto", "", "11 98765-4321 | 11 98765-4322", "50 | 40", ""],
+        ["Casa", "Venda", "2", "", "", "", "", "foto1.jpg"],
+      ]),
+      mapping,
+      { members, now }
+    )
+
+    expect(result.ready[0]?.payload).toMatchObject({
+      owners: [
+        { name: "Maria", document: "52998224725", share_percent: 60 },
+        { name: "João", phone: "11987654321", share_percent: 40 },
+      ],
+      photo_urls: ["https://exemplo.com/1.jpg", "https://exemplo.com/2.jpg"],
+    })
+    expect(result.rejected.map((row) => row.issues.map((issue) => issue.code))).toEqual([
+      ["invalid_owner_share"],
+      ["invalid_photo_link"],
+    ])
+  })
+})

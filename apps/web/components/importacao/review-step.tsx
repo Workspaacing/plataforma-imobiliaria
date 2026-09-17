@@ -82,6 +82,16 @@ export function ReviewStep({
   const ready = validation.ready.length
   const newRows = Math.max(ready - existingCount, 0)
   const warnings = groupWarnings(validation)
+  const leadsWithoutEntryDate =
+    kind === "leads" ? validation.ready.filter((row) => !row.payload.received_at).length : 0
+  const photoLinks =
+    kind === "properties"
+      ? validation.ready.reduce(
+          (sum, row) =>
+            sum + (Array.isArray(row.payload.photo_urls) ? row.payload.photo_urls.length : 0),
+          0
+        )
+      : 0
 
   const stats = [
     { label: "Linhas na planilha", value: validation.totalRows },
@@ -103,6 +113,35 @@ export function ReviewStep({
           </Item>
         ))}
       </div>
+
+      {leadsWithoutEntryDate > 0 ? (
+        <Alert>
+          <InfoIcon />
+          <AlertTitle>
+            {formatCount(leadsWithoutEntryDate)}{" "}
+            {leadsWithoutEntryDate === 1 ? "lead sem data de entrada" : "leads sem data de entrada"}
+          </AlertTitle>
+          <AlertDescription>
+            Sem a coluna &quot;Data de entrada&quot;, esses leads entram no funil mas não contam em
+            Recebidos e Atendidos de nenhum mês, para não inflar o relatório deste mês. O prazo de
+            primeiro contato nunca vale para lead importado.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {photoLinks > 0 ? (
+        <Alert>
+          <InfoIcon />
+          <AlertTitle>
+            {formatCount(photoLinks)} {photoLinks === 1 ? "link de foto" : "links de foto"}
+          </AlertTitle>
+          <AlertDescription>
+            Depois de gravar os imóveis, baixamos as fotos em lotes pequenos e otimizamos cada uma
+            para até 2 MB. As fotos contam no limite do seu plano (fotos por imóvel e imóveis com
+            foto); o que passar do limite fica de fora e aparece na lista de erros.
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       {ready === 0 ? (
         <Alert variant="destructive">

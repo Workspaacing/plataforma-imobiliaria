@@ -13,6 +13,8 @@ import {
   buildImportErrorsCsv,
   chunkImportList,
   IMPORT_LOOKUP_ROWS,
+  photoFailuresToProblems,
+  photoLimitNotice,
   splitImportBatches,
   summarizeImport,
   type ImportRowOutcome,
@@ -45,6 +47,7 @@ import { KindStep } from "@/components/importacao/kind-step"
 import { MappingStep } from "@/components/importacao/mapping-step"
 import { ResultStep } from "@/components/importacao/result-step"
 import { ReviewStep, type ImportOptions } from "@/components/importacao/review-step"
+import { useImportPhotos } from "@/components/importacao/use-import-photos"
 import {
   findExistingImportRows,
   finishImportJob,
@@ -60,7 +63,13 @@ type RunState =
   | { status: "idle" }
   | { status: "running"; done: number; total: number }
   | { status: "failed"; error: string; done: number; total: number }
-  | { status: "finished"; summary: ImportSummary; problems: ImportRowProblem[] }
+  | {
+      status: "finished"
+      jobId: string
+      summary: ImportSummary
+      problems: ImportRowProblem[]
+      hasPhotos: boolean
+    }
 
 type ActionOutcome<T> = { ok: true; data: T } | { ok: false; error: string }
 
@@ -120,6 +129,7 @@ export function ImportWizard({ members }: { members: ImportMember[] }) {
   const [checking, setChecking] = React.useState(false)
   const [checkError, setCheckError] = React.useState<string | null>(null)
   const [run, setRun] = React.useState<RunState>({ status: "idle" })
+  const { state: photoState, run: runPhotos } = useImportPhotos()
 
   // Uma importação em andamento: o id e os lotes não mudam entre tentativas,
   // e o resultado de cada lote gravado fica guardado para retomar.
@@ -129,7 +139,7 @@ export function ImportWizard({ members }: { members: ImportMember[] }) {
     outcomes: (ImportRowOutcome[] | undefined)[]
   } | null>(null)
 
-  const running = run.status === "running"
+  const running = run.status === "running" || photoState.status === "running"
 
   React.useEffect(() => {
     if (!running) {
@@ -319,9 +329,31 @@ export function ImportWizard({ members }: { members: ImportMember[] }) {
       validation,
       job.outcomes.flatMap((outcomes) => outcomes ?? [])
     )
+    const hasPhotos =
+      kind === "properties" &&
+      validation.ready.some(
+        (row) => Array.isArray(row.payload.photo_urls) && row.payload.photo_urls.length > 0
+      )
 
-    setRun({ status: "finished", summary, problems })
+    setRun({ status: "finished", jobId: job.id, summary, problems, hasPhotos })
+
+    if (hasPhotos) {
+      await runPhotos(job.id)
+    }
   }
+
+  const photoProgress = photoState.status === "idle" ? null : photoState.progress
+  const resultProblems = React.useMemo<ImportRowProblem[]>(() => {
+    if (run.status !== "finished") {
+      return []
+    }
+
+    const photoProblems = run.hasPhotos
+      ? photoFailuresToProblems(photoProgress?.failures ?? [])
+      : []
+
+    return [...run.problems, ...photoProblems].sort((a, b) => a.line - b.line)
+  }, [run, photoProgress])
 
   function restart() {
     setStep("kind")
@@ -386,9 +418,15 @@ export function ImportWizard({ members }: { members: ImportMember[] }) {
           {step === "import" && run.status === "finished" ? (
             <ResultStep
               kind={kind}
+              jobId={run.jobId}
               summary={run.summary}
-              problems={run.problems}
-              onDownloadErrors={() => downloadErrors(run.problems)}
+              problems={resultProblems}
+              photos={run.hasPhotos ? photoProgress : null}
+              photosRunning={run.hasPhotos && photoState.status === "running"}
+              photoError={run.hasPhotos && photoState.status === "failed" ? photoState.error : null}
+              photoNotice={run.hasPhotos ? photoLimitNotice(photoProgress?.failures ?? []) : null}
+              onRetryPhotos={() => void runPhotos(run.jobId)}
+              onDownloadErrors={() => downloadErrors(resultProblems)}
               onRestart={restart}
             />
           ) : null}

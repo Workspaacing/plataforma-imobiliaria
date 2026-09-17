@@ -17,6 +17,7 @@ import { ClientFilters } from "@/components/clientes/client-filters"
 import { ClientsPagination } from "@/components/clientes/clients-pagination"
 import { ClientsTable } from "@/components/clientes/clients-table"
 import { PageHeading } from "@/components/crm/page-placeholder"
+import { ImportSheetLink } from "@/components/importacao/import-sheet-link"
 import { PageShell } from "@/components/shared/page-shell"
 import { requireMembership } from "@/lib/auth/session"
 import { CLIENTS_PAGE_SIZE, CLIENTS_PATH } from "@/lib/clientes/constants"
@@ -28,6 +29,7 @@ import {
 } from "@/lib/clientes/filters"
 import { getOrganizationMembers } from "@/lib/clientes/members"
 import { canCreateClients } from "@/lib/clientes/permissions"
+import { IMPORT_ROLES } from "@/lib/importacao/constants"
 import { listClients, listClientTags } from "@/lib/clientes/queries"
 
 export const metadata: Metadata = {
@@ -51,6 +53,7 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
 
   const totalPages = Math.max(1, Math.ceil(result.total / CLIENTS_PAGE_SIZE))
   const canCreate = canCreateClients(membership.role)
+  const canImport = IMPORT_ROLES.includes(membership.role)
   const isFiltered = hasActiveClientFilters(filters)
 
   const description =
@@ -143,12 +146,17 @@ export default async function ClientesPage({ searchParams }: ClientesPageProps) 
                 : "Ainda não há clientes visíveis para o seu papel nesta imobiliária."}
             </EmptyDescription>
           </EmptyHeader>
-          {canCreate ? (
+          {canCreate || canImport ? (
             <EmptyContent>
-              <Button render={<Link href={`${CLIENTS_PATH}/novo`} />} nativeButton={false}>
-                <PlusIcon data-icon="inline-start" />
-                Cadastrar cliente
-              </Button>
+              <div className="flex flex-wrap justify-center gap-2">
+                {canCreate ? (
+                  <Button render={<Link href={`${CLIENTS_PATH}/novo`} />} nativeButton={false}>
+                    <PlusIcon data-icon="inline-start" />
+                    Cadastrar cliente
+                  </Button>
+                ) : null}
+                {canImport ? <ImportSheetLink /> : null}
+              </div>
             </EmptyContent>
           ) : null}
         </Empty>

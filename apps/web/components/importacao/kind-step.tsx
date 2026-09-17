@@ -23,12 +23,12 @@ const KIND_DETAILS: Record<ImportKind, { icon: LucideIcon; description: string }
   leads: {
     icon: FunnelIcon,
     description:
-      "Contatos do funil com etapa, origem e interesse. A base antiga não entra no rodízio nem abre prazo de primeiro contato.",
+      "Contatos do funil com etapa, origem, interesse e as datas originais (entrada, 1º contato, ganho ou perda). A base antiga não entra no rodízio nem conta no prazo de primeiro contato.",
   },
   properties: {
     icon: Building2Icon,
     description:
-      "Finalidade, tipo, preços, endereço, características e código de referência, sem fotos. Não contam no limite de imóveis com foto; sem preço ou área, entram como rascunho.",
+      "Finalidade, tipo, preços, endereço, características, código de referência, proprietários e links das fotos (baixadas e otimizadas por nós). Sem preço ou área, entram como rascunho.",
   },
 }
 
