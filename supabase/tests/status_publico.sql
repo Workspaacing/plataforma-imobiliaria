@@ -29,7 +29,8 @@
 --      e-mail, detalhe da medição, candidato, rotina);
 --   6. retenção: amostra com mais de 8 dias e resumo com mais de 400 dias
 --      saem; recentes ficam; rotina agendada a cada minuto;
---   7. privilégios: get_public_status e status_ping para anon e
+--   7. privilégios: get_public_status só para anon (o servidor chama sem
+--      sessão; migração advisor_rpc_least_privilege) e status_ping para anon e
 --      authenticated; RPCs do Console só anon; tabelas e rotinas privadas
 --      sem acesso de sessão.
 --
@@ -593,7 +594,7 @@ begin
   r := r || jsonb_build_object(
     'rpcs_publicas',
       has_function_privilege('anon', 'public.get_public_status()', 'execute')
-      and has_function_privilege('authenticated', 'public.get_public_status()', 'execute')
+      and not has_function_privilege('authenticated', 'public.get_public_status()', 'execute')
       and has_function_privilege('anon', 'public.status_ping()', 'execute')
       and has_function_privilege('authenticated', 'public.status_ping()', 'execute'),
     'rpcs_console_so_anon',

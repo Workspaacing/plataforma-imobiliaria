@@ -27,7 +27,7 @@
 --   dono_inativo_nao_vira_fallback : "null|null"
 --   slug_inexistente               : true
 --   grant_anon                     : true
---   grant_authenticated            : true
+--   grant_authenticated            : false
 
 do $$
 declare
