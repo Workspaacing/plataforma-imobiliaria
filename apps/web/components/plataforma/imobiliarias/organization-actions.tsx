@@ -42,9 +42,12 @@ import {
   extendTrialAction,
   setOrganizationBlockAction,
 } from "@/app/plataforma/imobiliarias/actions"
+import { PLATFORM_READ_ONLY_NOTICE_ID } from "@/components/plataforma/equipe/read-only-notice"
 import { formatDate } from "@/lib/format"
 
 type OrganizationActionsProps = {
+  /** false = Somente leitura: botões desabilitados (o servidor recusa de qualquer jeito). */
+  canAct: boolean
   organizationId: string
   organizationName: string
   blocked: boolean
@@ -54,9 +57,11 @@ type OrganizationActionsProps = {
 /**
  * Ações da ficha: bloquear/desbloquear e prorrogar o teste grátis. Cada uma
  * abre um diálogo de confirmação com motivo obrigatório; a RPC grava o registro
- * do console. Nada é apagado.
+ * do console. Nada é apagado. Para "Somente leitura", os botões ficam
+ * desabilitados, explicados pelo aviso no topo da ficha.
  */
 export function OrganizationActions({
+  canAct,
   organizationId,
   organizationName,
   blocked,
@@ -68,12 +73,14 @@ export function OrganizationActions({
     <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
       {showTrial ? (
         <ExtendTrialDialog
+          readOnly={!canAct}
           organizationId={organizationId}
           organizationName={organizationName}
           trial={trial}
         />
       ) : null}
       <BlockDialog
+        readOnly={!canAct}
         organizationId={organizationId}
         organizationName={organizationName}
         blocked={blocked}
@@ -122,10 +129,12 @@ function ReasonField({
 }
 
 function BlockDialog({
+  readOnly,
   organizationId,
   organizationName,
   blocked,
 }: {
+  readOnly: boolean
   organizationId: string
   organizationName: string
   blocked: boolean
@@ -134,7 +143,15 @@ function BlockDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant={blocked ? "outline" : "destructive"} />}>
+      <DialogTrigger
+        render={
+          <Button
+            variant={blocked ? "outline" : "destructive"}
+            disabled={readOnly}
+            aria-describedby={readOnly ? PLATFORM_READ_ONLY_NOTICE_ID : undefined}
+          />
+        }
+      >
         {blocked ? <LockOpenIcon data-icon="inline-start" /> : <BanIcon data-icon="inline-start" />}
         {blocked ? "Desbloquear conta" : "Bloquear conta"}
       </DialogTrigger>
@@ -239,10 +256,12 @@ function BlockForm({
 }
 
 function ExtendTrialDialog({
+  readOnly,
   organizationId,
   organizationName,
   trial,
 }: {
+  readOnly: boolean
   organizationId: string
   organizationName: string
   trial: TrialExtensionInput
@@ -260,7 +279,15 @@ function ExtendTrialDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="outline" />}>
+      <DialogTrigger
+        render={
+          <Button
+            variant="outline"
+            disabled={readOnly}
+            aria-describedby={readOnly ? PLATFORM_READ_ONLY_NOTICE_ID : undefined}
+          />
+        }
+      >
         <CalendarPlusIcon data-icon="inline-start" />
         Prorrogar teste grátis
       </DialogTrigger>

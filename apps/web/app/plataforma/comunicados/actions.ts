@@ -7,8 +7,9 @@ import {
   prepareAnnouncementEndReason,
   type AnnouncementField,
 } from "@workspace/core/platform/announcements"
+import { PLATFORM_READ_ONLY_MESSAGE } from "@workspace/core/platform/staff"
 
-import { getPlatformAdmin } from "@/lib/plataforma/admin"
+import { canAct, getPlatformAdmin } from "@/lib/plataforma/admin"
 import {
   announcementFailureMessage,
   endPlatformAnnouncement,
@@ -18,9 +19,9 @@ import {
 import { PLATFORM_RPC_FAILURE_MESSAGES } from "@/lib/plataforma/rpc"
 
 /**
- * Server Actions dos comunicados. Cada uma confere o administrador de novo (a
- * RPC confere mais uma vez) e valida tudo no servidor: o que vem do navegador
- * nunca é confiável. Quem agiu vem da sessão, e o registro do console é gravado
+ * Server Actions dos comunicados. Cada uma confere de novo a pessoa da equipe e
+ * o papel ("Somente leitura" não age; a RPC confere mais uma vez) e valida tudo
+ * no servidor: o que vem do navegador nunca é confiável. Quem agiu vem da sessão, e o registro do console é gravado
  * pela própria RPC na mesma transação.
  */
 
@@ -30,6 +31,17 @@ export type AnnouncementActionResult =
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+/** null = pode agir; senão a mensagem de recusa. */
+async function denyUnlessCanAct(): Promise<string | null> {
+  const admin = await getPlatformAdmin()
+
+  if (!admin) {
+    return PLATFORM_RPC_FAILURE_MESSAGES.sem_acesso
+  }
+
+  return canAct(admin) ? null : PLATFORM_READ_ONLY_MESSAGE
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value)
 }
@@ -38,8 +50,10 @@ export async function saveAnnouncementAction(
   values: unknown,
   id: string | null
 ): Promise<AnnouncementActionResult> {
-  if (!(await getPlatformAdmin())) {
-    return { ok: false, error: PLATFORM_RPC_FAILURE_MESSAGES.sem_acesso }
+  const denied = await denyUnlessCanAct()
+
+  if (denied) {
+    return { ok: false, error: denied }
   }
 
   if (id !== null && (typeof id !== "string" || !UUID_PATTERN.test(id))) {
@@ -74,8 +88,10 @@ export async function endAnnouncementAction(
   id: string,
   reason: unknown
 ): Promise<AnnouncementActionResult> {
-  if (!(await getPlatformAdmin())) {
-    return { ok: false, error: PLATFORM_RPC_FAILURE_MESSAGES.sem_acesso }
+  const denied = await denyUnlessCanAct()
+
+  if (denied) {
+    return { ok: false, error: denied }
   }
 
   if (typeof id !== "string" || !UUID_PATTERN.test(id)) {

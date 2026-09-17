@@ -71,6 +71,20 @@ const ACTION_LABELS: Record<string, string> = {
   "organizacao.desbloquear": "Imobiliária desbloqueada",
   "assinatura.prorrogar_teste": "Teste grátis prorrogado",
   "caixa.enviar_lista": "Lista da Caixa enviada",
+  "equipe.convidar": "Pessoa convidada para a equipe",
+  "equipe.reenviar_convite": "Convite da equipe reenviado",
+  "equipe.revogar_convite": "Convite da equipe revogado",
+  "equipe.aceitar_convite": "Convite da equipe aceito",
+  "equipe.mudar_papel": "Papel na equipe alterado",
+  "equipe.remover": "Pessoa removida da equipe",
+  "incidente.criar": "Incidente publicado na página de status",
+  "incidente.atualizar": "Atualização de incidente publicada",
+  "incidente.resolver": "Incidente resolvido",
+  "incidente.editar": "Incidente editado",
+  "manutencao.agendar": "Manutenção agendada na página de status",
+  "manutencao.atualizar": "Atualização de manutenção publicada",
+  "manutencao.concluir": "Manutenção concluída",
+  "manutencao.editar": "Manutenção editada",
 }
 
 /** Rótulo em pt-BR; ação sem rótulo aparece como está gravada. */
@@ -83,6 +97,10 @@ const TARGET_LABELS: Record<string, string> = {
   organizacao: "Imobiliária",
   assinatura: "Assinatura",
   catalogo_caixa: "Catálogo da Caixa",
+  convite_equipe: "Convite para a equipe",
+  membro_equipe: "Pessoa da equipe",
+  incidente: "Incidente (página de status)",
+  manutencao: "Manutenção (página de status)",
 }
 
 export function auditTargetLabel(targetType: string): string {

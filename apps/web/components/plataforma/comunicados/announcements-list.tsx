@@ -58,9 +58,11 @@ function periodText(announcement: PlatformAnnouncement): string {
 function AnnouncementCard({
   announcement,
   now,
+  readOnly,
 }: {
   announcement: PlatformAnnouncement
   now: Date
+  readOnly: boolean
 }) {
   const status = announcementStatus(announcement, now)
   const editable = status === "agendado" || status === "no_ar"
@@ -107,8 +109,13 @@ function AnnouncementCard({
           <AnnouncementFormDialog
             announcementId={announcement.id}
             initialValues={formValues(announcement)}
+            readOnly={readOnly}
           />
-          <EndAnnouncementButton id={announcement.id} title={announcement.title} />
+          <EndAnnouncementButton
+            id={announcement.id}
+            title={announcement.title}
+            readOnly={readOnly}
+          />
         </CardFooter>
       ) : null}
     </Card>
@@ -120,11 +127,14 @@ export function AnnouncementsSection({
   description,
   announcements,
   now,
+  readOnly = false,
 }: {
   title: string
   description: string
   announcements: readonly PlatformAnnouncement[]
   now: Date
+  /** Somente leitura: botões de editar e encerrar desabilitados. */
+  readOnly?: boolean
 }) {
   return (
     <section className="flex flex-col gap-3">
@@ -135,7 +145,7 @@ export function AnnouncementsSection({
       <ul className="grid gap-3 lg:grid-cols-2">
         {announcements.map((announcement) => (
           <li key={announcement.id} className="min-w-0">
-            <AnnouncementCard announcement={announcement} now={now} />
+            <AnnouncementCard announcement={announcement} now={now} readOnly={readOnly} />
           </li>
         ))}
       </ul>

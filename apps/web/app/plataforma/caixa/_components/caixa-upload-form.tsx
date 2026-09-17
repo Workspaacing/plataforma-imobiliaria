@@ -25,6 +25,7 @@ import {
   CAIXA_UPLOAD_MAX_BODY_BYTES,
   type CaixaUploadResponse,
 } from "@/lib/plataforma/caixa-labels"
+import { PLATFORM_READ_ONLY_NOTICE_ID } from "@/components/plataforma/equipe/read-only-notice"
 
 const numberFormat = new Intl.NumberFormat("pt-BR")
 
@@ -88,7 +89,8 @@ function rejectionSummary(byReason: Partial<Record<CaixaRejectionReason, number>
     .join(", ")
 }
 
-export function CaixaUploadForm() {
+/** readOnly = Somente leitura: campo e botão desabilitados (a rota recusa de qualquer jeito). */
+export function CaixaUploadForm({ readOnly = false }: { readOnly?: boolean }) {
   const router = useRouter()
   const inputRef = React.useRef<HTMLInputElement>(null)
   const [pending, setPending] = React.useState(false)
@@ -98,7 +100,7 @@ export function CaixaUploadForm() {
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    if (pending) {
+    if (pending || readOnly) {
       return
     }
 
@@ -181,7 +183,7 @@ export function CaixaUploadForm() {
             name="arquivo"
             type="file"
             accept=".csv,text/csv"
-            disabled={pending}
+            disabled={pending || readOnly}
             aria-invalid={fieldError ? true : undefined}
             onChange={() => {
               setFieldError(null)
@@ -196,7 +198,12 @@ export function CaixaUploadForm() {
       </FieldGroup>
 
       <div>
-        <Button type="submit" disabled={pending} className="w-full sm:w-auto">
+        <Button
+          type="submit"
+          disabled={pending || readOnly}
+          aria-describedby={readOnly ? PLATFORM_READ_ONLY_NOTICE_ID : undefined}
+          className="w-full sm:w-auto"
+        >
           {pending ? <Spinner data-icon="inline-start" /> : <UploadIcon data-icon="inline-start" />}
           {pending ? "Enviando e gravando…" : "Enviar lista"}
         </Button>

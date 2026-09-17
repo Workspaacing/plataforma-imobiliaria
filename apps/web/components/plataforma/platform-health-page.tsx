@@ -6,9 +6,11 @@ import { HealthSectionCard } from "@/components/plataforma/health-section-card"
 import { HealthStatusBadge } from "@/components/plataforma/health-status-badge"
 import { PlatformRpcFailureAlert } from "@/components/plataforma/platform-rpc-failure-alert"
 import { RefreshButton } from "@/components/plataforma/refresh-button"
+import { PublicStatusSummaryCard } from "@/components/plataforma/status/public-status-summary-card"
 import { formatDateTime, formatNumber } from "@/lib/format"
 import { requirePlatformAdmin } from "@/lib/plataforma/admin"
 import { loadPlatformHealth } from "@/lib/plataforma/health"
+import { getPublicStatus } from "@/lib/status/public"
 
 const SUMMARY_LABELS: Record<HealthStatus, string> = {
   problema: "Problemas",
@@ -26,7 +28,7 @@ const SUMMARY_ORDER: readonly HealthStatus[] = ["problema", "atencao", "ok"]
 export async function PlatformHealthPage() {
   await requirePlatformAdmin()
 
-  const report = await loadPlatformHealth()
+  const [report, publicStatus] = await Promise.all([loadPlatformHealth(), getPublicStatus()])
   const summary = summarizeHealth(report.sections)
 
   return (
@@ -71,6 +73,8 @@ export async function PlatformHealthPage() {
           </ul>
         </CardContent>
       </Card>
+
+      <PublicStatusSummaryCard snapshot={publicStatus} />
 
       {report.sections.map((section) => (
         <HealthSectionCard key={section.key} section={section} />

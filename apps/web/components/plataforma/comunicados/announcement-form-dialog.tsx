@@ -57,6 +57,7 @@ import { toast } from "@workspace/ui/components/toast"
 
 import { saveAnnouncementAction } from "@/app/plataforma/comunicados/actions"
 import { AnnouncementStrip } from "@/components/plataforma/comunicados/announcement-strip"
+import { PLATFORM_READ_ONLY_NOTICE_ID } from "@/components/plataforma/equipe/read-only-notice"
 
 const KIND_ITEMS = ANNOUNCEMENT_KINDS.map((kind) => ({
   value: kind,
@@ -90,11 +91,14 @@ type AnnouncementFormDialogProps = {
   announcementId: string | null
   /** Valores do comunicado a editar; sem eles, começa agora e fica 7 dias. */
   initialValues?: AnnouncementFormValues
+  /** Somente leitura: o botão fica desabilitado (o servidor recusa de qualquer jeito). */
+  readOnly?: boolean
 }
 
 export function AnnouncementFormDialog({
   announcementId,
   initialValues,
+  readOnly = false,
 }: AnnouncementFormDialogProps) {
   const [open, setOpen] = React.useState(false)
   const isEditing = announcementId !== null
@@ -103,7 +107,12 @@ export function AnnouncementFormDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger
         render={
-          <Button variant={isEditing ? "outline" : "default"} size={isEditing ? "sm" : "default"} />
+          <Button
+            variant={isEditing ? "outline" : "default"}
+            size={isEditing ? "sm" : "default"}
+            disabled={readOnly}
+            aria-describedby={readOnly ? PLATFORM_READ_ONLY_NOTICE_ID : undefined}
+          />
         }
       >
         {isEditing ? (

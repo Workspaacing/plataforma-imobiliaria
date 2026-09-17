@@ -22,9 +22,19 @@ import { Textarea } from "@workspace/ui/components/textarea"
 import { toast } from "@workspace/ui/components/toast"
 
 import { endAnnouncementAction } from "@/app/plataforma/comunicados/actions"
+import { PLATFORM_READ_ONLY_NOTICE_ID } from "@/components/plataforma/equipe/read-only-notice"
 
 /** Tira o comunicado do ar agora, com motivo opcional para o registro. */
-export function EndAnnouncementButton({ id, title }: { id: string; title: string }) {
+export function EndAnnouncementButton({
+  id,
+  title,
+  readOnly = false,
+}: {
+  id: string
+  title: string
+  /** Somente leitura: botão desabilitado (o servidor recusa de qualquer jeito). */
+  readOnly?: boolean
+}) {
   const [open, setOpen] = React.useState(false)
   const [reason, setReason] = React.useState("")
   const [error, setError] = React.useState<string | null>(null)
@@ -56,7 +66,16 @@ export function EndAnnouncementButton({ id, title }: { id: string; title: string
         if (!nextOpen) setError(null)
       }}
     >
-      <AlertDialogTrigger render={<Button variant="outline" size="sm" />}>
+      <AlertDialogTrigger
+        render={
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={readOnly}
+            aria-describedby={readOnly ? PLATFORM_READ_ONLY_NOTICE_ID : undefined}
+          />
+        }
+      >
         <CircleStopIcon data-icon="inline-start" />
         Encerrar
       </AlertDialogTrigger>

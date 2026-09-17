@@ -30,7 +30,12 @@ export type CaixaUploadResponse =
   | { ok: true; result: "unchanged" }
   | {
       ok: false
-      reason: CaixaSyncFailureReason | "sem_arquivo" | "tipo_invalido" | "origem_invalida"
+      reason:
+        | CaixaSyncFailureReason
+        | "sem_arquivo"
+        | "tipo_invalido"
+        | "origem_invalida"
+        | "somente_leitura"
       message: string
       rejectedByReason?: Partial<Record<CaixaRejectionReason, number>>
     }

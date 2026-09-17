@@ -6,6 +6,8 @@ import {
   HistoryIcon,
   LandmarkIcon,
   MegaphoneIcon,
+  RadarIcon,
+  UsersIcon,
   type LucideIcon,
 } from "lucide-react"
 
@@ -43,6 +45,14 @@ export const PLATFORM_NAV_ITEMS: readonly PlatformNavItem[] = [
     extraActivePaths: [PLATFORM_HOME_PATH],
   },
   {
+    title: "Status público",
+    url: "/plataforma/status",
+    icon: RadarIcon,
+    description:
+      "Página de status para os clientes: situação de cada parte, medições automáticas, incidentes e manutenções.",
+    status: "available",
+  },
+  {
     title: "Imobiliárias",
     url: "/plataforma/imobiliarias",
     icon: Building2Icon,
@@ -75,6 +85,14 @@ export const PLATFORM_NAV_ITEMS: readonly PlatformNavItem[] = [
     url: "/plataforma/caixa",
     icon: LandmarkIcon,
     description: "Envio da lista oficial de imóveis da Caixa.",
+    status: "available",
+  },
+  {
+    title: "Equipe",
+    url: "/plataforma/equipe",
+    icon: UsersIcon,
+    description:
+      "Quem acessa o console e com qual papel; só o Dono convida, muda o papel e remove.",
     status: "available",
   },
   {

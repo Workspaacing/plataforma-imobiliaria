@@ -27,10 +27,11 @@ import { AiUsageMeter } from "@/components/plataforma/imobiliarias/ai-usage-mete
 import { BillingHistoryList } from "@/components/plataforma/imobiliarias/billing-history-list"
 import { ConsoleActionsList } from "@/components/plataforma/imobiliarias/console-actions-list"
 import { MembersList } from "@/components/plataforma/imobiliarias/members-list"
+import { PlatformReadOnlyNotice } from "@/components/plataforma/equipe/read-only-notice"
 import { OrganizationActions } from "@/components/plataforma/imobiliarias/organization-actions"
 import { PlatformRpcFailureAlert } from "@/components/plataforma/platform-rpc-failure-alert"
 import { formatDate, formatDateTime, formatNumber } from "@/lib/format"
-import { requirePlatformAdmin } from "@/lib/plataforma/admin"
+import { canAct, requirePlatformAdmin } from "@/lib/plataforma/admin"
 import { listPlatformAuditEvents } from "@/lib/plataforma/audit"
 import { getPlatformOrganization } from "@/lib/plataforma/imobiliarias"
 
@@ -60,7 +61,8 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
  * Nenhum dado de cliente ou lead da imobiliária aparece aqui.
  */
 export default async function PlatformOrganizationPage({ params }: PageProps) {
-  await requirePlatformAdmin()
+  const admin = await requirePlatformAdmin()
+  const allowActions = canAct(admin)
 
   const { id } = await params
   const organizationId = z.guid().safeParse(id)
@@ -129,6 +131,7 @@ export default async function PlatformOrganizationPage({ params }: PageProps) {
         </div>
         {billing ? (
           <OrganizationActions
+            canAct={allowActions}
             organizationId={organization.id}
             organizationName={organization.name}
             blocked={Boolean(billing.blockedAt)}
@@ -141,6 +144,8 @@ export default async function PlatformOrganizationPage({ params }: PageProps) {
           />
         ) : null}
       </div>
+
+      {billing && !allowActions ? <PlatformReadOnlyNotice /> : null}
 
       {billing?.blockedAt ? (
         <Alert variant="destructive">

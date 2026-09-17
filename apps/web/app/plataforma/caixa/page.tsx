@@ -16,8 +16,9 @@ import {
 } from "@workspace/ui/components/card"
 
 import { PageHeading } from "@/components/crm/page-placeholder"
+import { PlatformReadOnlyNotice } from "@/components/plataforma/equipe/read-only-notice"
 import { formatDateTime, formatNumber } from "@/lib/format"
-import { requirePlatformAdmin } from "@/lib/plataforma/admin"
+import { canAct, requirePlatformAdmin } from "@/lib/plataforma/admin"
 import {
   CAIXA_EVENTS_LIMIT,
   getCaixaLoadSummary,
@@ -39,11 +40,13 @@ export const metadata: Metadata = {
  * app/plataforma/layout.tsx. O download automático é
  * bloqueado pela proteção anti-robô do site da Caixa e não é contornado.
  *
- * Quem não está em PLATFORM_ADMIN_EMAILS recebe 404 (requirePlatformAdmin, aqui e no
- * layout: o layout não roda de novo na navegação pelo menu).
+ * Quem não é da equipe recebe 404 (requirePlatformAdmin, aqui e no layout: o
+ * layout não roda de novo na navegação pelo menu). "Somente leitura" vê a página
+ * com o envio desabilitado (a rota de envio recusa de novo).
  */
 export default async function PlataformaCaixaPage() {
-  await requirePlatformAdmin()
+  const admin = await requirePlatformAdmin()
+  const readOnly = !canAct(admin)
 
   const supabase = await createClient()
   const [summary, events] = await Promise.all([
@@ -112,6 +115,8 @@ export default async function PlataformaCaixaPage() {
           </CardContent>
         </Card>
 
+        {readOnly ? <PlatformReadOnlyNotice /> : null}
+
         <Card>
           <CardHeader>
             <CardTitle>Enviar a lista atualizada</CardTitle>
@@ -138,7 +143,7 @@ export default async function PlataformaCaixaPage() {
               <li>Baixe o arquivo (Lista_imoveis_geral.csv). Não abra nem salve no Excel.</li>
               <li>Envie o arquivo aqui embaixo.</li>
             </ol>
-            <CaixaUploadForm />
+            <CaixaUploadForm readOnly={readOnly} />
           </CardContent>
         </Card>
 

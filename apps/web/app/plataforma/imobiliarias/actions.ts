@@ -8,20 +8,34 @@ import {
   isTrialExtensionDays,
   PLATFORM_ORGANIZATIONS_PATH,
 } from "@workspace/core/platform/accounts"
+import { PLATFORM_READ_ONLY_MESSAGE } from "@workspace/core/platform/staff"
 
 import type { ActionResult } from "@/lib/auth/action-result"
-import { getPlatformAdmin } from "@/lib/plataforma/admin"
+import { canAct, getPlatformAdmin } from "@/lib/plataforma/admin"
 import { extendPlatformTrial, setPlatformOrganizationBlock } from "@/lib/plataforma/imobiliarias"
 
 /**
- * Ações da ficha da imobiliária no Console da Plataforma. Cada uma confere o
- * administrador de novo (a página não roda antes da Server Action), valida o
- * formulário e chama a RPC, que grava o registro do console na mesma
- * transação. Nada é apagado.
+ * Ações da ficha da imobiliária no Console da Plataforma. Cada uma confere de
+ * novo a pessoa da equipe e o papel (a página não roda antes da Server Action;
+ * "Somente leitura" não age), valida o formulário e chama a RPC, que grava o
+ * registro do console na mesma transação (e também recusa Somente leitura).
+ * Nada é apagado.
  */
 
 const NOT_ALLOWED: ActionResult = { ok: false, error: "Sua sessão não tem acesso a esta ação." }
+const READ_ONLY: ActionResult = { ok: false, error: PLATFORM_READ_ONLY_MESSAGE }
 const INVALID_ORGANIZATION: ActionResult = { ok: false, error: "Imobiliária inválida." }
+
+/** null = pode agir; senão o resultado de recusa. */
+async function denyUnlessCanAct(): Promise<ActionResult | null> {
+  const admin = await getPlatformAdmin()
+
+  if (!admin) {
+    return NOT_ALLOWED
+  }
+
+  return canAct(admin) ? null : READ_ONLY
+}
 
 const organizationIdSchema = z.guid()
 
@@ -36,8 +50,10 @@ export async function setOrganizationBlockAction(input: {
   blocked: boolean
   reason: string
 }): Promise<ActionResult> {
-  if (!(await getPlatformAdmin())) {
-    return NOT_ALLOWED
+  const denied = await denyUnlessCanAct()
+
+  if (denied) {
+    return denied
   }
 
   const organizationId = organizationIdSchema.safeParse(input?.organizationId)
@@ -71,8 +87,10 @@ export async function extendTrialAction(input: {
   days: number
   reason: string
 }): Promise<ActionResult> {
-  if (!(await getPlatformAdmin())) {
-    return NOT_ALLOWED
+  const denied = await denyUnlessCanAct()
+
+  if (denied) {
+    return denied
   }
 
   const organizationId = organizationIdSchema.safeParse(input?.organizationId)

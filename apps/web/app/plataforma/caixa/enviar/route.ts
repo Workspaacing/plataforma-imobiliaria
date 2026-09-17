@@ -2,9 +2,10 @@ import { promisify } from "node:util"
 import { gunzip } from "node:zlib"
 
 import { CAIXA_MAX_FILE_BYTES, decodeCaixaCsvBytes } from "@workspace/core/caixa/catalog-import"
+import { PLATFORM_READ_ONLY_MESSAGE } from "@workspace/core/platform/staff"
 
 import { digestCaixaListBytes, runCaixaCatalogImport } from "@/lib/caixa/ingest"
-import { getPlatformAdmin } from "@/lib/plataforma/admin"
+import { canAct, getPlatformAdmin } from "@/lib/plataforma/admin"
 import { logPlatformAction } from "@/lib/plataforma/audit"
 import {
   CAIXA_FAILURE_MESSAGES,
@@ -16,8 +17,10 @@ import { isSameOriginRequest } from "@/lib/plataforma/request"
 /**
  * Recebe a lista oficial da Caixa enviada em /plataforma/caixa.
  *
- * - Só equipe da plataforma (`PLATFORM_ADMIN_EMAILS`, e-mail confirmado); o
- *   resto recebe 404 antes de o corpo ser lido.
+ * - Só equipe da plataforma (Dono ou pessoa convidada, e-mail confirmado); o
+ *   resto recebe 404 antes de o corpo ser lido. "Somente leitura" recebe 403,
+ *   também antes de ler o corpo (a carga não passa pelo registro do console,
+ *   então esta é a barreira).
  * - Só do próprio site (Origin = host), com corpo `application/gzip` (o
  *   navegador compacta o CSV: a Vercel recusa corpo acima de 4,5 MB) ou
  *   `text/csv`. Descompactado, o arquivo pode ter até 20 MB.
@@ -115,6 +118,10 @@ export async function POST(request: Request) {
 
   if (!isSameOriginRequest(request)) {
     return failure(403, "origem_invalida", "Envie o arquivo pela página da plataforma.")
+  }
+
+  if (!canAct(admin)) {
+    return failure(403, "somente_leitura", PLATFORM_READ_ONLY_MESSAGE)
   }
 
   const contentType = request.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase()
