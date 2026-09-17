@@ -5,6 +5,7 @@ import Script from "next/script"
 import { CircleAlertIcon, MessageCircleIcon } from "lucide-react"
 
 import { META_WHATSAPP_TERMS } from "@workspace/core/connections"
+import { isMetaMessageOrigin } from "@workspace/core/whatsapp/embedded-signup"
 import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert"
 import { Button } from "@workspace/ui/components/button"
 import { Checkbox } from "@workspace/ui/components/checkbox"
@@ -59,13 +60,8 @@ type SignupData = { wabaId: string; phoneNumberId: string; businessId: string | 
 
 const SDK_SRC = "https://connect.facebook.net/pt_BR/sdk.js"
 
+/** Lê o resultado do cadastro. Só chame depois de conferir a origem (isMetaMessageOrigin). */
 function readSignupMessage(event: MessageEvent): SignupData | "cancel" | "error" | null {
-  // A Meta manda o resultado por postMessage. Origem diferente de facebook.com
-  // é ignorada sem olhar o conteúdo.
-  if (typeof event.origin !== "string" || !event.origin.endsWith("facebook.com")) {
-    return null
-  }
-
   let payload: unknown
 
   try {
@@ -169,6 +165,12 @@ export function WhatsappConnectDialog({
     }
 
     function onMessage(event: MessageEvent) {
+      // A Meta manda o resultado por postMessage. Origem que não seja
+      // https://facebook.com (ou subdomínio) é ignorada sem olhar o conteúdo.
+      if (!isMetaMessageOrigin(event.origin)) {
+        return
+      }
+
       const parsed = readSignupMessage(event)
 
       if (parsed === null) {

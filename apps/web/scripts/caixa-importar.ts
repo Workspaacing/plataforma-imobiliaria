@@ -21,7 +21,7 @@
  * servidor Next) e roda o resultado com o Node.
  */
 
-import { existsSync, readFileSync, statSync } from "node:fs"
+import { closeSync, fstatSync, openSync, readFileSync } from "node:fs"
 import path from "node:path"
 
 import {
@@ -79,15 +79,21 @@ function parseArgs(argv: string[]) {
 function loadLocalEnv(required: boolean) {
   const envPath = path.resolve(process.cwd(), ".env.local")
 
-  if (!existsSync(envPath)) {
+  // Tenta ler direto (sem checar antes se existe, para o arquivo não mudar no
+  // meio). Não sobrescreve variáveis que já estejam no ambiente.
+  try {
+    process.loadEnvFile(envPath)
+  } catch (cause) {
+    const missing = (cause as NodeJS.ErrnoException | null)?.code === "ENOENT"
+
+    if (!missing) {
+      fail("não foi possível ler apps/web/.env.local.")
+    }
+
     if (required) {
       fail("apps/web/.env.local não encontrado. Rode o comando dentro de apps/web.")
     }
-    return
   }
-
-  // Não sobrescreve variáveis que já estejam no ambiente.
-  process.loadEnvFile(envPath)
 }
 
 function rejectionLines(byReason: Partial<Record<CaixaRejectionReason, number>>) {
@@ -123,6 +129,47 @@ function failureMessage(outcome: Extract<CaixaSyncOutcome, { ok: false }>) {
   return CAIXA_FAILURE_MESSAGES[outcome.reason]
 }
 
+/**
+ * Abre o arquivo UMA vez e confere tipo e tamanho pelo mesmo descritor que é
+ * lido: checar o caminho e ler depois deixaria o arquivo mudar no meio.
+ */
+function readListFile(filePath: string): Uint8Array {
+  let fd: number
+
+  try {
+    fd = openSync(filePath, "r")
+  } catch {
+    fail(`arquivo não encontrado: ${filePath}`)
+  }
+
+  try {
+    const stats = fstatSync(fd)
+
+    if (!stats.isFile()) {
+      fail(`arquivo não encontrado: ${filePath}`)
+    }
+
+    if (stats.size === 0) {
+      fail("o arquivo está vazio.")
+    }
+
+    if (stats.size > CAIXA_MAX_FILE_BYTES) {
+      fail("o arquivo passa de 20 MB. Confira se é a lista da Caixa.")
+    }
+
+    const bytes = new Uint8Array(readFileSync(fd))
+
+    // O arquivo pode ter crescido entre a conferência e a leitura.
+    if (bytes.byteLength === 0 || bytes.byteLength > CAIXA_MAX_FILE_BYTES) {
+      fail("o arquivo mudou durante a leitura. Tente de novo.")
+    }
+
+    return bytes
+  } finally {
+    closeSync(fd)
+  }
+}
+
 async function main() {
   const { simulate, file } = parseArgs(process.argv.slice(2))
   // Caminho relativo: a partir de onde o npm foi chamado (INIT_CWD, definido pelo
@@ -130,23 +177,11 @@ async function main() {
   // eslint-disable-next-line turbo/no-undeclared-env-vars
   const filePath = path.resolve(process.env.INIT_CWD ?? process.cwd(), file)
 
-  if (!existsSync(filePath) || !statSync(filePath).isFile()) {
-    fail(`arquivo não encontrado: ${filePath}`)
-  }
-
-  const size = statSync(filePath).size
-
-  if (size === 0) {
-    fail("o arquivo está vazio.")
-  }
-
-  if (size > CAIXA_MAX_FILE_BYTES) {
-    fail("o arquivo passa de 20 MB. Confira se é a lista da Caixa.")
-  }
+  const bytes = readListFile(filePath)
+  const size = bytes.byteLength
 
   loadLocalEnv(!simulate)
 
-  const bytes = new Uint8Array(readFileSync(filePath))
   const digest = digestCaixaListBytes(bytes)
 
   console.log(`\nLista da Caixa — ${simulate ? "SIMULAÇÃO (nada será gravado)" : "carga no banco"}`)
