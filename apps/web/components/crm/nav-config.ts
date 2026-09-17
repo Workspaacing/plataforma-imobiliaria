@@ -2,6 +2,7 @@ import {
   BuildingIcon,
   CalendarDaysIcon,
   ChartColumnIcon,
+  CoinsIcon,
   CreditCardIcon,
   GiftIcon,
   HandCoinsIcon,
@@ -18,8 +19,10 @@ import {
   PlugZapIcon,
   SettingsIcon,
   StoreIcon,
+  TrendingUpIcon,
   UserCogIcon,
   UsersIcon,
+  UsersRoundIcon,
   type LucideIcon,
 } from "lucide-react"
 
@@ -106,6 +109,13 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: LayoutTemplateIcon,
         roles: ["owner", "manager", "assistant"],
       },
+      {
+        // Leitura para o financeiro (RLS); lançar e editar só dono e gerente.
+        title: "Investimentos",
+        url: "/marketing/investimentos",
+        icon: CoinsIcon,
+        roles: ORGANIZATION_VIEWER_ROLES,
+      },
     ],
   },
   {
@@ -123,6 +133,12 @@ export const NAV_GROUPS: NavGroup[] = [
         roles: TEAM_MANAGER_ROLES,
       },
       {
+        // Sem `roles`: todo membro vê a própria equipe; só a gestão edita (validado no servidor).
+        title: "Equipes",
+        url: "/configuracoes/equipes",
+        icon: UsersRoundIcon,
+      },
+      {
         title: "Imobiliária",
         url: "/configuracoes/imobiliaria",
         icon: StoreIcon,
@@ -138,6 +154,12 @@ export const NAV_GROUPS: NavGroup[] = [
         title: "Comissões",
         url: "/configuracoes/comissoes",
         icon: HandCoinsIcon,
+        roles: TEAM_MANAGER_ROLES,
+      },
+      {
+        title: "Previsão de vendas",
+        url: "/configuracoes/previsao",
+        icon: TrendingUpIcon,
         roles: TEAM_MANAGER_ROLES,
       },
       {

@@ -9,16 +9,22 @@ import {
   ShieldCheckIcon,
   ShuffleIcon,
   StoreIcon,
+  Trash2Icon,
+  TrendingUpIcon,
   UserCogIcon,
   UserRoundIcon,
+  UsersRoundIcon,
   type LucideIcon,
 } from "lucide-react"
 
 import { NAV_GROUPS } from "@/components/crm/nav-config"
 import { ORGANIZATION_VIEWER_ROLES, TEAM_MANAGER_ROLES, type Role } from "@/lib/auth/roles"
 import { REFERRALS_SETTINGS_PATH, SUBSCRIPTION_SETTINGS_PATH } from "@/lib/auth/routes"
+import { TEAMS_SETTINGS_PATH } from "@/lib/equipes/constants"
 import { IMPORT_ROLES, IMPORT_SETTINGS_PATH } from "@/lib/importacao/constants"
 import { INTEGRATIONS_SETTINGS_PATH } from "@/lib/integracoes/constants"
+import { TRASH_ROLES, TRASH_SETTINGS_PATH } from "@/lib/lixeira/constants"
+import { FORECAST_SETTINGS_PATH } from "@/lib/previsao/constants"
 
 /** Índice de configurações (estilo Stripe). */
 export const SETTINGS_INDEX_PATH = "/configuracoes"
@@ -105,6 +111,15 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
         roles: sidebarRoles(TEAM_SETTINGS_PATH, TEAM_MANAGER_ROLES),
       },
       {
+        title: "Equipes comerciais",
+        navTitle: "Equipes",
+        description:
+          "Equipes com líder para subtotais, metas e previsão por equipe nos relatórios.",
+        icon: UsersRoundIcon,
+        href: TEAMS_SETTINGS_PATH,
+        // Sem `roles`: todo membro vê a própria equipe; só dono e gerente editam.
+      },
+      {
         title: "Rodízio de leads",
         navTitle: "Rodízio",
         description: "Distribuição automática dos leads, escala de plantão e prazo de resposta.",
@@ -128,6 +143,15 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
         icon: HandCoinsIcon,
         href: COMMISSIONS_SETTINGS_PATH,
         roles: sidebarRoles(COMMISSIONS_SETTINGS_PATH, TEAM_MANAGER_ROLES),
+      },
+      {
+        title: "Previsão de vendas",
+        navTitle: "Previsão",
+        description:
+          "Chance de fechar cada proposta em aberto por etapa, usada no pipeline ponderado.",
+        icon: TrendingUpIcon,
+        href: FORECAST_SETTINGS_PATH,
+        roles: sidebarRoles(FORECAST_SETTINGS_PATH, TEAM_MANAGER_ROLES),
       },
       {
         title: "Assinatura",
@@ -180,6 +204,15 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
         icon: FileSpreadsheetIcon,
         href: IMPORT_SETTINGS_PATH,
         roles: IMPORT_ROLES,
+      },
+      {
+        title: "Lixeira",
+        navTitle: "Lixeira",
+        description:
+          "Leads, clientes e imóveis excluídos: restaure em até 30 dias ou apague de vez, respeitando a guarda legal.",
+        icon: Trash2Icon,
+        href: TRASH_SETTINGS_PATH,
+        roles: TRASH_ROLES,
       },
     ],
   },
