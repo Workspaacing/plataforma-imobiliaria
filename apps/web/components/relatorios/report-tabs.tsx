@@ -18,10 +18,14 @@ export function ReportTabs({
   tab,
   period,
   broker,
+  team,
+  month,
 }: {
   tab: ReportTab
   period: ReportPeriod
   broker: string | null
+  team: string | null
+  month: string
 }) {
   const router = useRouter()
   const [isPending, startTransition] = React.useTransition()
@@ -44,6 +48,8 @@ export function ReportTabs({
                 from: period.fromDay,
                 to: period.toDay,
                 broker,
+                team,
+                month,
                 tab: value,
               }),
               { scroll: false }

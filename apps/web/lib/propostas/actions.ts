@@ -94,6 +94,10 @@ function toProposalColumns(values: ProposalFormValues) {
     financing_amount: values.financingAmount ? parseBrlInput(values.financingAmount) : null,
     exchange_description: values.exchangeDescription?.trim() || null,
     payment_deadline: values.paymentDeadline?.trim() || null,
+    // Campo ausente (edição montada sem a data) não mexe na coluna; vazio limpa.
+    ...(values.expectedCloseDate === undefined
+      ? {}
+      : { expected_close_date: values.expectedCloseDate || null }),
   }
 }
 

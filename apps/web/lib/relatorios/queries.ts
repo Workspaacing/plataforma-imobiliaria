@@ -1,5 +1,6 @@
 import "server-only"
 
+import { leadCost, sumInvestment } from "@workspace/core/reports/lead-cost"
 import type { ReportPeriod } from "@workspace/core/reports/period"
 import {
   brokerRates,
@@ -8,57 +9,49 @@ import {
   type BrokerRates,
   type StageRates,
 } from "@workspace/core/reports/rates"
+import { sumFields } from "@workspace/core/reports/team-subtotals"
 
 import type { Role } from "@/lib/auth/roles"
 import { isRole } from "@/lib/auth/roles"
 import { LEAD_SOURCE_LABELS, LEAD_STAGE_LABELS, LEAD_STAGES } from "@/lib/leads/constants"
 import type { LeadSource, LeadStage } from "@/lib/leads/db-types"
+import {
+  logReportFailure as logFailure,
+  toNullableNumber,
+  toNumber,
+  toText,
+} from "@/lib/relatorios/parse"
 import { createClient } from "@/lib/supabase/server"
 
 /**
  * Dados da tela /relatorios.
  *
- * Toda soma acontece no Postgres, nas RPCs `security invoker` da migração
- * `relatorios_desempenho`: o Node recebe uma linha por corretor, uma por etapa
- * e uma por origem — nunca a lista de leads, de imóveis ou de clientes. O RLS
- * da sessão decide o que entra na conta, e o recorte por papel (corretor vê só
- * o próprio número) é aplicado dentro da própria RPC.
+ * Toda soma acontece no Postgres, nas RPCs da migração
+ * `gestao_comercial_equipes_metas`: o Node recebe uma linha por corretor, uma
+ * por etapa e uma por origem — nunca a lista de leads, de imóveis ou de
+ * clientes. O recorte por papel (dono e gerente escolhem equipe ou corretor, o
+ * líder fica nas equipes que lidera, os demais veem só o próprio número) é
+ * aplicado dentro da própria RPC, em `private.report_member_scope`.
  *
  * Falha não derruba a página: cada relatório volta com `failed: true` e a tela
  * mostra o aviso no lugar daquele bloco.
  */
 
-function logFailure(scope: string, error: unknown) {
-  console.error(
-    `[relatorios] falha ao carregar ${scope}:`,
-    error instanceof Error ? error.message : "erro desconhecido"
-  )
-}
-
-/** Número que vem do Postgres como numeric pode chegar como texto ou nulo. */
-function toNumber(value: unknown): number {
-  const parsed = typeof value === "number" ? value : Number(value)
-  return Number.isFinite(parsed) ? parsed : 0
-}
-
-function toNullableNumber(value: unknown): number | null {
-  if (value === null || value === undefined) {
-    return null
-  }
-
-  const parsed = typeof value === "number" ? value : Number(value)
-  return Number.isFinite(parsed) ? parsed : null
-}
-
-function toText(value: unknown): string | null {
-  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null
-}
-
 export type ReportScope = {
   organizationId: string
   period: ReportPeriod
-  /** Corretor escolhido no filtro. A RPC ignora quando quem chama é corretor. */
+  /** Corretor escolhido no filtro. A RPC ignora o que estiver fora do recorte do papel. */
   broker: string | null
+  /** Equipe escolhida no filtro. O líder só filtra as equipes que lidera. */
+  team: string | null
+}
+
+/** Parâmetros de corretor e equipe, omitidos quando vazios (a RPC usa null). */
+export function reportFilterArgs(scope: Pick<ReportScope, "broker" | "team">) {
+  return {
+    ...(scope.broker ? { p_user_id: scope.broker } : {}),
+    ...(scope.team ? { p_team_id: scope.team } : {}),
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -70,6 +63,9 @@ export type BrokerReportRow = {
   name: string
   role: Role | null
   active: boolean
+  /** Equipe ATUAL do corretor (o banco não guarda histórico de equipe). */
+  teamId: string | null
+  teamName: string | null
   leadsReceived: number
   leadsAnswered: number
   leadsInSla: number
@@ -82,23 +78,36 @@ export type BrokerReportRow = {
   propertiesCaptured: number
   proposalsMade: number
   proposalsClosed: number
-  proposalsClosedAmount: number
+  /** Propostas de venda aceitas no período e a soma delas. */
+  salesClosed: number
+  salesClosedAmount: number
+  /** Propostas de locação aceitas no período e a soma delas. */
+  rentalsClosed: number
+  rentalsClosedAmount: number
   rates: BrokerRates
 }
 
-export type BrokerReportTotals = {
-  leadsReceived: number
-  leadsAnswered: number
-  leadsInSla: number
-  leadsWon: number
-  leadsLost: number
-  leadsOpen: number
-  propertiesCaptured: number
-  proposalsMade: number
-  proposalsClosed: number
-  proposalsClosedAmount: number
-  rates: BrokerRates
-}
+/** Colunas somáveis de "Por corretor": total da tela e subtotal de cada equipe. */
+export const BROKER_SUM_FIELDS = [
+  "leadsReceived",
+  "leadsAnswered",
+  "leadsInSla",
+  "leadsWon",
+  "leadsLost",
+  "leadsOpen",
+  "leadsTakenBySla",
+  "propertiesCaptured",
+  "proposalsMade",
+  "proposalsClosed",
+  "salesClosed",
+  "salesClosedAmount",
+  "rentalsClosed",
+  "rentalsClosedAmount",
+] as const
+
+type BrokerSumField = (typeof BROKER_SUM_FIELDS)[number]
+
+export type BrokerReportTotals = Record<BrokerSumField, number> & { rates: BrokerRates }
 
 export type BrokerReport = {
   rows: BrokerReportRow[]
@@ -106,50 +115,26 @@ export type BrokerReport = {
   failed: boolean
 }
 
-const EMPTY_BROKER_TOTALS: BrokerReportTotals = {
-  leadsReceived: 0,
-  leadsAnswered: 0,
-  leadsInSla: 0,
-  leadsWon: 0,
-  leadsLost: 0,
-  leadsOpen: 0,
-  propertiesCaptured: 0,
-  proposalsMade: 0,
-  proposalsClosed: 0,
-  proposalsClosedAmount: 0,
-  rates: { answerRate: null, slaRate: null, winRate: null, proposalCloseRate: null },
-}
-
 /**
- * Soma da equipe. É a soma das linhas JÁ agregadas pelo banco (uma por
- * corretor), não uma varredura da base — a conta pesada continua no Postgres.
+ * Soma de um conjunto de corretores (a imobiliária ou uma equipe). É a soma
+ * das linhas JÁ agregadas pelo banco (uma por corretor), não uma varredura da
+ * base — a conta pesada continua no Postgres.
  */
-function sumBrokerRows(rows: readonly BrokerReportRow[]): BrokerReportTotals {
-  const totals = { ...EMPTY_BROKER_TOTALS }
-
-  for (const row of rows) {
-    totals.leadsReceived += row.leadsReceived
-    totals.leadsAnswered += row.leadsAnswered
-    totals.leadsInSla += row.leadsInSla
-    totals.leadsWon += row.leadsWon
-    totals.leadsLost += row.leadsLost
-    totals.leadsOpen += row.leadsOpen
-    totals.propertiesCaptured += row.propertiesCaptured
-    totals.proposalsMade += row.proposalsMade
-    totals.proposalsClosed += row.proposalsClosed
-    totals.proposalsClosedAmount += row.proposalsClosedAmount
-  }
-
+export function sumBrokerRows(rows: readonly BrokerReportRow[]): BrokerReportTotals {
+  const totals = sumFields(rows, BROKER_SUM_FIELDS)
   return { ...totals, rates: brokerRates(totals) }
 }
+
+const EMPTY_BROKER_TOTALS = sumBrokerRows([])
 
 export async function loadBrokerReport(scope: ReportScope): Promise<BrokerReport> {
   try {
     const supabase = await createClient()
-    const { data, error } = await supabase.rpc("report_broker_performance", {
+    const { data, error } = await supabase.rpc("report_broker_performance_by_team", {
       p_organization_id: scope.organizationId,
       p_from: scope.period.from,
       p_to: scope.period.to,
+      ...reportFilterArgs(scope),
     })
 
     if (error) {
@@ -173,21 +158,22 @@ export async function loadBrokerReport(scope: ReportScope): Promise<BrokerReport
         name: toText(row.full_name) ?? "Membro sem nome",
         role: isRole(row.member_role) ? row.member_role : null,
         active: row.member_active !== false,
+        teamId: toText(row.team_id),
+        teamName: toText(row.team_name),
         ...counters,
         leadsOpen: toNumber(row.leads_open),
         leadsTakenBySla: toNumber(row.leads_taken_by_sla),
         firstResponseMedianMinutes: toNullableNumber(row.first_response_median_minutes),
         propertiesCaptured: toNumber(row.properties_captured),
-        proposalsClosedAmount: toNumber(row.proposals_closed_amount),
+        salesClosed: toNumber(row.sales_closed),
+        salesClosedAmount: toNumber(row.sales_closed_amount),
+        rentalsClosed: toNumber(row.rentals_closed),
+        rentalsClosedAmount: toNumber(row.rentals_closed_amount),
         rates: brokerRates(counters),
       }
     })
 
-    // O corretor escolhido no filtro é aplicado aqui só para a gestão: a RPC já
-    // devolve uma linha só quando quem chama não pode ver a equipe.
-    const filtered = scope.broker ? rows.filter((row) => row.userId === scope.broker) : rows
-
-    return { rows: filtered, totals: sumBrokerRows(filtered), failed: false }
+    return { rows, totals: sumBrokerRows(rows), failed: false }
   } catch (error) {
     logFailure("o desempenho por corretor", error)
     return { rows: [], totals: EMPTY_BROKER_TOTALS, failed: true }
@@ -224,7 +210,7 @@ export async function loadFunnelReport(scope: ReportScope): Promise<FunnelReport
       p_organization_id: scope.organizationId,
       p_from: scope.period.from,
       p_to: scope.period.to,
-      ...(scope.broker ? { p_user_id: scope.broker } : {}),
+      ...reportFilterArgs(scope),
     })
 
     if (error) {
@@ -283,13 +269,34 @@ export type SourceReportRow = {
   openLeads: number
   /** Ganhos ÷ leads: a conta que separa quem traz volume de quem traz negócio. */
   winRate: number | null
+  /**
+   * Investimento em marketing atribuído à linha (proporcional ao período e aos
+   * leads). `null` com filtro de corretor/equipe ou fora de dono e gerente.
+   */
+  investment: number | null
+  costPerLead: number | null
+  costPerWin: number | null
 }
 
 export type SourceReport = {
   rows: SourceReportRow[]
   totalLeads: number
   totalWon: number
+  /** `null` quando nenhuma linha trouxe investimento (recorte ou papel). */
+  totalInvestment: number | null
+  totalCostPerLead: number | null
+  totalCostPerWin: number | null
   failed: boolean
+}
+
+const FAILED_SOURCE_REPORT: SourceReport = {
+  rows: [],
+  totalLeads: 0,
+  totalWon: 0,
+  totalInvestment: null,
+  totalCostPerLead: null,
+  totalCostPerWin: null,
+  failed: true,
 }
 
 function sourceLabelOf(source: string | null) {
@@ -306,12 +313,12 @@ export async function loadSourceReport(scope: ReportScope): Promise<SourceReport
       p_from: scope.period.from,
       p_to: scope.period.to,
       p_limit: 100,
-      ...(scope.broker ? { p_user_id: scope.broker } : {}),
+      ...reportFilterArgs(scope),
     })
 
     if (error) {
       logFailure("a origem dos leads", error)
-      return { rows: [], totalLeads: 0, totalWon: 0, failed: true }
+      return FAILED_SOURCE_REPORT
     }
 
     let totalLeads = 0
@@ -320,6 +327,7 @@ export async function loadSourceReport(scope: ReportScope): Promise<SourceReport
     const rows: SourceReportRow[] = (data ?? []).map((row, index) => {
       const leads = toNumber(row.leads)
       const won = toNumber(row.won)
+      const cost = leadCost({ investment: toNullableNumber(row.investment), leads, won })
 
       totalLeads += leads
       totalWon += won
@@ -345,13 +353,28 @@ export async function loadSourceReport(scope: ReportScope): Promise<SourceReport
         lost: toNumber(row.lost),
         openLeads: toNumber(row.open_leads),
         winRate: rate(won, leads),
+        ...cost,
       }
     })
 
-    return { rows, totalLeads, totalWon, failed: false }
+    const totalCost = leadCost({
+      investment: sumInvestment(rows),
+      leads: totalLeads,
+      won: totalWon,
+    })
+
+    return {
+      rows,
+      totalLeads,
+      totalWon,
+      totalInvestment: totalCost.investment,
+      totalCostPerLead: totalCost.costPerLead,
+      totalCostPerWin: totalCost.costPerWin,
+      failed: false,
+    }
   } catch (error) {
     logFailure("a origem dos leads", error)
-    return { rows: [], totalLeads: 0, totalWon: 0, failed: true }
+    return FAILED_SOURCE_REPORT
   }
 }
 
@@ -382,7 +405,7 @@ export async function loadLostReasonReport(scope: ReportScope): Promise<LostReas
       p_from: scope.period.from,
       p_to: scope.period.to,
       p_limit: 20,
-      ...(scope.broker ? { p_user_id: scope.broker } : {}),
+      ...reportFilterArgs(scope),
     })
 
     if (error) {

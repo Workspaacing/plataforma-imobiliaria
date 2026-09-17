@@ -81,6 +81,7 @@ const EMPTY_VALUES: ProposalFormValues = {
   paymentTerms: "",
   conditions: "",
   validUntil: "",
+  expectedCloseDate: "",
   downPayment: "",
   financingAmount: "",
   exchangeDescription: "",
@@ -291,6 +292,40 @@ function ProposalForm({ onDone, ...props }: ProposalFormProps & { onDone: () => 
       onDiscountApprovalNeeded?.(editing.id)
     }, onSubmitFailure)
   }
+
+  // Na edição, o campo só aparece quando a lista trouxe a data gravada: sem ela,
+  // um campo vazio pareceria "sem data" e salvaria por cima (a aba Previsão de
+  // /relatorios também preenche a data).
+  const showExpectedCloseDate = !editing || editing.values.expectedCloseDate !== undefined
+
+  const expectedCloseDateField = showExpectedCloseDate ? (
+    <Controller
+      name="expectedCloseDate"
+      control={form.control}
+      render={({ field, fieldState }) => (
+        <Field data-invalid={fieldState.invalid} data-disabled={readOnly || undefined}>
+          <FieldLabel htmlFor="proposta-previsao">
+            Data prevista de fechamento (opcional)
+          </FieldLabel>
+          <Input
+            {...field}
+            value={field.value ?? ""}
+            id="proposta-previsao"
+            type="date"
+            min="2000-01-01"
+            max="2100-12-31"
+            disabled={readOnly}
+            aria-invalid={fieldState.invalid}
+          />
+          {fieldState.invalid ? (
+            <FieldError errors={[fieldState.error]} />
+          ) : (
+            <FieldDescription>Entra na previsão de vendas do mês em Relatórios.</FieldDescription>
+          )}
+        </Field>
+      )}
+    />
+  ) : null
 
   const title = editing ? (readOnly ? "Detalhes da proposta" : "Editar proposta") : "Nova proposta"
   const description = editing
@@ -583,35 +618,37 @@ function ProposalForm({ onDone, ...props }: ProposalFormProps & { onDone: () => 
               />
             </>
           )}
+          {editing && expectedCloseDateField ? (
+            <div className="grid gap-5 sm:grid-cols-2">{expectedCloseDateField}</div>
+          ) : null}
           {editing ? null : (
             <>
-              <Controller
-                name="validUntil"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field
-                    data-invalid={fieldState.invalid}
-                    data-disabled={readOnly || undefined}
-                    className="sm:max-w-[calc(50%-0.625rem)]"
-                  >
-                    <FieldLabel htmlFor="proposta-validade">Validade (opcional)</FieldLabel>
-                    <Input
-                      {...field}
-                      id="proposta-validade"
-                      type="date"
-                      disabled={readOnly}
-                      aria-invalid={fieldState.invalid}
-                    />
-                    {fieldState.invalid ? (
-                      <FieldError errors={[fieldState.error]} />
-                    ) : (
-                      <FieldDescription>
-                        Depois dessa data, a proposta aparece como vencida.
-                      </FieldDescription>
-                    )}
-                  </Field>
-                )}
-              />
+              <div className="grid gap-5 sm:grid-cols-2">
+                <Controller
+                  name="validUntil"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid} data-disabled={readOnly || undefined}>
+                      <FieldLabel htmlFor="proposta-validade">Validade (opcional)</FieldLabel>
+                      <Input
+                        {...field}
+                        id="proposta-validade"
+                        type="date"
+                        disabled={readOnly}
+                        aria-invalid={fieldState.invalid}
+                      />
+                      {fieldState.invalid ? (
+                        <FieldError errors={[fieldState.error]} />
+                      ) : (
+                        <FieldDescription>
+                          Depois dessa data, a proposta aparece como vencida.
+                        </FieldDescription>
+                      )}
+                    </Field>
+                  )}
+                />
+                {expectedCloseDateField}
+              </div>
               <Controller
                 name="paymentTerms"
                 control={form.control}

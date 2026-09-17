@@ -40,6 +40,18 @@ const validUntilSchema = z
   .string()
   .refine((value) => value === "" || isIsoDate(value), "Data inválida.")
 
+/**
+ * Data prevista de fechamento (opcional): dia civil dentro do intervalo que o
+ * banco aceita (`proposals_expected_close_date_check`). Base da aba Previsão.
+ */
+const expectedCloseDateSchema = z
+  .string()
+  .refine((value) => value === "" || isIsoDate(value), "Data inválida.")
+  .refine(
+    (value) => value === "" || (value >= "2000-01-01" && value <= "2100-12-31"),
+    "Escolha uma data prevista entre 2000 e 2100."
+  )
+
 /** Valor opcional em reais (sinal, financiamento): vazio ou de 0 até o máximo. */
 const optionalMoneySchema = z
   .string()
@@ -70,6 +82,9 @@ export const proposalFormSchema = z.object({
   paymentTerms: paymentTermsSchema,
   conditions: conditionsSchema,
   validUntil: validUntilSchema,
+  // Opcional também no tipo: quem monta a edição sem ler a coluna não apaga a
+  // data já gravada (a action só grava quando o campo veio).
+  expectedCloseDate: expectedCloseDateSchema.optional(),
   // Condições da proposta inicial (sinal, financiamento, permuta e prazo). Só no
   // cadastro: depois, valores e condições mudam por rodada da negociação.
   downPayment: optionalMoneySchema.optional(),

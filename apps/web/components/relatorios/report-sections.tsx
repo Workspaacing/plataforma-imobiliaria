@@ -1,3 +1,5 @@
+import type { ReactNode } from "react"
+import Link from "next/link"
 import {
   ChartNoAxesColumnIcon,
   FunnelIcon,
@@ -8,8 +10,10 @@ import {
 } from "lucide-react"
 
 import { formatHours, formatMinutes, formatRate } from "@workspace/core/reports/rates"
+import { countTeamGroups, groupRowsByTeam } from "@workspace/core/reports/team-subtotals"
 import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert"
 import { Badge } from "@workspace/ui/components/badge"
+import { Button } from "@workspace/ui/components/button"
 import {
   Card,
   CardContent,
@@ -39,28 +43,36 @@ import {
 import { FunnelChartView, type FunnelPoint } from "@/components/relatorios/funnel-chart"
 import { ROLE_LABELS } from "@/lib/auth/roles"
 import { formatCurrency } from "@/lib/format"
-import type {
-  BrokerReport,
-  FunnelReport,
-  FunnelStageRow,
-  LostReasonReport,
-  SourceReport,
+import type { ReportAccess } from "@/lib/relatorios/permissions"
+import {
+  sumBrokerRows,
+  type BrokerReport,
+  type BrokerReportTotals,
+  type FunnelReport,
+  type FunnelStageRow,
+  type LostReasonReport,
+  type SourceReport,
 } from "@/lib/relatorios/queries"
+
+/** Tela de lançamento de investimento em marketing (base do custo por lead). */
+export const MARKETING_INVESTMENTS_PATH = "/marketing/investimentos"
 
 const integerFormat = new Intl.NumberFormat("pt-BR")
 
-function count(value: number) {
+export function count(value: number) {
   return integerFormat.format(value)
 }
 
-function ReportEmpty({
+export function ReportEmpty({
   icon: Icon,
   title,
   description,
+  children,
 }: {
   icon: LucideIcon
   title: string
   description: string
+  children?: ReactNode
 }) {
   return (
     <Empty className="min-h-56 border">
@@ -71,18 +83,19 @@ function ReportEmpty({
         <EmptyTitle>{title}</EmptyTitle>
         <EmptyDescription>{description}</EmptyDescription>
       </EmptyHeader>
+      {children}
     </Empty>
   )
 }
 
-function LoadError({ what }: { what: string }) {
+export function LoadError({ what }: { what: string }) {
   return (
     <Alert variant="destructive">
       <TriangleAlertIcon />
       <AlertTitle>Não foi possível carregar {what}</AlertTitle>
       <AlertDescription>
-        Recarregue a página em instantes. Se continuar assim, confira se as migrações do banco foram
-        aplicadas.
+        Recarregue a página em instantes. Enquanto isso, a exportação deste relatório também sai com
+        o aviso de falha. Se continuar assim, confira se as migrações do banco foram aplicadas.
       </AlertDescription>
     </Alert>
   )
@@ -92,14 +105,88 @@ function LoadError({ what }: { what: string }) {
 // Por corretor
 // -----------------------------------------------------------------------------
 
+/** Valor fechado com a quantidade embaixo ("R$ 1.200.000,00 / 2 vendas"). */
+function ClosedCell({
+  amount,
+  quantity,
+  singular,
+  plural,
+}: {
+  amount: number
+  quantity: number
+  singular: string
+  plural: string
+}) {
+  return (
+    <TableCell className="text-end tabular-nums">
+      <div className="flex flex-col items-end gap-0.5">
+        <span>{formatCurrency(amount)}</span>
+        <span className="text-xs text-muted-foreground">
+          {count(quantity)} {quantity === 1 ? singular : plural}
+        </span>
+      </div>
+    </TableCell>
+  )
+}
+
+/** As colunas numéricas de uma linha, de um subtotal ou do total. */
+function BrokerNumberCells({
+  values,
+  median,
+}: {
+  values: BrokerReportTotals
+  median: number | null | undefined
+}) {
+  return (
+    <>
+      <TableCell className="text-end tabular-nums">{count(values.leadsReceived)}</TableCell>
+      <TableCell className="text-end tabular-nums">
+        {count(values.leadsAnswered)}
+        <span className="text-muted-foreground"> ({formatRate(values.rates.answerRate)})</span>
+      </TableCell>
+      <TableCell className="text-end tabular-nums">
+        {count(values.leadsInSla)}
+        <span className="text-muted-foreground"> ({formatRate(values.rates.slaRate)})</span>
+      </TableCell>
+      <TableCell
+        className={
+          median === undefined ? "text-end text-muted-foreground" : "text-end tabular-nums"
+        }
+      >
+        {median === undefined ? "—" : formatMinutes(median)}
+      </TableCell>
+      <TableCell className="text-end tabular-nums">{count(values.leadsWon)}</TableCell>
+      <TableCell className="text-end tabular-nums">{count(values.leadsLost)}</TableCell>
+      <TableCell className="text-end tabular-nums">{formatRate(values.rates.winRate)}</TableCell>
+      <TableCell className="text-end tabular-nums">{count(values.leadsOpen)}</TableCell>
+      <TableCell className="text-end tabular-nums">{count(values.propertiesCaptured)}</TableCell>
+      <TableCell className="text-end tabular-nums">
+        {count(values.proposalsClosed)}/{count(values.proposalsMade)}
+      </TableCell>
+      <ClosedCell
+        amount={values.salesClosedAmount}
+        quantity={values.salesClosed}
+        singular="venda"
+        plural="vendas"
+      />
+      <ClosedCell
+        amount={values.rentalsClosedAmount}
+        quantity={values.rentalsClosed}
+        singular="locação"
+        plural="locações"
+      />
+    </>
+  )
+}
+
 export function BrokersSection({
   report,
   periodLabel,
-  canSeeTeam,
+  access,
 }: {
   report: BrokerReport
   periodLabel: string
-  canSeeTeam: boolean
+  access: ReportAccess
 }) {
   if (report.failed) {
     return <LoadError what="o desempenho por corretor" />
@@ -109,13 +196,16 @@ export function BrokersSection({
     return (
       <ReportEmpty
         icon={UsersIcon}
-        title="Nenhum corretor com movimento no período"
-        description="Assim que entrarem leads, captações ou propostas no período escolhido, cada corretor vira uma linha aqui."
+        title="Nenhum corretor neste recorte"
+        description="Assim que entrarem leads, captações ou propostas no período escolhido, cada corretor vira uma linha aqui. Com filtro de equipe, confira se a equipe tem membros."
       />
     )
   }
 
-  const { totals } = report
+  const seesOthers = access !== "self"
+  // Subtotal só quando há mais de um grupo: com uma equipe só, ele repetiria o total.
+  const groups =
+    seesOthers && countTeamGroups(report.rows) > 1 ? groupRowsByTeam(report.rows) : null
 
   return (
     <Card>
@@ -124,7 +214,9 @@ export function BrokersSection({
         <CardDescription>
           {periodLabel}. &quot;Recebidos&quot; são os leads entregues ao corretor no período;
           &quot;ganhos&quot; e &quot;perdidos&quot;, os que ele fechou ou perdeu no período, pelo
-          histórico de etapa. &quot;Em aberto&quot; é a foto de hoje.
+          histórico de etapa. &quot;Em aberto&quot; é a foto de hoje. Vendas e locações são as
+          propostas aceitas no período, separadas pela finalidade
+          {groups ? "; o subtotal usa a equipe atual de cada corretor" : ""}.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -143,103 +235,31 @@ export function BrokersSection({
                 <TableHead className="text-end">Em aberto</TableHead>
                 <TableHead className="text-end">Captações</TableHead>
                 <TableHead className="text-end">Propostas</TableHead>
-                <TableHead className="text-end">Valor fechado</TableHead>
+                <TableHead className="text-end">Vendas</TableHead>
+                <TableHead className="text-end">Locações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {report.rows.map((row) => (
-                <TableRow key={row.userId}>
-                  <TableCell>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="font-medium">{row.name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {row.role ? ROLE_LABELS[row.role] : "Sem papel"}
-                        {row.active ? "" : " · inativo"}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-end tabular-nums">
-                    {count(row.leadsReceived)}
-                  </TableCell>
-                  <TableCell className="text-end tabular-nums">
-                    {count(row.leadsAnswered)}
-                    <span className="text-muted-foreground">
-                      {" "}
-                      ({formatRate(row.rates.answerRate)})
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-end tabular-nums">
-                    {count(row.leadsInSla)}
-                    <span className="text-muted-foreground">
-                      {" "}
-                      ({formatRate(row.rates.slaRate)})
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-end tabular-nums">
-                    {formatMinutes(row.firstResponseMedianMinutes)}
-                  </TableCell>
-                  <TableCell className="text-end tabular-nums">{count(row.leadsWon)}</TableCell>
-                  <TableCell className="text-end tabular-nums">{count(row.leadsLost)}</TableCell>
-                  <TableCell className="text-end tabular-nums">
-                    {formatRate(row.rates.winRate)}
-                  </TableCell>
-                  <TableCell className="text-end tabular-nums">{count(row.leadsOpen)}</TableCell>
-                  <TableCell className="text-end tabular-nums">
-                    {count(row.propertiesCaptured)}
-                  </TableCell>
-                  <TableCell className="text-end tabular-nums">
-                    {count(row.proposalsClosed)}/{count(row.proposalsMade)}
-                  </TableCell>
-                  <TableCell className="text-end tabular-nums">
-                    {formatCurrency(row.proposalsClosedAmount)}
-                  </TableCell>
-                </TableRow>
+              {(groups ?? [{ teamId: null, teamName: "", rows: report.rows }]).map((group) => (
+                <BrokerGroupRows
+                  key={group.teamId ?? "sem-equipe"}
+                  rows={group.rows}
+                  subtotalLabel={groups ? group.teamName : null}
+                />
               ))}
             </TableBody>
-            {canSeeTeam && report.rows.length > 1 ? (
+            {seesOthers && report.rows.length > 1 ? (
               <TableFooter>
                 <TableRow>
-                  <TableCell>Equipe</TableCell>
-                  <TableCell className="text-end tabular-nums">
-                    {count(totals.leadsReceived)}
-                  </TableCell>
-                  <TableCell className="text-end tabular-nums">
-                    {count(totals.leadsAnswered)}
-                    <span className="text-muted-foreground">
-                      {" "}
-                      ({formatRate(totals.rates.answerRate)})
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-end tabular-nums">
-                    {count(totals.leadsInSla)}
-                    <span className="text-muted-foreground">
-                      {" "}
-                      ({formatRate(totals.rates.slaRate)})
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-end text-muted-foreground">—</TableCell>
-                  <TableCell className="text-end tabular-nums">{count(totals.leadsWon)}</TableCell>
-                  <TableCell className="text-end tabular-nums">{count(totals.leadsLost)}</TableCell>
-                  <TableCell className="text-end tabular-nums">
-                    {formatRate(totals.rates.winRate)}
-                  </TableCell>
-                  <TableCell className="text-end tabular-nums">{count(totals.leadsOpen)}</TableCell>
-                  <TableCell className="text-end tabular-nums">
-                    {count(totals.propertiesCaptured)}
-                  </TableCell>
-                  <TableCell className="text-end tabular-nums">
-                    {count(totals.proposalsClosed)}/{count(totals.proposalsMade)}
-                  </TableCell>
-                  <TableCell className="text-end tabular-nums">
-                    {formatCurrency(totals.proposalsClosedAmount)}
-                  </TableCell>
+                  <TableCell>Total</TableCell>
+                  <BrokerNumberCells values={report.totals} median={undefined} />
                 </TableRow>
               </TableFooter>
             ) : null}
           </Table>
         </div>
       </CardContent>
-      {canSeeTeam && report.rows.some((row) => row.leadsTakenBySla > 0) ? (
+      {seesOthers && report.rows.some((row) => row.leadsTakenBySla > 0) ? (
         <CardFooter className="flex-wrap gap-2 text-muted-foreground">
           Leads devolvidos à roleta por estouro do prazo:{" "}
           {report.rows
@@ -250,6 +270,48 @@ export function BrokersSection({
         </CardFooter>
       ) : null}
     </Card>
+  )
+}
+
+function BrokerGroupRows({
+  rows,
+  subtotalLabel,
+}: {
+  rows: BrokerReport["rows"]
+  /** Nome da equipe quando o grupo ganha linha de subtotal. */
+  subtotalLabel: string | null
+}) {
+  return (
+    <>
+      {rows.map((row) => (
+        <TableRow key={row.userId}>
+          <TableCell>
+            <div className="flex flex-col gap-0.5">
+              <span className="font-medium">{row.name}</span>
+              <span className="text-xs text-muted-foreground">
+                {row.role ? ROLE_LABELS[row.role] : "Sem papel"}
+                {row.teamName ? ` · ${row.teamName}` : ""}
+                {row.active ? "" : " · inativo"}
+              </span>
+            </div>
+          </TableCell>
+          <BrokerNumberCells values={row} median={row.firstResponseMedianMinutes} />
+        </TableRow>
+      ))}
+      {subtotalLabel ? (
+        <TableRow className="bg-muted/40 font-medium">
+          <TableCell>
+            <div className="flex flex-col gap-0.5">
+              <span>Subtotal · {subtotalLabel}</span>
+              <span className="text-xs font-normal text-muted-foreground">
+                {count(rows.length)} {rows.length === 1 ? "pessoa" : "pessoas"}
+              </span>
+            </div>
+          </TableCell>
+          <BrokerNumberCells values={sumBrokerRows(rows)} median={undefined} />
+        </TableRow>
+      ) : null}
+    </>
   )
 }
 
@@ -351,12 +413,84 @@ export function FunnelSection({
 // Origem do lead
 // -----------------------------------------------------------------------------
 
+function MarketingInvestmentsLink({ label }: { label: string }) {
+  return (
+    <Button
+      variant="link"
+      size="sm"
+      className="h-auto px-0"
+      nativeButton={false}
+      render={<Link href={MARKETING_INVESTMENTS_PATH} />}
+    >
+      {label}
+    </Button>
+  )
+}
+
+/** Por que o custo por lead não aparece (ou está zerado) neste recorte. */
+function SourceCostNotice({
+  report,
+  access,
+  filtered,
+  canManageInvestments,
+}: {
+  report: SourceReport
+  access: ReportAccess
+  filtered: boolean
+  canManageInvestments: boolean
+}) {
+  if (report.totalInvestment === null) {
+    if (access === "organization" && filtered) {
+      return (
+        <p>
+          Investimento e custo por lead aparecem só na visão da imobiliária inteira, sem filtro de
+          equipe ou corretor: o gasto em marketing não é dividido por equipe.
+        </p>
+      )
+    }
+
+    if (access !== "organization") {
+      return <p>Investimento e custo por lead são vistos só pelo dono e pelo gerente.</p>
+    }
+
+    return null
+  }
+
+  if (report.totalInvestment === 0) {
+    return (
+      <p className="flex flex-wrap items-center gap-x-1">
+        Nenhum investimento lançado para este período, então não há custo por lead.
+        {canManageInvestments ? (
+          <MarketingInvestmentsLink label="Lançar investimento em marketing" />
+        ) : null}
+      </p>
+    )
+  }
+
+  return (
+    <p className="flex flex-wrap items-center gap-x-1">
+      Investimento do mês proporcional aos dias do período, dividido entre as linhas pela quantidade
+      de leads.
+      {canManageInvestments ? (
+        <MarketingInvestmentsLink label="Ver ou lançar investimentos" />
+      ) : null}
+    </p>
+  )
+}
+
 export function SourcesSection({
   report,
   periodLabel,
+  access,
+  filtered,
+  canManageInvestments,
 }: {
   report: SourceReport
   periodLabel: string
+  access: ReportAccess
+  /** Há filtro de equipe ou corretor (a RPC não traz investimento nesse caso). */
+  filtered: boolean
+  canManageInvestments: boolean
 }) {
   if (report.failed) {
     return <LoadError what="a origem dos leads" />
@@ -368,9 +502,15 @@ export function SourcesSection({
         icon={SproutIcon}
         title="Nenhum lead no período"
         description="Publique a landing page ou cadastre um lead do telefone para descobrir qual origem traz gente que fecha, e não só gente que chega."
-      />
+      >
+        {canManageInvestments ? (
+          <MarketingInvestmentsLink label="Lançar investimento em marketing" />
+        ) : null}
+      </ReportEmpty>
     )
   }
+
+  const showCost = report.totalInvestment !== null
 
   return (
     <Card>
@@ -379,7 +519,7 @@ export function SourcesSection({
         <CardDescription>
           {periodLabel}. Leads criados no período, agrupados por canal, landing page e campanha
           (utm). A coluna de conversão é o que separa a origem que traz volume da origem que traz
-          negócio.
+          negócio{showCost ? "; o custo por ganho mostra quanto custou cada negócio fechado" : ""}.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -395,6 +535,13 @@ export function SourcesSection({
                 <TableHead className="text-end">Ganhos</TableHead>
                 <TableHead className="text-end">Perdidos</TableHead>
                 <TableHead className="text-end">Conversão</TableHead>
+                {showCost ? (
+                  <>
+                    <TableHead className="text-end">Investimento</TableHead>
+                    <TableHead className="text-end">Custo por lead</TableHead>
+                    <TableHead className="text-end">Custo por ganho</TableHead>
+                  </>
+                ) : null}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -422,6 +569,19 @@ export function SourcesSection({
                   <TableCell className="text-end tabular-nums">{count(row.won)}</TableCell>
                   <TableCell className="text-end tabular-nums">{count(row.lost)}</TableCell>
                   <TableCell className="text-end tabular-nums">{formatRate(row.winRate)}</TableCell>
+                  {showCost ? (
+                    <>
+                      <TableCell className="text-end tabular-nums">
+                        {formatCurrency(row.investment)}
+                      </TableCell>
+                      <TableCell className="text-end tabular-nums">
+                        {formatCurrency(row.costPerLead)}
+                      </TableCell>
+                      <TableCell className="text-end tabular-nums">
+                        {formatCurrency(row.costPerWin)}
+                      </TableCell>
+                    </>
+                  ) : null}
                 </TableRow>
               ))}
             </TableBody>
@@ -433,11 +593,32 @@ export function SourcesSection({
                 <TableCell className="text-end tabular-nums">{count(report.totalWon)}</TableCell>
                 <TableCell className="text-end text-muted-foreground">—</TableCell>
                 <TableCell className="text-end text-muted-foreground">—</TableCell>
+                {showCost ? (
+                  <>
+                    <TableCell className="text-end tabular-nums">
+                      {formatCurrency(report.totalInvestment)}
+                    </TableCell>
+                    <TableCell className="text-end tabular-nums">
+                      {formatCurrency(report.totalCostPerLead)}
+                    </TableCell>
+                    <TableCell className="text-end tabular-nums">
+                      {formatCurrency(report.totalCostPerWin)}
+                    </TableCell>
+                  </>
+                ) : null}
               </TableRow>
             </TableFooter>
           </Table>
         </div>
       </CardContent>
+      <CardFooter className="flex-col items-start gap-1 text-muted-foreground">
+        <SourceCostNotice
+          report={report}
+          access={access}
+          filtered={filtered}
+          canManageInvestments={canManageInvestments}
+        />
+      </CardFooter>
     </Card>
   )
 }

@@ -6,7 +6,11 @@ import { Button } from "@workspace/ui/components/button"
 import { requireMembership } from "@/lib/auth/session"
 import { getExportRoles } from "@/lib/configuracoes/export-audit"
 import { canExportData, exportDeniedMessage } from "@/lib/configuracoes/export-permissions"
-import { REPORT_DATASET_LABELS, type ReportDataset } from "@/lib/relatorios/datasets"
+import {
+  isAggregateReportDataset,
+  REPORT_DATASET_LABELS,
+  type ReportDataset,
+} from "@/lib/relatorios/datasets"
 import { reportPeriodParams } from "@/lib/relatorios/url"
 
 /**
@@ -20,9 +24,15 @@ import { reportPeriodParams } from "@/lib/relatorios/url"
 export function exportHref(
   dataset: ReportDataset,
   period: ReportPeriod,
-  broker: string | null
+  broker: string | null,
+  team: string | null = null
 ): string {
   const params = reportPeriodParams(period)
+
+  // A equipe só recorta (e fica registrada) nos relatórios agregados.
+  if (team && isAggregateReportDataset(dataset)) {
+    params.set("equipe", team)
+  }
 
   if (broker) {
     params.set("corretor", broker)
@@ -38,6 +48,8 @@ type ExportLinksProps = {
   datasets: readonly ReportDataset[]
   period: ReportPeriod
   broker: string | null
+  /** Equipe do filtro (só entra nos relatórios agregados). */
+  team?: string | null
   /** O primeiro link ganha destaque (é o relatório que está na tela). */
   emphasizeFirst?: boolean
   /**
@@ -57,9 +69,14 @@ export async function ExportLinks({
   datasets,
   period,
   broker,
+  team = null,
   emphasizeFirst = false,
   deniedNotice,
 }: ExportLinksProps) {
+  if (datasets.length === 0) {
+    return null
+  }
+
   const { membership } = await requireMembership()
   const exportRoles = await getExportRoles(membership.organizationId)
 
@@ -84,7 +101,7 @@ export async function ExportLinks({
           nativeButton={false}
           render={
             // `download` só sugere o nome; quem manda é o Content-Disposition.
-            <a href={exportHref(dataset, period, broker)} download />
+            <a href={exportHref(dataset, period, broker, team)} download />
           }
         >
           <DownloadIcon data-icon="inline-start" />

@@ -14,6 +14,7 @@ import {
 } from "@workspace/core/properties/enums"
 import type { CsvValue } from "@workspace/core/reports/csv"
 import { formatHours, formatMinutes, ratePercent } from "@workspace/core/reports/rates"
+import { NO_TEAM_LABEL } from "@workspace/core/reports/team-subtotals"
 
 import { ROLE_LABELS } from "@/lib/auth/roles"
 import { LEAD_SOURCE_LABELS, LEAD_STAGE_LABELS } from "@/lib/leads/constants"
@@ -51,10 +52,15 @@ import { createClient } from "@/lib/supabase/server"
  * saem para dono e gerente.
  *
  * E ninguém exporta sem registro: `startReportExport` abre a exportação em
- * `audit_events` (quem, quando, conjunto, filtros) e diz se o papel pode
- * exportar. As RPCs da base recusam página sem esse registro e somam nele as
- * linhas que devolvem; os relatórios agregados informam a contagem por
- * `record_report_export_rows`. Nenhum dado exportado é gravado.
+ * `audit_events` (quem, quando, conjunto, filtros — inclusive a equipe nos
+ * relatórios agregados) e diz se o papel pode exportar. As RPCs da base recusam
+ * página sem esse registro e somam nele as linhas que devolvem; os relatórios
+ * agregados informam a contagem por `record_report_export`. Nenhum dado
+ * exportado é gravado.
+ *
+ * Relatório agregado que falha ao carregar NÃO sai como planilha só com o
+ * cabeçalho (pareceria "nenhum dado"): a carga lança erro e o arquivo termina
+ * com a linha avisando que a exportação foi interrompida.
  */
 
 export const REPORT_DATASETS = [
@@ -101,6 +107,26 @@ export function reportDatasetFilePrefix(dataset: ReportDataset) {
   return DATASET_FILE_PREFIX[dataset]
 }
 
+/** Relatórios agregados: aceitam o filtro de equipe e registram a equipe na exportação. */
+export const AGGREGATE_REPORT_DATASETS: readonly ReportDataset[] = [
+  "corretores",
+  "funil",
+  "origens",
+  "motivos-perda",
+]
+
+export function isAggregateReportDataset(dataset: ReportDataset) {
+  return AGGREGATE_REPORT_DATASETS.includes(dataset)
+}
+
+/** Erro de carga de um relatório agregado: o CSV termina com a linha de falha. */
+class ReportLoadError extends Error {
+  constructor(dataset: ReportDataset) {
+    super(`relatório ${dataset} não carregou`)
+    this.name = "ReportLoadError"
+  }
+}
+
 // -----------------------------------------------------------------------------
 // Registro da exportação
 // -----------------------------------------------------------------------------
@@ -116,23 +142,33 @@ export type StartReportExportResult =
 /**
  * Registra a tentativa (permitida ou não) antes de qualquer linha sair. Os
  * filtros enviados aqui são os mesmos que as páginas vão usar: o banco recusa
- * página com período, corretor ou conjunto diferente do registro.
+ * página com período, corretor, equipe ou conjunto diferente do registro.
+ *
+ * Relatório agregado abre por `start_report_export` (grava a equipe); a base
+ * (leads, imóveis, clientes, propostas) continua em `start_data_export`, que
+ * não recorta por equipe — a rota nem repassa a equipe nesse caso.
  */
 export async function startReportExport(
   dataset: ReportDataset,
   scope: ReportScope
 ): Promise<StartReportExportResult> {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .rpc("start_data_export", {
-      p_organization_id: scope.organizationId,
-      p_dataset: dataset,
-      p_from: scope.period.from,
-      p_to: scope.period.to,
-      ...(scope.broker ? { p_user_id: scope.broker } : {}),
-      ...(scope.period.preset ? { p_period_preset: scope.period.preset } : {}),
-    })
-    .maybeSingle()
+  const common = {
+    p_organization_id: scope.organizationId,
+    p_dataset: dataset,
+    p_from: scope.period.from,
+    p_to: scope.period.to,
+    ...(scope.broker ? { p_user_id: scope.broker } : {}),
+    ...(scope.period.preset ? { p_period_preset: scope.period.preset } : {}),
+  }
+  const { data, error } = isAggregateReportDataset(dataset)
+    ? await supabase
+        .rpc("start_report_export", {
+          ...common,
+          ...(scope.team ? { p_team_id: scope.team } : {}),
+        })
+        .maybeSingle()
+    : await supabase.rpc("start_data_export", common).maybeSingle()
 
   if (error || !data) {
     console.error("[relatorios] falha ao registrar a exportação:", error?.code ?? "sem retorno")
@@ -152,7 +188,7 @@ async function recordReportRows(
   rows: number
 ) {
   const supabase = await createClient()
-  const { error } = await supabase.rpc("record_report_export_rows", {
+  const { error } = await supabase.rpc("record_report_export", {
     p_organization_id: scope.organizationId,
     p_export_id: run.exportId,
     p_dataset: dataset,
@@ -160,10 +196,11 @@ async function recordReportRows(
     p_from: scope.period.from,
     p_to: scope.period.to,
     ...(scope.broker ? { p_user_id: scope.broker } : {}),
+    ...(scope.team ? { p_team_id: scope.team } : {}),
   })
 
   if (error) {
-    throw new Error(`record_report_export_rows: ${error.code ?? "erro"}`)
+    throw new Error(`record_report_export: ${error.code ?? "erro"}`)
   }
 }
 
@@ -220,6 +257,7 @@ export type ReportCsvDataset = {
 const brokersDataset: ReportCsvDataset = {
   columns: [
     "Corretor",
+    "Equipe",
     "Papel",
     "Ativo",
     "Leads recebidos",
@@ -236,13 +274,20 @@ const brokersDataset: ReportCsvDataset = {
     "Imóveis captados",
     "Propostas feitas",
     "Propostas fechadas",
-    "Valor fechado (R$)",
+    "Vendas fechadas",
+    "Valor das vendas (R$)",
+    "Locações fechadas",
+    "Valor das locações (R$)",
   ],
   stream(scope, run) {
     return createSingleCsvStream(this.columns, async () => {
       const report = await loadBrokerReport(scope)
+
+      if (report.failed) throw new ReportLoadError("corretores")
+
       const rows = report.rows.map((row) => [
         row.name,
+        row.teamId ? (row.teamName ?? "Equipe sem nome") : NO_TEAM_LABEL,
         row.role ? ROLE_LABELS[row.role] : null,
         row.active,
         row.leadsReceived,
@@ -259,7 +304,10 @@ const brokersDataset: ReportCsvDataset = {
         row.propertiesCaptured,
         row.proposalsMade,
         row.proposalsClosed,
-        row.proposalsClosedAmount,
+        row.salesClosed,
+        row.salesClosedAmount,
+        row.rentalsClosed,
+        row.rentalsClosedAmount,
       ])
 
       await recordReportRows("corretores", scope, run, rows.length)
@@ -285,6 +333,9 @@ const funnelDataset: ReportCsvDataset = {
   stream(scope, run) {
     return createSingleCsvStream(this.columns, async () => {
       const report = await loadFunnelReport(scope)
+
+      if (report.failed) throw new ReportLoadError("funil")
+
       const rows = report.stages.map((stage) => [
         stage.label,
         stage.entered,
@@ -318,10 +369,18 @@ const sourcesDataset: ReportCsvDataset = {
     "Perdidos",
     "Em aberto",
     "Conversão (%)",
+    "Investimento (R$)",
+    "Custo por lead (R$)",
+    "Custo por ganho (R$)",
   ],
   stream(scope, run) {
     return createSingleCsvStream(this.columns, async () => {
       const report = await loadSourceReport(scope)
+
+      if (report.failed) throw new ReportLoadError("origens")
+
+      // Investimento vazio = recorte por corretor/equipe ou papel sem acesso ao
+      // gasto (a RPC devolve null); nunca é "R$ 0".
       const rows = report.rows.map((row) => [
         row.sourceLabel,
         row.landingPageName,
@@ -334,6 +393,9 @@ const sourcesDataset: ReportCsvDataset = {
         row.lost,
         row.openLeads,
         ratePercent(row.winRate),
+        row.investment,
+        row.costPerLead,
+        row.costPerWin,
       ])
 
       await recordReportRows("origens", scope, run, rows.length)
@@ -347,6 +409,9 @@ const lostReasonsDataset: ReportCsvDataset = {
   stream(scope, run) {
     return createSingleCsvStream(this.columns, async () => {
       const report = await loadLostReasonReport(scope)
+
+      if (report.failed) throw new ReportLoadError("motivos-perda")
+
       const rows = report.rows.map((row) => [
         row.reason ?? NO_LOST_REASON_LABEL,
         row.total,
