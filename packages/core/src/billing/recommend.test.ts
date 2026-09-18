@@ -22,9 +22,9 @@ describe("recommendPlan: menor custo que atende usuários e imóveis com foto", 
     expect(recommendPlan({ teamSize: 1, ownedListings: 0 })).toMatchObject({
       plan: "corretor",
       extraSeats: 0,
-      monthlyTotal: 8900,
-      yearlyTotal: 89000,
-      yearlySavings: 17800,
+      monthlyTotal: 11500,
+      yearlyTotal: 115000,
+      yearlySavings: 23000,
       fitsOwnedListings: true,
     })
   })
@@ -33,7 +33,7 @@ describe("recommendPlan: menor custo que atende usuários e imóveis com foto", 
     expect(recommendPlan({ teamSize: 2, ownedListings: 5 })).toMatchObject({
       plan: "corretor",
       extraSeats: 1,
-      monthlyTotal: 8900 + 4900,
+      monthlyTotal: 11500 + 4900,
     })
   })
 
@@ -41,7 +41,7 @@ describe("recommendPlan: menor custo que atende usuários e imóveis com foto", 
     expect(recommendPlan({ teamSize: 3, ownedListings: 0 })).toMatchObject({
       plan: "imobiliaria",
       extraSeats: 0,
-      monthlyTotal: 24900,
+      monthlyTotal: 32000,
     })
   })
 
@@ -50,8 +50,8 @@ describe("recommendPlan: menor custo que atende usuários e imóveis com foto", 
     expect(recommendPlan({ teamSize: 18, ownedListings: 10 })).toMatchObject({
       plan: "imobiliaria",
       extraSeats: 15,
-      monthlyTotal: 24900 + 15 * 5900,
-      yearlyTotal: 249000 + 15 * 59000,
+      monthlyTotal: 32000 + 15 * 5900,
+      yearlyTotal: 320000 + 15 * 59000,
     })
 
     // 40 imóveis com foto passam do Imobiliária (20): Equipe com 13 extras.
@@ -59,8 +59,8 @@ describe("recommendPlan: menor custo que atende usuários e imóveis com foto", 
     expect(equipe).toMatchObject({
       plan: "equipe",
       extraSeats: 13,
-      monthlyTotal: 59900 + 13 * 6900,
-      yearlyTotal: 599000 + 13 * 69000,
+      monthlyTotal: 77500 + 13 * 6900,
+      yearlyTotal: 775000 + 13 * 69000,
       fitsOwnedListings: true,
     })
     expect(equipe.monthlyTotal).toBeLessThan(planTotal("rede", "month", 8))
@@ -69,7 +69,7 @@ describe("recommendPlan: menor custo que atende usuários e imóveis com foto", 
     expect(recommendPlan({ teamSize: 18, ownedListings: 100 })).toMatchObject({
       plan: "rede",
       extraSeats: 8,
-      monthlyTotal: 149000 + 8 * 7900,
+      monthlyTotal: 193000 + 8 * 7900,
     })
   })
 
@@ -77,9 +77,9 @@ describe("recommendPlan: menor custo que atende usuários e imóveis com foto", 
     expect(recommendPlan({ teamSize: 7, ownedListings: 120 })).toMatchObject({
       plan: "rede",
       extraSeats: 0,
-      monthlyTotal: 149000,
-      yearlyTotal: 1490000,
-      yearlySavings: 298000,
+      monthlyTotal: 193000,
+      yearlyTotal: 1930000,
+      yearlySavings: 386000,
       fitsOwnedListings: true,
     })
     expect(recommendPlan({ teamSize: 7, ownedListings: 120 }).reasons).toContain(

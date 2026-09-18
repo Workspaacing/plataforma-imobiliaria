@@ -170,7 +170,7 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
       audience: "Corretor autônomo",
       description:
         "Para o corretor que trabalha sozinho e quer imóveis, clientes e leads organizados num só lugar.",
-      prices: { month: 8900, year: 89000 },
+      prices: { month: 11500, year: 115000 },
       seatPrice: { month: 4900, year: 49000 },
       usersIncluded: 1,
       usersMax: 2,
@@ -180,7 +180,7 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
         photos_per_listing: 10,
         pipelines: 1,
         // Sem IA no plano de entrada (decisão do dono): a IA é o único custo
-        // variável relevante do produto e R$ 89 não a comporta com folga. Zero
+        // variável relevante do produto e R$ 115 não a comporta com folga. Zero
         // aqui bloqueia no primeiro corte, no core e no banco (feature_unavailable).
         ai_conversations: 0,
         whatsapp_numbers: 1,
@@ -205,7 +205,7 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
       description:
         "Para a imobiliária que quer a equipe atendendo no mesmo funil e a carteira sempre com a empresa.",
       highlight: true,
-      prices: { month: 24900, year: 249000 },
+      prices: { month: 32000, year: 320000 },
       seatPrice: { month: 5900, year: 59000 },
       usersIncluded: 3,
       usersMax: -1,
@@ -242,7 +242,7 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
       audience: "Imobiliária média, de 6 a 15 pessoas",
       description:
         "Para equipes com mais volume de leads, que precisam de vários funis, metas e locação em escala.",
-      prices: { month: 59900, year: 599000 },
+      prices: { month: 77500, year: 775000 },
       seatPrice: { month: 6900, year: 69000 },
       usersIncluded: 5,
       usersMax: -1,
@@ -282,7 +282,7 @@ export const PLANS: Record<PlanKey, PlanDefinition> = {
       audience: "Imobiliária grande, com várias lojas ou rede, a partir de 16 pessoas",
       description:
         "Para operações com várias lojas ou marcas, que precisam de filiais, API e acompanhamento dedicado.",
-      prices: { month: 149000, year: 1490000 },
+      prices: { month: 193000, year: 1930000 },
       seatPrice: { month: 7900, year: 79000 },
       usersIncluded: 10,
       usersMax: -1,
@@ -379,8 +379,8 @@ export const WHATSAPP_BILLING_NOTE =
  * No anual de TODOS os planos o boleto é a forma sugerida, e a razão é
  * aritmética: a Stripe cobra 3,99% + R$ 0,39 no cartão e **R$ 3,45 fixos** no
  * boleto (tabela Brasil conferida em 2026-09-16). Como o boleto não é
- * percentual, a economia cresce com o valor da cobrança — de R$ 32/ano no
- * Corretor a R$ 591/ano no Rede, por cliente.
+ * percentual, a economia cresce com o valor da cobrança — de R$ 43/ano no
+ * Corretor a R$ 767/ano no Rede, por cliente (com os preços de 17/09/2026).
  *
  * Só no anual: no mensal o boleto obrigaria o cliente a pagar todo mês, o que
  * gera atrito e inadimplência. O cartão continua disponível em tudo.

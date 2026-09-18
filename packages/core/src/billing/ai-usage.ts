@@ -14,7 +14,7 @@
 // FONTE ÚNICA DOS NÚMEROS: este arquivo. O banco guarda cópias — ao mudar preço,
 // câmbio, desconto do lote ou teto aqui, copie para private.ai_models(),
 // private.ai_pricing() e private.ai_cost_cap_cents() numa migração nova (a última
-// foi ai_trial_without_ai_model_pricing_batch). A tela Console → Custos de IA
+// foi plan_prices_increase_ai_caps). A tela Console → Custos de IA
 // confere banco x core e marca "Diferente" quando não batem.
 
 import type { BillingState } from "./state"
@@ -187,8 +187,11 @@ export const AI_MIN_WEEKLY_CAP_CENTS = 150
  *  - 20% do PREÇO DE TABELA MENSAL do plano, e
  *  - franquia × custo da conversa típica × 1,25, arredondado para cima.
  *
- * Resultado hoje: Imobiliária R$ 34,56 (era R$ 49,80), Equipe R$ 119,80 e Rede
- * R$ 298,00 (os 20% já eram o menor). Corretor e teste grátis: zero. Copie os
+ * Resultado hoje, com os preços de 17/09/2026: Imobiliária R$ 34,56, Equipe
+ * R$ 138,24 e Rede R$ 345,59. Nos três o lado menor é a FRANQUIA: depois do
+ * aumento de preço (Imobiliária R$ 320, Equipe R$ 775, Rede R$ 1.930), 20% do
+ * preço passou a sobrar em todo plano — quem manda no teto é o custo da
+ * franquia anunciada, que não mudou. Corretor e teste grátis: zero. Copie os
  * valores para private.ai_cost_cap_cents() ao mudar qualquer entrada.
  *
  * Sempre o preço de tabela, nunca o valor cobrado:

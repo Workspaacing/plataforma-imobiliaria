@@ -90,7 +90,7 @@ function payload(organizations: unknown[] = [organization()]) {
         usd_per_mtok_cache_write_1h: 2,
       },
     ],
-    plan_caps_cents: { trial: 0, corretor: 0, imobiliaria: 3456, equipe: 11980, rede: 29800 },
+    plan_caps_cents: { trial: 0, corretor: 0, imobiliaria: 3456, equipe: 13824, rede: 34559 },
     organizations_total: 3,
     organizations_with_ai: 2,
     organizations,
@@ -345,8 +345,8 @@ describe("checkAiPricing", () => {
       ["corretor", 0, 0, 0],
       ["trial", 0, 0, 0],
       ["imobiliaria", 3456, 50, 62],
-      ["equipe", 11980, 200, 216],
-      ["rede", 29800, 500, 538],
+      ["equipe", 13824, 200, 250],
+      ["rede", 34559, 500, 625],
     ])
   })
 

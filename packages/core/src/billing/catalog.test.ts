@@ -4,18 +4,18 @@ import { diffCatalogPrice, formatCatalogPriceDivergenceWarning } from "./catalog
 
 describe("diffCatalogPrice", () => {
   it("devolve null quando os centavos batem", () => {
-    expect(diffCatalogPrice("plan_equipe_monthly", 59900, 59900)).toBeNull()
+    expect(diffCatalogPrice("plan_equipe_monthly", 77500, 77500)).toBeNull()
     expect(diffCatalogPrice("seat_rede_yearly", 79000, 79000)).toBeNull()
   })
 
   it("devolve a divergência com plano, intervalo e os dois valores", () => {
-    expect(diffCatalogPrice("plan_equipe_monthly", 59900, 64900)).toEqual({
+    expect(diffCatalogPrice("plan_equipe_monthly", 77500, 79900)).toEqual({
       lookupKey: "plan_equipe_monthly",
       kind: "plan",
       planKey: "equipe",
       interval: "month",
-      corePriceCents: 59900,
-      stripePriceCents: 64900,
+      corePriceCents: 77500,
+      stripePriceCents: 79900,
     })
 
     expect(diffCatalogPrice("seat_corretor_yearly", 49000, 39000)).toEqual({
@@ -34,15 +34,15 @@ describe("diffCatalogPrice", () => {
   })
 
   it("não confunde 0 com ausência de divergência quando os valores realmente diferem", () => {
-    expect(diffCatalogPrice("plan_corretor_monthly", 0, 8900)).toEqual(
-      expect.objectContaining({ corePriceCents: 0, stripePriceCents: 8900 })
+    expect(diffCatalogPrice("plan_corretor_monthly", 0, 11500)).toEqual(
+      expect.objectContaining({ corePriceCents: 0, stripePriceCents: 11500 })
     )
   })
 })
 
 describe("formatCatalogPriceDivergenceWarning", () => {
   it("cita plano, intervalo e os dois valores em centavos, sem chave nem dado de cliente", () => {
-    const divergence = diffCatalogPrice("plan_imobiliaria_yearly", 249000, 259000)
+    const divergence = diffCatalogPrice("plan_imobiliaria_yearly", 320000, 329000)
     expect(divergence).not.toBeNull()
 
     const message = formatCatalogPriceDivergenceWarning(divergence!)
@@ -50,8 +50,8 @@ describe("formatCatalogPriceDivergenceWarning", () => {
     expect(message).toContain("plan_imobiliaria_yearly")
     expect(message).toContain("imobiliaria")
     expect(message).toContain("year")
-    expect(message).toContain("core=249000")
-    expect(message).toContain("stripe=259000")
+    expect(message).toContain("core=320000")
+    expect(message).toContain("stripe=329000")
     // Nada de e-mail, id de cliente/organização ou chave secreta no aviso.
     expect(message).not.toMatch(/@|cus_|org_|sk_|rk_|whsec_/)
   })

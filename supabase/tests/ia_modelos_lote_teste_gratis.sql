@@ -13,7 +13,9 @@
 --   3. modelo desconhecido é recusado na conta, na reserva e no acerto (22023);
 --   4. chamada antiga (sem p_model/p_batch) continua valendo e é medida como
 --      Sonnet 5 sem lote; o acerto usa o modelo e o lote gravados na reserva;
---   5. tetos novos por plano e grants das novas assinaturas.
+--   5. tetos por plano (valores da migração plan_prices_increase_ai_caps, que
+--      recalculou o teto depois do aumento de preço de 17/09/2026) e grants das
+--      novas assinaturas.
 --
 -- Resultado esperado (ordem das chaves pode variar):
 --   trial_defaults_sem_ia          : true
@@ -46,8 +48,8 @@
 --   teto_trial                     : 0
 --   teto_corretor                  : 0
 --   teto_imobiliaria               : 3456
---   teto_equipe                    : 11980
---   teto_rede                      : 29800
+--   teto_equipe                    : 13824
+--   teto_rede                      : 34559
 --   teto_desconhecido              : 0
 --   contexto_imobiliaria_teto      : 3456000
 --   assinatura_antiga_removida     : true

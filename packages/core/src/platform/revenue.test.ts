@@ -37,14 +37,14 @@ function account(overrides: Partial<RevenueAccount> = {}): RevenueAccount {
 
 describe("accountMonthlyRevenue", () => {
   it("mensal sem fatura paga usa o preço de tabela", () => {
-    expect(accountMonthlyRevenue(account())).toEqual({ cents: 24_900, source: "tabela" })
+    expect(accountMonthlyRevenue(account())).toEqual({ cents: 32_000, source: "tabela" })
   })
 
   it("anual vira mensal (÷ 12) e soma os usuários extras do mesmo ciclo", () => {
-    // Equipe anual: R$ 5.990,00 ÷ 12 = 49.916,67 → 49.917; 2 extras × R$ 690,00 ÷ 12 = 11.500.
+    // Equipe anual: R$ 7.750,00 ÷ 12 = 64.583,33 → 64.583; 2 extras × R$ 690,00 ÷ 12 = 11.500.
     expect(
       accountMonthlyRevenue(account({ planKey: "equipe", interval: "year", seats: 7 }))
-    ).toEqual({ cents: 61_417, source: "tabela" })
+    ).toEqual({ cents: 76_083, source: "tabela" })
   })
 
   it("com fatura paga usa o líquido do plano (descontos já aplicados)", () => {
@@ -57,12 +57,12 @@ describe("accountMonthlyRevenue", () => {
   it("respeita o teto de usuários extras do plano", () => {
     // Corretor: 1 incluído, até 2 no total → no máximo 1 extra de R$ 49,00.
     expect(accountMonthlyRevenue(account({ planKey: "corretor", seats: 5 }))?.cents).toBe(
-      8_900 + 4_900
+      11_500 + 4_900
     )
   })
 
   it("cobrança atrasada (past_due) ainda conta", () => {
-    expect(accountMonthlyRevenue(account({ status: "past_due" }))?.cents).toBe(24_900)
+    expect(accountMonthlyRevenue(account({ status: "past_due" }))?.cents).toBe(32_000)
   })
 
   it("teste, cancelada, não paga, pausada e plano fora do catálogo não entram", () => {
@@ -75,7 +75,7 @@ describe("accountMonthlyRevenue", () => {
 
   it("líquido inválido (negativo) cai no preço de tabela", () => {
     expect(accountMonthlyRevenue(account({ planNetMonthlyCents: -10 }))).toEqual({
-      cents: 24_900,
+      cents: 32_000,
       source: "tabela",
     })
   })
@@ -169,11 +169,11 @@ describe("computeRevenueSummary", () => {
   const summary = computeRevenueSummary(accounts, NOW)
 
   it("soma o MRR, a parte em risco e o ticket médio", () => {
-    expect(summary.mrrCents).toBe(24_900 + 61_417 + 19_920 + 13_800)
-    expect(summary.atRiskMrrCents).toBe(13_800)
+    expect(summary.mrrCents).toBe(32_000 + 76_083 + 19_920 + 16_400)
+    expect(summary.atRiskMrrCents).toBe(16_400)
     expect(summary.payingAccounts).toBe(4)
     expect(summary.estimatedAccounts).toBe(3)
-    expect(summary.averageTicketCents).toBe(30_009)
+    expect(summary.averageTicketCents).toBe(36_101)
   })
 
   it("conta por situação e por plano", () => {
@@ -205,7 +205,7 @@ describe("computeRevenueSummary", () => {
       ["Atrasada", "2026-09-19T12:00:00.000Z"],
       ["Não paga", null],
     ])
-    expect(summary.delinquent[0]?.monthlyCents).toBe(13_800)
+    expect(summary.delinquent[0]?.monthlyCents).toBe(16_400)
     expect(summary.delinquent[1]?.monthlyCents).toBeNull()
   })
 

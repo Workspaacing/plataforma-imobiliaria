@@ -31,7 +31,7 @@ const sampleEvent = {
             object: "subscription_item",
             quantity: 1,
             current_period_end: PERIOD_END,
-            price: { id: "price_plan", lookup_key: "plan_corretor_monthly", unit_amount: 8900 },
+            price: { id: "price_plan", lookup_key: "plan_corretor_monthly", unit_amount: 11500 },
           },
           {
             id: "si_seat",

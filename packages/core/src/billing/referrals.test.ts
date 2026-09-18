@@ -187,20 +187,20 @@ describe("resolveReferralStatus", () => {
 describe("planNetMonthlyCents", () => {
   it("desconta os descontos da linha e converte o anual para mensal (para baixo)", () => {
     expect(
-      planNetMonthlyCents([{ amountCents: 24900, discountCents: 2490, interval: "month" }])
-    ).toBe(22410)
-    expect(planNetMonthlyCents([{ amountCents: 89000, discountCents: 0, interval: "year" }])).toBe(
-      7416
+      planNetMonthlyCents([{ amountCents: 32000, discountCents: 3200, interval: "month" }])
+    ).toBe(28800)
+    expect(planNetMonthlyCents([{ amountCents: 115000, discountCents: 0, interval: "year" }])).toBe(
+      9583
     )
   })
 
   it("nunca fica negativo e ignora desconto negativo", () => {
     expect(
-      planNetMonthlyCents([{ amountCents: 8900, discountCents: 9900, interval: "month" }])
+      planNetMonthlyCents([{ amountCents: 11500, discountCents: 12900, interval: "month" }])
     ).toBe(0)
     expect(
-      planNetMonthlyCents([{ amountCents: 8900, discountCents: -500, interval: "month" }])
-    ).toBe(8900)
+      planNetMonthlyCents([{ amountCents: 11500, discountCents: -500, interval: "month" }])
+    ).toBe(11500)
   })
 
   it("devolve null sem linhas de plano", () => {
@@ -288,7 +288,7 @@ describe("computeReferralDiscount", () => {
   })
 
   it("aplica a trava de valor: indicação barata rende no máximo 50% do que ela paga", () => {
-    // Rede (R$ 1.490) indicando Corretor (R$ 89): 50% de 89 = 44,50 ≈ 2,99% do Rede.
+    // Rede (R$ 1.930) indicando Corretor (R$ 115): 50% de 115 = 57,50 ≈ 2,98% do Rede.
     const referrer: ReferrerAccount = {
       billingStatus: "active",
       planKey: "rede",
@@ -305,14 +305,14 @@ describe("computeReferralDiscount", () => {
       now: NOW,
     })
 
-    // 3 × 2,99% = 8,96% → 0%; 4 × 2,99% = 11,95% → 10%.
+    // 3 × 2,98% = 8,94% → 0%; 4 × 2,98% = 11,92% → 10%.
     expect(three.percent).toBe(0)
     expect(four.percent).toBe(10)
   })
 
   it("a trava usa o valor líquido pago: código promocional de 90% derruba a contribuição", () => {
     // Imobiliária indicando Imobiliária: sem desconto rende 10%. Com 90% de
-    // desconto a indicada paga R$ 24,90; 50% = R$ 12,45 = 5% do plano → 0%.
+    // desconto a indicada paga R$ 32,00; 50% = R$ 16,00 = 5% do plano → 0%.
     const normal = computeReferralDiscount({
       referrer: ACTIVE_REFERRER,
       referrals: [referred()],
@@ -320,12 +320,12 @@ describe("computeReferralDiscount", () => {
     })
     const promo = computeReferralDiscount({
       referrer: ACTIVE_REFERRER,
-      referrals: [referred({ netMonthlyCents: 2490 })],
+      referrals: [referred({ netMonthlyCents: 3200 })],
       now: NOW,
     })
     const promoTimesThree = computeReferralDiscount({
       referrer: ACTIVE_REFERRER,
-      referrals: Array.from({ length: 3 }, () => referred({ netMonthlyCents: 2490 })),
+      referrals: Array.from({ length: 3 }, () => referred({ netMonthlyCents: 3200 })),
       now: NOW,
     })
 
@@ -384,8 +384,8 @@ describe("computeReferralDiscount", () => {
   })
 
   it("limita pelo catálogo menos o desconto por indicações da indicada (fatura antiga)", () => {
-    // Fatura antiga registrou R$ 89, mas agora a indicada tem 80% de desconto:
-    // vale o menor (R$ 17,80) → 50% = 8,90 = 3,57% do Imobiliária → 0%.
+    // Fatura antiga registrou R$ 115, mas agora a indicada tem 80% de desconto:
+    // vale o menor (R$ 23,00) → 50% = 11,50 = 3,59% do Imobiliária → 0%.
     const discounted = computeReferralDiscount({
       referrer: ACTIVE_REFERRER,
       referrals: [referred({ planKey: "corretor", discountPercent: 80 })],
@@ -423,7 +423,7 @@ describe("computeReferralDiscount", () => {
 
   it("usa os preços do catálogo da Stripe quando informados", () => {
     const prices = { [priceLookupKey("imobiliaria", "month")]: 1_000_000 }
-    // Indicador pagando R$ 10.000: Corretor (R$ 89) rende 0,45% → 0% mesmo com 10.
+    // Indicador pagando R$ 10.000: Corretor (R$ 115) rende 0,58% → 0% mesmo com 10.
     const result = computeReferralDiscount({
       referrer: ACTIVE_REFERRER,
       referrals: Array.from({ length: 10 }, () => referred({ planKey: "corretor" })),

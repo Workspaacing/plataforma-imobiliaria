@@ -7,23 +7,23 @@ const NON_BREAKING_SPACES = [String.fromCharCode(0x00a0), String.fromCharCode(0x
 
 describe("formatBRL", () => {
   it("formata centavos em reais no padrão pt-BR", () => {
-    expect(formatBRL(149000)).toBe("R$ 1.490,00")
-    expect(formatBRL(8900)).toBe("R$ 89,00")
+    expect(formatBRL(193000)).toBe("R$ 1.930,00")
+    expect(formatBRL(11500)).toBe("R$ 115,00")
     expect(formatBRL(190)).toBe("R$ 1,90")
-    expect(formatBRL(1490000)).toBe("R$ 14.900,00")
+    expect(formatBRL(1930000)).toBe("R$ 19.300,00")
     expect(formatBRL(0)).toBe("R$ 0,00")
   })
 
   it("usa espaço comum entre o símbolo e o número", () => {
-    const formatted = formatBRL(24900)
-    expect(formatted).toBe("R$ 249,00")
+    const formatted = formatBRL(32000)
+    expect(formatted).toBe("R$ 320,00")
     expect(NON_BREAKING_SPACES.some((space) => formatted.includes(space))).toBe(false)
   })
 
   it("omite ,00 só quando pedido e o valor é inteiro", () => {
-    expect(formatBRL(8900, { omitZeroCents: true })).toBe("R$ 89")
+    expect(formatBRL(11500, { omitZeroCents: true })).toBe("R$ 115")
     expect(formatBRL(199000, { omitZeroCents: true })).toBe("R$ 1.990")
-    expect(formatBRL(8950, { omitZeroCents: true })).toBe("R$ 89,50")
+    expect(formatBRL(11550, { omitZeroCents: true })).toBe("R$ 115,50")
   })
 
   it("arredonda frações de centavo", () => {

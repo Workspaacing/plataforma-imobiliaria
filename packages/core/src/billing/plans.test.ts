@@ -40,10 +40,10 @@ import {
 
 describe("PLANS", () => {
   it("segue a tabela de preços do contrato, em centavos", () => {
-    expect(PLANS.corretor.prices).toEqual({ month: 8900, year: 89000 })
-    expect(PLANS.imobiliaria.prices).toEqual({ month: 24900, year: 249000 })
-    expect(PLANS.equipe.prices).toEqual({ month: 59900, year: 599000 })
-    expect(PLANS.rede.prices).toEqual({ month: 149000, year: 1490000 })
+    expect(PLANS.corretor.prices).toEqual({ month: 11500, year: 115000 })
+    expect(PLANS.imobiliaria.prices).toEqual({ month: 32000, year: 320000 })
+    expect(PLANS.equipe.prices).toEqual({ month: 77500, year: 775000 })
+    expect(PLANS.rede.prices).toEqual({ month: 193000, year: 1930000 })
 
     // O assento sobe junto com o plano, de propósito: quem tem operação maior
     // paga pelo tamanho dela, e é quem mais consome suporte humano.
@@ -402,10 +402,10 @@ describe("assentos e totais", () => {
   })
 
   it("soma plano e extras no intervalo pedido", () => {
-    expect(planTotal("imobiliaria", "month")).toBe(24900)
-    expect(planTotal("imobiliaria", "month", 2)).toBe(24900 + 2 * 5900)
-    expect(planTotal("equipe", "year", 3)).toBe(599000 + 3 * 69000)
-    expect(planTotal("corretor", "month", 9)).toBe(8900 + 4900)
+    expect(planTotal("imobiliaria", "month")).toBe(32000)
+    expect(planTotal("imobiliaria", "month", 2)).toBe(32000 + 2 * 5900)
+    expect(planTotal("equipe", "year", 3)).toBe(775000 + 3 * 69000)
+    expect(planTotal("corretor", "month", 9)).toBe(11500 + 4900)
   })
 
   it("soma os pacotes de +10 imóveis no preço anunciado", () => {
@@ -415,10 +415,10 @@ describe("assentos e totais", () => {
     expect(ADDONS.find((addon) => addon.key === "owned_listings")?.description).toContain(
       "R$ 190/ano"
     )
-    // Queixa do Corretor: R$ 108 por 15 imóveis e R$ 127 por 25.
-    expect(planTotal("corretor", "month", 0, 1)).toBe(10800)
-    expect(planTotal("corretor", "month", 0, 2)).toBe(12700)
-    expect(planTotal("imobiliaria", "year", 1, 3)).toBe(249000 + 59000 + 3 * 19000)
+    // Queixa do Corretor: R$ 134 por 15 imóveis e R$ 153 por 25.
+    expect(planTotal("corretor", "month", 0, 1)).toBe(13400)
+    expect(planTotal("corretor", "month", 0, 2)).toBe(15300)
+    expect(planTotal("imobiliaria", "year", 1, 3)).toBe(320000 + 59000 + 3 * 19000)
     expect(clampOwnedListingPacks(-1)).toBe(0)
     expect(clampOwnedListingPacks(2.7)).toBe(2)
     expect(clampOwnedListingPacks(Number.NaN)).toBe(0)

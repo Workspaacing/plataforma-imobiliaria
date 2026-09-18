@@ -168,10 +168,11 @@ describe("tetos por plano", () => {
     // Corretor não tem IA: teto zero, e nenhum excedente muda isso.
     expect(PLANS.corretor.limits.ai_conversations).toBe(0)
     expect(aiCostCapCents("corretor")).toBe(0)
-    // Mesmos números de private.ai_cost_cap_cents (migração ai_trial_without_ai_model_pricing_batch).
+    // Mesmos números de private.ai_cost_cap_cents (migração plan_prices_increase_ai_caps).
+    // Depois do aumento de preço de 17/09/2026 os três são o lado da FRANQUIA.
     expect(aiCostCapCents("imobiliaria")).toBe(3456)
-    expect(aiCostCapCents("equipe")).toBe(11980)
-    expect(aiCostCapCents("rede")).toBe(29800)
+    expect(aiCostCapCents("equipe")).toBe(13824)
+    expect(aiCostCapCents("rede")).toBe(34559)
     expect(aiCostCapCents("trial")).toBe(0)
 
     for (const plan of ["imobiliaria", "equipe", "rede"] as const) {
@@ -219,8 +220,8 @@ describe("tetos por plano", () => {
   it("recorta os tetos novos em dia e semana", () => {
     expect(aiDailyCapCents(3456)).toBe(231)
     expect(aiWeeklyCapCents(3456)).toBe(864)
-    expect(aiDailyCapCents(11980)).toBe(799)
-    expect(aiWeeklyCapCents(29800)).toBe(7450)
+    expect(aiDailyCapCents(13824)).toBe(922)
+    expect(aiWeeklyCapCents(34559)).toBe(8640)
   })
 
   it("a franquia anunciada cabe no teto em reais com a conversa típica (pior caso)", () => {
@@ -234,8 +235,8 @@ describe("tetos por plano", () => {
     ).toEqual([
       ["corretor", 0, 0],
       ["imobiliaria", 3456, 62],
-      ["equipe", 11980, 216],
-      ["rede", 29800, 538],
+      ["equipe", 13824, 250],
+      ["rede", 34559, 625],
     ])
     expect(conversationsWithinCapCents(AI_TRIAL_COST_CAP_CENTS)).toBe(0)
   })
