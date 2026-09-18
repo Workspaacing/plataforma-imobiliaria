@@ -130,6 +130,12 @@ export function StatusLive({
   const incidentsById = useIncidentsById(snapshot)
   const activeIncidents = snapshot?.activeIncidents.filter((item) => item.kind === "incident")
   const activeMaintenances = snapshot?.activeIncidents.filter((item) => item.kind === "maintenance")
+  // O que já está em andamento entra na lista por dia junto com o que terminou:
+  // o cartão mostra o estado ("Investigando"), então o leitor vê que não acabou.
+  const dayIncidents = React.useMemo(
+    () => (snapshot ? [...snapshot.activeIncidents, ...snapshot.pastIncidents] : []),
+    [snapshot]
+  )
 
   return (
     <div className="flex flex-col gap-8">
@@ -204,7 +210,7 @@ export function StatusLive({
 
       {snapshot ? (
         <Section id="incidentes-anteriores" title="Incidentes anteriores">
-          <PastIncidents incidents={snapshot.pastIncidents} referenceIso={snapshot.generatedAt} />
+          <PastIncidents incidents={dayIncidents} referenceIso={snapshot.generatedAt} />
         </Section>
       ) : null}
     </div>

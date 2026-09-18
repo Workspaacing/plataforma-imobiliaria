@@ -273,9 +273,13 @@ export function getActiveIncidentHeadline(snapshot: PublicStatusSnapshot) {
 export type IncidentDayGroup = { dateKey: string; incidents: PublicIncident[] }
 
 /**
- * Incidentes resolvidos agrupados pelo dia em que começaram (ou em que foram
- * resolvidos, se começaram antes da janela), do dia mais recente para o mais
- * antigo, com os dias sem incidente incluídos.
+ * Incidentes agrupados pelo dia em que começaram (ou em que foram resolvidos, se
+ * começaram antes da janela), do dia mais recente para o mais antigo, com os
+ * dias sem incidente incluídos.
+ *
+ * Recebe também os que ainda estão abertos: sem eles, o dia de um incidente em
+ * andamento mostrava "Nenhum incidente" enquanto a barra do mesmo dia dizia
+ * "1 incidente" e o aviso no topo da página continuava lá.
  */
 export function groupPastIncidentsByDay(
   incidents: readonly PublicIncident[],
