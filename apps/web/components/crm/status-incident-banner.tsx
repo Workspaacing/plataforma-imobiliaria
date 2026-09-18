@@ -1,10 +1,26 @@
+import type { ComponentProps } from "react"
 import { ActivityIcon, WrenchIcon } from "lucide-react"
 
+import type { IncidentImpact } from "@workspace/core/status/public"
 import { Alert, AlertDescription, AlertTitle } from "@workspace/ui/components/alert"
 
 import { getActiveIncidentHeadline } from "@/components/status/format"
 import { getStatusPageHref } from "@/components/status/links"
 import { getPublicStatus } from "@/lib/status/public"
+
+/** Do menor para o maior, para achar o pior impacto entre os incidentes abertos. */
+const IMPACT_ORDER: readonly IncidentImpact[] = ["none", "minor", "major", "critical"]
+
+/**
+ * Impacto do incidente -> gravidade da faixa. Só o crítico ganha fundo cheio, e
+ * é o único da casca do CRM que ganha: é a faixa que precisa parar o corretor.
+ */
+const IMPACT_VARIANTS: Record<IncidentImpact, ComponentProps<typeof Alert>["variant"]> = {
+  none: "default",
+  minor: "warning",
+  major: "destructive",
+  critical: "critical",
+}
 
 async function loadSnapshot() {
   try {
@@ -31,14 +47,21 @@ export async function StatusIncidentBanner() {
     return null
   }
 
-  const isMaintenanceOnly = snapshot.activeIncidents.every(
-    (incident) => incident.kind === "maintenance"
+  const incidents = snapshot.activeIncidents.filter((incident) => incident.kind === "incident")
+  const isMaintenanceOnly = incidents.length === 0
+  const worstImpact = incidents.reduce<IncidentImpact>(
+    (worst, incident) =>
+      IMPACT_ORDER.indexOf(incident.impact) > IMPACT_ORDER.indexOf(worst) ? incident.impact : worst,
+    "none"
   )
   const Icon = isMaintenanceOnly ? WrenchIcon : ActivityIcon
 
   return (
     <div className="px-4 pt-4 lg:px-6">
-      <Alert role="status">
+      <Alert
+        variant={isMaintenanceOnly ? "maintenance" : IMPACT_VARIANTS[worstImpact]}
+        role="status"
+      >
         <Icon />
         <AlertTitle>{headline}</AlertTitle>
         <AlertDescription>

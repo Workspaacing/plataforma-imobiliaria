@@ -90,7 +90,7 @@ export function AuthorizationsPanel({
   return (
     <div className="flex flex-col gap-4">
       {!hasActive ? (
-        <Alert variant={authorizations.length > 0 ? "destructive" : "default"}>
+        <Alert variant={authorizations.length > 0 ? "destructive" : "warning"}>
           <TriangleAlertIcon />
           <AlertTitle>Nenhuma autorização vigente</AlertTitle>
           <AlertDescription>

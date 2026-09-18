@@ -74,6 +74,16 @@
   --shadow-opacity: var(--shadow-opacity);
   --color-shadow-color: var(--shadow-color);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-notice-maintenance: var(--notice-maintenance);
+  --color-notice-maintenance-foreground: var(--notice-maintenance-foreground);
+  --color-notice-warning: var(--notice-warning);
+  --color-notice-warning-foreground: var(--notice-warning-foreground);
+  --color-notice-destructive: var(--notice-destructive);
+  --color-notice-destructive-foreground: var(--notice-destructive-foreground);
+  --color-notice-critical: var(--notice-critical);
+  --color-notice-critical-foreground: var(--notice-critical-foreground);
+  --color-notice-success: var(--notice-success);
+  --color-notice-success-foreground: var(--notice-success-foreground);
   --font-serif: var(--font-geist-sans);
 }
 
@@ -128,6 +138,63 @@
   --shadow-xl: 0px 0.125rem 0px 0px hsl(0 0% 0% / 0), 0px 8px 10px -1px hsl(0 0% 0% / 0);
   --shadow-2xl: 0px 0.125rem 0px 0px hsl(0 0% 0% / 0);
   --tracking-normal: 0em;
+
+  /*
+   * Gravidade dos avisos (componente Alert), do mais fraco ao mais forte:
+   *
+   *   1. informação/recado comum  -> fundo neutro (variante `default`, sem token)
+   *   2. manutenção programada    -> --notice-maintenance (azul)
+   *   3. atenção, prazo ou cota   -> --notice-warning (âmbar)
+   *   4. problema em andamento    -> --notice-destructive (vermelho suave)
+   *   5. crítico, exige ação já   -> --notice-critical (vermelho cheio, invertido)
+   *
+   * Fora da escala, para confirmação: --notice-success (verde).
+   *
+   * O tema é neutro (cinzas + --destructive) e não tinha como diferenciar um
+   * recado de um problema: tudo saía com o mesmo fundo, e o "erro" era texto
+   * vermelho sobre branco (4,1:1 na descrição, abaixo do mínimo). Cada par segue
+   * o padrão --<nome>/--<nome>-foreground já usado por card, muted e accent: o
+   * token é a superfície e o -foreground é o texto que vai em cima dela.
+   *
+   * Dos níveis 2 a 4 a cor fica no fundo e o texto é escuro e quase neutro (só um
+   * traço da matiz), nunca texto colorido sobre branco. Só o nível 5 inverte.
+   * Contraste do texto sobre a superfície (valor calculado, WCAG 1.4.3): 10,3 a
+   * 10,6:1 no claro e 11,8 a 11,9:1 no escuro nos níveis 2 a 4; 6,1:1 (claro) e
+   * 5,8:1 (escuro) no nível 5. A descrição, a 90% de opacidade, fica em 7,8 a
+   * 8,0:1 (claro) e 5,2:1 no nível 5. Tudo dentro do gamut sRGB.
+   *
+   * A cor nunca é o único sinal: a faixa mantém o ícone e o texto que já dizem
+   * de que tipo ela é.
+   */
+  --notice-maintenance: oklch(0.945 0.028 250);
+  --notice-maintenance-foreground: oklch(0.33 0.06 250);
+  --notice-warning: oklch(0.945 0.048 80);
+  --notice-warning-foreground: oklch(0.33 0.06 80);
+  --notice-destructive: oklch(0.945 0.028 27);
+  --notice-destructive-foreground: oklch(0.33 0.06 27);
+  --notice-critical: oklch(0.52 0.2 27);
+  --notice-critical-foreground: oklch(1 0 0);
+  --notice-success: oklch(0.945 0.038 152);
+  --notice-success-foreground: oklch(0.33 0.06 152);
+}
+
+/*
+ * Mesma escala no tema escuro: superfície escura da matiz e texto claro. O app
+ * ainda só tem tema claro (ver `color-scheme` abaixo); o bloco fica pronto para
+ * a variante `dark` declarada no topo, como já faz
+ * apps/web/components/status/status-colors.css.
+ */
+.dark {
+  --notice-maintenance: oklch(0.27 0.06 250);
+  --notice-maintenance-foreground: oklch(0.92 0.04 250);
+  --notice-warning: oklch(0.27 0.05 80);
+  --notice-warning-foreground: oklch(0.92 0.06 80);
+  --notice-destructive: oklch(0.27 0.07 27);
+  --notice-destructive-foreground: oklch(0.92 0.04 27);
+  --notice-critical: oklch(0.68 0.18 25);
+  --notice-critical-foreground: oklch(0.2 0 0);
+  --notice-success: oklch(0.27 0.055 152);
+  --notice-success-foreground: oklch(0.92 0.06 152);
 }
 
 @layer base {

@@ -171,7 +171,7 @@ export function AiUsageCard({ overview, canManage }: AiUsageCardProps) {
             )}
 
             {ratio >= 1 ? (
-              <Alert variant={overview.overageCapCents > 0 ? "default" : "destructive"}>
+              <Alert variant={overview.overageCapCents > 0 ? "warning" : "destructive"}>
                 <TriangleAlertIcon />
                 <AlertTitle>
                   {overview.overageCapCents > 0

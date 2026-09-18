@@ -44,7 +44,8 @@ export async function SubscriptionBanner({ organizationId, role }: SubscriptionB
 
   return (
     <div className="px-4 pt-4 lg:px-6">
-      <Alert variant={overview.state === "trialing" ? "default" : "destructive"} role="status">
+      {/* Modo leitura já travou a conta (problema); teste acabando e carência ainda são aviso. */}
+      <Alert variant={overview.state === "read_only" ? "destructive" : "warning"} role="status">
         <Icon />
         <AlertTitle>{message.title}</AlertTitle>
         <AlertDescription>

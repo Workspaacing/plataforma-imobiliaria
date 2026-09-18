@@ -23,7 +23,7 @@ export function FormFeedback({ feedback }: { feedback: FormFeedbackState }) {
   }
 
   return (
-    <Alert>
+    <Alert variant="success">
       <MailCheckIcon />
       <AlertTitle>{feedback.title ?? "Verifique seu e-mail"}</AlertTitle>
       <AlertDescription>{feedback.message}</AlertDescription>

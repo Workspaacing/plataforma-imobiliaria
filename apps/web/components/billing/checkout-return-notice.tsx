@@ -73,7 +73,7 @@ export function CheckoutReturnNotice({ status, confirmed }: CheckoutReturnNotice
 
   if (confirmed) {
     return (
-      <Alert role="status">
+      <Alert variant="success" role="status">
         <CircleCheckIcon />
         <AlertTitle>Assinatura confirmada</AlertTitle>
         <AlertDescription>

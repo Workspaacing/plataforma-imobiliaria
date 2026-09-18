@@ -204,7 +204,7 @@ export function PropertyHeader({
       ) : publication.authorizationLapsed &&
         property.status === "active" &&
         !property.is_restricted ? (
-        <Alert>
+        <Alert variant="warning">
           <TriangleAlertIcon />
           <AlertTitle>Autorização vencida, mas o anúncio continua no ar</AlertTitle>
           <AlertDescription>

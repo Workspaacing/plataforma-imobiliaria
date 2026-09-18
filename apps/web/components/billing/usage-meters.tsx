@@ -179,7 +179,7 @@ export function UsageMeters({ overview, ownedListings, upgradeHref }: UsageMeter
       </p>
 
       {warnings.length > 0 ? (
-        <Alert>
+        <Alert variant={anyAtLimit ? "destructive" : "warning"}>
           <TriangleAlertIcon />
           <AlertTitle>
             {anyAtLimit ? "Limite do plano atingido" : "Perto do limite do plano"}

@@ -14,6 +14,18 @@ const KIND_ICONS: Record<AnnouncementKind, typeof InfoIcon> = {
   manutencao: WrenchIcon,
 }
 
+/**
+ * Gravidade da faixa a partir do tipo gravado em `platform_announcements.kind`
+ * (é o que o Console mostra como selo). Recado comum fica no fundo neutro; o
+ * banco não tem um tipo acima de "atenção", então nenhum comunicado chega a
+ * vermelho — incidente é outra faixa (status-incident-banner).
+ */
+const KIND_VARIANTS: Record<AnnouncementKind, React.ComponentProps<typeof Alert>["variant"]> = {
+  informacao: "default",
+  atencao: "warning",
+  manutencao: "maintenance",
+}
+
 export type AnnouncementStripContent = {
   title: string
   body: string
@@ -39,7 +51,11 @@ export function AnnouncementStrip({
   const Icon = KIND_ICONS[announcement.kind]
 
   return (
-    <Alert role="status" aria-label={`Comunicado: ${announcement.title}`}>
+    <Alert
+      variant={KIND_VARIANTS[announcement.kind]}
+      role="status"
+      aria-label={`Comunicado: ${announcement.title}`}
+    >
       <Icon aria-label={ANNOUNCEMENT_KIND_LABELS[announcement.kind]} />
       <AlertTitle className="break-words">{announcement.title}</AlertTitle>
       <AlertDescription className="flex flex-col gap-1 break-words">

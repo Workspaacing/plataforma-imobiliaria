@@ -511,7 +511,7 @@ export function DocumentsTab({
           </AlertDescription>
         </Alert>
       ) : expiring > 0 ? (
-        <Alert>
+        <Alert variant="warning">
           <CalendarClockIcon />
           <AlertTitle>
             {expiring === 1
