@@ -20,6 +20,7 @@ import {
   planIncrements,
   previousPlan,
   seatsSummary,
+  type AnnualSavings,
   type PlanPricing,
 } from "@/components/billing/plan-content"
 
@@ -27,6 +28,8 @@ type PlanCardProps = {
   plan: PlanKey
   interval: BillingInterval
   pricing: PlanPricing
+  /** Economia do anual deste plano (nunca preço antigo riscado). */
+  savings?: AnnualSavings
   /** Plano da imobiliária escolhida (selo "Plano atual"). */
   current?: boolean
   /** Botão principal, no topo do cartão. */
@@ -42,6 +45,7 @@ export function PlanCard({
   plan,
   interval,
   pricing,
+  savings,
   current = false,
   action,
   headingLevel: Heading = "h3",
@@ -91,6 +95,20 @@ export function PlanCard({
               ? `${formatBRL(pricing.price, { omitZeroCents: true })} cobrados anualmente`
               : "Cobrança mensal, sem fidelidade"}
           </p>
+          {/* Economia real do anual contra o mensal VIGENTE. Nunca preço antigo
+              riscado: reajuste não é desconto. */}
+          {savings && savings.savings > 0 ? (
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground">
+              <Badge variant="secondary">
+                Economia de {formatBRL(savings.savings, { omitZeroCents: true })}/ano
+              </Badge>
+              <span>
+                {interval === "year"
+                  ? `contra ${formatBRL(savings.monthlyPerYear, { omitZeroCents: true })} pagando mês a mês`
+                  : `no anual sai ${formatBRL(savings.monthlyEquivalent)}/mês`}
+              </span>
+            </p>
+          ) : null}
           <p className="text-muted-foreground md:min-h-[2lh]">
             {seatsSummary(plan, pricing, interval)}
           </p>

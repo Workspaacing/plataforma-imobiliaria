@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { ArrowRightIcon, MinusIcon, PlusIcon, SparklesIcon } from "lucide-react"
+import { ArrowRightIcon, MinusIcon, PiggyBankIcon, PlusIcon, SparklesIcon } from "lucide-react"
 
 import {
   formatBRL,
@@ -42,6 +42,8 @@ import { ToggleGroup, ToggleGroupItem } from "@workspace/ui/components/toggle-gr
 
 import { PlanActionButton } from "@/components/billing/plan-action-button"
 import {
+  annualRuleText,
+  annualSavings,
   pluralize,
   resolvePlanPricing,
   signUpHref,
@@ -111,7 +113,7 @@ export function PlanRecommender({ prices }: { prices: CatalogPrices }) {
   const yearly = resolvePlanPricing(prices, recommendation.plan, "year")
   const monthlyTotal = totalWithSeats(monthly, extraSeats)
   const yearlyTotal = totalWithSeats(yearly, extraSeats)
-  const yearlySavings = Math.max(0, monthlyTotal * 12 - yearlyTotal)
+  const savings = annualSavings(monthlyTotal, yearlyTotal)
 
   const aiConversations = plan.limits.ai_conversations
   const rentalContracts = plan.limits.rental_contracts
@@ -250,6 +252,9 @@ export function PlanRecommender({ prices }: { prices: CatalogPrices }) {
         <CardContent className="flex flex-1 flex-col gap-4">
           <p className="sr-only" aria-live="polite">
             {`Plano sugerido: ${plan.name}, ${formatBRL(monthlyTotal, { omitZeroCents: true })} por mês.`}
+            {savings.savings > 0
+              ? ` No anual, ${formatBRL(savings.monthlyEquivalent)} por mês, com economia de ${formatBRL(savings.savings, { omitZeroCents: true })} por ano.`
+              : ""}
           </p>
           <div className="flex flex-col gap-2">
             <p className="font-medium">Por que este plano</p>
@@ -285,11 +290,21 @@ export function PlanRecommender({ prices }: { prices: CatalogPrices }) {
             <dd className="text-end tabular-nums">
               {formatBRL(yearlyTotal, { omitZeroCents: true })}/ano
             </dd>
-            <dt className="text-muted-foreground">Economia no anual</dt>
-            <dd className="text-end tabular-nums">
-              {formatBRL(yearlySavings, { omitZeroCents: true })}
-            </dd>
+            <dt className="text-muted-foreground">Equivale a</dt>
+            <dd className="text-end tabular-nums">{formatBRL(savings.monthlyEquivalent)}/mês</dd>
           </dl>
+
+          {/* A economia do anual em destaque, sempre contra o mensal vigente
+              deste mesmo plano: nada de preço antigo riscado. */}
+          {savings.savings > 0 ? (
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-muted-foreground">
+              <Badge variant="secondary">
+                <PiggyBankIcon data-icon="inline-start" />
+                Economia de {formatBRL(savings.savings, { omitZeroCents: true })}/ano
+              </Badge>
+              <span>{annualRuleText(savings)}</span>
+            </p>
+          ) : null}
         </CardContent>
         <CardFooter>
           {/* Com conta conectada (/planos logado), o mesmo botão dos cartões: assinar ou trocar. */}

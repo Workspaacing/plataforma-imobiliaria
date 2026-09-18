@@ -2,6 +2,7 @@ import {
   AI_FIRST_PLAN,
   AI_OVERAGE_NOTE,
   ANNUAL_BOLETO_NOTE,
+  formatBRL,
   GRACE_DAYS,
   IMPORTED_LISTINGS_NOTE,
   LISTING_PHOTO_SIZE_NOTE,
@@ -18,8 +19,42 @@ import {
   AccordionTrigger,
 } from "@workspace/ui/components/accordion"
 
+import {
+  ANNUAL_FREE_MONTHS,
+  ANNUAL_RULE_SENTENCE,
+  annualSavingsRange,
+  CATALOG_ANNUAL_SAVINGS,
+  pluralize,
+} from "@/components/billing/plan-content"
+
 const SMALLEST_PLAN = PLANS[PLAN_KEYS[0] ?? "corretor"]
 const LARGEST_PLAN = PLANS[PLAN_KEYS[PLAN_KEYS.length - 1] ?? "rede"]
+
+/** Meses grátis do anual só quando a razão do catálogo fecha; senão, nada de promessa. */
+const FREE_MONTHS_NOTE = ANNUAL_FREE_MONTHS
+  ? `, com ${pluralize(ANNUAL_FREE_MONTHS, "mês grátis", "meses grátis")}`
+  : ""
+
+const SAVINGS_RANGE = annualSavingsRange(CATALOG_ANNUAL_SAVINGS)
+
+/**
+ * Resposta sobre a economia do anual. Só aparece quando o catálogo realmente
+ * tem economia: a comparação é com o preço mensal de hoje, nunca com preço
+ * antigo (reajuste não é desconto).
+ */
+const ANNUAL_QUESTION = SAVINGS_RANGE
+  ? [
+      {
+        id: "anual",
+        question: "Quanto o plano anual economiza?",
+        answer: [
+          `No anual ${ANNUAL_RULE_SENTENCE}: a economia vai de ${formatBRL(SAVINGS_RANGE.min.savings.savings, { omitZeroCents: true })} por ano no plano ${PLANS[SAVINGS_RANGE.min.plan].name} a ${formatBRL(SAVINGS_RANGE.max.savings.savings, { omitZeroCents: true })} por ano no plano ${PLANS[SAVINGS_RANGE.max.plan].name}.`,
+          `A conta é sempre contra o preço mensal de hoje: ${formatBRL(SAVINGS_RANGE.min.savings.monthlyPerYear, { omitZeroCents: true })} por ano pagando mês a mês no ${PLANS[SAVINGS_RANGE.min.plan].name}, contra ${formatBRL(SAVINGS_RANGE.min.savings.yearlyTotal, { omitZeroCents: true })} à vista no anual. Cada cartão mostra a economia do plano dele.`,
+          "Se cancelar antes do fim do ano, você perde só o desconto — não há multa.",
+        ],
+      },
+    ]
+  : []
 
 const QUESTIONS: ReadonlyArray<{ id: string; question: string; answer: string[] }> = [
   {
@@ -36,9 +71,10 @@ const QUESTIONS: ReadonlyArray<{ id: string; question: string; answer: string[] 
     answer: [
       "Cartão de crédito, com cobrança recorrente, e boleto bancário.",
       `${ANNUAL_BOLETO_NOTE}.`,
-      "Pix e parcelamento ainda não estão disponíveis. O plano anual é pago à vista, com 2 meses grátis.",
+      `Pix e parcelamento ainda não estão disponíveis. O plano anual é pago à vista${FREE_MONTHS_NOTE}.`,
     ],
   },
+  ...ANNUAL_QUESTION,
   {
     id: "nota-fiscal",
     question: "Vocês emitem nota fiscal?",

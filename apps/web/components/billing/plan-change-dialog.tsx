@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
-import { CircleAlertIcon } from "lucide-react"
+import { CircleAlertIcon, PiggyBankIcon } from "lucide-react"
 
 import {
   BILLING_INTERVAL_LABELS,
@@ -39,7 +39,9 @@ import { toast } from "@workspace/ui/components/toast"
 
 import { BillingIntervalToggle } from "@/components/billing/billing-interval-toggle"
 import {
+  annualRuleText,
   monthlyEquivalent,
+  planAnnualSavings,
   pluralize,
   resolvePackPrice,
   resolvePlanPricing,
@@ -125,6 +127,8 @@ export function PlanChangeDialog({
   const pricing = resolvePlanPricing(prices, plan, interval)
   const packPrice = resolvePackPrice(prices, interval)
   const total = totalWithSeats(pricing, extraSeats) + packPrice * packs
+  // Economia do anual desta escolha inteira (plano + usuários extras + pacotes).
+  const savings = planAnnualSavings(prices, plan, extraSeats, packs)
   const listingLimit = details.limits.owned_listings + packs * OWNED_LISTINGS_PACK_SIZE
   const suffix = BILLING_INTERVAL_LABELS[interval].suffix
   const users = details.usersIncluded + extraSeats
@@ -346,6 +350,24 @@ export function PlanChangeDialog({
             </>
           ) : null}
         </dl>
+
+        {/* Economia do anual em destaque, sempre comparada ao mensal VIGENTE
+            desta mesma configuração — nunca a um preço antigo riscado. */}
+        {savings.savings > 0 ? (
+          <Alert>
+            <PiggyBankIcon />
+            <AlertTitle>
+              {interval === "year"
+                ? `Economia de ${formatBRL(savings.savings, { omitZeroCents: true })} por ano`
+                : `No anual você economiza ${formatBRL(savings.savings, { omitZeroCents: true })} por ano`}
+            </AlertTitle>
+            <AlertDescription>
+              {interval === "year"
+                ? `${annualRuleText(savings)}: ${formatBRL(savings.monthlyEquivalent)}/mês, contra ${formatBRL(savings.monthlyPerYear, { omitZeroCents: true })} por ano pagando mês a mês.`
+                : `${annualRuleText(savings)}: ${formatBRL(savings.yearlyTotal, { omitZeroCents: true })} à vista, o equivalente a ${formatBRL(savings.monthlyEquivalent)}/mês. Troque o período de cobrança acima.`}
+            </AlertDescription>
+          </Alert>
+        ) : null}
 
         <ul className="flex list-disc flex-col gap-1 ps-5 text-muted-foreground">
           {hasSubscription ? (
