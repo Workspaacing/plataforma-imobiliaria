@@ -69,7 +69,7 @@ begin
 
   -- Autorização vencida só no restrito: o filtro "expired" acha um imóvel.
   insert into public.listing_authorizations (organization_id, property_id, owner_client_id, starts_on, ends_on)
-  values (org, imv_restrito, cli_dono, current_date - 60, current_date - 1);
+  values (org, imv_restrito, cli_dono, (now() at time zone 'America/Sao_Paulo')::date - 60, (now() at time zone 'America/Sao_Paulo')::date - 1);
 
   insert into public.property_shares (organization_id, property_id, user_id)
   values (org, imv_restrito, u_shared);

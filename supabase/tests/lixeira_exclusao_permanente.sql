@@ -166,7 +166,7 @@ begin
   insert into public.listing_authorizations (
     organization_id, property_id, owner_client_id, exclusive, starts_on, ends_on, signed_at
   )
-  values (org, imv_autorizacao, cli_autorizacao, true, current_date - 5, current_date + 60, now() - interval '5 days');
+  values (org, imv_autorizacao, cli_autorizacao, true, (now() at time zone 'America/Sao_Paulo')::date - 5, (now() at time zone 'America/Sao_Paulo')::date + 60, now() - interval '5 days');
 
   foto_dossie := org || '/properties/' || imv_dossie || '/' || gen_random_uuid() || '.jpg';
   insert into storage.objects (bucket_id, name, owner_id) values ('property-media', foto_dossie, u_owner::text);
@@ -365,7 +365,7 @@ begin
   select jsonb_build_object(
       'nome', c.name, 'cpf_mantido', c.document is not null, 'email_nulo', c.email is null,
       'telefone_nulo', c.phone is null, 'rua_nula', c.street is null, 'rg_nulo', c.rg is null,
-      'prazo_5_anos', c.identification_kept_until = (current_date + interval '5 years')::date,
+      'prazo_5_anos', c.identification_kept_until = ((now() at time zone 'America/Sao_Paulo')::date + interval '5 years')::date,
       'bloqueado', c.deleted_at is not null and c.anonymized_at is not null
     )
     into v_json
@@ -430,7 +430,7 @@ begin
   perform set_config('request.jwt.claims', '', true);
   update public.leads set deleted_at = now() - interval '31 days' where id = lead_antigo;
   update public.properties set deleted_at = now() - interval '31 days' where id = imv_dossie;
-  update public.clients set identification_kept_until = current_date - 1 where id = cli_proposta;
+  update public.clients set identification_kept_until = (now() at time zone 'America/Sao_Paulo')::date - 1 where id = cli_proposta;
 
   v_json := private.purge_expired_trash(1000);
   r := r || jsonb_build_object('rotina', v_json);

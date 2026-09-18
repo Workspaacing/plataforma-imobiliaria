@@ -1068,4 +1068,5 @@ O workflow `.github/workflows/banco.yml` roda em todo push e PR que mexe em `sup
 
 - `supabase/config.toml` vale só para o CLI local: Postgres 17, sem seed. Sem `[remotes]`, a integração do GitHub não leva nada dele para a produção ([documentação](https://supabase.com/docs/guides/deployment/branching/github-integration#deploying-changes-to-production)).
 - `supabase/roles.sql` roda antes das migrações só no banco local: liga o `pg_net` (na nuvem foi ligado pelo painel) e repõe os privilégios padrão do schema `public` que a nuvem tem.
+- **Data nos testes: use `(now() at time zone 'America/Sao_Paulo')::date`, nunca `current_date`.** As regras do banco (autorização vigente, guarda de 5 anos, lembretes) usam o dia de São Paulo, e a sessão roda em UTC: entre 21h e meia-noite as duas datas são diferentes e o teste falha só nesse horário.
 - Cada teste termina com `raise exception` (P0001) trazendo o JSON do resultado; o script compara esse JSON com o "Resultado esperado" do cabeçalho do arquivo. Linhas do cabeçalho abreviadas ou em texto livre aparecem como "não conferidas" e não reprovam.

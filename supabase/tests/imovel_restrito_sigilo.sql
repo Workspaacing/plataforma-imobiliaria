@@ -184,7 +184,7 @@ begin
   values (org, imv_restrito, cli_dono);
 
   insert into public.listing_authorizations (organization_id, property_id, owner_client_id, exclusive, starts_on, ends_on)
-  values (org, imv_restrito, cli_dono, true, current_date - 30, current_date + 10);
+  values (org, imv_restrito, cli_dono, true, (now() at time zone 'America/Sao_Paulo')::date - 30, (now() at time zone 'America/Sao_Paulo')::date + 10);
 
   insert into public.keys (organization_id, property_id, label, location)
   values (org, imv_restrito, 'Chave da cobertura', 'Cofre')
@@ -216,7 +216,7 @@ begin
   values (org, 'Levar a planta da cobertura', u_resp, imv_restrito);
 
   insert into public.property_documents (organization_id, property_id, kind, valid_until, storage_path, mime_type, size_bytes)
-  values (org, imv_restrito, 'registry', current_date + 30, arquivo_dossie, 'application/pdf', 1024)
+  values (org, imv_restrito, 'registry', (now() at time zone 'America/Sao_Paulo')::date + 30, arquivo_dossie, 'application/pdf', 1024)
   returning id into documento;
 
   insert into public.property_shares (organization_id, property_id, user_id)
